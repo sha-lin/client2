@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Lead Detail{% endblock %}
+{% block content %}
+<h2 class="mb-3">{{ lead.name }}</h2>
+<ul class="list-group">
+  <li class="list-group-item"><strong>Email:</strong> {{ lead.email }}</li>
+  <li class="list-group-item"><strong>Phone:</strong> {{ lead.phone }}</li>
+  <li class="list-group-item"><strong>Status:</strong> {{ lead.status }}</li>
+  <li class="list-group-item"><strong>Source:</strong> {{ lead.source }}</li>
+  <li class="list-group-item"><strong>Follow-up Date:</strong> {{ lead.follow_up_date|default:"N/A" }}</li>
+</ul>
+<div class="mt-3">
+  <a href="{% url 'lead_update' lead.pk %}" class="btn btn-primary">Edit</a>
+  <a href="{% url 'lead_list' %}" class="btn btn-secondary">Back</a>
+</div>
+{% endblock %}

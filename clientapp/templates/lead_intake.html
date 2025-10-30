@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% block title %}Lead Intake - Client MIS{% endblock %}
+
+{% block content %}
+<!-- Top Navigation Bar -->
+<div class="fixed top-0 left-0 right-0 bg-blue-900 text-white h-14 flex items-center justify-between px-6 z-50">
+    <div class="flex items-center gap-8">
+        <h1 class="text-xl font-bold">Print Duka</h1>
+        
+    </div>
+    <div class="flex items-center gap-4">
+        <button class="relative hover:bg-blue-800 p-2 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+        </button>
+        <button class="relative hover:bg-blue-800 p-2 rounded-lg">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+            </svg>
+            <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+        </button>
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center font-semibold text-sm">
+                JK
+            </div>
+            <div class="text-sm">
+                <p class="font-medium">Jane Kamau</p>
+                <p class="text-xs text-blue-300">Account Manager</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="pt-14">
+
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold text-gray-900">Lead Intake & Qualification</h1>
+            <p class="text-gray-600">Quick capture and qualification of prospects</p>
+        </div>
+        <button onclick="openModal('newLeadModal')" class="btn btn-primary flex items-center gap-2">
+            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            New Lead
+        </button>
+    </div>
+    
+    <div class="card">
+        <div class="border-b border-gray-200 px-6 py-4">
+            <h3 class="text-lg font-semibold">Lead Tracking</h3>
+            <p class="text-sm text-gray-600">Search and manage your leads</p>
+        </div>
+        <div class="p-6 space-y-4">
+            <!-- Search -->
+            <form method="get" class="flex items-center gap-2">
+                <svg class="w-4 h-4 text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+                <input type="text" name="search" value="{{ search_query }}" placeholder="Search by name, email, or ID..." class="form-input max-w-sm">
+            </form>
+            
+            <!-- Table -->
+            <div class="border border-gray-200 rounded-lg overflow-hidden">
+                <table>
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Contact</th>
+                            <th>Source</th>
+                            <th>Product Interest</th>
+                            <th>Follow-up</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lead in leads %}
+                        <tr>
+                            <td>{{ lead.lead_id }}</td>
+                            <td>{{ lead.name }}</td>
+                            <td>
+                                <div class="text-sm">
+                                    <div>{{ lead.email }}</div>
+                                    <div class="text-gray-600">{{ lead.phone }}</div>
+                                </div>
+                            </td>
+                            <td>{{ lead.source|default:"-" }}</td>
+                            <td>{{ lead.product_interest|default:"-" }}</td>
+                            <td>
+                                {% if lead.follow_up_date %}
+                                <span class="text-sm">{{ lead.follow_up_date|date:"M d, Y" }}</span>
+                                {% else %}
+                                <span class="text-sm text-gray-500">Not set</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lead.status == 'New' %}
+                                <span class="badge badge-secondary">
+                                    <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    New
+                                </span>
+                                {% elif lead.status == 'Contacted' %}
+                                <span class="badge badge-primary">
+                                    <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                                    Contacted
+                                </span>
+                                {% elif lead.status == 'Qualified' %}
+                                <span class="badge badge-success">
+                                    <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    Qualified
+                                </span>
+                                {% elif lead.status == 'Converted' %}
+                                <span class="badge badge-success">
+                                    <svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                    Converted
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="flex gap-2">
+                                    {% if lead.status == 'New' %}
+                                    <a href="{% url 'qualify_lead' lead.lead_id %}" class="btn btn-secondary text-sm py-1 px-3">Qualify</a>
+                                    {% elif lead.status == 'Qualified' %}
+                                    <a href="{% url 'convert_lead' lead.lead_id %}" class="btn btn-primary text-sm py-1 px-3">Convert</a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="text-center text-gray-500 py-8">No leads found</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Lead Modal -->
+<div id="newLeadModal" class="modal">
+    <div class="modal-content">
+        <div class="border-b border-gray-200 pb-4 mb-4">
+            <h2 class="text-xl font-semibold">Create New Lead</h2>
+            <p class="text-sm text-gray-600">Capture minimal information to create a lead profile</p>
+        </div>
+        
+        <form method="post" id="leadForm">
+            {% csrf_token %}
+            <div id="duplicateWarning" class="hidden alert alert-warning mb-4">
+                <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <span id="duplicateMessage"></span>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="space-y-2">
+                    <label for="id_name" class="text-sm font-medium">Name / Company *</label>
+                    {{ form.name }}
+                </div>
+                <div class="space-y-2">
+                    <label for="id_email" class="text-sm font-medium">Email *</label>
+                    {{ form.email }}
+                </div>
+                <div class="space-y-2">
+                    <label for="id_phone" class="text-sm font-medium">Phone *</label>
+                    {{ form.phone }}
+                </div>
+                <div class="space-y-2">
+                    <label for="id_source" class="text-sm font-medium">Lead Source</label>
+                    {{ form.source }}
+                </div>
+                <div class="space-y-2">
+                    <label for="id_product_interest" class="text-sm font-medium">Product Interest</label>
+                    {{ form.product_interest }}
+                </div>
+                <div class="space-y-2">
+                    <label for="id_preferred_contact" class="text-sm font-medium">Preferred Contact Method</label>
+                    {{ form.preferred_contact }}
+                </div>
+                <div class="space-y-2 col-span-2">
+                    <label for="id_follow_up_date" class="text-sm font-medium">Follow-up Date</label>
+                    {{ form.follow_up_date }}
+                </div>
+            </div>
+            
+            <div class="flex gap-2 justify-end pt-4 border-t border-gray-200">
+                <button type="button" onclick="closeModal('newLeadModal')" class="btn btn-secondary">Cancel</button>
+                <button type="submit" class="btn btn-primary">Create Lead</button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Duplicate check
+    function checkDuplicate() {
+        const name = document.getElementById('id_name').value;
+        const email = document.getElementById('id_email').value;
+        const phone = document.getElementById('id_phone').value;
+        
+        if (!name && !email && !phone) return;
+        
+        fetch(`/check-duplicate-lead/?name=${name}&email=${email}&phone=${phone}`)
+            .then(response => response.json())
+            .then(data => {
+                const warning = document.getElementById('duplicateWarning');
+                const message = document.getElementById('duplicateMessage');
+                
+                if (data.duplicate) {
+                    warning.classList.remove('hidden');
+                    message.textContent = data.message;
+                } else {
+                    warning.classList.add('hidden');
+                }
+            });
+    }
+    
+    document.getElementById('id_name').addEventListener('blur', checkDuplicate);
+    document.getElementById('id_email').addEventListener('blur', checkDuplicate);
+    document.getElementById('id_phone').addEventListener('blur', checkDuplicate);
+</script>
+{% endblock %}

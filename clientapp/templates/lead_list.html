@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Lead List{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <h2 class="fw-bold">Leads</h2>
+  <a href="{% url 'lead_add' %}" class="btn btn-primary">+ New Lead</a>
+</div>
+
+<table class="table table-striped">
+  <thead class="table-light">
+    <tr>
+      <th>Lead ID</th>
+      <th>Name</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>Status</th>
+      <th>Follow-up</th>
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for lead in leads %}
+    <tr>
+      <td>{{ lead.lead_id }}</td>
+      <td><a href="{% url 'lead_detail' lead.pk %}">{{ lead.name }}</a></td>
+      <td>{{ lead.email }}</td>
+      <td>{{ lead.phone }}</td>
+      <td><span class="badge bg-info">{{ lead.status }}</span></td>
+      <td>{{ lead.follow_up_date|default:"-" }}</td>
+      <td>
+        <a href="{% url 'lead_edit' lead.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+        <a href="{% url 'lead_delete' lead.pk %}" class="btn btn-sm btn-outline-danger">Delete</a>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="7" class="text-center text-muted">No leads found</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

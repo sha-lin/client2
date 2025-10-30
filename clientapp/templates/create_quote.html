@@ -1,0 +1,803 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Quote - Print Duka{% endblock %}
+
+{% block extra_css %}
+<style>
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    }
+    
+    .invoice-container {
+        background: white;
+        box-shadow: 0 0 30px rgba(0,0,0,0.1);
+        max-width: 210mm;
+        margin: 0 auto;
+    }
+    
+    .header-section {
+        border-bottom: 3px solid #000;
+    }
+    
+    .item-row:hover {
+        background-color: #f9fafb;
+    }
+    
+    .total-section {
+        background: #f9fafb;
+        border-top: 2px solid #000;
+    }
+    
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="number"],
+    input[type="date"],
+    textarea,
+    select {
+        border: 1px solid #e5e7eb;
+        transition: all 0.2s;
+    }
+    
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="tel"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    textarea:focus,
+    select:focus {
+        border-color: #000;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(0,0,0,0.1);
+    }
+    
+    .btn-black {
+        background: #000;
+        color: white;
+        transition: all 0.2s;
+    }
+    
+    .btn-black:hover {
+        background: #1f2937;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+    }
+    
+    .action-buttons {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: white;
+        border-top: 2px solid #e5e7eb;
+        box-shadow: 0 -4px 6px rgba(0,0,0,0.05);
+        z-index: 1000;
+    }
+    
+    @media print {
+        .action-buttons,
+        .no-print {
+            display: none !important;
+        }
+        .invoice-container {
+            box-shadow: none;
+            max-width: 100%;
+        }
+    }
+    
+    .editable-field {
+        background: transparent;
+        border: 1px dashed transparent;
+        transition: all 0.2s;
+    }
+    
+    .editable-field:hover {
+        border-color: #e5e7eb;
+        background: #f9fafb;
+    }
+    
+    .editable-field:focus {
+        background: white;
+        border-color: #000;
+        border-style: solid;
+    }
+    
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .item-row {
+        animation: slideIn 0.3s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Top Navigation Bar -->
+<div class="fixed top-0 left-0 right-0 bg-black text-white h-14 flex items-center justify-between px-6 z-50 shadow-lg no-print">
+    <div class="flex items-center gap-6">
+        <h1 class="text-xl font-bold">Print Duka</h1>
+        <span class="text-sm text-gray-300">Create New Quote</span>
+    </div>
+    <div class="flex items-center gap-4">
+        <a href="{% url 'dashboard' %}" class="text-sm hover:text-gray-300 transition">
+            ← Back to Dashboard
+        </a>
+        <div class="w-8 h-8 bg-white bg-opacity-20 rounded-full flex items-center justify-center font-bold text-sm">
+            {{ request.user.first_name.0|default:'U' }}{{ request.user.last_name.0|default:'' }}
+        </div>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="pt-20 pb-32 px-4 bg-gray-100">
+    <div class="invoice-container">
+        <form id="quoteForm" method="POST" action="{% url 'create_quote' %}">
+            {% csrf_token %}
+            
+            <!-- Hidden fields for form submission -->
+            <input type="hidden" name="item_count" id="itemCount" value="0">
+            <input type="hidden" name="quote_type" id="quoteTypeHidden">
+            <input type="hidden" name="client_id" id="clientIdHidden">
+            <input type="hidden" name="lead_id" id="leadIdHidden">
+            
+            <!-- Header Section -->
+            <div class="header-section p-8">
+                <div class="grid grid-cols-2 gap-8">
+                    <!-- Left Side - Company Info -->
+                    <div>
+                        <h1 class="text-4xl font-bold text-black mb-6">QUOTE</h1>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-gray-600 w-20">From:</span>
+                                <span class="font-bold">Print Duka</span>
+                            </div>
+                            <div class="flex items-start gap-2">
+                                <span class="text-sm font-semibold text-gray-600 w-20">Address:</span>
+                                <div class="text-sm">
+                                    <p>2nd Flr, Parsonic Business Centre</p>
+                                    <p>Kweria Road, Nairobi</p>
+                                    <p>P.O BOX 104671-00100</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-gray-600 w-20">Email:</span>
+                                <span class="text-sm">query@printduka.co.ke</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-semibold text-gray-600 w-20">Phone:</span>
+                                <span class="text-sm">+254 755 669937</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side - Quote Details -->
+                    <div class="text-right">
+                        <div class="inline-block text-left space-y-3">
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-semibold text-gray-600 w-24">Quote #:</span>
+                                <input type="text" name="quote_number" id="quoteNumber" value="QT-{{ current_year }}-" class="editable-field px-2 py-1 rounded font-bold w-40" readonly>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-semibold text-gray-600 w-24">Date:</span>
+                                <input type="date" name="quote_date" id="quoteDate" class="editable-field px-2 py-1 rounded" required>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <span class="text-sm font-semibold text-gray-600 w-24">Valid Until:</span>
+                                <input type="date" name="valid_until" id="validUntil" class="editable-field px-2 py-1 rounded" required>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bill To Section -->
+            <div class="p-8 border-b border-gray-200">
+                <div class="grid grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-sm font-bold text-black mb-3">BILL TO</h3>
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-2 mb-3">
+                                <label class="text-xs text-gray-600 w-20">Type:</label>
+                                <select id="clientType" class="editable-field px-2 py-1 rounded text-sm flex-1" required>
+                                    <option value="">Select...</option>
+                                    <option value="client"> Existing Client</option>
+                                    <option value="lead"> New Lead</option>
+                                </select>
+                            </div>
+                            
+                            <div id="clientSelectDiv" class="hidden mb-3">
+                                <select id="clientSelect" class="w-full editable-field px-3 py-2 rounded text-sm font-medium">
+                                    <option value="">Choose client...</option>
+                                    {% for client in clients %}
+                                    <option value="{{ client.id }}" 
+                                            data-name="{{ client.company|default:client.name }}" 
+                                            data-email="{{ client.email }}" 
+                                            data-phone="{{ client.phone }}"
+                                            data-address="{{ client.address }}"
+                                            data-markup="{{ client.default_markup }}"
+                                            data-payment-terms="{{ client.payment_terms }}">
+                                        {{ client.client_id }} - {{ client.company|default:client.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div id="leadSelectDiv" class="hidden mb-3">
+                                <select id="leadSelect" class="w-full editable-field px-3 py-2 rounded text-sm font-medium">
+                                    <option value="">Choose lead...</option>
+                                    {% for lead in leads %}
+                                    <option value="{{ lead.id }}" 
+                                            data-name="{{ lead.name }}" 
+                                            data-email="{{ lead.email }}" 
+                                            data-phone="{{ lead.phone }}"
+                                            data-markup="35">
+                                        {{ lead.lead_id }} - {{ lead.name }} ({{ lead.source }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <input type="text" name="client_name" id="clientName" placeholder="Client/Company Name *" class="w-full editable-field px-3 py-2 rounded font-semibold" required>
+                            <input type="email" name="client_email" id="clientEmail" placeholder="Email Address" class="w-full editable-field px-3 py-2 rounded text-sm">
+                            <input type="tel" name="client_phone" id="clientPhone" placeholder="Phone Number" class="w-full editable-field px-3 py-2 rounded text-sm">
+                            <textarea name="client_address" id="clientAddress" placeholder="Address (Optional)" rows="2" class="w-full editable-field px-3 py-2 rounded text-sm"></textarea>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-black mb-3">QUOTE DETAILS</h3>
+                        <div class="space-y-3">
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-gray-600 w-32">Payment Terms:</label>
+                                <select name="payment_terms" id="paymentTerms" class="editable-field px-2 py-1 rounded text-sm flex-1">
+                                    <option value="Prepaid">Prepaid</option>
+                                    <option value="Net 7">Net 7 Days</option>
+                                    <option value="Net 15">Net 15 Days</option>
+                                    <option value="Net 30">Net 30 Days</option>
+                                    <option value="Net 60">Net 60 Days</option>
+                                </select>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-gray-600 w-32">Default Markup:</label>
+                                <input type="number" name="default_markup" id="defaultMarkup" value="30" min="0" max="100" step="0.01" class="editable-field px-2 py-1 rounded text-sm w-20 font-semibold">
+                                <span class="text-sm">%</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="text-xs text-gray-600 w-32">Status:</label>
+                                <select name="status" id="quoteStatus" class="editable-field px-2 py-1 rounded text-sm flex-1">
+                                    <option value="Draft"> Draft</option>
+                                    <option value="Quoted" selected> Quoted</option>
+                                    <option value="Client Review"> Client Review</option>
+                                    <option value="Approved"> Approved</option>
+                                    <option value="Lost"> Lost</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="p-8">
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead>
+                            <tr class="border-b-2 border-black">
+                                <th class="text-left py-3 px-2 text-sm font-bold w-20">QTY</th>
+                                <th class="text-left py-3 px-2 text-sm font-bold">DESCRIPTION</th>
+                                <th class="text-right py-3 px-2 text-sm font-bold w-32">COST</th>
+                                <th class="text-right py-3 px-2 text-sm font-bold w-24">MARKUP</th>
+                                <th class="text-right py-3 px-2 text-sm font-bold w-32">UNIT PRICE</th>
+                                <th class="text-right py-3 px-2 text-sm font-bold w-32">AMOUNT</th>
+                                <th class="w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itemsTableBody">
+                            <!-- Items will be added here -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <button type="button" id="addItemBtn" class="mt-4 px-4 py-2 text-sm text-white bg-black hover:bg-gray-800 rounded font-semibold flex items-center gap-2 transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Line Item
+                </button>
+            </div>
+
+            <!-- Totals Section -->
+            <div class="total-section px-8 py-6">
+                <div class="flex justify-end">
+                    <div class="w-96 space-y-3">
+                        <div class="flex justify-between items-center text-sm">
+                            <span class="font-semibold">SUBTOTAL</span>
+                            <span id="subtotal" class="font-bold">Sh 0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center text-sm">
+                            <div class="flex items-center gap-2">
+                                <input type="checkbox" name="include_vat" id="includeVAT" class="rounded">
+                                <label for="includeVAT" class="font-semibold cursor-pointer">VAT (16%)</label>
+                            </div>
+                            <span id="vatAmount" class="font-bold">Sh 0.00</span>
+                        </div>
+                        <div class="flex justify-between items-center pt-3 border-t-2 border-black">
+                            <span class="text-lg font-bold">TOTAL</span>
+                            <span id="totalAmount" class="text-2xl font-bold">Sh 0.00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Terms & Notes -->
+            <div class="p-8 border-t border-gray-200">
+                <div class="grid grid-cols-1 gap-6">
+                    <div>
+                        <h3 class="text-sm font-bold text-black mb-2">TERMS & CONDITIONS</h3>
+                        <textarea name="terms" id="terms" rows="5" class="w-full editable-field px-3 py-2 rounded text-xs leading-relaxed">1. A 65% advance payment or a valid purchase order (PO) is required to initiate production.
+2. The remaining payment must be settled within 14 days after the items are delivered.
+3. The quoted price remains valid for 30 days from the date of the initial quotation.
+4. Late payments may incur additional charges as per our policy.
+5. All items are VAT exclusive</textarea>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-black mb-2">NOTES / SPECIAL INSTRUCTIONS</h3>
+                        <textarea name="notes" id="notes" rows="3" placeholder="Add any special instructions or notes here..." class="w-full editable-field px-3 py-2 rounded text-sm"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payment Information -->
+            <div class="p-8 bg-gray-50 border-t border-gray-200">
+                <h3 class="text-sm font-bold text-black mb-3">PAYMENT OPTIONS</h3>
+                <div class="grid grid-cols-2 gap-6 text-xs">
+                    <div>
+                        <p class="font-bold mb-1">Account Transfer</p>
+                        <p>Bank: I&M Bank Limited</p>
+                        <p>Acc name: Print Duka Limited</p>
+                        <p>Acc: 04404566816350</p>
+                        <p>Branch: Tatu City (Branch code: 044)</p>
+                        <p>Swift code: IMBLKENA</p>
+                    </div>
+                    <div>
+                        <p class="font-bold mb-1">M-Pesa</p>
+                        <p>Paybill: 542542</p>
+                        <p>Account: 35450</p>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Fixed Action Buttons -->
+<div class="action-buttons no-print">
+    <div class="max-w-7xl mx-auto px-4 py-4">
+        <div class="flex items-center justify-between gap-4">
+            <button type="button" onclick="window.location.href='{% url 'dashboard' %}'" class="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition">
+                Cancel
+            </button>
+            <div class="flex gap-3">
+                <button type="button" id="saveDraftBtn" class="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition">
+                    Save Draft
+                </button>
+                <button type="button" id="previewBtn" class="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 font-semibold transition">
+                     Preview
+                </button>
+                <button type="button" id="createQuoteBtn" class="px-8 py-2 btn-black rounded-lg font-semibold shadow-lg">
+                     Create Quote
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Quote Form JavaScript - Complete Implementation
+document.addEventListener('DOMContentLoaded', function() {
+    let itemCounter = 0;
+    
+    // Set default dates
+    const today = new Date().toISOString().split('T')[0];
+    const validUntil = new Date();
+    validUntil.setDate(validUntil.getDate() + 30);
+    
+    document.getElementById('quoteDate').value = today;
+    document.getElementById('validUntil').value = validUntil.toISOString().split('T')[0];
+    
+    // Client Type Selection Handler
+    const clientType = document.getElementById('clientType');
+    const clientSelectDiv = document.getElementById('clientSelectDiv');
+    const leadSelectDiv = document.getElementById('leadSelectDiv');
+    const clientSelect = document.getElementById('clientSelect');
+    const leadSelect = document.getElementById('leadSelect');
+    
+    clientType.addEventListener('change', function() {
+        const selectedType = this.value;
+        
+        if (selectedType === 'client') {
+            clientSelectDiv.classList.remove('hidden');
+            leadSelectDiv.classList.add('hidden');
+            leadSelect.value = '';
+            document.getElementById('quoteTypeHidden').value = 'client';
+            clearClientFields();
+        } else if (selectedType === 'lead') {
+            leadSelectDiv.classList.remove('hidden');
+            clientSelectDiv.classList.add('hidden');
+            clientSelect.value = '';
+            document.getElementById('quoteTypeHidden').value = 'lead';
+            clearClientFields();
+        } else {
+            clientSelectDiv.classList.add('hidden');
+            leadSelectDiv.classList.add('hidden');
+            clearClientFields();
+        }
+    });
+    
+    // Client Selection Handler
+    clientSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        
+        if (this.value) {
+            // Get data from option attributes
+            const clientName = selectedOption.dataset.name;
+            const clientEmail = selectedOption.dataset.email;
+            const clientPhone = selectedOption.dataset.phone;
+            const clientAddress = selectedOption.dataset.address;
+            const markup = selectedOption.dataset.markup;
+            const paymentTerms = selectedOption.dataset.paymentTerms;
+            
+            // Fill form fields
+            document.getElementById('clientName').value = clientName || '';
+            document.getElementById('clientEmail').value = clientEmail || '';
+            document.getElementById('clientPhone').value = clientPhone || '';
+            document.getElementById('clientAddress').value = clientAddress || '';
+            document.getElementById('defaultMarkup').value = markup || 30;
+            document.getElementById('paymentTerms').value = paymentTerms || 'Prepaid';
+            document.getElementById('clientIdHidden').value = this.value;
+            
+            // Update existing items with new default markup
+            updateAllItemMarkups(markup || 30);
+        } else {
+            clearClientFields();
+        }
+    });
+    
+    // Lead Selection Handler
+    leadSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        
+        if (this.value) {
+            // Get data from option attributes
+            const leadName = selectedOption.dataset.name;
+            const leadEmail = selectedOption.dataset.email;
+            const leadPhone = selectedOption.dataset.phone;
+            const markup = selectedOption.dataset.markup;
+            
+            // Fill form fields
+            document.getElementById('clientName').value = leadName || '';
+            document.getElementById('clientEmail').value = leadEmail || '';
+            document.getElementById('clientPhone').value = leadPhone || '';
+            document.getElementById('clientAddress').value = '';
+            document.getElementById('defaultMarkup').value = markup || 35;
+            document.getElementById('paymentTerms').value = 'Prepaid';
+            document.getElementById('leadIdHidden').value = this.value;
+            
+            // Update existing items with new default markup
+            updateAllItemMarkups(markup || 35);
+        } else {
+            clearClientFields();
+        }
+    });
+    
+    function clearClientFields() {
+        document.getElementById('clientName').value = '';
+        document.getElementById('clientEmail').value = '';
+        document.getElementById('clientPhone').value = '';
+        document.getElementById('clientAddress').value = '';
+        document.getElementById('clientIdHidden').value = '';
+        document.getElementById('leadIdHidden').value = '';
+    }
+    
+    function updateAllItemMarkups(newMarkup) {
+        const markupInputs = document.querySelectorAll('.item-markup');
+        markupInputs.forEach(input => {
+            input.value = newMarkup;
+            // Trigger recalculation
+            const row = input.closest('tr');
+            calculateRowTotal(row);
+        });
+    }
+    
+    // Add Line Item Button
+    const addItemBtn = document.getElementById('addItemBtn');
+    const itemsTableBody = document.getElementById('itemsTableBody');
+    
+    addItemBtn.addEventListener('click', function() {
+        itemCounter++;
+        addLineItem();
+    });
+    
+    function addLineItem(data = {}) {
+        itemCounter++;
+        const defaultMarkup = document.getElementById('defaultMarkup').value || 30;
+        
+        const row = document.createElement('tr');
+        row.className = 'item-row border-b border-gray-200';
+        row.dataset.itemId = itemCounter;
+        
+        row.innerHTML = `
+            <td class="py-3 px-2">
+                <input type="number" 
+                       name="quantity_${itemCounter}" 
+                       class="item-quantity w-full px-2 py-1 border border-gray-300 rounded text-sm text-center" 
+                       value="${data.quantity || 1}" 
+                       min="1" 
+                       required>
+            </td>
+            <td class="py-3 px-2">
+                <textarea name="description_${itemCounter}" 
+                          class="item-description w-full px-2 py-1 border border-gray-300 rounded text-sm" 
+                          rows="2" 
+                          placeholder="Enter item description..."
+                          required>${data.description || ''}</textarea>
+            </td>
+            <td class="py-3 px-2">
+                <input type="number" 
+                       name="cost_${itemCounter}" 
+                       class="item-cost w-full px-2 py-1 border border-gray-300 rounded text-sm text-right" 
+                       value="${data.cost || 0}" 
+                       min="0" 
+                       step="0.01" 
+                       required>
+            </td>
+            <td class="py-3 px-2">
+                <div class="flex items-center gap-1">
+                    <input type="number" 
+                           name="markup_${itemCounter}" 
+                           class="item-markup w-full px-2 py-1 border border-gray-300 rounded text-sm text-right" 
+                           value="${data.markup || defaultMarkup}" 
+                           min="0" 
+                           max="100" 
+                           step="0.01">
+                    <span class="text-xs text-gray-500">%</span>
+                </div>
+            </td>
+            <td class="py-3 px-2">
+                <input type="number" 
+                       name="price_${itemCounter}" 
+                       class="item-price w-full px-2 py-1 bg-gray-50 border border-gray-300 rounded text-sm text-right font-semibold" 
+                       value="${data.price || 0}" 
+                       readonly>
+            </td>
+            <td class="py-3 px-2">
+                <input type="number" 
+                       name="amount_${itemCounter}" 
+                       class="item-amount w-full px-2 py-1 bg-gray-50 border border-gray-300 rounded text-sm text-right font-bold" 
+                       value="${data.amount || 0}" 
+                       readonly>
+            </td>
+            <td class="py-3 px-2 text-center">
+                <button type="button" 
+                        class="remove-item text-red-600 hover:text-red-800 transition" 
+                        title="Remove item">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            </td>
+        `;
+        
+        itemsTableBody.appendChild(row);
+        
+        // Attach event listeners to the new row
+        attachRowListeners(row);
+        
+        // Update item count
+        updateItemCount();
+        
+        // Calculate initial values if data provided
+        if (data.cost) {
+            calculateRowTotal(row);
+        }
+    }
+    
+    function attachRowListeners(row) {
+        const quantity = row.querySelector('.item-quantity');
+        const cost = row.querySelector('.item-cost');
+        const markup = row.querySelector('.item-markup');
+        const removeBtn = row.querySelector('.remove-item');
+        
+        // Calculate on input change
+        [quantity, cost, markup].forEach(input => {
+            input.addEventListener('input', function() {
+                calculateRowTotal(row);
+            });
+        });
+        
+        // Remove row handler
+        removeBtn.addEventListener('click', function() {
+            row.remove();
+            updateItemCount();
+            calculateTotals();
+        });
+    }
+    
+    function calculateRowTotal(row) {
+        const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
+        const cost = parseFloat(row.querySelector('.item-cost').value) || 0;
+        const markup = parseFloat(row.querySelector('.item-markup').value) || 0;
+        
+        // Calculate unit price: cost * (1 + markup/100)
+        const price = cost * (1 + markup / 100);
+        
+        // Calculate total amount: quantity * price
+        const amount = quantity * price;
+        
+        // Update fields
+        row.querySelector('.item-price').value = price.toFixed(2);
+        row.querySelector('.item-amount').value = amount.toFixed(2);
+        
+        // Recalculate totals
+        calculateTotals();
+    }
+    
+    function calculateTotals() {
+        let subtotal = 0;
+        
+        // Sum all item amounts
+        document.querySelectorAll('.item-amount').forEach(input => {
+            subtotal += parseFloat(input.value) || 0;
+        });
+        
+        // Check if VAT is included
+        const includeVAT = document.getElementById('includeVAT').checked;
+        const vatAmount = includeVAT ? subtotal * 0.16 : 0;
+        const total = subtotal + vatAmount;
+        
+        // Update display
+        document.getElementById('subtotal').textContent = `Sh ${formatMoney(subtotal)}`;
+        document.getElementById('vatAmount').textContent = `Sh ${formatMoney(vatAmount)}`;
+        document.getElementById('totalAmount').textContent = `Sh ${formatMoney(total)}`;
+    }
+    
+    function formatMoney(amount) {
+        return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    
+    // VAT checkbox handler
+    document.getElementById('includeVAT').addEventListener('change', calculateTotals);
+    
+    function updateItemCount() {
+        const itemRows = itemsTableBody.querySelectorAll('.item-row');
+        document.getElementById('itemCount').value = itemRows.length;
+    }
+    
+    // Form Validation
+    function validateForm() {
+        // Check if client/lead is selected
+        const quoteType = document.getElementById('clientType').value;
+        if (!quoteType) {
+            alert('Please select whether this is for a Client or Lead');
+            return false;
+        }
+        
+        const clientName = document.getElementById('clientName').value.trim();
+        if (!clientName) {
+            alert('Please select a client or lead');
+            return false;
+        }
+        
+        // Check if at least one item exists
+        const itemRows = itemsTableBody.querySelectorAll('.item-row');
+        if (itemRows.length === 0) {
+            alert('Please add at least one line item');
+            return false;
+        }
+        
+        // Validate each item
+        let hasError = false;
+        itemRows.forEach((row, index) => {
+            const description = row.querySelector('.item-description').value.trim();
+            const quantity = parseFloat(row.querySelector('.item-quantity').value);
+            const cost = parseFloat(row.querySelector('.item-cost').value);
+            
+            if (!description) {
+                alert(`Item ${index + 1}: Please enter a description`);
+                hasError = true;
+                return;
+            }
+            
+            if (quantity <= 0) {
+                alert(`Item ${index + 1}: Quantity must be greater than 0`);
+                hasError = true;
+                return;
+            }
+            
+            if (cost < 0) {
+                alert(`Item ${index + 1}: Cost cannot be negative`);
+                hasError = true;
+                return;
+            }
+        });
+        
+        return !hasError;
+    }
+    
+    // Save Draft Button
+    document.getElementById('saveDraftBtn').addEventListener('click', function() {
+        if (!validateForm()) return;
+        
+        // Set status to Draft
+        document.getElementById('quoteStatus').value = 'Draft';
+        
+        // Submit form
+        document.getElementById('quoteForm').submit();
+    });
+    
+    // Preview Button
+    document.getElementById('previewBtn').addEventListener('click', function() {
+        if (!validateForm()) return;
+        
+        // Open print preview
+        window.print();
+    });
+    
+    // Create Quote Button
+    document.getElementById('createQuoteBtn').addEventListener('click', function() {
+        if (!validateForm()) return;
+        
+        // Ensure status is set (use selected status or default to Quoted)
+        const currentStatus = document.getElementById('quoteStatus').value;
+        if (!currentStatus || currentStatus === 'Draft') {
+            document.getElementById('quoteStatus').value = 'Quoted';
+        }
+        
+        // Submit form
+        document.getElementById('quoteForm').submit();
+    });
+    
+    // Generate next quote number
+    function generateQuoteNumber() {
+        const year = new Date().getFullYear();
+        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+        return `QT-${year}-${random}`;
+    }
+    
+    // Set initial quote number if empty
+    const quoteNumberField = document.getElementById('quoteNumber');
+    if (!quoteNumberField.value || quoteNumberField.value === 'QT-' + new Date().getFullYear() + '-') {
+        quoteNumberField.value = generateQuoteNumber();
+    }
+    
+    // Update default markup when changed
+    document.getElementById('defaultMarkup').addEventListener('change', function() {
+        const newMarkup = this.value;
+        if (confirm('Apply this markup to all existing items?')) {
+            updateAllItemMarkups(newMarkup);
+        }
+    });
+    
+    // Initialize with one empty line item
+    addLineItem();
+});
+</script>
+{% endblock%}
+
+   

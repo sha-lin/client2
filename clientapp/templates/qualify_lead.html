@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+
+{% block title %}Qualify Lead - Client MIS{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div>
+        <h1 class="text-2xl font-semibold text-gray-900">Qualify Lead</h1>
+        <p class="text-gray-600">Request product specifications for {{ lead.name }}</p>
+    </div>
+    
+    <div class="card">
+        <div class="border-b border-gray-200 px-6 py-4">
+            <h3 class="text-lg font-semibold">Lead Information</h3>
+        </div>
+        <div class="p-6">
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <span class="text-sm text-gray-600">Lead ID:</span>
+                    <p class="font-medium">{{ lead.lead_id }}</p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-600">Name:</span>
+                    <p class="font-medium">{{ lead.name }}</p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-600">Email:</span>
+                    <p class="font-medium">{{ lead.email }}</p>
+                </div>
+                <div>
+                    <span class="text-sm text-gray-600">Phone:</span>
+                    <p class="font-medium">{{ lead.phone }}</p>
+                </div>
+            </div>
+            
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <div class="space-y-4">
+                    <h4 class="font-semibold">Product Specification Request</h4>
+                    
+                    <div class="space-y-2">
+                        <label for="product_type" class="text-sm font-medium">Product Type *</label>
+                        <select name="product_type" id="product_type" class="form-select w-full" required>
+                            <option value="">Select product type</option>
+                            <option value="Business Cards">Business Cards</option>
+                            <option value="Brochures">Brochures</option>
+                            <option value="Banners & Signage">Banners & Signage</option>
+                            <option value="Packaging">Packaging</option>
+                            <option value="Corporate Stationery">Corporate Stationery</option>
+                            <option value="Labels">Labels</option>
+                            <option value="Custom">Custom Product</option>
+                        </select>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="description" class="text-sm font-medium">Product Description *</label>
+                        <textarea name="description" id="description" rows="4" class="form-textarea w-full" 
+                                  placeholder="Detailed description of the product requirements..." required></textarea>
+                    </div>
+                    
+                    <div class="space-y-2">
+                        <label for="quantity" class="text-sm font-medium">Quantity *</label>
+                        <input type="number" name="quantity" id="quantity" class="form-input w-full" 
+                               value="1" min="1" required>
+                    </div>
+                </div>
+                
+                <div class="alert alert-info">
+                    <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="16" x2="12" y2="12"></line>
+                        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                    </svg>
+                    This will send the specification to the Production team for costing. Once costed, you can generate a quote.
+                </div>
+                
+                <div class="flex gap-2 justify-end pt-4 border-t border-gray-200">
+                    <a href="{% url 'lead_intake' %}" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Send to Production</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

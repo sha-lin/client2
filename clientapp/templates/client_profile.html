@@ -1,0 +1,1356 @@
+{% extends 'base.html' %}
+
+{% block title %}Client Profile - {{ client.name }} - Client MIS{% endblock %}
+
+{% block content %}
+<style>
+/* Profile Tabs */
+.profile-tabs {
+    display: flex;
+    gap: 0.5rem;
+    border-bottom: 2px solid #e5e7eb;
+    margin-bottom: 1.5rem;
+}
+
+.profile-tab {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #6b7280;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: -2px;
+}
+
+.profile-tab:hover {
+    color: #111827;
+}
+
+.profile-tab.active {
+    color: #1d4ed8;
+    border-bottom-color: #1d4ed8;
+    font-weight: 600;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Stats Cards */
+.stat-card {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1.25rem;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.stat-change {
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+}
+
+.stat-change.positive {
+    color: #10b981;
+}
+
+.stat-change.negative {
+    color: #ef4444;
+}
+
+/* Timeline */
+.timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e5e7eb;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: -1.55rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    background: #3b82f6;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px #e5e7eb;
+}
+
+.timeline-dot.success {
+    background: #10b981;
+}
+
+.timeline-dot.warning {
+    background: #f59e0b;
+}
+
+.timeline-dot.danger {
+    background: #ef4444;
+}
+
+/* Quote Cards */
+.quote-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    transition: all 0.2s ease;
+}
+
+.quote-card:hover {
+    border-color: #3b82f6;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.quote-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.quote-status-badge.draft {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.quote-status-badge.quoted {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.quote-status-badge.approved {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.quote-status-badge.lost {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* Info Grid */
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+}
+
+.info-item label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.info-item .value {
+    font-size: 1rem;
+    color: #111827;
+}
+
+/* Product Table */
+.product-mini-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    margin-bottom: 0.5rem;
+}
+
+.product-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    background: #f3f4f6;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Progress Bar */
+.progress-bar-container {
+    width: 100%;
+    height: 0.5rem;
+    background: #e5e7eb;
+    border-radius: 9999px;
+    overflow: hidden;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: #3b82f6;
+    transition: width 0.3s ease;
+}
+</style>
+
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="flex items-start justify-between">
+        <div class="flex items-start gap-4">
+            <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+                <svg class="w-8 h-8 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </div>
+            <div>
+                <div class="flex items-center gap-3">
+                    <h1 class="text-2xl font-semibold text-gray-900">{{ client.name|default:"Acme Corporation" }}</h1>
+                    <span class="badge badge-success">Active</span>
+                    <span class="badge badge-secondary">B2B</span>
+                </div>
+                <p class="text-gray-600 mt-1">Client ID: <span class="font-mono">{{ client.client_id|default:"CL-2024-001" }}</span></p>
+                <p class="text-gray-600">Account Manager: <span class="font-medium">John Doe</span></p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <button class="btn btn-secondary">
+                <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Edit Profile
+            </button>
+            <button class="btn btn-primary">
+                <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New Quote
+            </button>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="grid grid-cols-4 gap-4">
+        
+        <div class="stat-card">
+            <div class="stat-label">Total Quotes</div>
+            <div class="stat-value">24</div>
+            <div class="stat-change positive">
+                <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                    <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+                +12% from last month
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Conversion Rate</div>
+            <div class="stat-value">68%</div>
+            <div class="stat-change positive">
+                <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                    <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+                +5% from last month
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Total Revenue</div>
+            <div class="stat-value">KES 2.4M</div>
+            <div class="stat-change positive">
+                <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                    <polyline points="17 6 23 6 23 12"></polyline>
+                </svg>
+                +18% from last month
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Avg. Margin</div>
+            <div class="stat-value">32%</div>
+            <div class="stat-change negative">
+                <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                    <polyline points="17 18 23 18 23 12"></polyline>
+                </svg>
+                -3% from last month
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="card">
+        <div class="px-6 pt-4">
+            <div class="profile-tabs">
+                <button class="profile-tab active" onclick="switchTab('overview')">Overview</button>
+                <button class="profile-tab" onclick="switchTab('quotes')">Quotes & Pricing</button>
+                <button class="profile-tab" onclick="switchTab('products')">Products & Orders</button>
+                <button class="profile-tab" onclick="switchTab('financial')">Financial</button>
+                <button class="profile-tab" onclick="switchTab('documents')">Documents</button>
+                <button class="profile-tab" onclick="switchTab('activity')">Activity Log</button>
+            </div>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+            <!-- Overview Tab -->
+            <div id="tab-overview" class="tab-content active">
+                <div class="grid grid-cols-3 gap-6">
+                    <!-- Left Column: Client Info -->
+                    <div class="col-span-2 space-y-6">
+                        <!-- Contact Information -->
+                        <div>
+                            <h3 class="text-lg font-semibold mb-4">Contact Information</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <label>Primary Email</label>
+                                    <div class="value">{{ client.email|default:"contact@acme.com" }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Phone Number</label>
+                                    <div class="value">{{ client.phone|default:"+254 712 345 678" }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Company</label>
+                                    <div class="value">{{ client.company|default:"Acme Corporation Ltd" }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Industry</label>
+                                    <div class="value">Technology</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Address</label>
+                                    <div class="value">123 Business Park, Nairobi</div>
+                                </div>
+                                <div class="info-item">
+                                    <label>Preferred Channel</label>
+                                    <div class="value">Email</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Recent Quotes -->
+                        <div>
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold">Recent Quotes</h3>
+                                <button class="text-blue-600 text-sm font-medium hover:text-blue-700">View All →</button>
+                            </div>
+                            <div class="space-y-3">
+                                <div class="quote-card">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <span class="font-semibold">QT-2024-045</span>
+                                                <span class="quote-status-badge quoted">Quoted</span>
+                                            </div>
+                                            <p class="text-sm text-gray-600 mb-2">Business Cards - Premium Finish</p>
+                                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                                <span>Qty: 5,000</span>
+                                                <span>•</span>
+                                                <span>Due: Jan 30, 2024</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-lg font-bold text-gray-900">KES 125,000</div>
+                                            <div class="text-sm text-gray-600">Margin: 35%</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="quote-card">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <span class="font-semibold">QT-2024-038</span>
+                                                <span class="quote-status-badge approved">Approved</span>
+                                            </div>
+                                            <p class="text-sm text-gray-600 mb-2">Company Brochures - A4 Tri-fold</p>
+                                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                                <span>Qty: 1,000</span>
+                                                <span>•</span>
+                                                <span>Approved: Jan 15, 2024</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-lg font-bold text-gray-900">KES 85,000</div>
+                                            <div class="text-sm text-green-600">In Production</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="quote-card">
+                                    <div class="flex items-start justify-between">
+                                        <div class="flex-1">
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <span class="font-semibold">QT-2024-021</span>
+                                                <span class="quote-status-badge lost">Lost</span>
+                                            </div>
+                                            <p class="text-sm text-gray-600 mb-2">Promotional Banners</p>
+                                            <div class="flex items-center gap-4 text-sm text-gray-600">
+                                                <span>Reason: Price too high</span>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-lg font-bold text-gray-400">KES 65,000</div>
+                                            <div class="text-sm text-gray-600">Jan 5, 2024</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column: Quick Actions & Stats -->
+                    <div class="space-y-6">
+                        <!-- Account Health -->
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-semibold mb-3">Account Health</h4>
+                            <div class="space-y-3">
+                                <div>
+                                    <div class="flex justify-between text-sm mb-1">
+                                        <span>Credit Utilization</span>
+                                        <span class="font-medium">45%</span>
+                                    </div>
+                                    <div class="progress-bar-container">
+                                        <div class="progress-bar-fill" style="width: 45%; background: #10b981;"></div>
+                                    </div>
+                                </div>
+                                <div class="text-sm space-y-1">
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Credit Limit:</span>
+                                        <span class="font-medium">KES 500,000</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Used:</span>
+                                        <span class="font-medium">KES 225,000</span>
+                                    </div>
+                                    <div class="flex justify-between">
+                                        <span class="text-gray-600">Available:</span>
+                                        <span class="font-medium text-green-600">KES 275,000</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Terms -->
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-semibold mb-3">Payment Terms</h4>
+                            <div class="space-y-2 text-sm">
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Terms:</span>
+                                    <span class="font-medium">Net 30</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">Risk Rating:</span>
+                                    <span class="badge badge-success">Low</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-gray-600">VAT Number:</span>
+                                    <span class="font-mono text-xs">P051234567X</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-semibold mb-3">Quick Actions</h4>
+                            <div class="space-y-2">
+                                <button class="w-full btn btn-secondary text-sm justify-start">
+                                    <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                    Generate Quote
+                                </button>
+                                <button class="w-full btn btn-secondary text-sm justify-start">
+                                    <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                                        <line x1="16" y1="2" x2="16" y2="6"></line>
+                                        <line x1="8" y1="2" x2="8" y2="6"></line>
+                                        <line x1="3" y1="10" x2="21" y2="10"></line>
+                                    </svg>
+                                    Schedule Meeting
+                                </button>
+                                <button class="w-full btn btn-secondary text-sm justify-start">
+                                    <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                                        <polyline points="22,6 12,13 2,6"></polyline>
+                                    </svg>
+                                    Send Email
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Key Contacts -->
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <h4 class="font-semibold mb-3">Key Contacts</h4>
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                                        <span class="text-blue-600 font-semibold text-sm">JD</span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-sm">Jane Doe</div>
+                                        <div class="text-xs text-gray-600">Marketing Director</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                                        <span class="text-green-600 font-semibold text-sm">RS</span>
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="font-medium text-sm">Robert Smith</div>
+                                        <div class="text-xs text-gray-600">Procurement Officer</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quotes & Pricing Tab -->
+            <div id="tab-quotes" class="tab-content">
+                <div class="space-y-6">
+                    <!-- Quote Pipeline -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Quote Pipeline</h3>
+                        <div class="grid grid-cols-5 gap-4">
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="text-sm text-gray-600 mb-2">Draft</div>
+                                <div class="text-2xl font-bold">3</div>
+                                <div class="text-sm text-gray-600 mt-1">KES 340K</div>
+                            </div>
+                            <div class="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                                <div class="text-sm text-blue-600 mb-2">Quoted</div>
+                                <div class="text-2xl font-bold text-blue-600">8</div>
+                                <div class="text-sm text-blue-600 mt-1">KES 1.2M</div>
+                            </div>
+                            <div class="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
+                                <div class="text-sm text-yellow-600 mb-2">Client Review</div>
+                                <div class="text-2xl font-bold text-yellow-600">5</div>
+                                <div class="text-sm text-yellow-600 mt-1">KES 680K</div>
+                            </div>
+                            <div class="border border-green-200 bg-green-50 rounded-lg p-4">
+                                <div class="text-sm text-green-600 mb-2">Approved</div>
+                                <div class="text-2xl font-bold text-green-600">12</div>
+                                <div class="text-sm text-green-600 mt-1">KES 1.8M</div>
+                            </div>
+                            <div class="border border-red-200 bg-red-50 rounded-lg p-4">
+                                <div class="text-sm text-red-600 mb-2">Lost</div>
+                                <div class="text-2xl font-bold text-red-600">4</div>
+                                <div class="text-sm text-red-600 mt-1">KES 520K</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Quote List -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">All Quotes</h3>
+                            <div class="flex gap-2">
+                                <select class="form-select text-sm">
+                                    <option>All Status</option>
+                                    <option>Draft</option>
+                                    <option>Quoted</option>
+                                    <option>Approved</option>
+                                    <option>Lost</option>
+                                </select>
+                                <button class="btn btn-primary text-sm">
+                                    <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    New Quote
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <table>
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Quote ID</th>
+                                        <th>Product/Service</th>
+                                        <th>Quantity</th>
+                                        <th>Quote Value</th>
+                                        <th>Margin %</th>
+                                        <th>Status</th>
+                                        <th>Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">QT-2024-045</span></td>
+                                        <td>Business Cards - Premium</td>
+                                        <td>5,000</td>
+                                        <td class="font-semibold">KES 125,000</td>
+                                        <td><span class="text-green-600 font-medium">35%</span></td>
+                                        <td><span class="quote-status-badge quoted">Quoted</span></td>
+                                        <td class="text-sm text-gray-600">Jan 24, 2024</td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">QT-2024-032</span></td>
+                                        <td>Promotional Posters</td>
+                                        <td>500</td>
+                                        <td class="font-semibold">KES 45,000</td>
+                                        <td><span class="text-green-600 font-medium">28%</span></td>
+                                        <td><span class="quote-status-badge approved">Approved</span></td>
+                                        <td class="text-sm text-gray-600">Jan 10, 2024</td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">QT-2024-021</span></td>
+                                        <td>Promotional Banners</td>
+                                        <td>10</td>
+                                        <td class="font-semibold text-gray-400">KES 65,000</td>
+                                        <td><span class="text-gray-400">30%</span></td>
+                                        <td><span class="quote-status-badge lost">Lost</span></td>
+                                        <td class="text-sm text-gray-600">Jan 5, 2024</td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Pricing History -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Pricing History & Trends</h3>
+                        <div class="border border-gray-200 rounded-lg p-6">
+                            <div class="grid grid-cols-3 gap-6 mb-6">
+                                <div>
+                                    <div class="text-sm text-gray-600 mb-1">Average Margin</div>
+                                    <div class="text-2xl font-bold">32%</div>
+                                    <div class="text-sm text-red-600 mt-1">
+                                        <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
+                                        </svg>
+                                        -3% vs last quarter
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-600 mb-1">Average Deal Size</div>
+                                    <div class="text-2xl font-bold">KES 95K</div>
+                                    <div class="text-sm text-green-600 mt-1">
+                                        <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                                        </svg>
+                                        +15% vs last quarter
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-gray-600 mb-1">Quote-to-Order Time</div>
+                                    <div class="text-2xl font-bold">5.2 days</div>
+                                    <div class="text-sm text-green-600 mt-1">
+                                        <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline>
+                                        </svg>
+                                        -2 days faster
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="bg-gray-50 rounded-lg p-4 text-center text-gray-500">
+                                <svg class="w-12 h-12 mx-auto mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="20" x2="12" y2="10"></line>
+                                    <line x1="18" y1="20" x2="18" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="16"></line>
+                                </svg>
+                                <p class="text-sm">Margin trend chart placeholder</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products & Orders Tab -->
+            <div id="tab-products" class="tab-content">
+                <div class="space-y-6">
+                    <!-- Frequently Ordered Products -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Frequently Ordered Products</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="product-mini-card">
+                                <div class="product-icon">
+                                    <svg class="w-5 h-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
+                                        <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium">Business Cards</div>
+                                    <div class="text-sm text-gray-600">Ordered 8 times</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold">KES 850K</div>
+                                    <div class="text-sm text-gray-600">Total value</div>
+                                </div>
+                            </div>
+
+                            <div class="product-mini-card">
+                                <div class="product-icon">
+                                    <svg class="w-5 h-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium">Brochures</div>
+                                    <div class="text-sm text-gray-600">Ordered 6 times</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold">KES 620K</div>
+                                    <div class="text-sm text-gray-600">Total value</div>
+                                </div>
+                            </div>
+
+                            <div class="product-mini-card">
+                                <div class="product-icon">
+                                    <svg class="w-5 h-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                        <polyline points="21 15 16 10 5 21"></polyline>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium">Posters</div>
+                                    <div class="text-sm text-gray-600">Ordered 4 times</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold">KES 340K</div>
+                                    <div class="text-sm text-gray-600">Total value</div>
+                                </div>
+                            </div>
+
+                            <div class="product-mini-card">
+                                <div class="product-icon">
+                                    <svg class="w-5 h-5 text-gray-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                                    </svg>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="font-medium">Packaging</div>
+                                    <div class="text-sm text-gray-600">Ordered 3 times</div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-semibold">KES 580K</div>
+                                    <div class="text-sm text-gray-600">Total value</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Active Orders -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Active Orders in Production</h3>
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <table>
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Product</th>
+                                        <th>Quantity</th>
+                                        <th>Order Value</th>
+                                        <th>Production Status</th>
+                                        <th>Delivery Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">ORD-2024-112</span></td>
+                                        <td>Business Cards - Premium</td>
+                                        <td>5,000</td>
+                                        <td class="font-semibold">KES 125,000</td>
+                                        <td>
+                                            <div class="space-y-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-sm font-medium">Printing - 75%</span>
+                                                </div>
+                                                <div class="progress-bar-container">
+                                                    <div class="progress-bar-fill" style="width: 75%;"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-sm">Jan 30, 2024</td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">Track</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">ORD-2024-098</span></td>
+                                        <td>Company Brochures</td>
+                                        <td>1,000</td>
+                                        <td class="font-semibold">KES 85,000</td>
+                                        <td>
+                                            <div class="space-y-1">
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-sm font-medium">Finishing - 40%</span>
+                                                </div>
+                                                <div class="progress-bar-container">
+                                                    <div class="progress-bar-fill" style="width: 40%;"></div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-sm">Jan 28, 2024</td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">Track</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Order History -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Order History</h3>
+                            <button class="text-blue-600 text-sm font-medium hover:text-blue-700">View All →</button>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <table>
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Order ID</th>
+                                        <th>Product</th>
+                                        <th>Quantity</th>
+                                        <th>Value</th>
+                                        <th>Status</th>
+                                        <th>Completed Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">ORD-2024-085</span></td>
+                                        <td>Letterheads - Premium</td>
+                                        <td>2,000</td>
+                                        <td class="font-semibold">KES 65,000</td>
+                                        <td><span class="badge badge-success">Delivered</span></td>
+                                        <td class="text-sm">Jan 12, 2024</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">ORD-2023-298</span></td>
+                                        <td>Annual Reports</td>
+                                        <td>500</td>
+                                        <td class="font-semibold">KES 180,000</td>
+                                        <td><span class="badge badge-success">Delivered</span></td>
+                                        <td class="text-sm">Dec 20, 2023</td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">ORD-2023-245</span></td>
+                                        <td>Marketing Flyers</td>
+                                        <td>3,000</td>
+                                        <td class="font-semibold">KES 42,000</td>
+                                        <td><span class="badge badge-success">Delivered</span></td>
+                                        <td class="text-sm">Nov 15, 2023</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Financial Tab -->
+            <div id="tab-financial" class="tab-content">
+                <div class="space-y-6">
+                    <!-- Financial Overview -->
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="border border-gray-200 rounded-lg p-6">
+                            <div class="text-sm text-gray-600 mb-2">Outstanding Balance</div>
+                            <div class="text-3xl font-bold text-red-600">KES 225,000</div>
+                            <div class="text-sm text-gray-600 mt-2">3 pending invoices</div>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg p-6">
+                            <div class="text-sm text-gray-600 mb-2">Lifetime Value</div>
+                            <div class="text-3xl font-bold text-gray-900">KES 2.4M</div>
+                            <div class="text-sm text-gray-600 mt-2">Since Jan 2023</div>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg p-6">
+                            <div class="text-sm text-gray-600 mb-2">Payment Performance</div>
+                            <div class="text-3xl font-bold text-green-600">95%</div>
+                            <div class="text-sm text-gray-600 mt-2">On-time payments</div>
+                        </div>
+                    </div>
+
+                    <!-- Credit Information -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Credit & Payment Terms</h3>
+                        <div class="border border-gray-200 rounded-lg p-6">
+                            <div class="grid grid-cols-2 gap-6">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Credit Limit</label>
+                                    <div class="text-2xl font-bold mt-1">KES 500,000</div>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Available Credit</label>
+                                    <div class="text-2xl font-bold text-green-600 mt-1">KES 275,000</div>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Payment Terms</label>
+                                    <div class="text-xl font-semibold mt-1">Net 30 Days</div>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Risk Rating</label>
+                                    <div class="mt-1"><span class="badge badge-success">Low Risk</span></div>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">VAT/Tax ID</label>
+                                    <div class="text-lg font-mono mt-1">P051234567X</div>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">KRA PIN</label>
+                                    <div class="text-lg font-mono mt-1">A012345678Z</div>
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <label class="text-sm font-medium text-gray-600 block mb-2">Credit Utilization</label>
+                                <div class="progress-bar-container h-3">
+                                    <div class="progress-bar-fill" style="width: 45%; background: #10b981;"></div>
+                                </div>
+                                <div class="flex justify-between text-sm text-gray-600 mt-1">
+                                    <span>KES 225,000 used</span>
+                                    <span>45% utilization</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Invoice History -->
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Invoice History</h3>
+                            <div class="flex gap-2">
+                                <select class="form-select text-sm">
+                                    <option>All Status</option>
+                                    <option>Paid</option>
+                                    <option>Pending</option>
+                                    <option>Overdue</option>
+                                </select>
+                                <button class="btn btn-primary text-sm">
+                                    <svg class="w-4 h-4 mr-2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    New Invoice
+                                </button>
+                            </div>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <table>
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Date</th>
+                                        <th>Due Date</th>
+                                        <th>Amount</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">INV-2024-234</span></td>
+                                        <td>Jan 20, 2024</td>
+                                        <td>Feb 19, 2024</td>
+                                        <td class="font-semibold">KES 125,000</td>
+                                        <td><span class="badge badge-warning">Pending</span></td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">INV-2024-198</span></td>
+                                        <td>Jan 10, 2024</td>
+                                        <td>Feb 9, 2024</td>
+                                        <td class="font-semibold">KES 85,000</td>
+                                        <td><span class="badge badge-warning">Pending</span></td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">INV-2023-452</span></td>
+                                        <td>Dec 15, 2023</td>
+                                        <td>Jan 14, 2024</td>
+                                        <td class="font-semibold">KES 65,000</td>
+                                        <td><span class="badge badge-success">Paid</span></td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">INV-2023-398</span></td>
+                                        <td>Nov 28, 2023</td>
+                                        <td>Dec 28, 2023</td>
+                                        <td class="font-semibold">KES 45,000</td>
+                                        <td><span class="badge badge-success">Paid</span></td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Payment History -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Recent Payments</h3>
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <table>
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th>Payment Date</th>
+                                        <th>Invoice #</th>
+                                        <th>Amount</th>
+                                        <th>Method</th>
+                                        <th>Reference</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Jan 14, 2024</td>
+                                        <td><span class="font-mono text-sm">INV-2023-452</span></td>
+                                        <td class="font-semibold">KES 65,000</td>
+                                        <td>Bank Transfer</td>
+                                        <td><span class="font-mono text-xs">REF-20240114-001</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Dec 28, 2023</td>
+                                        <td><span class="font-mono text-sm">INV-2023-398</span></td>
+                                        <td class="font-semibold">KES 45,000</td>
+                                        <td>M-Pesa</td>
+                                        <td><span class="font-mono text-xs">MPESA-SGH7K2M4</span></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Documents Tab -->
+            <div id="tab-documents" class="tab-content">
+                <div class="space-y-6">
+                    <!-- Document Upload -->
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
+                        <svg class="w-12 h-12 mx-auto text-gray-400 mb-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                        <p class="text-gray-600 mb-2">Drag and drop files here, or click to browse</p>
+                        <button class="btn btn-secondary mt-2">Choose Files</button>
+                    </div>
+
+                    <!-- Document Categories -->
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 bg-blue-100 rounded flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-semibold">Contracts</div>
+                                    <div class="text-sm text-gray-600">4 files</div>
+                                </div>
+                            </div>
+                            <button class="text-blue-600 text-sm font-medium hover:text-blue-700">View All →</button>
+                        </div>
+
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 bg-green-100 rounded flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-green-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-semibold">Compliance</div>
+                                    <div class="text-sm text-gray-600">6 files</div>
+                                </div>
+                            </div>
+                            <button class="text-blue-600 text-sm font-medium hover:text-blue-700">View All →</button>
+                        </div>
+
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-10 h-10 bg-purple-100 rounded flex items-center justify-center">
+                                    <svg class="w-5 h-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                        <polyline points="14 2 14 8 20 8"></polyline>
+                                    </svg>
+                                </div>
+                                <div>
+                                    <div class="font-semibold">Brand Assets</div>
+                                    <div class="text-sm text-gray-600">12 files</div>
+                                </div>
+                            </div>
+                            <button class="text-blue-600 text-sm font-medium hover:text-blue-700">View All →</button>
+                        </div>
+                    </div>
+
+                    <!-- Recent Documents -->
+                    <div>
+                        <h3 class="text-lg font-semibold mb-4">Recent Documents</h3>
+                        <div class="border border-gray-200 rounded-lg">
+                            <div class="divide-y divide-gray-200">
+                                <div class="p-4 hover:bg-gray-50 flex items-center justify-between">
+                                    <div class="flex items-center gap-3 flex-1">
+                                        <div class="w-10 h-10 bg-red-100 rounded flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-red-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">Service Agreement 2024.pdf</div>
+                                            <div class="text-sm text-gray-600">Uploaded Jan 15, 2024 • 2.4 MB</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-secondary text-sm py-1 px-3">
+                                            <svg class="w-4 h-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            Download
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="p-4 hover:bg-gray-50 flex items-center justify-between">
+                                    <div class="flex items-center gap-3 flex-1">
+                                        <div class="w-10 h-10 bg-blue-100 rounded flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">Certificate of Incorporation.pdf</div>
+                                            <div class="text-sm text-gray-600">Uploaded Jan 3, 2024 • 1.2 MB</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-secondary text-sm py-1 px-3">
+                                            <svg class="w-4 h-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            Download
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="p-4 hover:bg-gray-50 flex items-center justify-between">
+                                    <div class="flex items-center gap-3 flex-1">
+                                        <div class="w-10 h-10 bg-green-100 rounded flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-green-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                                <polyline points="14 2 14 8 20 8"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">KRA PIN Certificate.pdf</div>
+                                            <div class="text-sm text-gray-600">Uploaded Jan 3, 2024 • 856 KB</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-secondary text-sm py-1 px-3">
+                                            <svg class="w-4 h-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            Download
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="p-4 hover:bg-gray-50 flex items-center justify-between">
+                                    <div class="flex items-center gap-3 flex-1">
+                                        <div class="w-10 h-10 bg-purple-100 rounded flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                                <polyline points="21 15 16 10 5 21"></polyline>
+                                            </svg>
+                                        </div>
+                                        <div class="flex-1">
+                                            <div class="font-medium">Company Logo - Vector.ai</div>
+                                            <div class="text-sm text-gray-600">Uploaded Dec 20, 2023 • 3.1 MB</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2">
+                                        <button class="btn btn-secondary text-sm py-1 px-3">
+                                            <svg class="w-4 h-4 mr-1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                                <polyline points="7 10 12 15 17 10"></polyline>
+                                                <line x1="12" y1="15" x2="12" y2="3"></line>
+                                            </svg>
+                                            Download
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Log Tab -->
+            <div id="tab-activity" class="tab-content">
+                <div class="space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-lg font-semibold">Activity Timeline</h3>
+                        <select class="form-select text-sm">
+                            <option>All Activities</option>
+                            <option>Quotes</option>
+                            <option>Orders</option>
+                            <option>Payments</option>
+                            <option>Communications</option>
+                        </select>
+                    </div>
+
+                    <div class="timeline">
+                        <div class="timeline-item">
+                            <div class="timeline-dot success"></div>
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="font-semibold">Quote QT-2024-045 sent to client</div>
+                                    <span class="text-sm text-gray-600">2 hours ago</span>
+                                </div>
+                                <p class="text-sm text-gray-600">Business Cards - Premium Finish quote sent via email</p>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="text-xs bg-blue-100 text-blue-600 px-2 py-1 rounded">Quote</span>
+                                    <span class="text-xs text-gray-600">By John Doe</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="timeline-dot"></div>
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="font-semibold">Client meeting scheduled</div>
+                                    <span class="text-sm text-gray-600">Yesterday, 3:00 PM</span>
+                                </div>
+                                <p class="text-sm text-gray-600">Quarterly review meeting set for Feb 5, 2024</p>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="text-xs bg-purple-100 text-purple-600 px-2 py-1 rounded">Meeting</span>
+                                    <span class="text-xs text-gray-600">By Jane Smith</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="timeline-dot success"></div>
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="font-semibold">Quote QT-2024-038 approved</div>
+                                    <span class="text-sm text-gray-600">Jan 22, 11:30 AM</span>
+                                </div>
+                                <p class="text-sm text-gray-600">Company Brochures approved and moved to production</p>
+                                <div class="flex items-center gap-2 mt-2">
+                                    <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">Approval</span>
+                                    <span class="text-xs text-gray-600">By Client</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="timeline-item">
+                            <div class="timeline-dot success"></div>
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex items-start justify-between mb-2">
+                                    <div class="font-semibold">Payment received</div>
+                                    <span class="text-sm text-gray-600">Jan 20, 2:15 PM</span>
+                                </div>
+                                <p class="text-sm text-gray-600">KES 65,000 received for INV-2023-452</p>
+                                <div class="flex items-center gap
+                
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="font-mono text-sm">QT-2024-038</span></td>
+                                        <td>Company Brochures</td>
+                                        <td>1,000</td>
+                                        <td class="font-semibold">KES 85,000</td>
+                                        <td><span class="text-green-600 font-medium">32%</span></td>
+                                        <td><span class="quote-status-badge approved">Approved</span></td>
+                                        <td class="text-sm text-gray-600">Jan 15, 2024</td>
+                                        <td>
+                                            <button class="btn btn-secondary text-sm py-1 px-2">View</button>
+                                    </div>
+                                    </tr>
+                                        <span class="text-xs bg-green-100 text-green-600 px-2 py-1 rounded">Payment</span>
+                                        <span class="text-xs text-gray-600">By Finance Team</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <script>
+function switchTab(tabName) {
+    // Hide all tab contents
+    const allTabs = document.querySelectorAll('.tab-content');
+    allTabs.forEach(tab => tab.classList.remove('active'));
+
+    // Remove active class from all tab buttons
+    const allButtons = document.querySelectorAll('.profile-tab');
+    allButtons.forEach(btn => btn.classList.remove('active'));
+
+    // Activate the selected tab and button
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+</script>
+
+                        {% endblock %}
+
+

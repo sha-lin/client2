@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Lead Form{% endblock %}
+{% block content %}
+<h2 class="mb-3">{{ form.instance.pk|yesno:"Edit Lead,Add Lead" }}</h2>
+<form method="post">{% csrf_token %}
+  {{ form.as_p }}
+  <button type="submit" class="btn btn-success">Save</button>
+  <a href="{% url 'lead_list' %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}
