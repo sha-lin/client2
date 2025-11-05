@@ -55,6 +55,9 @@
     .btn-black {
         background: #000;
         color: white;
+        padding: 0.5rem 2rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
         transition: all 0.2s;
     }
     
@@ -103,11 +106,6 @@
         border-style: solid;
     }
     
-    .loading {
-        opacity: 0.6;
-        pointer-events: none;
-    }
-    
     @keyframes slideIn {
         from {
             opacity: 0;
@@ -121,6 +119,14 @@
     
     .item-row {
         animation: slideIn 0.3s ease;
+    }
+
+    .bg-green-100 {
+        background-color: #d1fae5;
+    }
+    
+    .text-green-700 {
+        color: #047857;
     }
 </style>
 {% endblock %}
@@ -150,9 +156,9 @@
             
             <!-- Hidden fields for form submission -->
             <input type="hidden" name="item_count" id="itemCount" value="0">
-            <input type="hidden" name="quote_type" id="quoteTypeHidden">
-            <input type="hidden" name="client_id" id="clientIdHidden">
-            <input type="hidden" name="lead_id" id="leadIdHidden">
+            <input type="hidden" name="quote_type" id="quoteType" value="client">
+            <input type="hidden" name="client_id" id="clientId">
+            <input type="hidden" name="lead_id" id="leadId">
             
             <!-- Header Section -->
             <div class="header-section p-8">
@@ -189,15 +195,15 @@
                         <div class="inline-block text-left space-y-3">
                             <div class="flex items-center gap-4">
                                 <span class="text-sm font-semibold text-gray-600 w-24">Quote #:</span>
-                                <input type="text" name="quote_number" id="quoteNumber" value="QT-{{ current_year }}-" class="editable-field px-2 py-1 rounded font-bold w-40" readonly>
+                                <input type="text" name="quote_number" id="quoteNumber" value="QT-{{ current_year }}-" class="editable-field px-2 py-1 rounded font-bold w-40">
                             </div>
                             <div class="flex items-center gap-4">
                                 <span class="text-sm font-semibold text-gray-600 w-24">Date:</span>
-                                <input type="date" name="quote_date" id="quoteDate" class="editable-field px-2 py-1 rounded" required>
+                                <input type="date" name="quote_date" id="quoteDate" value="{{ today }}" class="editable-field px-2 py-1 rounded" required>
                             </div>
                             <div class="flex items-center gap-4">
                                 <span class="text-sm font-semibold text-gray-600 w-24">Valid Until:</span>
-                                <input type="date" name="valid_until" id="validUntil" class="editable-field px-2 py-1 rounded" required>
+                                <input type="date" name="valid_until" id="validUntil" value="{{ default_valid_until }}" class="editable-field px-2 py-1 rounded" required>
                             </div>
                         </div>
                     </div>
@@ -212,24 +218,23 @@
                         <div class="space-y-2">
                             <div class="flex items-center gap-2 mb-3">
                                 <label class="text-xs text-gray-600 w-20">Type:</label>
-                                <select id="clientType" class="editable-field px-2 py-1 rounded text-sm flex-1" required>
-                                    <option value="">Select...</option>
-                                    <option value="client"> Existing Client</option>
-                                    <option value="lead"> New Lead</option>
+                                <select id="clientTypeSelect" class="border border-gray-300 rounded px-3 py-2 text-sm" required>
+                                    <option value="">Select type...</option>
+                                    <option value="client">Existing Client</option>
+                                    <option value="lead">Lead</option>
                                 </select>
                             </div>
                             
                             <div id="clientSelectDiv" class="hidden mb-3">
-                                <select id="clientSelect" class="w-full editable-field px-3 py-2 rounded text-sm font-medium">
-                                    <option value="">Choose client...</option>
+                                <select id="clientSelect" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                                    <option value="">Select client...</option>
                                     {% for client in clients %}
                                     <option value="{{ client.id }}" 
-                                            data-name="{{ client.company|default:client.name }}" 
-                                            data-email="{{ client.email }}" 
+                                            data-name="{{ client.company|default:client.name }}"
+                                            data-email="{{ client.email }}"
                                             data-phone="{{ client.phone }}"
                                             data-address="{{ client.address }}"
-                                            data-markup="{{ client.default_markup }}"
-                                            data-payment-terms="{{ client.payment_terms }}">
+                                            data-payment="{{ client.payment_terms }}">
                                         {{ client.client_id }} - {{ client.company|default:client.name }}
                                     </option>
                                     {% endfor %}
@@ -237,24 +242,27 @@
                             </div>
                             
                             <div id="leadSelectDiv" class="hidden mb-3">
-                                <select id="leadSelect" class="w-full editable-field px-3 py-2 rounded text-sm font-medium">
-                                    <option value="">Choose lead...</option>
+                                <select id="leadSelect" class="w-full border border-gray-300 rounded px-3 py-2 text-sm">
+                                    <option value="">Select lead...</option>
                                     {% for lead in leads %}
-                                    <option value="{{ lead.id }}" 
-                                            data-name="{{ lead.name }}" 
-                                            data-email="{{ lead.email }}" 
-                                            data-phone="{{ lead.phone }}"
-                                            data-markup="35">
-                                        {{ lead.lead_id }} - {{ lead.name }} ({{ lead.source }})
+                                    <option value="{{ lead.id }}"
+                                            data-name="{{ lead.name }}"
+                                            data-email="{{ lead.email }}"
+                                            data-phone="{{ lead.phone }}">
+                                        {{ lead.lead_id }} - {{ lead.name }}
                                     </option>
                                     {% endfor %}
                                 </select>
                             </div>
                             
-                            <input type="text" name="client_name" id="clientName" placeholder="Client/Company Name *" class="w-full editable-field px-3 py-2 rounded font-semibold" required>
-                            <input type="email" name="client_email" id="clientEmail" placeholder="Email Address" class="w-full editable-field px-3 py-2 rounded text-sm">
-                            <input type="tel" name="client_phone" id="clientPhone" placeholder="Phone Number" class="w-full editable-field px-3 py-2 rounded text-sm">
-                            <textarea name="client_address" id="clientAddress" placeholder="Address (Optional)" rows="2" class="w-full editable-field px-3 py-2 rounded text-sm"></textarea>
+                            <input type="text" name="client_name" id="clientName" placeholder="Client/Company Name *" 
+                                   class="w-full editable-field px-3 py-2 rounded font-semibold" required readonly>
+                            <input type="email" name="client_email" id="clientEmail" placeholder="Email Address" 
+                                   class="w-full editable-field px-3 py-2 rounded text-sm" readonly>
+                            <input type="tel" name="client_phone" id="clientPhone" placeholder="Phone Number" 
+                                   class="w-full editable-field px-3 py-2 rounded text-sm" readonly>
+                            <textarea name="client_address" id="clientAddress" placeholder="Address (Optional)" rows="2" 
+                                      class="w-full editable-field px-3 py-2 rounded text-sm" readonly></textarea>
                         </div>
                     </div>
                     <div>
@@ -271,18 +279,13 @@
                                 </select>
                             </div>
                             <div class="flex items-center gap-2">
-                                <label class="text-xs text-gray-600 w-32">Default Markup:</label>
-                                <input type="number" name="default_markup" id="defaultMarkup" value="30" min="0" max="100" step="0.01" class="editable-field px-2 py-1 rounded text-sm w-20 font-semibold">
-                                <span class="text-sm">%</span>
-                            </div>
-                            <div class="flex items-center gap-2">
                                 <label class="text-xs text-gray-600 w-32">Status:</label>
                                 <select name="status" id="quoteStatus" class="editable-field px-2 py-1 rounded text-sm flex-1">
-                                    <option value="Draft"> Draft</option>
-                                    <option value="Quoted" selected> Quoted</option>
-                                    <option value="Client Review"> Client Review</option>
-                                    <option value="Approved"> Approved</option>
-                                    <option value="Lost"> Lost</option>
+                                    <option value="Draft">Draft</option>
+                                    <option value="Quoted" selected>Quoted</option>
+                                    <option value="Client Review">Client Review</option>
+                                    <option value="Approved">Approved</option>
+                                    <option value="Lost">Lost</option>
                                 </select>
                             </div>
                         </div>
@@ -298,15 +301,13 @@
                             <tr class="border-b-2 border-black">
                                 <th class="text-left py-3 px-2 text-sm font-bold w-20">QTY</th>
                                 <th class="text-left py-3 px-2 text-sm font-bold">DESCRIPTION</th>
-                                <th class="text-right py-3 px-2 text-sm font-bold w-32">COST</th>
-                                <th class="text-right py-3 px-2 text-sm font-bold w-24">MARKUP</th>
                                 <th class="text-right py-3 px-2 text-sm font-bold w-32">UNIT PRICE</th>
                                 <th class="text-right py-3 px-2 text-sm font-bold w-32">AMOUNT</th>
                                 <th class="w-10"></th>
                             </tr>
                         </thead>
                         <tbody id="itemsTableBody">
-                            <!-- Items will be added here -->
+                            <!-- Items will be added here by JavaScript -->
                         </tbody>
                     </table>
                 </div>
@@ -325,18 +326,18 @@
                     <div class="w-96 space-y-3">
                         <div class="flex justify-between items-center text-sm">
                             <span class="font-semibold">SUBTOTAL</span>
-                            <span id="subtotal" class="font-bold">Sh 0.00</span>
+                            <span id="subtotal" class="font-bold">KES 0.00</span>
                         </div>
                         <div class="flex justify-between items-center text-sm">
                             <div class="flex items-center gap-2">
                                 <input type="checkbox" name="include_vat" id="includeVAT" class="rounded">
                                 <label for="includeVAT" class="font-semibold cursor-pointer">VAT (16%)</label>
                             </div>
-                            <span id="vatAmount" class="font-bold">Sh 0.00</span>
+                            <span id="vatAmount" class="font-bold">KES 0.00</span>
                         </div>
                         <div class="flex justify-between items-center pt-3 border-t-2 border-black">
                             <span class="text-lg font-bold">TOTAL</span>
-                            <span id="totalAmount" class="text-2xl font-bold">Sh 0.00</span>
+                            <span id="totalAmount" class="text-2xl font-bold">KES 0.00</span>
                         </div>
                     </div>
                 </div>
@@ -351,7 +352,7 @@
 2. The remaining payment must be settled within 14 days after the items are delivered.
 3. The quoted price remains valid for 30 days from the date of the initial quotation.
 4. Late payments may incur additional charges as per our policy.
-5. All items are VAT exclusive</textarea>
+5. All items are VAT exclusive unless specified</textarea>
                     </div>
                     <div>
                         <h3 class="text-sm font-bold text-black mb-2">NOTES / SPECIAL INSTRUCTIONS</h3>
@@ -387,7 +388,7 @@
 <div class="action-buttons no-print">
     <div class="max-w-7xl mx-auto px-4 py-4">
         <div class="flex items-center justify-between gap-4">
-            <button type="button" onclick="window.location.href='{% url 'dashboard' %}'" class="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition">
+            <button type="button" onclick="history.back()" class="px-6 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-semibold transition">
                 Cancel
             </button>
             <div class="flex gap-3">
@@ -395,10 +396,10 @@
                     Save Draft
                 </button>
                 <button type="button" id="previewBtn" class="px-6 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 font-semibold transition">
-                     Preview
+                    Preview
                 </button>
-                <button type="button" id="createQuoteBtn" class="px-8 py-2 btn-black rounded-lg font-semibold shadow-lg">
-                     Create Quote
+                <button type="submit" form="quoteForm" class="btn-black">
+                    Create Quote
                 </button>
             </div>
         </div>
@@ -409,395 +410,221 @@
 
 {% block extra_scripts %}
 <script>
-// Quote Form JavaScript - Complete Implementation
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('Quote form initialized ✅');
+
     let itemCounter = 0;
-    
-    // Set default dates
-    const today = new Date().toISOString().split('T')[0];
-    const validUntil = new Date();
-    validUntil.setDate(validUntil.getDate() + 30);
-    
-    document.getElementById('quoteDate').value = today;
-    document.getElementById('validUntil').value = validUntil.toISOString().split('T')[0];
-    
-    // Client Type Selection Handler
-    const clientType = document.getElementById('clientType');
+    const form = document.getElementById('quoteForm');
+    const addItemBtn = document.getElementById('addItemBtn');
+    const itemsTableBody = document.getElementById('itemsTableBody');
+    const includeVAT = document.getElementById('includeVAT');
+    const subtotalField = document.getElementById('subtotal');
+    const vatField = document.getElementById('vatAmount');
+    const totalField = document.getElementById('totalAmount');
+    const itemCountField = document.getElementById('itemCount');
+
+    // Client/Lead selection
+    const clientTypeSelect = document.getElementById('clientTypeSelect');
     const clientSelectDiv = document.getElementById('clientSelectDiv');
     const leadSelectDiv = document.getElementById('leadSelectDiv');
     const clientSelect = document.getElementById('clientSelect');
     const leadSelect = document.getElementById('leadSelect');
-    
-    clientType.addEventListener('change', function() {
-        const selectedType = this.value;
+
+    // Client details fields
+    const clientNameField = document.getElementById('clientName');
+    const clientEmailField = document.getElementById('clientEmail');
+    const clientPhoneField = document.getElementById('clientPhone');
+    const clientAddressField = document.getElementById('clientAddress');
+    const paymentTermsField = document.getElementById('paymentTerms');
+
+    // Hidden fields
+    const quoteTypeField = document.getElementById('quoteType');
+    const clientIdField = document.getElementById('clientId');
+    const leadIdField = document.getElementById('leadId');
+
+    // Handle client/lead type selection
+    clientTypeSelect.addEventListener('change', function() {
+        const type = this.value;
         
-        if (selectedType === 'client') {
+        if (type === 'client') {
             clientSelectDiv.classList.remove('hidden');
             leadSelectDiv.classList.add('hidden');
             leadSelect.value = '';
-            document.getElementById('quoteTypeHidden').value = 'client';
-            clearClientFields();
-        } else if (selectedType === 'lead') {
+            quoteTypeField.value = 'client';
+        } else if (type === 'lead') {
             leadSelectDiv.classList.remove('hidden');
             clientSelectDiv.classList.add('hidden');
             clientSelect.value = '';
-            document.getElementById('quoteTypeHidden').value = 'lead';
-            clearClientFields();
+            quoteTypeField.value = 'lead';
         } else {
             clientSelectDiv.classList.add('hidden');
             leadSelectDiv.classList.add('hidden');
-            clearClientFields();
         }
+        
+        // Clear fields
+        clearClientDetails();
     });
-    
-    // Client Selection Handler
+
+    // Handle client selection
     clientSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        
+        const selected = this.options[this.selectedIndex];
         if (this.value) {
-            // Get data from option attributes
-            const clientName = selectedOption.dataset.name;
-            const clientEmail = selectedOption.dataset.email;
-            const clientPhone = selectedOption.dataset.phone;
-            const clientAddress = selectedOption.dataset.address;
-            const markup = selectedOption.dataset.markup;
-            const paymentTerms = selectedOption.dataset.paymentTerms;
-            
-            // Fill form fields
-            document.getElementById('clientName').value = clientName || '';
-            document.getElementById('clientEmail').value = clientEmail || '';
-            document.getElementById('clientPhone').value = clientPhone || '';
-            document.getElementById('clientAddress').value = clientAddress || '';
-            document.getElementById('defaultMarkup').value = markup || 30;
-            document.getElementById('paymentTerms').value = paymentTerms || 'Prepaid';
-            document.getElementById('clientIdHidden').value = this.value;
-            
-            // Update existing items with new default markup
-            updateAllItemMarkups(markup || 30);
+            clientIdField.value = this.value;
+            clientNameField.value = selected.dataset.name || '';
+            clientEmailField.value = selected.dataset.email || '';
+            clientPhoneField.value = selected.dataset.phone || '';
+            clientAddressField.value = selected.dataset.address || '';
+            paymentTermsField.value = selected.dataset.payment || 'Prepaid';
         } else {
-            clearClientFields();
+            clearClientDetails();
         }
     });
-    
-    // Lead Selection Handler
+
+    // Handle lead selection
     leadSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        
+        const selected = this.options[this.selectedIndex];
         if (this.value) {
-            // Get data from option attributes
-            const leadName = selectedOption.dataset.name;
-            const leadEmail = selectedOption.dataset.email;
-            const leadPhone = selectedOption.dataset.phone;
-            const markup = selectedOption.dataset.markup;
-            
-            // Fill form fields
-            document.getElementById('clientName').value = leadName || '';
-            document.getElementById('clientEmail').value = leadEmail || '';
-            document.getElementById('clientPhone').value = leadPhone || '';
-            document.getElementById('clientAddress').value = '';
-            document.getElementById('defaultMarkup').value = markup || 35;
-            document.getElementById('paymentTerms').value = 'Prepaid';
-            document.getElementById('leadIdHidden').value = this.value;
-            
-            // Update existing items with new default markup
-            updateAllItemMarkups(markup || 35);
+            leadIdField.value = this.value;
+            clientNameField.value = selected.dataset.name || '';
+            clientEmailField.value = selected.dataset.email || '';
+            clientPhoneField.value = selected.dataset.phone || '';
+            clientAddressField.value = '';
+            paymentTermsField.value = 'Prepaid';
         } else {
-            clearClientFields();
+            clearClientDetails();
         }
     });
-    
-    function clearClientFields() {
-        document.getElementById('clientName').value = '';
-        document.getElementById('clientEmail').value = '';
-        document.getElementById('clientPhone').value = '';
-        document.getElementById('clientAddress').value = '';
-        document.getElementById('clientIdHidden').value = '';
-        document.getElementById('leadIdHidden').value = '';
+
+    function clearClientDetails() {
+        clientIdField.value = '';
+        leadIdField.value = '';
+        clientNameField.value = '';
+        clientEmailField.value = '';
+        clientPhoneField.value = '';
+        clientAddressField.value = '';
     }
-    
-    function updateAllItemMarkups(newMarkup) {
-        const markupInputs = document.querySelectorAll('.item-markup');
-        markupInputs.forEach(input => {
-            input.value = newMarkup;
-            // Trigger recalculation
-            const row = input.closest('tr');
-            calculateRowTotal(row);
-        });
-    }
-    
-    // Add Line Item Button
-    const addItemBtn = document.getElementById('addItemBtn');
-    const itemsTableBody = document.getElementById('itemsTableBody');
-    
-    addItemBtn.addEventListener('click', function() {
-        itemCounter++;
-        addLineItem();
-    });
-    
+
+    // Function: Add Line Item
     function addLineItem(data = {}) {
         itemCounter++;
-        const defaultMarkup = document.getElementById('defaultMarkup').value || 30;
-        
         const row = document.createElement('tr');
         row.className = 'item-row border-b border-gray-200';
         row.dataset.itemId = itemCounter;
-        
+
         row.innerHTML = `
             <td class="py-3 px-2">
-                <input type="number" 
-                       name="quantity_${itemCounter}" 
-                       class="item-quantity w-full px-2 py-1 border border-gray-300 rounded text-sm text-center" 
-                       value="${data.quantity || 1}" 
-                       min="1" 
-                       required>
+                <input type="number" name="quantity_${itemCounter}" 
+                    class="item-qty w-16 text-right border border-gray-300 rounded px-2 py-1" 
+                    value="${data.qty || 1}" min="1" required>
             </td>
             <td class="py-3 px-2">
-                <textarea name="description_${itemCounter}" 
-                          class="item-description w-full px-2 py-1 border border-gray-300 rounded text-sm" 
-                          rows="2" 
-                          placeholder="Enter item description..."
-                          required>${data.description || ''}</textarea>
+                <input type="text" name="description_${itemCounter}" 
+                    class="item-desc w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                    value="${data.description || ''}" placeholder="Item description" required>
             </td>
-            <td class="py-3 px-2">
-                <input type="number" 
-                       name="cost_${itemCounter}" 
-                       class="item-cost w-full px-2 py-1 border border-gray-300 rounded text-sm text-right" 
-                       value="${data.cost || 0}" 
-                       min="0" 
-                       step="0.01" 
-                       required>
+            <td class="py-3 px-2 text-right">
+                <input type="number" name="unit_price_${itemCounter}" 
+                    class="item-unitprice w-28 text-right border border-gray-300 rounded px-2 py-1" 
+                    step="0.01" value="${data.unitPrice || 0}" min="0" required>
             </td>
-            <td class="py-3 px-2">
-                <div class="flex items-center gap-1">
-                    <input type="number" 
-                           name="markup_${itemCounter}" 
-                           class="item-markup w-full px-2 py-1 border border-gray-300 rounded text-sm text-right" 
-                           value="${data.markup || defaultMarkup}" 
-                           min="0" 
-                           max="100" 
-                           step="0.01">
-                    <span class="text-xs text-gray-500">%</span>
-                </div>
-            </td>
-            <td class="py-3 px-2">
-                <input type="number" 
-                       name="price_${itemCounter}" 
-                       class="item-price w-full px-2 py-1 bg-gray-50 border border-gray-300 rounded text-sm text-right font-semibold" 
-                       value="${data.price || 0}" 
-                       readonly>
-            </td>
-            <td class="py-3 px-2">
-                <input type="number" 
-                       name="amount_${itemCounter}" 
-                       class="item-amount w-full px-2 py-1 bg-gray-50 border border-gray-300 rounded text-sm text-right font-bold" 
-                       value="${data.amount || 0}" 
-                       readonly>
+            <td class="py-3 px-2 text-right">
+                <input type="number" name="amount_${itemCounter}" 
+                    class="item-amount w-28 text-right border border-gray-300 rounded px-2 py-1 bg-gray-50 font-semibold" 
+                    readonly value="0.00">
             </td>
             <td class="py-3 px-2 text-center">
-                <button type="button" 
-                        class="remove-item text-red-600 hover:text-red-800 transition" 
-                        title="Remove item">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                    </svg>
+                <button type="button" class="remove-item text-red-600 hover:text-red-800 text-lg" title="Remove">
+                    ✖
                 </button>
             </td>
         `;
-        
+
         itemsTableBody.appendChild(row);
-        
-        // Attach event listeners to the new row
+        itemCountField.value = itemCounter;
+
         attachRowListeners(row);
-        
-        // Update item count
-        updateItemCount();
-        
-        // Calculate initial values if data provided
-        if (data.cost) {
-            calculateRowTotal(row);
-        }
+        calculateRowTotal(row);
+        updateTotals();
     }
-    
+
+    // Attach listeners to a new row
     function attachRowListeners(row) {
-        const quantity = row.querySelector('.item-quantity');
-        const cost = row.querySelector('.item-cost');
-        const markup = row.querySelector('.item-markup');
+        const qty = row.querySelector('.item-qty');
+        const unitPrice = row.querySelector('.item-unitprice');
         const removeBtn = row.querySelector('.remove-item');
-        
-        // Calculate on input change
-        [quantity, cost, markup].forEach(input => {
-            input.addEventListener('input', function() {
-                calculateRowTotal(row);
-            });
+
+        [qty, unitPrice].forEach(input => {
+            input.addEventListener('input', () => calculateRowTotal(row));
         });
-        
-        // Remove row handler
-        removeBtn.addEventListener('click', function() {
+
+        removeBtn.addEventListener('click', () => {
             row.remove();
-            updateItemCount();
-            calculateTotals();
+            updateTotals();
         });
     }
-    
+
+    // Calculate row totals
     function calculateRowTotal(row) {
-        const quantity = parseFloat(row.querySelector('.item-quantity').value) || 0;
-        const cost = parseFloat(row.querySelector('.item-cost').value) || 0;
-        const markup = parseFloat(row.querySelector('.item-markup').value) || 0;
-        
-        // Calculate unit price: cost * (1 + markup/100)
-        const price = cost * (1 + markup / 100);
-        
-        // Calculate total amount: quantity * price
-        const amount = quantity * price;
-        
-        // Update fields
-        row.querySelector('.item-price').value = price.toFixed(2);
+        const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+        const unitPrice = parseFloat(row.querySelector('.item-unitprice').value) || 0;
+
+        const amount = unitPrice * qty;
         row.querySelector('.item-amount').value = amount.toFixed(2);
-        
-        // Recalculate totals
-        calculateTotals();
+
+        updateTotals();
     }
-    
-    function calculateTotals() {
+
+    // Calculate totals
+    function updateTotals() {
         let subtotal = 0;
-        
-        // Sum all item amounts
-        document.querySelectorAll('.item-amount').forEach(input => {
-            subtotal += parseFloat(input.value) || 0;
+        document.querySelectorAll('.item-amount').forEach(a => {
+            subtotal += parseFloat(a.value) || 0;
         });
-        
-        // Check if VAT is included
-        const includeVAT = document.getElementById('includeVAT').checked;
-        const vatAmount = includeVAT ? subtotal * 0.16 : 0;
-        const total = subtotal + vatAmount;
-        
-        // Update display
-        document.getElementById('subtotal').textContent = `Sh ${formatMoney(subtotal)}`;
-        document.getElementById('vatAmount').textContent = `Sh ${formatMoney(vatAmount)}`;
-        document.getElementById('totalAmount').textContent = `Sh ${formatMoney(total)}`;
+
+        subtotalField.textContent = `KES ${subtotal.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+        const vat = includeVAT.checked ? subtotal * 0.16 : 0;
+        vatField.textContent = `KES ${vat.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+
+        const total = subtotal + vat;
+        totalField.textContent = `KES ${total.toLocaleString('en-KE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
     }
-    
-    function formatMoney(amount) {
-        return amount.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-    }
-    
-    // VAT checkbox handler
-    document.getElementById('includeVAT').addEventListener('change', calculateTotals);
-    
-    function updateItemCount() {
-        const itemRows = itemsTableBody.querySelectorAll('.item-row');
-        document.getElementById('itemCount').value = itemRows.length;
-    }
-    
-    // Form Validation
-    function validateForm() {
-        // Check if client/lead is selected
-        const quoteType = document.getElementById('clientType').value;
-        if (!quoteType) {
-            alert('Please select whether this is for a Client or Lead');
-            return false;
-        }
-        
-        const clientName = document.getElementById('clientName').value.trim();
-        if (!clientName) {
+
+    includeVAT.addEventListener('change', updateTotals);
+    addItemBtn.addEventListener('click', () => addLineItem());
+
+    // Form validation
+    form.addEventListener('submit', function(e) {
+        const type = quoteTypeField.value;
+        const clientId = clientIdField.value;
+        const leadId = leadIdField.value;
+
+        if (!type || (type === 'client' && !clientId) || (type === 'lead' && !leadId)) {
+            e.preventDefault();
             alert('Please select a client or lead');
             return false;
         }
-        
-        // Check if at least one item exists
-        const itemRows = itemsTableBody.querySelectorAll('.item-row');
-        if (itemRows.length === 0) {
-            alert('Please add at least one line item');
+
+        if (itemCounter === 0) {
+            e.preventDefault();
+            alert('Please add at least one item');
             return false;
         }
-        
-        // Validate each item
-        let hasError = false;
-        itemRows.forEach((row, index) => {
-            const description = row.querySelector('.item-description').value.trim();
-            const quantity = parseFloat(row.querySelector('.item-quantity').value);
-            const cost = parseFloat(row.querySelector('.item-cost').value);
-            
-            if (!description) {
-                alert(`Item ${index + 1}: Please enter a description`);
-                hasError = true;
-                return;
-            }
-            
-            if (quantity <= 0) {
-                alert(`Item ${index + 1}: Quantity must be greater than 0`);
-                hasError = true;
-                return;
-            }
-            
-            if (cost < 0) {
-                alert(`Item ${index + 1}: Cost cannot be negative`);
-                hasError = true;
-                return;
-            }
-        });
-        
-        return !hasError;
-    }
-    
-    // Save Draft Button
-    document.getElementById('saveDraftBtn').addEventListener('click', function() {
-        if (!validateForm()) return;
-        
-        // Set status to Draft
-        document.getElementById('quoteStatus').value = 'Draft';
-        
-        // Submit form
-        document.getElementById('quoteForm').submit();
     });
-    
-    // Preview Button
-    document.getElementById('previewBtn').addEventListener('click', function() {
-        if (!validateForm()) return;
-        
-        // Open print preview
+
+    // Save Draft button
+    document.getElementById('saveDraftBtn').addEventListener('click', () => {
+        document.getElementById('quoteStatus').value = 'Draft';
+        form.submit();
+    });
+
+    // Preview button
+    document.getElementById('previewBtn').addEventListener('click', () => {
         window.print();
     });
-    
-    // Create Quote Button
-    document.getElementById('createQuoteBtn').addEventListener('click', function() {
-        if (!validateForm()) return;
-        
-        // Ensure status is set (use selected status or default to Quoted)
-        const currentStatus = document.getElementById('quoteStatus').value;
-        if (!currentStatus || currentStatus === 'Draft') {
-            document.getElementById('quoteStatus').value = 'Quoted';
-        }
-        
-        // Submit form
-        document.getElementById('quoteForm').submit();
-    });
-    
-    // Generate next quote number
-    function generateQuoteNumber() {
-        const year = new Date().getFullYear();
-        const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
-        return `QT-${year}-${random}`;
-    }
-    
-    // Set initial quote number if empty
-    const quoteNumberField = document.getElementById('quoteNumber');
-    if (!quoteNumberField.value || quoteNumberField.value === 'QT-' + new Date().getFullYear() + '-') {
-        quoteNumberField.value = generateQuoteNumber();
-    }
-    
-    // Update default markup when changed
-    document.getElementById('defaultMarkup').addEventListener('change', function() {
-        const newMarkup = this.value;
-        if (confirm('Apply this markup to all existing items?')) {
-            updateAllItemMarkups(newMarkup);
-        }
-    });
-    
-    // Initialize with one empty line item
+
+    // Add first item by default
     addLineItem();
 });
 </script>
-{% endblock%}
-
-   
+{% endblock %}

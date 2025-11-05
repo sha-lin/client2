@@ -81,18 +81,11 @@ DATABASES = {
                 'NAME': 'client',
                 'USER': 'postgres',
                 'PASSWORD': 'Shalin@03',
-                'HOST': 'localhost',  # Or the IP/hostname of your PostgreSQL server
-                'PORT': '5432',       # Default PostgreSQL port
+                'HOST': 'localhost',  
+                'PORT': '5432',       
             }
         }
 
-# DATABASES = {
-#     'default': {
-        
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 
 
 # Password validation

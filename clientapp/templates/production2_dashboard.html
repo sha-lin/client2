@@ -1,0 +1,388 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+<style>
+    .dashboard-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 1rem;
+    }
+
+    .stat-title {
+        font-size: 0.9rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .stat-icon {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+    }
+
+    .stat-icon.primary {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .stat-icon.warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .stat-icon.danger {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-label {
+        font-size: 0.85rem;
+        color: #9ca3af;
+    }
+
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .dashboard-card {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin: 0;
+    }
+
+    .card-subtitle {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin: 0.25rem 0 0 0;
+    }
+
+    .metric-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .metric-row:last-child {
+        border-bottom: none;
+    }
+
+    .metric-label {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .metric-value {
+        color: #1a1a1a;
+        font-weight: 600;
+        font-size: 0.95rem;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #f3f4f6;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 0.5rem;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: #1a1a1a;
+        border-radius: 4px;
+    }
+
+    .alert-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .alert-item {
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 3px solid;
+    }
+
+    .alert-item.urgent {
+        background: #fef2f2;
+        border-color: #dc2626;
+    }
+
+    .alert-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 0.5rem;
+    }
+
+    .alert-title {
+        font-weight: 600;
+        color: #1a1a1a;
+        font-size: 0.9rem;
+    }
+
+    .alert-badge {
+        background: #dc2626;
+        color: #fff;
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .alert-detail {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin-bottom: 0.5rem;
+    }
+
+    .alert-action {
+        color: #2563eb;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+
+    .alert-action:hover {
+        text-decoration: underline;
+    }
+
+    .workflow-section {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .workflow-item {
+        margin-bottom: 1.5rem;
+    }
+
+    .workflow-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .workflow-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.75rem;
+    }
+
+    .workflow-label {
+        font-size: 0.9rem;
+        color: #374151;
+        font-weight: 500;
+    }
+
+    .workflow-percentage {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+
+    .workflow-bar {
+        width: 100%;
+        height: 12px;
+        background: #f3f4f6;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .workflow-fill {
+        height: 100%;
+        border-radius: 6px;
+    }
+
+    .workflow-description {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        margin-top: 0.5rem;
+    }
+</style>
+
+<div class="dashboard-container">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">Active Production Jobs</span>
+                <div class="stat-icon primary">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+            </div>
+            <div class="stat-value">12</div>
+            <div class="stat-label">Currently in production</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">Pending PT Reviews</span>
+                <div class="stat-icon warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+            </div>
+            <div class="stat-value">3</div>
+            <div class="stat-label">Awaiting approval</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">Low Stock Alerts</span>
+                <div class="stat-icon danger">
+                    <i class="fas fa-box-open"></i>
+                </div>
+            </div>
+            <div class="stat-value">2</div>
+            <div class="stat-label">Requires attention</div>
+        </div>
+    </div>
+
+    <div class="dashboard-grid">
+        <div class="dashboard-card">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title"><i class="fas fa-chart-line"></i> On-Time Delivery Rate</h2>
+                    <p class="card-subtitle">Last 30 days</p>
+                </div>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+                <div style="font-size: 2.5rem; font-weight: 700; color: #1a1a1a;">94%</div>
+                <div style="font-size: 0.9rem; color: #6b7280;">Delivery Performance</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: 94%;"></div>
+                </div>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Avg Quote Turnaround</span>
+                <span class="metric-value">2.3 hours</span>
+            </div>
+            <div class="metric-row">
+                <span class="metric-label">Catalog Accuracy</span>
+                <span class="metric-value">98%</span>
+            </div>
+        </div>
+
+        <div class="dashboard-card">
+            <div class="card-header">
+                <div>
+                    <h2 class="card-title"><i class="fas fa-exclamation-triangle"></i> Urgent Actions Required</h2>
+                    <p class="card-subtitle">Items requiring immediate attention</p>
+                </div>
+            </div>
+            <div class="alert-list">
+                <div class="alert-item urgent">
+                    <div class="alert-header">
+                        <span class="alert-title">Custom Embroidered Cap</span>
+                        <span class="alert-badge">Urgent</span>
+                    </div>
+                    <div class="alert-detail">Out of Stock</div>
+                    <div class="alert-action">Action: Source alternative supplier</div>
+                </div>
+                <div class="alert-item urgent">
+                    <div class="alert-header">
+                        <span class="alert-title">Aluminum Water Bottle 20oz</span>
+                        <span class="alert-badge">Urgent</span>
+                    </div>
+                    <div class="alert-detail">Low Stock (85 units)</div>
+                    <div class="alert-action">Action: Reorder initiated</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="workflow-section">
+        <div class="card-header">
+            <div>
+                <h2 class="card-title"><i class="fas fa-tasks"></i> Quote Workflow Status</h2>
+                <p class="card-subtitle">Current state of the quote pipeline</p>
+            </div>
+        </div>
+
+        <div class="workflow-item">
+            <div class="workflow-header">
+                <span class="workflow-label">Instant Quotes (Non-Custom)</span>
+                <span class="workflow-percentage">65% of total</span>
+            </div>
+            <div class="workflow-bar">
+                <div class="workflow-fill" style="width: 65%; background: linear-gradient(90deg, #3b82f6, #2563eb);"></div>
+            </div>
+            <div class="workflow-description">Automatically generated without PT review</div>
+        </div>
+
+        <div class="workflow-item">
+            <div class="workflow-header">
+                <span class="workflow-label">Assisted Quotes (Semi-Custom)</span>
+                <span class="workflow-percentage">25% of total</span>
+            </div>
+            <div class="workflow-bar">
+                <div class="workflow-fill" style="width: 25%; background: linear-gradient(90deg, #10b981, #059669);"></div>
+            </div>
+            <div class="workflow-description">PT reviews for variable cost adjustments</div>
+        </div>
+
+        <div class="workflow-item">
+            <div class="workflow-header">
+                <span class="workflow-label">Manual RFQ (Fully Custom)</span>
+                <span class="workflow-percentage">10% of total</span>
+            </div>
+            <div class="workflow-bar">
+                <div class="workflow-fill" style="width: 10%; background: linear-gradient(90deg, #f59e0b, #d97706);"></div>
+            </div>
+            <div class="workflow-description">Requires full PT costing and catalog update</div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

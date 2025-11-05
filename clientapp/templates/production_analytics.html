@@ -1,0 +1,477 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+<style>
+    .analytics-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .kpi-card {
+        background: #fff;
+        padding: 1.25rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .kpi-header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .kpi-icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.9rem;
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
+    .kpi-title {
+        font-size: 0.85rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .kpi-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 0.25rem;
+    }
+
+    .kpi-change {
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .kpi-change.positive {
+        color: #059669;
+    }
+
+    .kpi-change.negative {
+        color: #dc2626;
+    }
+
+    .chart-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .chart-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin: 0 0 0.25rem 0;
+    }
+
+    .chart-subtitle {
+        font-size: 0.85rem;
+        color: #6b7280;
+        margin: 0;
+    }
+
+    .chart-placeholder {
+        height: 280px;
+        background: #f9fafb;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 2px dashed #e5e7eb;
+    }
+
+    .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 1rem;
+        height: 240px;
+        padding: 1rem 0;
+    }
+
+    .bar-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .bars {
+        display: flex;
+        gap: 0.25rem;
+        height: 100%;
+        align-items: flex-end;
+    }
+
+    .bar {
+        width: 24px;
+        border-radius: 4px 4px 0 0;
+        position: relative;
+    }
+
+    .bar.approved {
+        background: linear-gradient(180deg, #10b981, #059669);
+    }
+
+    .bar.created {
+        background: linear-gradient(180deg, #3b82f6, #2563eb);
+    }
+
+    .bar-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .pie-chart {
+        height: 240px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+    }
+
+    .pie-segment {
+        position: absolute;
+    }
+
+    .pie-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        margin-left: 2rem;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .legend-color {
+        width: 32px;
+        height: 20px;
+        border-radius: 4px;
+    }
+
+    .legend-label {
+        font-size: 0.85rem;
+        color: #6b7280;
+        flex: 1;
+    }
+
+    .legend-value {
+        font-weight: 600;
+        color: #1a1a1a;
+        font-size: 0.9rem;
+    }
+
+    .line-chart {
+        height: 240px;
+        position: relative;
+        padding: 1rem 0;
+    }
+
+    .line-chart svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    .insights-card {
+        background: #fff;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .insight-item {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 0.75rem;
+        border-left: 3px solid;
+    }
+
+    .insight-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .insight-item.success {
+        background: #f0fdf4;
+        border-color: #10b981;
+    }
+
+    .insight-item.info {
+        background: #eff6ff;
+        border-color: #3b82f6;
+    }
+
+    .insight-item.warning {
+        background: #fffbeb;
+        border-color: #f59e0b;
+    }
+
+    .insight-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+    }
+
+    .insight-item.success .insight-icon {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .insight-item.info .insight-icon {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .insight-item.warning .insight-icon {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .insight-title {
+        font-weight: 600;
+        color: #1a1a1a;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .insight-text {
+        font-size: 0.85rem;
+        color: #6b7280;
+    }
+</style>
+
+<div class="analytics-container">
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon">
+                    <i class="far fa-file-alt"></i>
+                </div>
+                <span class="kpi-title">Total Quotes (Nov)</span>
+            </div>
+            <div class="kpi-value">28</div>
+            <div class="kpi-change positive">+12% vs last month</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <span class="kpi-title">Approval Rate</span>
+            </div>
+            <div class="kpi-value">89%</div>
+            <div class="kpi-change positive">+3% vs last month</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon">
+                    <i class="fas fa-dollar-sign"></i>
+                </div>
+                <span class="kpi-title">Avg Quote Value</span>
+            </div>
+            <div class="kpi-value">$427</div>
+            <div class="kpi-change negative">-8% vs last month</div>
+        </div>
+
+        <div class="kpi-card">
+            <div class="kpi-header">
+                <div class="kpi-icon">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <span class="kpi-title">Avg Turnaround</span>
+            </div>
+            <div class="kpi-value">2.3h</div>
+            <div class="kpi-change positive">-0.5h vs last month</div>
+        </div>
+    </div>
+
+    <div class="chart-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <h2 class="chart-title">Quote Volume Trend</h2>
+                <p class="chart-subtitle">Monthly quote creation and approval rates</p>
+            </div>
+            <div class="bar-chart">
+                <div class="bar-group">
+                    <div class="bars">
+                        <div class="bar created" style="height: 60%;"></div>
+                        <div class="bar approved" style="height: 50%;"></div>
+                    </div>
+                    <span class="bar-label">May</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bars">
+                        <div class="bar created" style="height: 65%;"></div>
+                        <div class="bar approved" style="height: 58%;"></div>
+                    </div>
+                    <span class="bar-label">Jun</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bars">
+                        <div class="bar created" style="height: 75%;"></div>
+                        <div class="bar approved" style="height: 68%;"></div>
+                    </div>
+                    <span class="bar-label">Jul</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bars">
+                        <div class="bar created" style="height: 72%;"></div>
+                        <div class="bar approved" style="height: 65%;"></div>
+                    </div>
+                    <span class="bar-label">Aug</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bars">
+                        <div class="bar created" style="height: 85%;"></div>
+                        <div class="bar approved" style="height: 78%;"></div>
+                    </div>
+                    <span class="bar-label">Sep</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bars">
+                        <div class="bar created" style="height: 95%;"></div>
+                        <div class="bar approved" style="height: 88%;"></div>
+                    </div>
+                    <span class="bar-label">Oct</span>
+                </div>
+                <div class="bar-group">
+                    <div class="bars">
+                        <div class="bar created" style="height: 100%;"></div>
+                        <div class="bar approved" style="height: 92%;"></div>
+                    </div>
+                    <span class="bar-label">Nov</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <h2 class="chart-title">Product Type Distribution</h2>
+                <p class="chart-subtitle">Quotes by product complexity</p>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: center; height: 240px;">
+                <div style="position: relative;">
+                    <svg width="180" height="180" viewBox="0 0 180 180">
+                        <circle cx="90" cy="90" r="70" fill="none" stroke="#8b5cf6" stroke-width="40" stroke-dasharray="329 440" transform="rotate(-90 90 90)"/>
+                        <circle cx="90" cy="90" r="70" fill="none" stroke="#3b82f6" stroke-width="40" stroke-dasharray="138 440" stroke-dashoffset="-329" transform="rotate(-90 90 90)"/>
+                        <circle cx="90" cy="90" r="70" fill="none" stroke="#f59e0b" stroke-width="40" stroke-dasharray="44 440" stroke-dashoffset="-467" transform="rotate(-90 90 90)"/>
+                    </svg>
+                </div>
+                <div class="pie-legend">
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, #a78bfa, #8b5cf6);"></div>
+                        <span class="legend-label">Non-Custom</span>
+                        <span class="legend-value">160</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, #60a5fa, #3b82f6);"></div>
+                        <span class="legend-label">Semi-Custom</span>
+                        <span class="legend-value">68</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background: linear-gradient(135deg, #fbbf24, #f59e0b);"></div>
+                        <span class="legend-label">Fully Custom</span>
+                        <span class="legend-value">22</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="chart-card" style="margin-bottom: 1.5rem;">
+        <div class="chart-header">
+            <h2 class="chart-title">Quote Turnaround Time</h2>
+            <p class="chart-subtitle">Average time from quote creation to PT approval (hours)</p>
+        </div>
+        <div class="line-chart">
+            <svg viewBox="0 0 700 200">
+                <polyline points="0,150 100,140 200,135 300,130 400,125 500,120 600,115 700,110" 
+                    fill="none" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
+                <circle cx="0" cy="150" r="4" fill="#f59e0b"/>
+                <circle cx="100" cy="140" r="4" fill="#f59e0b"/>
+                <circle cx="200" cy="135" r="4" fill="#f59e0b"/>
+                <circle cx="300" cy="130" r="4" fill="#f59e0b"/>
+                <circle cx="400" cy="125" r="4" fill="#f59e0b"/>
+                <circle cx="500" cy="120" r="4" fill="#f59e0b"/>
+                <circle cx="600" cy="115" r="4" fill="#f59e0b"/>
+                <circle cx="700" cy="110" r="4" fill="#f59e0b"/>
+                
+                <text x="50" y="195" font-size="12" fill="#9ca3af">Week 1</text>
+                <text x="300" y="195" font-size="12" fill="#9ca3af">Week 2</text>
+                <text x="500" y="195" font-size="12" fill="#9ca3af">Week 3</text>
+                <text x="660" y="195" font-size="12" fill="#9ca3af">Week 4</text>
+            </svg>
+        </div>
+    </div>
+
+    <div class="insights-card">
+        <div class="chart-header">
+            <h2 class="chart-title">Key Insights</h2>
+            <p class="chart-subtitle">Data-driven recommendations for workflow optimization</p>
+        </div>
+
+        <div class="insight-item success">
+            <div>
+                <span class="insight-icon"><i class="fas fa-arrow-up"></i></span>
+                <span class="insight-title">Instant Quote Adoption Increasing</span>
+            </div>
+            <div class="insight-text">68% of quotes now use catalog pricing, reducing PT workload by 48% compared to Q3</div>
+        </div>
+
+        <div class="insight-item info">
+            <div>
+                <span class="insight-icon"><i class="fas fa-info-circle"></i></span>
+                <span class="insight-title">Faster Turnaround Times</span>
+            </div>
+            <div class="insight-text">Quote to approval time reduced to 2.3 hours, meeting the speed priority goal</div>
+        </div>
+
+        <div class="insight-item warning">
+            <div>
+                <span class="insight-icon"><i class="fas fa-chart-line"></i></span>
+                <span class="insight-title">Opportunity: Expand Catalog</span>
+            </div>
+            <div class="insight-text">23 fully custom jobs this month could be added to catalog to enable instant quoting</div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

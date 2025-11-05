@@ -1,0 +1,478 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+<style>
+    .analytics-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .stat-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #f3f4f6;
+    }
+
+    .stat-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .stat-title {
+        font-size: 0.85rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .stat-icon {
+        color: #9ca3af;
+        font-size: 1.1rem;
+    }
+
+    .stat-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 0.25rem;
+    }
+
+    .stat-change {
+        font-size: 0.8rem;
+        color: #10b981;
+    }
+
+    .stat-change.negative {
+        color: #ef4444;
+    }
+
+    .charts-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #f3f4f6;
+    }
+
+    .chart-card.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .chart-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .chart-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 0.25rem;
+    }
+
+    .chart-subtitle {
+        font-size: 0.85rem;
+        color: #9ca3af;
+    }
+
+    /* Bar Chart Styles */
+    .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        height: 240px;
+        gap: 0.5rem;
+        padding: 1rem 0;
+    }
+
+    .bar-group {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .bars-container {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.25rem;
+        height: 100%;
+    }
+
+    .bar {
+        width: 18px;
+        border-radius: 4px 4px 0 0;
+        transition: all 0.3s ease;
+    }
+
+    .bar.blue {
+        background: #3b82f6;
+    }
+
+    .bar.green {
+        background: #10b981;
+    }
+
+    .bar:hover {
+        opacity: 0.8;
+    }
+
+    .bar-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    /* Product Distribution Chart */
+    .distribution-chart {
+        display: flex;
+        gap: 2rem;
+        align-items: center;
+        height: 240px;
+    }
+
+    .bars-vertical {
+        flex: 1;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-evenly;
+        height: 200px;
+        gap: 1rem;
+    }
+
+    .dist-bar-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        height: 100%;
+        justify-content: flex-end;
+    }
+
+    .dist-bar {
+        width: 60px;
+        background: #8b5cf6;
+        border-radius: 4px 4px 0 0;
+    }
+
+    .dist-label {
+        font-size: 0.75rem;
+        color: #6b7280;
+        font-weight: 500;
+        text-align: center;
+        max-width: 80px;
+    }
+
+    /* Line Chart */
+    .line-chart {
+        position: relative;
+        height: 240px;
+        padding: 1rem 0;
+    }
+
+    .line-chart svg {
+        width: 100%;
+        height: 100%;
+    }
+
+    .line-path {
+        fill: none;
+        stroke: #f59e0b;
+        stroke-width: 2.5;
+    }
+
+    .line-point {
+        fill: #f59e0b;
+    }
+
+    .chart-axis {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 0.5rem;
+        padding: 0 1rem;
+    }
+
+    .axis-label {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    /* Insights Section */
+    .insights-grid {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .insight-card {
+        padding: 1.25rem;
+        border-radius: 8px;
+        border-left: 4px solid;
+        display: flex;
+        align-items: flex-start;
+        gap: 1rem;
+    }
+
+    .insight-card.success {
+        background: #d1fae5;
+        border-color: #10b981;
+    }
+
+    .insight-card.info {
+        background: #dbeafe;
+        border-color: #3b82f6;
+    }
+
+    .insight-card.warning {
+        background: #fef3c7;
+        border-color: #f59e0b;
+    }
+
+    .insight-icon {
+        font-size: 1.25rem;
+        margin-top: 0.15rem;
+    }
+
+    .insight-card.success .insight-icon {
+        color: #059669;
+    }
+
+    .insight-card.info .insight-icon {
+        color: #2563eb;
+    }
+
+    .insight-card.warning .insight-icon {
+        color: #d97706;
+    }
+
+    .insight-content {
+        flex: 1;
+    }
+
+    .insight-title {
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 0.25rem;
+    }
+
+    .insight-description {
+        font-size: 0.85rem;
+        color: #374151;
+        line-height: 1.5;
+    }
+
+    @media (max-width: 1200px) {
+        .stats-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 968px) {
+        .charts-grid {
+            grid-template-columns: 1fr;
+        }
+        .stats-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="analytics-container">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">Total Quotes (Nov)</span>
+                <i class="fas fa-file-invoice stat-icon"></i>
+            </div>
+            <div class="stat-value">28</div>
+            <div class="stat-change">+5% vs last month</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">Approval Rate</span>
+                <i class="fas fa-percent stat-icon"></i>
+            </div>
+            <div class="stat-value">89%</div>
+            <div class="stat-change">+3% vs last month</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">Avg Quote Value</span>
+                <i class="fas fa-dollar-sign stat-icon"></i>
+            </div>
+            <div class="stat-value">$427</div>
+            <div class="stat-change">+8% vs last month</div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">Avg Turnaround</span>
+                <i class="fas fa-clock stat-icon"></i>
+            </div>
+            <div class="stat-value">2.3h</div>
+            <div class="stat-change">-0.1h vs last month</div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Quote Volume Trend</div>
+                <div class="chart-subtitle">Monthly quote creation and approval rates</div>
+            </div>
+            <div class="bar-chart">
+                <div class="bar-group">
+                    <div class="bars-container">
+                        <div class="bar blue" style="height: 65%;"></div>
+                        <div class="bar green" style="height: 55%;"></div>
+                    </div>
+                    <div class="bar-label">May</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bars-container">
+                        <div class="bar blue" style="height: 75%;"></div>
+                        <div class="bar green" style="height: 70%;"></div>
+                    </div>
+                    <div class="bar-label">Jun</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bars-container">
+                        <div class="bar blue" style="height: 80%;"></div>
+                        <div class="bar green" style="height: 75%;"></div>
+                    </div>
+                    <div class="bar-label">Jul</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bars-container">
+                        <div class="bar blue" style="height: 70%;"></div>
+                        <div class="bar green" style="height: 65%;"></div>
+                    </div>
+                    <div class="bar-label">Aug</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bars-container">
+                        <div class="bar blue" style="height: 95%;"></div>
+                        <div class="bar green" style="height: 88%;"></div>
+                    </div>
+                    <div class="bar-label">Sep</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bars-container">
+                        <div class="bar blue" style="height: 100%;"></div>
+                        <div class="bar green" style="height: 92%;"></div>
+                    </div>
+                    <div class="bar-label">Oct</div>
+                </div>
+                <div class="bar-group">
+                    <div class="bars-container">
+                        <div class="bar blue" style="height: 45%;"></div>
+                        <div class="bar green" style="height: 40%;"></div>
+                    </div>
+                    <div class="bar-label">Nov</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-header">
+                <div class="chart-title">Product Type Distribution</div>
+                <div class="chart-subtitle">Quotes by product complexity</div>
+            </div>
+            <div class="distribution-chart">
+                <div class="bars-vertical">
+                    <div class="dist-bar-group">
+                        <div class="dist-bar" style="height: 90%;"></div>
+                        <div class="dist-label">Non-Custom</div>
+                    </div>
+                    <div class="dist-bar-group">
+                        <div class="dist-bar" style="height: 45%;"></div>
+                        <div class="dist-label">Semi-Custom</div>
+                    </div>
+                    <div class="dist-bar-group">
+                        <div class="dist-bar" style="height: 20%;"></div>
+                        <div class="dist-label">Fully Custom</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-card full-width">
+            <div class="chart-header">
+                <div class="chart-title">Quote Turnaround Time</div>
+                <div class="chart-subtitle">Average time from quote creation to PT approval (hours)</div>
+            </div>
+            <div class="line-chart">
+                <svg viewBox="0 0 600 200" preserveAspectRatio="none">
+                    <polyline 
+                        class="line-path"
+                        points="0,30 100,40 200,35 300,50 400,45 500,50 600,48"
+                    />
+                    <circle class="line-point" cx="0" cy="30" r="4"/>
+                    <circle class="line-point" cx="100" cy="40" r="4"/>
+                    <circle class="line-point" cx="200" cy="35" r="4"/>
+                    <circle class="line-point" cx="300" cy="50" r="4"/>
+                    <circle class="line-point" cx="400" cy="45" r="4"/>
+                    <circle class="line-point" cx="500" cy="50" r="4"/>
+                    <circle class="line-point" cx="600" cy="48" r="4"/>
+                </svg>
+            </div>
+            <div class="chart-axis">
+                <span class="axis-label">Week 1</span>
+                <span class="axis-label">Week 2</span>
+                <span class="axis-label">Week 3</span>
+                <span class="axis-label">Week 4</span>
+            </div>
+        </div>
+
+        <div class="chart-card full-width">
+            <div class="chart-header">
+                <div class="chart-title">Key Insights</div>
+                <div class="chart-subtitle">Data-driven recommendations for workflow optimization</div>
+            </div>
+            <div class="insights-grid">
+                <div class="insight-card success">
+                    <i class="fas fa-arrow-trend-up insight-icon"></i>
+                    <div class="insight-content">
+                        <div class="insight-title">Instant Quote Adoption Increasing</div>
+                        <div class="insight-description">65% of quotes now use catalog pricing, reducing PT workload by 40% compared to Q3</div>
+                    </div>
+                </div>
+                <div class="insight-card info">
+                    <i class="fas fa-lightbulb insight-icon"></i>
+                    <div class="insight-content">
+                        <div class="insight-title">Faster Turnaround Times</div>
+                        <div class="insight-description">Quote to approval time reduced to 2.3 hours, meeting the speed prioritize goal</div>
+                    </div>
+                </div>
+                <div class="insight-card warning">
+                    <i class="fas fa-chart-line insight-icon"></i>
+                    <div class="insight-content">
+                        <div class="insight-title">Opportunity: Expand Catalog</div>
+                        <div class="insight-description">23 fully custom jobs this month could be added to catalog to enable instant quoting</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -347,10 +347,10 @@ class ComplianceDocument(models.Model):
             days_until_expiry = (self.expiry_date - timezone.now().date()).days
             return 0 < days_until_expiry <= 30
         return False
-
+# Updated Quote Model - Replace in your models.py
 
 class Quote(models.Model):
-    """Quote/Proposal model"""
+    """Quote/Proposal model - Simplified pricing"""
     STATUS_CHOICES = [
         ('Draft', 'Draft'),
         ('Quoted', 'Quoted'),
@@ -359,79 +359,150 @@ class Quote(models.Model):
         ('Lost', 'Lost'),
     ]
     
-    quote_id = models.CharField(max_length=20, unique=True, editable=False)
-    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='quotes')
+    PAYMENT_TERMS_CHOICES = [
+        ('Prepaid', 'Prepaid Before Production'),
+        ('Net 7', 'Net 7 Days'),
+        ('Net 15', 'Net 15 Days'),
+        ('Net 30', 'Net 30 Days'),
+        ('Net 60', 'Net 60 Days'),
+    ]
+    
+    # Basic Info
+    quote_id = models.CharField(max_length=20, editable=False, db_index=True)
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='quotes', null=True, blank=True)
     lead = models.ForeignKey(Lead, on_delete=models.SET_NULL, null=True, blank=True, related_name='quotes')
     
+    # Product Details
     product_name = models.CharField(max_length=200)
     quantity = models.IntegerField(validators=[MinValueValidator(1)])
     
-    # Pricing
-    cost_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    markup_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=30)
-    selling_price = models.DecimalField(max_digits=12, decimal_places=2)
+    # Simplified Pricing - ONLY UNIT PRICE
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     
-    # Status
+    # Quote Details
+    payment_terms = models.CharField(max_length=20, choices=PAYMENT_TERMS_CHOICES, default='Prepaid')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
+    include_vat = models.BooleanField(default=False)
     
     # Dates
-    quote_date = models.DateField(auto_now_add=True)
+    quote_date = models.DateField(default=timezone.now)
     valid_until = models.DateField()
     due_date = models.DateField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Additional Info
+    notes = models.TextField(blank=True)
+    terms = models.TextField(blank=True)
+    loss_reason = models.TextField(blank=True)
     
     # Tracking
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='quotes_created')
-    approved_at = models.DateTimeField(null=True, blank=True)
-    
-    notes = models.TextField(blank=True)
-    loss_reason = models.TextField(blank=True)
-    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['quote_id']),
+            models.Index(fields=['status']),
+            models.Index(fields=['client']),
+        ]
     
     def __str__(self):
         return f"{self.quote_id} - {self.product_name}"
     
     def save(self, *args, **kwargs):
+        # Generate quote_id if not exists
         if not self.quote_id:
-            # Generate quote ID: QT-YYYY-XXX
             year = timezone.now().year
             last_quote = Quote.objects.filter(
                 quote_id__startswith=f'QT-{year}-'
             ).order_by('quote_id').last()
             
             if last_quote:
-                last_number = int(last_quote.quote_id.split('-')[-1])
-                new_number = last_number + 1
+                try:
+                    last_number = int(last_quote.quote_id.split('-')[-1])
+                    new_number = last_number + 1
+                except:
+                    new_number = 1
             else:
                 new_number = 1
             
             self.quote_id = f'QT-{year}-{new_number:03d}'
         
-        # Calculate total amount
-        self.total_amount = self.selling_price * self.quantity
+        # Calculate total amount (unit_price * quantity)
+        self.total_amount = self.unit_price * self.quantity
         
         # Set valid_until if not set (default 30 days)
         if not self.valid_until:
             self.valid_until = timezone.now().date() + timedelta(days=30)
         
+        # Handle Lead to Client conversion when approved
+        if self.status == 'Approved' and self.lead and not self.lead.converted_to_client:
+            self.convert_lead_to_client()
+        
         super().save(*args, **kwargs)
     
-    @property
-    def margin_amount(self):
-        """Calculate margin amount"""
-        return self.selling_price - self.cost_price
+    def convert_lead_to_client(self):
+        """Convert lead to client when quote is approved"""
+        lead = self.lead
+        
+        # Check if client already exists with this email
+        existing_client = Client.objects.filter(email=lead.email).first()
+        
+        if not existing_client:
+            # Create new client from lead
+            client = Client.objects.create(
+                name=lead.name,
+                email=lead.email,
+                phone=lead.phone,
+                client_type='B2C',  # Default to B2C, can be changed later
+                lead_source=lead.source if hasattr(lead, 'source') else '',
+                preferred_channel=lead.preferred_contact if hasattr(lead, 'preferred_contact') else 'Email',
+                status='Active',
+                converted_from_lead=lead,
+                onboarded_by=self.created_by,
+                account_manager=self.created_by
+            )
+            
+            # Update lead status
+            lead.status = 'Converted'
+            lead.converted_to_client = True
+            lead.converted_at = timezone.now()
+            lead.save()
+            
+            # Transfer quote to new client
+            self.client = client
+            self.lead = None  # Remove lead reference
+            
+            # Log activity
+            ActivityLog.objects.create(
+                client=client,
+                activity_type='Note',
+                title=f"Client Converted from Lead {lead.lead_id}",
+                description=f"Lead automatically converted to client after quote {self.quote_id} was approved.",
+                created_by=self.created_by
+            )
+        else:
+            # Use existing client
+            self.client = existing_client
+            self.lead = None
+            lead.status = 'Converted'
+            lead.converted_to_client = True
+            lead.converted_at = timezone.now()
+            lead.save()
     
     @property
-    def margin_percentage(self):
-        """Calculate actual margin percentage"""
-        if self.cost_price > 0:
-            return round(((self.selling_price - self.cost_price) / self.cost_price) * 100, 2)
-        return 0
+    def is_expired(self):
+        """Check if quote is expired"""
+        return timezone.now().date() > self.valid_until
+    
+    @property
+    def days_until_expiry(self):
+        """Calculate days until expiry"""
+        delta = self.valid_until - timezone.now().date()
+        return delta.days
 
 
 class ActivityLog(models.Model):
@@ -463,22 +534,126 @@ class ActivityLog(models.Model):
     def __str__(self):
         return f"{self.activity_type} - {self.client.name} - {self.created_at.strftime('%Y-%m-%d')}"
     
-
+#  Add this to your models.py - Enhanced Job model
+from datetime import date
 class Job(models.Model):
     STATUS_CHOICES = [
-        ('Pending', 'Pending'),
-        ('In Progress', 'In Progress'),
-        ('Completed', 'Completed'),
-        ('On Hold', 'On Hold'),
+        ('pending', 'Pending'),
+        ('in_progress', 'In Progress'),
+        ('on_hold', 'On Hold'),
+        ('completed', 'Completed'),
     ]
-
+    
+    PRIORITY_CHOICES = [
+        ('normal', 'Normal'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+    
+    JOB_TYPE_CHOICES = [
+        ('printing', 'Printing'),
+        ('design', 'Design'),
+        ('branding', 'Branding'),
+        ('packaging', 'Packaging'),
+        ('signage', 'Signage'),
+        ('other', 'Other'),
+    ]
+    
+    DELIVERY_METHOD_CHOICES = [
+        ('pickup', 'Pickup'),
+        ('delivery', 'Delivery'),
+        ('courier', 'Courier'),
+    ]
+    
+    # Basic Info
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='jobs')
-    product = models.CharField(max_length=255)
+    job_number = models.CharField(max_length=50, editable=False, null=True, blank=True)
+    job_name = models.CharField(max_length=255)
+    job_type = models.CharField(max_length=50, choices=JOB_TYPE_CHOICES)
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
+    
+    # Product Info
+    product = models.CharField(max_length=255)  # Main product
     quantity = models.PositiveIntegerField()
+    
+    # Assignment
     person_in_charge = models.CharField(max_length=255)
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Dates
+    start_date = models.DateField(default=date.today)
+    expected_completion = models.DateField(default=date.today)
+    delivery_date = models.DateField(null=True, blank=True)
+    actual_completion = models.DateField(null=True, blank=True)
+    
+    # Delivery
+    delivery_method = models.CharField(max_length=20, choices=DELIVERY_METHOD_CHOICES, default='pickup')
+    
+    # Additional Info
+    notes = models.TextField(blank=True)
+    
+    # Tracking
     created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        'auth.User', 
+        on_delete=models.SET_NULL, 
+        null=True,
+        related_name='jobs_created'
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['client']),
+            models.Index(fields=['start_date']),
+        ]
 
     def __str__(self):
-        return f"{self.product} - {self.client.name}"
+        return f"{self.job_number} - {self.job_name}"
+    
+    def save(self, *args, **kwargs):
+        if not self.job_number:
+            # Generate job number: JOB-YYYY-XXX
+            year = timezone.now().year
+            last_job = Job.objects.filter(
+                job_number__startswith=f'JOB-{year}-'
+            ).order_by('job_number').last()
+            
+            if last_job:
+                last_number = int(last_job.job_number.split('-')[-1])
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            
+            self.job_number = f'JOB-{year}-{new_number:03d}'
+        
+        super().save(*args, **kwargs)
 
+
+class JobProduct(models.Model):
+    """Individual products within a job"""
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='products')
+    product_name = models.CharField(max_length=255)
+    quantity = models.PositiveIntegerField()
+    unit = models.CharField(max_length=20, default='pcs')
+    specifications = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.product_name} ({self.quantity} {self.unit})"
+
+
+class JobAttachment(models.Model):
+    """File attachments for jobs"""
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='job_attachments/%Y/%m/')
+    file_name = models.CharField(max_length=255)
+    file_size = models.IntegerField()  # in bytes
+    uploaded_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.file_name} - {self.job.job_number}"

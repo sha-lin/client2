@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Approve Quote {{ quote.quote_id }} - Print Duka{% endblock %}
+
+{% block content %}
+<!-- Top Navigation Bar -->
+<div class="fixed top-0 left-0 right-0 bg-black text-white h-14 flex items-center justify-between px-6 z-50 shadow-lg">
+    <div class="flex items-center gap-6">
+        <h1 class="text-xl font-bold">Print Duka</h1>
+        <span class="text-sm text-gray-300">Quote Approval</span>
+    </div>
+    <div class="flex items-center gap-4">
+        <a href="{% url 'quotes_list' %}" class="text-sm hover:text-gray-300 transition">
+            ← Back to Quotes
+        </a>
+    </div>
+</div>
+
+<!-- Main Content -->
+<div class="pt-20 pb-12 px-4 bg-gray-100 min-h-screen">
+    <div class="max-w-4xl mx-auto">
+        
+        <!-- Approval Card -->
+        <div class="bg-white rounded-lg shadow-lg p-8 mb-6">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">Approve Quote</h1>
+                <p class="text-gray-600">Review and approve quote {{ quote.quote_id }}</p>
+            </div>
+
+            <!-- Quote Summary -->
+            <div class="bg-gray-50 rounded-lg p-6 mb-6">
+                <h3 class="font-bold text-lg mb-4">Quote Summary</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-sm text-gray-600">Quote ID</p>
+                        <p class="font-semibold">{{ quote.quote_id }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Client/Lead</p>
+                        <p class="font-semibold">
+                            {% if quote.client %}
+                                {{ quote.client.company|default:quote.client.name }}
+                            {% else %}
+                                {{ quote.lead.name }}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Quote Date</p>
+                        <p class="font-semibold">{{ quote.quote_date|date:"M d, Y" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Valid Until</p>
+                        <p class="font-semibold">{{ quote.valid_until|date:"M d, Y" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quote Items -->
+            <div class="mb-6">
+                <h3 class="font-bold text-lg mb-4">Items</h3>
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <table class="w-full">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="text-left py-3 px-4 text-sm font-semibold">Product</th>
+                                <th class="text-center py-3 px-4 text-sm font-semibold">Qty</th>
+                                <th class="text-right py-3 px-4 text-sm font-semibold">Unit Price</th>
+                                <th class="text-right py-3 px-4 text-sm font-semibold">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            {% for item in related_quotes %}
+                            <tr>
+                                <td class="py-3 px-4">{{ item.product_name }}</td>
+                                <td class="py-3 px-4 text-center">{{ item.quantity }}</td>
+                                <td class="py-3 px-4 text-right">KES {{ item.selling_price|floatformat:2 }}</td>
+                                <td class="py-3 px-4 text-right font-semibold">KES {{ item.total_amount|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-gray-50 font-bold">
+                            <tr>
+                                <td colspan="3" class="py-3 px-4 text-right">TOTAL</td>
+                                <td class="py-3 px-4 text-right text-lg">
+                                    KES {% widthratio related_quotes.0.total_amount 1 1 as total %}
+                                    {{ related_quotes|length|add:"0"|floatformat:2 }}
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            {% if quote.notes %}
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h4 class="font-semibold text-blue-900 mb-2">Notes</h4>
+                <p class="text-sm text-blue-800">{{ quote.notes }}</p>
+            </div>
+            {% endif %}
+
+            <!-- Action Buttons -->
+            <form method="POST" class="flex gap-4">
+                {% csrf_token %}
+                <button type="submit" class="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                    Approve Quote & Create Job
+                </button>
+                <a href="{% url 'reject_quote' quote.quote_id %}" class="flex-1 bg-red-600 text-white py-3 rounded-lg font-semibold hover:bg-red-700 transition flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                    Reject Quote
+                </a>
+            </form>
+        </div>
+
+        <!-- Info Cards -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-white rounded-lg shadow p-4">
+                <h4 class="font-semibold mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    What happens next?
+                </h4>
+                <ul class="text-sm text-gray-600 space-y-1">
+                    <li>✓ Quote will be marked as Approved</li>
+                    <li>✓ You'll be redirected to create production jobs</li>
+                    <li>✓ Client will be notified of approval</li>
+                    <li>✓ Activity log will be updated</li>
+                </ul>
+            </div>
+            
+            <div class="bg-white rounded-lg shadow p-4">
+                <h4 class="font-semibold mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Quote Details
+                </h4>
+                <div class="text-sm text-gray-600 space-y-1">
+                    <div class="flex justify-between">
+                        <span>Payment Terms:</span>
+                        <span class="font-semibold">
+                            {% if quote.client %}
+                                {{ quote.client.payment_terms }}
+                            {% else %}
+                                Prepaid
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Created By:</span>
+                        <span class="font-semibold">{{ quote.created_by.get_full_name|default:quote.created_by.username }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Created Date:</span>
+                        <span class="font-semibold">{{ quote.created_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

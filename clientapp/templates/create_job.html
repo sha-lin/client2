@@ -186,6 +186,12 @@
 {% endblock %}
 
 {% block content %}
+{% if is_update %}
+  <h2 class="text-lg font-semibold mb-4">Edit Job - {{ job.client.name }}</h2>
+{% else %}
+  <h2 class="text-lg font-semibold mb-4">Create New Job</h2>
+{% endif %}
+
 <!-- Top Navigation Bar -->
 <div class="fixed top-0 left-0 right-0 bg-black text-white h-14 flex items-center justify-between px-6 z-50 shadow-lg no-print">
     <div class="flex items-center gap-6">
@@ -317,23 +323,107 @@
                     </div>
 
                     <!-- Products Section -->
-                    <div class="form-container p-6">
+                     <div class="form-container p-6">
                         <div class="section-header">
-                            <div class="flex items-center justify-between">
-                                <h2 class="text-xl font-bold flex items-center gap-2">
-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
-                                    </svg>
-                                    Products & Specifications
-                                </h2>
-                                <button type="button" id="addProductBtn" class="px-4 py-2 bg-black text-white rounded-lg text-sm font-semibold hover:bg-gray-800 transition">
-                                    + Add Product
-                                </button>
+                            <h2 class="text-xl font-bold flex items-center gap-2">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                </svg>
+                                Products & Specifications
+                            </h2>
+                        </div>
+
+                        <!-- Product 1 -->
+                        <div class="product-item">
+                            <h4 class="font-semibold mb-4 flex items-center">
+                                <span class="product-number">1</span>
+                                Primary Product
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="form-label required">Product Name</label>
+                                    <input type="text" name="product_name_1" class="form-input" placeholder="e.g., Business Cards" required>
+                                </div>
+                                <div>
+                                    <label class="form-label required">Quantity</label>
+                                    <input type="number" name="quantity_1" class="form-input" min="1" value="1" required>
+                                </div>
+                                <div>
+                                    <label class="form-label">Unit</label>
+                                    <select name="unit_1" class="form-select">
+                                        <option value="pcs">Pieces</option>
+                                        <option value="sets">Sets</option>
+                                        <option value="boxes">Boxes</option>
+                                        <option value="reams">Reams</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Specifications</label>
+                                    <textarea name="specifications_1" rows="2" class="form-textarea" placeholder="Size, color, material, finish, etc."></textarea>
+                                </div>
                             </div>
                         </div>
 
-                        <div id="productsContainer">
-                            <!-- Products will be added here -->
+                        <!-- Product 2 (Optional) -->
+                        <div class="product-item">
+                            <h4 class="font-semibold mb-4 flex items-center text-gray-600">
+                                <span class="product-number" style="background: #6b7280;">2</span>
+                                Additional Product (Optional)
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" name="product_name_2" class="form-input" placeholder="e.g., Letterheads">
+                                </div>
+                                <div>
+                                    <label class="form-label">Quantity</label>
+                                    <input type="number" name="quantity_2" class="form-input" min="1" value="1">
+                                </div>
+                                <div>
+                                    <label class="form-label">Unit</label>
+                                    <select name="unit_2" class="form-select">
+                                        <option value="pcs">Pieces</option>
+                                        <option value="sets">Sets</option>
+                                        <option value="boxes">Boxes</option>
+                                        <option value="reams">Reams</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Specifications</label>
+                                    <textarea name="specifications_2" rows="2" class="form-textarea" placeholder="Size, color, material, finish, etc."></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Product 3 (Optional) -->
+                        <div class="product-item">
+                            <h4 class="font-semibold mb-4 flex items-center text-gray-600">
+                                <span class="product-number" style="background: #6b7280;">3</span>
+                                Additional Product (Optional)
+                            </h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Product Name</label>
+                                    <input type="text" name="product_name_3" class="form-input" placeholder="e.g., Envelopes">
+                                </div>
+                                <div>
+                                    <label class="form-label">Quantity</label>
+                                    <input type="number" name="quantity_3" class="form-input" min="1" value="1">
+                                </div>
+                                <div>
+                                    <label class="form-label">Unit</label>
+                                    <select name="unit_3" class="form-select">
+                                        <option value="pcs">Pieces</option>
+                                        <option value="sets">Sets</option>
+                                        <option value="boxes">Boxes</option>
+                                        <option value="reams">Reams</option>
+                                    </select>
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="form-label">Specifications</label>
+                                    <textarea name="specifications_3" rows="2" class="form-textarea" placeholder="Size, color, material, finish, etc."></textarea>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -559,130 +649,170 @@
 </div>
 
 {% endblock %}
-
-{% block extra_scripts %}
-
+{% block extra_js %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    let productCounter = 0;
-
-    // Set default dates
-    const today = new Date().toISOString().split('T')[0];
-    const oneWeek = new Date();
-    oneWeek.setDate(oneWeek.getDate() + 7);
-    document.getElementById('startDate').value = today;
-    document.getElementById('expectedCompletion').value = oneWeek.toISOString().split('T')[0];
-
-    // Generate job number
-    const jobNumber = 'JOB-' + new Date().getFullYear() + '-' + String(Math.floor(Math.random() * 1000)).padStart(3, '0');
-    document.getElementById('jobNumber').value = jobNumber;
-    document.getElementById('summaryJobNumber').textContent = jobNumber;
-
-    // Client selection handler
-    document.getElementById('clientSelect').addEventListener('change', function() {
-        const option = this.options[this.selectedIndex];
+    // 1. Live Client Information Display
+    document.addEventListener('DOMContentLoaded', function() {
+        const clientSelect = document.getElementById('clientSelect');
         const infoCard = document.getElementById('clientInfoCard');
+        const clientEmail = document.getElementById('clientEmail');
+        const clientPhone = document.getElementById('clientPhone');
+        const clientAddress = document.getElementById('clientAddress');
 
-        if (this.value) {
-            document.getElementById('clientEmail').textContent = option.dataset.email || '-';
-            document.getElementById('clientPhone').textContent = option.dataset.phone || '-';
-            document.getElementById('clientAddress').textContent = option.dataset.address || '-';
-            document.getElementById('summaryClient').textContent = option.dataset.name;
-            infoCard.classList.remove('hidden');
-        } else {
-            infoCard.classList.add('hidden');
-            document.getElementById('summaryClient').textContent = '-';
+        function updateClientDetails() {
+            const selectedOption = clientSelect.options[clientSelect.selectedIndex];
+
+            if (selectedOption && selectedOption.value) {
+                // Get data from the selected option's data attributes
+                const email = selectedOption.getAttribute('data-email') || 'N/A';
+                const phone = selectedOption.getAttribute('data-phone') || 'N/A';
+                const address = selectedOption.getAttribute('data-address') || 'N/A';
+                
+                // Update the preview card
+                clientEmail.textContent = email;
+                clientPhone.textContent = phone;
+                clientAddress.textContent = address;
+                infoCard.classList.remove('hidden');
+
+                // Also update the Summary Card
+                const clientName = selectedOption.getAttribute('data-name') || 'No Client Selected';
+                document.getElementById('summaryClient').textContent = clientName;
+            } else {
+                infoCard.classList.add('hidden');
+                document.getElementById('summaryClient').textContent = '-';
+            }
         }
+
+        // Add event listener to trigger the update when client changes
+        clientSelect.addEventListener('change', updateClientDetails);
+        
+        // Initial call in case a value is pre-selected
+        updateClientDetails();
+    });
+    
+    // ---
+
+    // 2. Live Job Summary Updates
+    document.addEventListener('DOMContentLoaded', function() {
+        const jobForm = document.getElementById('jobForm');
+        const summaryJobNumber = document.getElementById('summaryJobNumber');
+        const summaryProducts = document.getElementById('summaryProducts');
+        const summaryStatus = document.getElementById('summaryStatus');
+
+        function updateJobSummary() {
+            // Update Job Number
+            const jobNumberInput = document.getElementById('jobNumber');
+            summaryJobNumber.textContent = jobNumberInput ? jobNumberInput.value : '-';
+
+            // Update Status
+            const statusSelect = jobForm.querySelector('select[name="status"]');
+            if (statusSelect) {
+                const statusValue = statusSelect.value;
+                const statusText = statusSelect.options[statusSelect.selectedIndex].text.trim();
+                
+                // Reset classes and apply new badge style
+                summaryStatus.className = 'status-badge';
+                summaryStatus.textContent = statusText;
+                
+                if (statusValue === 'pending') {
+                    summaryStatus.classList.add('pending');
+                } else if (statusValue === 'in_progress') {
+                    summaryStatus.classList.add('in-progress');
+                } else if (statusValue === 'completed') {
+                    summaryStatus.classList.add('completed');
+                } else {
+                    summaryStatus.classList.add('pending'); // Default style
+                }
+            }
+
+            // Update Product Count
+            let productCount = 0;
+            for (let i = 1; i <= 3; i++) {
+                const productNameInput = jobForm.querySelector(`input[name="product_name_${i}"]`);
+                if (productNameInput && productNameInput.value.trim() !== '') {
+                    productCount++;
+                }
+            }
+            summaryProducts.textContent = productCount;
+        }
+
+        // Attach event listeners to relevant fields
+        jobForm.querySelector('input[name="job_name"]').addEventListener('input', updateJobSummary);
+        jobForm.querySelector('select[name="status"]').addEventListener('change', updateJobSummary);
+        
+        // Listen for changes on all product name inputs
+        for (let i = 1; i <= 3; i++) {
+            const productNameInput = jobForm.querySelector(`input[name="product_name_${i}"]`);
+            if (productNameInput) {
+                productNameInput.addEventListener('input', updateJobSummary);
+            }
+        }
+
+        // Initial update
+        updateJobSummary();
     });
 
-    // 🔹 Make addProduct global so it works
-    window.addProduct = function() {
-        productCounter++;
-        const container = document.getElementById('productsContainer');
+    // ---
 
-        const productHTML = `
-            <div class="product-item" data-product-id="${productCounter}">
-                <div class="flex items-start justify-between mb-4">
-                    <h4 class="font-semibold">Product #${productCounter}</h4>
-                    <button type="button" onclick="removeProduct(${productCounter})" class="text-red-600 hover:text-red-800">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    // 3. File Upload & List Management
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('fileInput');
+        const filesList = document.getElementById('filesList');
+
+        // Function to render the list of selected files
+        function renderFilesList() {
+            filesList.innerHTML = ''; // Clear current list
+            const dataTransfer = new DataTransfer();
+            
+            Array.from(fileInput.files).forEach((file, index) => {
+                // Keep the file in a new DataTransfer object
+                dataTransfer.items.add(file);
+                
+                // Create list item element
+                const attachmentItem = document.createElement('div');
+                attachmentItem.className = 'attachment-item text-sm';
+                attachmentItem.innerHTML = `
+                    <svg class="w-5 h-5 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <span class="truncate">${file.name}</span>
+                    <button type="button" data-index="${index}" class="remove-file-btn text-red-500 hover:text-red-700 ml-auto p-1 rounded-full hover:bg-red-50 transition" aria-label="Remove file">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                         </svg>
                     </button>
-                </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div class="md:col-span-2">
-                        <label class="form-label required">Product Name</label>
-                        <input type="text" name="product_name_${productCounter}" class="form-input" placeholder="e.g., Business Cards" required>
-                    </div>
-                    <div>
-                        <label class="form-label required">Quantity</label>
-                        <input type="number" name="quantity_${productCounter}" class="form-input" min="1" value="1" required>
-                    </div>
-                    <div>
-                        <label class="form-label">Unit</label>
-                        <select name="unit_${productCounter}" class="form-select">
-                            <option value="pcs">Pieces</option>
-                            <option value="sets">Sets</option>
-                            <option value="boxes">Boxes</option>
-                            <option value="reams">Reams</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="form-label">Specifications</label>
-                        <textarea name="specifications_${productCounter}" rows="2" class="form-textarea" placeholder="Size, color, material, finish, etc."></textarea>
-                    </div>
-                </div>
-            </div>
-        `;
-        container.insertAdjacentHTML('beforeend', productHTML);
-        document.getElementById('summaryProducts').textContent = container.children.length;
-    };
+                `;
+                filesList.appendChild(attachmentItem);
+            });
+            
+            // Reassign the modified file list back to the input
+            fileInput.files = dataTransfer.files;
 
-    // 🔹 Make removeProduct global too
-    window.removeProduct = function (id) {
-        const item = document.querySelector(`.product-item[data-product-id="${id}"]`);
-        if (item) {
-            item.remove();
-            const container = document.getElementById('productsContainer');
-            document.getElementById('summaryProducts').textContent = container.children.length;
+            // Add listener for removal buttons
+            filesList.querySelectorAll('.remove-file-btn').forEach(button => {
+                button.addEventListener('click', (event) => {
+                    const indexToRemove = parseInt(event.currentTarget.getAttribute('data-index'));
+                    removeFile(indexToRemove);
+                });
+            });
         }
-    };
+        
+        // Function to remove a file by index
+        function removeFile(indexToRemove) {
+            const currentFiles = Array.from(fileInput.files);
+            const newFiles = currentFiles.filter((file, index) => index !== indexToRemove);
+            
+            // Create a new FileList for the input
+            const dataTransfer = new DataTransfer();
+            newFiles.forEach(file => dataTransfer.items.add(file));
+            fileInput.files = dataTransfer.files;
 
-    // Bind button to global function
-    document.getElementById('addProductBtn').addEventListener('click', window.addProduct);
+            renderFilesList(); // Re-render the list
+        }
 
-    // File upload preview
-    const fileInput = document.getElementById('fileInput');
-    const filesList = document.getElementById('filesList');
-    fileInput.addEventListener('change', function() {
-        filesList.innerHTML = '';
-        Array.from(fileInput.files).forEach(file => {
-            const div = document.createElement('div');
-            div.className = 'attachment-item';
-            div.innerHTML = `
-                <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span class="text-sm text-gray-700">${file.name}</span>
-            `;
-            filesList.appendChild(div);
-        });
+        // Listen for file changes
+        fileInput.addEventListener('change', renderFilesList);
     });
-
-    // Status badge sync
-    document.querySelector('select[name="status"]').addEventListener('change', function() {
-        const badge = document.getElementById('summaryStatus');
-        badge.textContent = this.options[this.selectedIndex].text;
-        badge.className = 'status-badge ' + this.value.replace('_', '-');
-    });
-
-    // Save draft button (optional demo)
-    document.getElementById('saveDraftBtn').addEventListener('click', function() {
-        alert('Job draft saved locally (demo only)');
-    });
-});
 </script>
+{% endblock extra_js %}
 
-{% endblock %}

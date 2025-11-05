@@ -1,9 +1,10 @@
+import json
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db.models import Q
 from django.http import JsonResponse
-from .models import Lead, Client
 from .forms import LeadForm, ClientForm
+from .models import Lead, Client, ClientContact, ComplianceDocument
 
 
 def dashboard(request):
@@ -193,21 +194,204 @@ def convert_lead(request, lead_id):
     messages.info(request, f'Converting lead {lead.name} to client')
     return redirect('client_onboarding')
 
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from .models import Client, Lead, ClientContact, ComplianceDocument, ActivityLog
+from .forms import ClientForm
 
 def client_onboarding(request):
-    """Client onboarding workflow"""
-    prefilled_data = request.session.pop('prefilled_lead', None)
+    """Client onboarding workflow - Matches HTML template B2B/B2C structure"""
+    prefilled_data = request.session.get('prefilled_lead', None)
     
     if request.method == 'POST':
-        form = ClientForm(request.POST)
-        if form.is_valid():
-            client = form.save()
-            messages.success(request, f'Client {client.client_id} created successfully!')
-            return redirect('client_list')
-        else:
-            messages.error(request, 'Please fill in all required fields')
-    else:
-        form = ClientForm(initial=prefilled_data) if prefilled_data else ClientForm()
+        client_type = request.POST.get('client_type', 'B2B')
+        
+        try:
+            if client_type == 'B2C':
+                # ============ B2C SIMPLIFIED ONBOARDING - SINGLE STEP ============
+                # B2C Template Fields (all with _b2c suffix):
+                # 1. Company Name (Optional)
+                # 2. Contact Person (Required)
+                # 3. Email (Required)
+                # 4. Phone (Required)
+                # 5. Preferred Channel
+                # 6. Lead Source
+                # Then: Save Client button (no steps)
+                
+                company = request.POST.get('company_b2c', '').strip()  # Optional
+                name = request.POST.get('name_b2c', '').strip()  # Required
+                email = request.POST.get('email_b2c', '').strip()  # Required
+                phone = request.POST.get('phone_b2c', '').strip()  # Required
+                preferred_channel = request.POST.get('preferred_channel_b2c', 'Email')
+                lead_source = request.POST.get('lead_source_b2c', '')
+                
+                # Validate required B2C fields (only name, email, phone)
+                if not name:
+                    messages.error(request, 'Contact Person is required')
+                    return redirect('client_onboarding')
+                if not email:
+                    messages.error(request, 'Email is required')
+                    return redirect('client_onboarding')
+                if not phone:
+                    messages.error(request, 'Phone is required')
+                    return redirect('client_onboarding')
+                
+                # Check for duplicate email
+                if Client.objects.filter(email=email).exists():
+                    messages.error(request, f'A client with email {email} already exists')
+                    return redirect('client_onboarding')
+                
+                # Create B2C client - Single step, no complexity
+                client = Client.objects.create(
+                    client_type='B2C',
+                    company=company if company else '',  # Optional
+                    name=name,
+                    email=email,
+                    phone=phone,
+                    preferred_channel=preferred_channel,
+                    lead_source=lead_source,
+                    payment_terms='Prepaid',  # B2C always prepaid (hardcoded)
+                    risk_rating='Low',  # Default for B2C
+                    credit_limit=0,  # No credit for B2C
+                    is_reseller=False,  # B2C never resellers
+                    status='Active',
+                    onboarded_by=request.user,
+                    account_manager=request.user
+                )
+                
+                # Log activity
+                ActivityLog.objects.create(
+                    client=client,
+                    activity_type='Note',
+                    title=f"B2C Client Profile Created",
+                    description=f"B2C client {client.name} onboarded successfully.",
+                    created_by=request.user
+                )
+                
+                # Clear session data
+                if 'prefilled_lead' in request.session:
+                    del request.session['prefilled_lead']
+                
+                messages.success(request, f'B2C Client {client.client_id} created successfully!')
+                return redirect('client_profile', pk=client.pk)
+                
+            else:
+                # ============ B2B FULL ONBOARDING - 3 STEPS ============
+                # Step 1: Core Details (Company, Contact, Email, Phone + Financial)
+                # Step 2: Contacts & Brand Assets (Optional)
+                # Step 3: Compliance Documents (Optional)
+                # Then: Save Client button
+                
+                # STEP 1: Core Details - B2B fields (NO _b2c suffix)
+                company = request.POST.get('company', '').strip()  # Required
+                name = request.POST.get('name', '').strip()  # Required
+                email = request.POST.get('email', '').strip()  # Required
+                phone = request.POST.get('phone', '').strip()  # Required
+                preferred_channel = request.POST.get('preferred_channel', 'Email')
+                lead_source = request.POST.get('lead_source', '')
+                
+                # Financial fields (B2B only)
+                vat_tax_id = request.POST.get('vat_tax_id', '')
+                payment_terms = request.POST.get('payment_terms', 'Prepaid')
+                risk_rating = request.POST.get('risk_rating', 'Low')
+                is_reseller = request.POST.get('is_reseller') == 'on'
+                
+                # Validate required B2B fields
+                if not company:
+                    messages.error(request, 'Company Name is required')
+                    return redirect('client_onboarding')
+                if not name:
+                    messages.error(request, 'Contact Person is required')
+                    return redirect('client_onboarding')
+                if not email:
+                    messages.error(request, 'Email is required')
+                    return redirect('client_onboarding')
+                if not phone:
+                    messages.error(request, 'Phone is required')
+                    return redirect('client_onboarding')
+                
+                # Check for duplicate email
+                if Client.objects.filter(email=email).exists():
+                    messages.error(request, f'A client with email {email} already exists')
+                    return redirect('client_onboarding')
+                
+                # Create B2B client with Step 1 data
+                client = Client.objects.create(
+                    client_type='B2B',
+                    company=company,
+                    name=name,
+                    email=email,
+                    phone=phone,
+                    preferred_channel=preferred_channel,
+                    lead_source=lead_source,
+                    vat_tax_id=vat_tax_id,
+                    payment_terms=payment_terms,
+                    risk_rating=risk_rating,
+                    is_reseller=is_reseller,
+                    status='Active',
+                    onboarded_by=request.user,
+                    account_manager=request.user
+                )
+                
+                # STEP 2: Contacts & Brand Assets (OPTIONAL - may be empty)
+                contact_names = request.POST.getlist('contact_name[]')
+                contact_emails = request.POST.getlist('contact_email[]')
+                contact_phones = request.POST.getlist('contact_phone[]')
+                contact_roles = request.POST.getlist('contact_role[]')
+                
+                # Only create contacts if data provided
+                for i, contact_name in enumerate(contact_names):
+                    if contact_name.strip():
+                        ClientContact.objects.create(
+                            client=client,
+                            full_name=contact_name.strip(),
+                            email=contact_emails[i].strip() if i < len(contact_emails) else '',
+                            phone=contact_phones[i].strip() if i < len(contact_phones) else '',
+                            role=contact_roles[i] if i < len(contact_roles) else 'None',
+                        )
+                
+                # STEP 3: Compliance Documents (OPTIONAL - may be empty)
+                compliance_files = request.FILES.getlist('compliance_files')
+                doc_type = request.POST.get('doc_type', '')
+                doc_expiry = request.POST.get('doc_expiry', None)
+                
+                # Only create compliance docs if files uploaded AND doc_type selected
+                if compliance_files and doc_type:
+                    for file in compliance_files:
+                        ComplianceDocument.objects.create(
+                            client=client,
+                            document_type=doc_type,
+                            file=file,
+                            expiry_date=doc_expiry if doc_expiry else None,
+                            uploaded_by=request.user
+                        )
+                
+                # Log activity
+                ActivityLog.objects.create(
+                    client=client,
+                    activity_type='Note',
+                    title=f"B2B Client Profile Created",
+                    description=f"B2B client {client.company} onboarded successfully.",
+                    created_by=request.user
+                )
+                
+                # Clear session data
+                if 'prefilled_lead' in request.session:
+                    del request.session['prefilled_lead']
+                
+                messages.success(request, f'B2B Client {client.client_id} created successfully!')
+                return redirect('client_profile', pk=client.pk)
+        
+        except Exception as e:
+            messages.error(request, f'Error creating client: {str(e)}')
+            import traceback
+            print(traceback.format_exc())
+            return redirect('client_onboarding')
+    
+    # GET request - show form
+    form = ClientForm(initial=prefilled_data) if prefilled_data else ClientForm()
     
     context = {
         'current_view': 'onboarding',
@@ -215,8 +399,6 @@ def client_onboarding(request):
         'prefilled_lead': prefilled_data,
     }
     return render(request, 'client_onboarding.html', context)
-
-
 def client_list(request):
     """Client list view with filters"""
     # Get filter parameters
@@ -268,164 +450,359 @@ def check_duplicate_lead(request):
         })
     return JsonResponse({'duplicate': False})
 
-def client_profile(request, pk):
-    client = get_object_or_404(Client, pk=pk)
-    return render(request, 'client_profile.html', {'client': client})
 
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from django.http import JsonResponse
 from django.utils import timezone
 from django.db import transaction
 from django.contrib.auth.decorators import login_required
 from datetime import timedelta
-from .models import Client, Lead, Quote
 from decimal import Decimal
-import json
+from .models import Quote, Client, Lead, ActivityLog
 
 
+@login_required
+@transaction.atomic
 def create_quote(request):
-    """View for creating a new quote"""
+    """Create a single quote for a client or lead"""
     if request.method == 'POST':
         try:
-            with transaction.atomic():
-                # Get form data
-                quote_type = request.POST.get('quote_type')
-                client_id = request.POST.get('client_id')
-                lead_id = request.POST.get('lead_id')
-                
-                # Validate client or lead selection
-                client = None
-                lead = None
-                
-                if quote_type == 'client' and client_id:
-                    client = get_object_or_404(Client, id=client_id)
-                elif quote_type == 'lead' and lead_id:
-                    lead = get_object_or_404(Lead, id=lead_id)
-                else:
-                    messages.error(request, 'Please select a valid client or lead')
-                    return redirect('create_quote')
-                
-                # Get quote details
-                quote_number = request.POST.get('quote_number')
-                quote_date = request.POST.get('quote_date')
-                valid_until = request.POST.get('valid_until')
-                payment_terms = request.POST.get('payment_terms', 'Prepaid')
-                status = request.POST.get('status', 'Draft')
-                notes = request.POST.get('notes', '')
-                terms = request.POST.get('terms', '')
-                include_vat = request.POST.get('include_vat') == 'on'
-                
-                # Get client details
-                client_name = request.POST.get('client_name')
-                client_email = request.POST.get('client_email')
-                client_phone = request.POST.get('client_phone')
-                client_address = request.POST.get('client_address')
-                
-                # Get items count
-                item_count = int(request.POST.get('item_count', 0))
-                
-                if item_count == 0:
-                    messages.error(request, 'Please add at least one item to the quote')
-                    return redirect('create_quote')
-                
-                # Calculate totals
-                subtotal = Decimal('0')
-                created_quotes = []
-                
-                # Create quotes for each item
-                for i in range(1, item_count + 1):
-                    description = request.POST.get(f'description_{i}')
-                    
-                    # Only process if description exists (item wasn't deleted)
-                    if description and description.strip():
-                        quantity = int(request.POST.get(f'quantity_{i}', 1))
-                        cost = Decimal(request.POST.get(f'cost_{i}', 0))
-                        markup = Decimal(request.POST.get(f'markup_{i}', 30))
-                        price = Decimal(request.POST.get(f'price_{i}', 0))
-                        amount = Decimal(request.POST.get(f'amount_{i}', 0))
-                        
-                        # Add to subtotal
-                        subtotal += amount
-                        
-                        # Create quote with custom quote_id if provided
-                        quote = Quote(
-                            client=client,
-                            lead=lead,
-                            product_name=description,
-                            quantity=quantity,
-                            cost_price=cost,
-                            markup_percentage=markup,
-                            selling_price=price,
-                            status=status,
-                            notes=notes,
-                            created_by=request.user
-                        )
-                        
-                        # Set custom quote_id if provided and it's the first item
-                        if i == 1 and quote_number:
-                            quote.quote_id = quote_number
-                        
-                        # Set dates
-                        if quote_date:
-                            quote.quote_date = quote_date
-                        if valid_until:
-                            quote.valid_until = valid_until
-                        
-                        quote.save()
-                        created_quotes.append(quote)
-                
-                # Add VAT if included
-                if include_vat:
-                    vat_amount = subtotal * Decimal('0.16')
-                    total_amount = subtotal + vat_amount
-                else:
-                    total_amount = subtotal
-                
-                # Update all quotes with the same quote_id (for grouped items)
-                if created_quotes:
-                    main_quote_id = created_quotes[0].quote_id
-                    for quote in created_quotes[1:]:
-                        quote.quote_id = main_quote_id
-                        quote.save()
-                
-                # Success message based on status
-                if status == 'Draft':
-                    messages.success(request, f'Quote saved as draft! Quote ID: {created_quotes[0].quote_id}')
-                else:
-                    messages.success(request, f'Quote created successfully! Quote ID: {created_quotes[0].quote_id}')
-                
-                # Redirect based on quote type
-                if client:
-                    return redirect('client_profile', pk=client.pk)
-                elif lead:
-                    return redirect('lead_intake')
-                else:
-                    return redirect('dashboard')
-                
+            quote_type = request.POST.get('quote_type')
+            client_id = request.POST.get('client_id')
+            lead_id = request.POST.get('lead_id')
+
+            client = None
+            lead = None
+
+            # Determine entity type
+            if quote_type == 'client' and client_id:
+                client = get_object_or_404(Client, id=client_id)
+            elif quote_type == 'lead' and lead_id:
+                lead = get_object_or_404(Lead, id=lead_id)
+            else:
+                messages.error(request, "Please select a valid client or lead.")
+                return redirect('create_quote')
+
+            # Extract form data
+            product_name = request.POST.get('product_name', '').strip()
+            quantity = int(request.POST.get('quantity', 1))
+            unit_price = Decimal(request.POST.get('unit_price', '0'))
+            include_vat = request.POST.get('include_vat') == 'on'
+            payment_terms = request.POST.get('payment_terms', 'Prepaid')
+            status = request.POST.get('status', 'Draft')
+            notes = request.POST.get('notes', '')
+            terms = request.POST.get('terms', '')
+            valid_until_str = request.POST.get('valid_until')
+            quote_date_str = request.POST.get('quote_date')
+
+            if not product_name:
+                messages.error(request, "Product name is required.")
+                return redirect('create_quote')
+
+            # Set dates
+            quote_date = timezone.now().date()
+            valid_until = quote_date + timedelta(days=30)
+            if quote_date_str:
+                quote_date = timezone.datetime.fromisoformat(quote_date_str).date()
+            if valid_until_str:
+                valid_until = timezone.datetime.fromisoformat(valid_until_str).date()
+
+            # Calculate totals
+            subtotal = unit_price * quantity
+            vat_amount = subtotal * Decimal('0.16') if include_vat else Decimal('0')
+            total_amount = subtotal + vat_amount
+
+            # Create quote
+            quote = Quote.objects.create(
+                client=client,
+                lead=lead,
+                product_name=product_name,
+                quantity=quantity,
+                unit_price=unit_price,
+                total_amount=total_amount,
+                payment_terms=payment_terms,
+                status=status,
+                include_vat=include_vat,
+                quote_date=quote_date,
+                valid_until=valid_until,
+                notes=notes,
+                terms=terms,
+                created_by=request.user
+            )
+
+            # Create activity log
+            entity = client or lead
+            entity_name = client.name if client else lead.name
+
+            ActivityLog.objects.create(
+                client=client if client else None,
+                activity_type='Quote',
+                title=f"Quote {quote.quote_id} Created",
+                description=f"Quote for {product_name} (x{quantity}) totaling KES {total_amount:,.2f}",
+                related_quote=quote,
+                created_by=request.user
+            )
+
+            messages.success(request, f"Quote {quote.quote_id} created successfully!")
+            if client:
+                return redirect('client_profile', pk=client.pk)
+            elif lead:
+                return redirect('lead_intake')
+            return redirect('dashboard')
+
         except Exception as e:
-            messages.error(request, f'Error creating quote: {str(e)}')
+            messages.error(request, f"Error creating quote: {str(e)}")
+            import traceback; print(traceback.format_exc())
             return redirect('create_quote')
-    
-    # GET request - show form
+
+    # GET — Render form
     clients = Client.objects.filter(status='Active').order_by('name')
     leads = Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('-created_at')
-    
-    # Set default dates
+
     today = timezone.now().date()
     default_valid_until = today + timedelta(days=30)
-    
+
     context = {
         'clients': clients,
         'leads': leads,
-        'current_year': timezone.now().year,
         'today': today.isoformat(),
         'default_valid_until': default_valid_until.isoformat(),
     }
-    
     return render(request, 'create_quote.html', context)
 
+
+
+def client_profile(request, pk):
+    """Unified Client Profile View — includes jobs, quotes, activities, and financials"""
+    client = get_object_or_404(Client, pk=pk)
+
+    # ================= JOBS =================
+    jobs = client.jobs.all().order_by('-created_at')
+
+    # ================= QUOTES =================
+    all_quotes = client.quotes.all().order_by('-created_at')
+
+    # Group quotes by quote_id (some quotes may have multiple line items)
+    quotes_dict = {}
+    for quote in all_quotes:
+        if quote.quote_id not in quotes_dict:
+            quotes_dict[quote.quote_id] = {
+                'quote': quote,
+                'items': [],
+                'total_amount': Decimal('0'),
+                'subtotal': Decimal('0')
+            }
+        quotes_dict[quote.quote_id]['items'].append(quote)
+        quotes_dict[quote.quote_id]['total_amount'] += quote.total_amount
+        quotes_dict[quote.quote_id]['subtotal'] += (quote.unit_price * quote.quantity)
+
+    quotes_list = list(quotes_dict.values())
+
+    # Quote statistics by status
+    quote_stats = {
+        'draft': {'count': 0, 'value': Decimal('0')},
+        'quoted': {'count': 0, 'value': Decimal('0')},
+        'client_review': {'count': 0, 'value': Decimal('0')},
+        'approved': {'count': 0, 'value': Decimal('0')},
+        'lost': {'count': 0, 'value': Decimal('0')},
+    }
+
+    for group in quotes_list:
+        status = group['quote'].status.lower().replace(' ', '_')
+        if status in quote_stats:
+            quote_stats[status]['count'] += 1
+            quote_stats[status]['value'] += group['total_amount']
+
+    total_quotes = len(quotes_list)
+    approved_value = quote_stats['approved']['value']
+    conversion_rate = round((quote_stats['approved']['count'] / total_quotes * 100), 1) if total_quotes > 0 else 0
+    avg_margin = 0  # placeholder, not used in simplified pricing
+
+    # ================= ACTIVITIES =================
+    activities = client.activities.all().order_by('-created_at')[:20]
+    recent_activities = activities[:5]
+
+    # ================= FINANCIAL METRICS =================
+    outstanding_balance = quote_stats['quoted']['value'] + quote_stats['client_review']['value']
+    lifetime_value = approved_value
+    payment_performance = 95  # mock; replace with real payment logic if available
+
+    credit_limit = client.credit_limit or Decimal('500000')
+    credit_used = outstanding_balance
+    available_credit = credit_limit - credit_used if credit_limit > credit_used else Decimal('0')
+    credit_utilization = round((credit_used / credit_limit * 100), 1) if credit_limit > 0 else 0
+
+    # ================= JOB STATISTICS =================
+    job_stats = {
+        'total': jobs.count(),
+        'pending': jobs.filter(status='pending').count(),
+        'in_progress': jobs.filter(status='in_progress').count(),
+        'completed': jobs.filter(status='completed').count(),
+        'on_hold': jobs.filter(status='on_hold').count(),
+    }
+
+    # ================= CONTEXT =================
+    context = {
+        'client': client,
+        'jobs': jobs,
+        'quotes': quotes_list,
+        'quote_stats': quote_stats,
+        'total_quotes': total_quotes,
+        'total_revenue': approved_value,
+        'conversion_rate': conversion_rate,
+        'avg_margin': avg_margin,
+
+        # Activity Log
+        'activities': activities,
+        'recent_activities': recent_activities,
+
+        # Financial Data
+        'outstanding_balance': outstanding_balance,
+        'lifetime_value': lifetime_value,
+        'payment_performance': payment_performance,
+        'credit_limit': credit_limit,
+        'credit_used': credit_used,
+        'available_credit': available_credit,
+        'credit_utilization': credit_utilization,
+
+        # Job Statistics
+        'job_stats': job_stats,
+    }
+
+    return render(request, 'client_profile.html', context)
+
+def update_quote_status(request, quote_id):
+    """Update quote status via AJAX"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            new_status = data.get('status')
+            loss_reason = data.get('loss_reason', '')
+            
+            # Get all quotes with this quote_id (grouped items)
+            quotes = Quote.objects.filter(quote_id=quote_id)
+            
+            if not quotes.exists():
+                return JsonResponse({'success': False, 'error': 'Quote not found'}, status=404)
+            
+            # Update all quotes in the group
+            for quote in quotes:
+                quote.status = new_status
+                if new_status == 'Approved':
+                    quote.approved_at = timezone.now()
+                if new_status == 'Lost' and loss_reason:
+                    quote.loss_reason = loss_reason
+                quote.save()
+            
+            # Log activity
+            first_quote = quotes.first()
+            if first_quote.client:
+                ActivityLog.objects.create(
+                    client=first_quote.client,
+                    activity_type='Quote',
+                    title=f"Quote {quote_id} Status Updated",
+                    description=f"Status changed to {new_status}",
+                    related_quote=first_quote,
+                    created_by=request.user
+                )
+                
+                # Update client last activity
+                first_quote.client.last_activity = timezone.now()
+                first_quote.client.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Quote status updated to {new_status}'
+            })
+            
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
+    
+    return JsonResponse({'success': False, 'error': 'Invalid request method'}, status=400)
+
+
+
+def quote_detail(request, quote_id):
+    """View detailed quote with all items"""
+    # Get all quotes with this quote_id
+    quotes = Quote.objects.filter(quote_id=quote_id).order_by('id')
+    
+    if not quotes.exists():
+        messages.error(request, 'Quote not found')
+        return redirect('dashboard')
+    
+    first_quote = quotes.first()
+    
+    # Calculate totals
+    subtotal = sum(q.selling_price * q.quantity for q in quotes)
+    vat_amount = subtotal * Decimal('0.16') if first_quote.include_vat else Decimal('0')
+    total_amount = subtotal + vat_amount
+    
+    context = {
+        'quote_id': quote_id,
+        'quotes': quotes,
+        'first_quote': first_quote,
+        'client': first_quote.client,
+        'lead': first_quote.lead,
+        'subtotal': subtotal,
+        'vat_amount': vat_amount,
+        'total_amount': total_amount,
+    }
+    
+    return render(request, 'quote_detail.html', context)
+
+
+
+def delete_quote(request, quote_id):
+    """Delete a quote and all its items"""
+    if request.method == 'POST':
+        # Delete all quotes with this quote_id
+        quotes = Quote.objects.filter(quote_id=quote_id)
+        client = quotes.first().client if quotes.exists() else None
+        
+        quotes.delete()
+        
+        messages.success(request, f'Quote {quote_id} deleted successfully')
+        
+        if client:
+            return redirect('client_profile', pk=client.pk)
+        return redirect('dashboard')
+    
+    return redirect('dashboard')
+
+
+
+def quotes_list(request):
+    """List all quotes with filters"""
+    
+    all_quotes = Quote.objects.all().order_by('-created_at')
+    
+   
+    quotes_dict = {}
+    for quote in all_quotes:
+        if quote.quote_id not in quotes_dict:
+            quotes_dict[quote.quote_id] = {
+                'quote': quote,
+                'items_count': 0,
+                'total_amount': Decimal('0')
+            }
+        quotes_dict[quote.quote_id]['items_count'] += 1
+        quotes_dict[quote.quote_id]['total_amount'] += quote.total_amount
+    
+    quotes_list = list(quotes_dict.values())
+    
+    
+    status_filter = request.GET.get('status')
+    if status_filter:
+        quotes_list = [q for q in quotes_list if q['quote'].status == status_filter]
+    
+    context = {
+        'quotes': quotes_list,
+        'status_filter': status_filter,
+    }
+    
+    return render(request, 'quotes_list.html', context)
 
 def get_client_details(request, client_id):
     """API endpoint to get client details for quote form"""
@@ -544,7 +921,7 @@ def quotes_list(request):
         'status_filter': status_filter,
     }
     
-    return render(request, 'clients/quotes_list.html', context)
+    return render(request, 'quotes_list.html', context)
 
 
 def quote_detail(request, quote_id):
@@ -555,7 +932,7 @@ def quote_detail(request, quote_id):
         'quote': quote,
     }
     
-    return render(request, 'clients/quote_detail.html', context)
+    return render(request, 'quote_detail.html', context)
 
 
 
@@ -568,38 +945,234 @@ def delete_quote(request, quote_id):
         return redirect('quotes_list')
     
     return redirect('quotes_list')
-
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from .models import Client, Job, ActivityLog
 from .forms import JobForm
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.utils import timezone
+from django.contrib.auth.decorators import login_required
+from .models import Client, Job, ActivityLog
+
+
 def create_job(request):
+    """Create a new production job - Compatible with current Job model"""
     if request.method == 'POST':
-        form = JobForm(request.POST)
-        if form.is_valid():
-            job = form.save(commit=False)
+        try:
+            # Get client
+            client_id = request.POST.get('client_id')
+            if not client_id:
+                messages.error(request, 'Please select a client')
+                return redirect('create_job')
+            
+            client = get_object_or_404(Client, id=client_id)
+            
+            # Get basic job details
+            job_number = request.POST.get('job_number', '').strip()
+            job_name = request.POST.get('job_name', '').strip()
+            job_type = request.POST.get('job_type', '').strip()
+            person_in_charge = request.POST.get('person_in_charge', '').strip()
+            status = request.POST.get('status', 'Pending')
+            notes = request.POST.get('notes', '')
+            
+            # Validation
+            if not all([job_name, person_in_charge]):
+                messages.error(request, 'Please fill in job name and person in charge')
+                return redirect('create_job')
+            
+            # Collect all products (up to 3)
+            products_list = []
+            for i in range(1, 4):  # Check products 1, 2, 3
+                product_name = request.POST.get(f'product_name_{i}', '').strip()
+                if product_name:  # Only process if product name exists
+                    quantity = request.POST.get(f'quantity_{i}', '1')
+                    unit = request.POST.get(f'unit_{i}', 'pcs')
+                    specifications = request.POST.get(f'specifications_{i}', '')
+                    
+                    products_list.append({
+                        'name': product_name,
+                        'quantity': quantity,
+                        'unit': unit,
+                        'specs': specifications
+                    })
+            
+            if not products_list:
+                messages.error(request, 'Please add at least one product')
+                return redirect('create_job')
+            
+            # Create job with first product
+            main_product = products_list[0]
+            
+            # Combine product name with job details for the product field
+            product_description = f"{job_name} - {main_product['name']}"
+            if len(products_list) > 1:
+                product_description += f" (+{len(products_list) - 1} more)"
+            
+            # Create the job
+            job = Job.objects.create(
+                client=client,
+                product=product_description,
+                quantity=int(main_product['quantity']),
+                person_in_charge=person_in_charge,
+                status=status
+            )
+            
+            # Build detailed description for activity log
+            job_details = f"Job Number: {job_number}\n"
+            job_details += f"Job Name: {job_name}\n"
+            job_details += f"Job Type: {job_type}\n"
+            job_details += f"Person in Charge: {person_in_charge}\n"
+            job_details += f"Status: {status}\n\n"
+            
+            job_details += "Products:\n"
+            for idx, prod in enumerate(products_list, 1):
+                job_details += f"{idx}. {prod['name']} - Qty: {prod['quantity']} {prod['unit']}\n"
+                if prod['specs']:
+                    job_details += f"   Specifications: {prod['specs']}\n"
+            
+            # Add dates if available
+            start_date = request.POST.get('start_date')
+            expected_completion = request.POST.get('expected_completion')
+            delivery_date = request.POST.get('delivery_date')
+            delivery_method = request.POST.get('delivery_method')
+            
+            if start_date:
+                job_details += f"\nStart Date: {start_date}"
+            if expected_completion:
+                job_details += f"\nExpected Completion: {expected_completion}"
+            if delivery_date:
+                job_details += f"\nDelivery Date: {delivery_date}"
+            if delivery_method:
+                job_details += f"\nDelivery Method: {delivery_method}"
+            
+            # Add notes
+            if notes:
+                job_details += f"\n\nNotes:\n{notes}"
+            
+            # Log activity
+            ActivityLog.objects.create(
+                client=client,
+                activity_type='Order',
+                title=f"New Job Created - {job_number or job_name}",
+                description=job_details,
+                created_by=request.user
+            )
+            
+            # Update client's last activity
+            client.last_activity = timezone.now()
+            client.save()
+            
+            messages.success(
+                request, 
+                f"Job '{job_name}' created successfully for {client.name}!"
+            )
+            return redirect('client_profile', pk=client.id)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating job: {str(e)}')
+            import traceback
+            print(traceback.format_exc())  # For debugging
+            return redirect('create_job')
+    
+    # GET request - show form
+    clients = Client.objects.filter(status='Active').order_by('name')
+    
+    context = {
+        'clients': clients,
+        'current_year': timezone.now().year,
+    }
+    
+    return render(request, 'create_job.html', context)
+
+
+def job_detail(request, pk):
+    """View and update an existing job until it’s completed"""
+    job = get_object_or_404(Job, pk=pk)
+    client = job.client
+
+    if request.method == 'POST':
+        try:
+            # Basic updates
+            job.product = request.POST.get('product', job.product)
+            job.quantity = request.POST.get('quantity', job.quantity)
+            job.person_in_charge = request.POST.get('person_in_charge', job.person_in_charge)
+            job.status = request.POST.get('status', job.status)
+            
+            # Optional: notes or other fields you had in the form
+            notes = request.POST.get('notes', '')
+            if notes:
+                job.notes = notes
+
+            # Once status hits "Delivery", mark as completed
+            if job.status.lower() == "delivery":
+                job.is_completed = True
+
             job.save()
 
-            # Log activity for tracking
+            # Log activity
             ActivityLog.objects.create(
-                client=job.client,
-                activity_type='Order',
-                title=f"New Job Created - {job.product}",
-                description=f"A new job ({job.product}) with quantity {job.quantity} was created and assigned to {job.person_in_charge}.",
+                client=client,
+                activity_type='Order Update',
+                title=f"Job Updated - {job.product}",
+                description=f"Job status updated to {job.status}.",
                 created_by=request.user
             )
 
-            # Update client's last_activity timestamp
-            job.client.last_activity = job.created_at
-            job.client.save()
+            messages.success(request, f"Job updated successfully for {client.name}!")
+            return redirect('job_detail', pk=job.pk)
 
-            messages.success(request, f"Job '{job.product}' has been successfully created for {job.client.name}.")
-            return redirect('client_profile', pk=job.client.id)
-        else:
-            messages.error(request, "Please correct the errors below.")
-    else:
-        form = JobForm()
+        except Exception as e:
+            messages.error(request, f"Error updating job: {str(e)}")
+            import traceback
+            print(traceback.format_exc())
+            return redirect('job_detail', pk=job.pk)
+
+    # GET request – show the form pre-filled
+    clients = Client.objects.filter(status='Active').order_by('name')
 
     context = {
-        'form': form,
-        'clients': Client.objects.all().order_by('name'),
-        'users': Client._meta.get_field('account_manager').remote_field.model.objects.all(),
+        'clients': clients,
+        'job': job,
+        'is_update': True,  # used in template to switch mode
     }
+
     return render(request, 'create_job.html', context)
+
+
+from django.shortcuts import render
+
+def quote_management(request):
+    return render(request, 'quote_management.html')
+
+def product_catalog(request):
+    return render(request, 'product_catalog.html')
+
+def production_dashboard(request):
+    return render(request, 'production_dashboard.html')
+
+def analytics(request):
+    return render(request, 'analytics.html')
+
+
+def base_view(request):
+    return render(request, 'base2.html')
+
+def production2_dashboard(request):
+    """Production Team Dashboard"""
+    return render(request, 'production2_dashboard.html')
+
+def quote_review_queue(request):
+    """Quote Review Queue for Production Team"""
+    return render(request, 'quote_review.html')
+
+def production_catalog(request):
+    """Product Catalog Management"""
+    return render(request, 'production_catalog.html')
+
+def production_analytics(request):
+    """Analytics Dashboard"""
+    return render(request, 'production_analytics.html')

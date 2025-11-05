@@ -1,0 +1,185 @@
+{% extends 'base.html' %}
+
+{% block title %}Quote {{ quote_id }} - Print Duka{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 py-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">Quote {{ quote_id }}</h1>
+            <p class="text-gray-600">
+                {% if client %}
+                    For: <a href="{% url 'client_profile' client.pk %}" class="text-blue-600 hover:underline">{{ client.name }}</a>
+                {% elif lead %}
+                    For Lead: {{ lead.name }}
+                {% endif %}
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="window.print()" class="btn btn-secondary">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path>
+                </svg>
+                Print
+            </button>
+            {% if client %}
+            <a href="{% url 'client_profile' client.pk %}" class="btn btn-secondary">
+                Back to Client
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quote Details Card -->
+    <div class="card mb-6">
+        <div class="p-6">
+            <div class="grid grid-cols-2 gap-6 mb-6">
+                <!-- Left Column -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-600 mb-3">QUOTE DETAILS</h3>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Quote Date:</span>
+                            <span class="text-sm font-medium">{{ first_quote.quote_date|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Valid Until:</span>
+                            <span class="text-sm font-medium">{{ first_quote.valid_until|date:"M d, Y" }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Payment Terms:</span>
+                            <span class="text-sm font-medium">{{ first_quote.payment_terms }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Status:</span>
+                            <span>
+                                {% if first_quote.status == 'Draft' %}
+                                    <span class="quote-status-badge draft">Draft</span>
+                                {% elif first_quote.status == 'Quoted' %}
+                                    <span class="quote-status-badge quoted">Quoted</span>
+                                {% elif first_quote.status == 'Client Review' %}
+                                    <span class="quote-status-badge quoted">Client Review</span>
+                                {% elif first_quote.status == 'Approved' %}
+                                    <span class="quote-status-badge approved">Approved</span>
+                                {% elif first_quote.status == 'Lost' %}
+                                    <span class="quote-status-badge lost">Lost</span>
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-600 mb-3">CLIENT DETAILS</h3>
+                    <div class="space-y-2">
+                        {% if client %}
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Company:</span>
+                            <span class="text-sm font-medium">{{ client.company|default:client.name }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Email:</span>
+                            <span class="text-sm font-medium">{{ client.email }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Phone:</span>
+                            <span class="text-sm font-medium">{{ client.phone }}</span>
+                        </div>
+                        {% elif lead %}
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Name:</span>
+                            <span class="text-sm font-medium">{{ lead.name }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Email:</span>
+                            <span class="text-sm font-medium">{{ lead.email }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Phone:</span>
+                            <span class="text-sm font-medium">{{ lead.phone }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="border-t border-gray-200 pt-6">
+                <h3 class="text-sm font-semibold text-gray-600 mb-4">LINE ITEMS</h3>
+                <table class="w-full">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600">PRODUCT/SERVICE</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">QTY</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">COST</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">MARKUP</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">UNIT PRICE</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">AMOUNT</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for quote in quotes %}
+                        <tr>
+                            <td class="py-3 px-4">
+                                <div class="font-medium text-sm">{{ quote.product_name }}</div>
+                            </td>
+                            <td class="py-3 px-4 text-right text-sm">{{ quote.quantity }}</td>
+                            <td class="py-3 px-4 text-right text-sm">KES {{ quote.cost_price|floatformat:2 }}</td>
+                            <td class="py-3 px-4 text-right text-sm">{{ quote.markup_percentage }}%</td>
+                            <td class="py-3 px-4 text-right text-sm font-medium">KES {{ quote.selling_price|floatformat:2 }}</td>
+                            <td class="py-3 px-4 text-right text-sm font-bold">KES {{ quote.total_amount|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Totals -->
+            <div class="border-t border-gray-200 pt-6 mt-6">
+                <div class="flex justify-end">
+                    <div class="w-80 space-y-3">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-semibold">SUBTOTAL</span>
+                            <span class="font-bold">KES {{ subtotal|floatformat:2 }}</span>
+                        </div>
+                        {% if first_quote.include_vat %}
+                        <div class="flex justify-between text-sm">
+                            <span class="font-semibold">VAT (16%)</span>
+                            <span class="font-bold">KES {{ vat_amount|floatformat:2 }}</span>
+                        </div>
+                        {% endif %}
+                        <div class="flex justify-between pt-3 border-t-2 border-black">
+                            <span class="text-lg font-bold">TOTAL</span>
+                            <span class="text-2xl font-bold">KES {{ total_amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes and Terms -->
+            {% if first_quote.notes %}
+            <div class="border-t border-gray-200 pt-6 mt-6">
+                <h3 class="text-sm font-semibold text-gray-600 mb-2">NOTES</h3>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ first_quote.notes }}</p>
+            </div>
+            {% endif %}
+
+            {% if first_quote.terms %}
+            <div class="border-t border-gray-200 pt-6 mt-6">
+                <h3 class="text-sm font-semibold text-gray-600 mb-2">TERMS & CONDITIONS</h3>
+                <p class="text-xs text-gray-700 whitespace-pre-wrap">{{ first_quote.terms }}</p>
+            </div>
+            {% endif %}
+
+            {% if first_quote.status == 'Lost' and first_quote.loss_reason %}
+            <div class="border-t border-gray-200 pt-6 mt-6">
+                <h3 class="text-sm font-semibold text-red-600 mb-2">LOSS REASON</h3>
+                <p class="text-sm text-gray-700 whitespace-pre-wrap">{{ first_quote.loss_reason }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Production Management System{% endblock %}</title>
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f9fafb;
+            color: #1a1a1a;
+            line-height: 1.6;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            padding: 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .navbar-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            padding: 0 2rem;
+        }
+
+        .nav-item {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1.25rem 1.5rem;
+            color: #6b7280;
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-link i {
+            font-size: 1.1rem;
+        }
+
+        .nav-link:hover {
+            color: #1a1a1a;
+            background: #fafafa;
+        }
+
+        .nav-link.active {
+            color: #1a1a1a;
+            background: #fafafa;
+            border-bottom-color: #1a1a1a;
+        }
+
+        /* Main Content */
+        .main-content {
+            min-height: calc(100vh - 73px);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar-container {
+                padding: 0 1rem;
+            }
+
+            .nav-link {
+                padding: 1rem;
+                font-size: 0.85rem;
+            }
+
+            .nav-link span {
+                display: none;
+            }
+
+            .nav-link i {
+                font-size: 1.3rem;
+            }
+        }
+        .sidebar {
+            width: var(--sidebar-width);
+            border-right: 1px solid #e5e7eb;
+        }
+        .main-content {
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+        }
+        
+        .sidebar-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.625rem 1rem;
+            color: #6b7280;
+            text-decoration: none;
+            border-radius: 0.375rem;
+            margin: 0.125rem 0.5rem;
+            transition: all 0.2s;
+        }
+        
+        .sidebar-item:hover {
+            background-color: #f3f4f6;
+            color: #111827;
+        }
+        
+        .sidebar-item.active {
+            background-color: #eff6ff;
+            color: #1e40af;
+        }
+        
+        .icon {
+            width: 1rem;
+            height: 1rem;
+        }
+        :root {
+    --sidebar-width: 240px;
+}
+
+/* Layout container */
+.layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-width);
+    background: #fff;
+    border-right: 1px solid #e5e7eb;
+    display: flex;
+    flex-direction: column;
+    padding-top: 1rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+}
+
+.sidebar-header {
+    padding: 1rem 1.25rem;
+    font-weight: bold;
+    font-size: 1.2rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.sidebar-nav {
+    flex-grow: 1;
+    padding: 1rem 0;
+    overflow-y: auto;
+}
+
+/* Main content */
+.main-content {
+    margin-left: var(--sidebar-width);
+    flex: 1;
+    background: #f9fafb;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+/* ===== Top Role Switcher Header ===== */
+.top-header {
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+    padding: 1rem 2rem;
+}
+
+.header-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.system-title h1 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin: 0 0 0.25rem 0;
+}
+
+.system-title p {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.role-switcher {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.role-btn {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #374151;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.role-btn:hover {
+    background: #f9fafb;
+}
+
+.role-btn.active {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+}
+
+
+/* Keep your existing navbar/nav-link styles as is */
+
+        
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Role Switcher Header -->
+<div class="top-header">
+    <div class="header-content">
+        <div class="system-title">
+            <h1>Print Duka Management System</h1>
+            <p>Switch between Account and Production roles</p>
+        </div>
+        <div class="role-switcher">
+            <button 
+        class="role-btn {% if 'account-manager' in request.path %}active{% endif %}" 
+        onclick="window.location.href='/account-manager/quotes/'">
+        Account Manager
+    </button>
+
+    <button 
+        class="role-btn {% if 'production' in request.path %}active{% endif %}" 
+        onclick="window.location.href='/production/quotes/'">
+        Production Team
+    </button>
+
+        </div>
+    </div>
+</div>
+
+    <div class="layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h1 class="logo">Print Duka</h1>
+            </div>
+
+            <nav class="sidebar-nav">
+                <a href="{% url 'dashboard' %}" class="sidebar-item {% if current_view == 'dashboard' %}active{% endif %}">
+                    <svg class="icon" ...></svg>
+                    <span>Dashboard</span>
+                </a>
+
+                <a href="{% url 'lead_intake' %}" class="sidebar-item {% if current_view == 'leads' %}active{% endif %}">
+                    <svg class="icon" ...></svg>
+                    <span>Lead Intake</span>
+                </a>
+
+                <a href="{% url 'client_onboarding' %}" class="sidebar-item {% if current_view == 'onboarding' %}active{% endif %}">
+                    <svg class="icon" ...></svg>
+                    <span>Client Onboarding</span>
+                </a>
+
+                <a href="{% url 'client_list' %}" class="sidebar-item {% if current_view == 'clients' %}active{% endif %}">
+                    <svg class="icon" ...></svg>
+                    <span>Client List</span>
+                </a>
+
+                <a href="{% url 'base_view' %}" class="sidebar-item {% if current_view == 'base_view' %}active{% endif %}">
+                    <svg class="icon" ...></svg>
+                    <span>Production</span>
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <nav class="navbar">
+                <div class="navbar-container">
+                    {% if 'account-manager' in request.path %}
+            <!-- Account Manager Nav -->
+            <div class="nav-item">
+                <a href="/account-manager/quotes/" class="nav-link {% if 'quotes' in request.path %}active{% endif %}">
+                    <i class="far fa-file-alt"></i><span>Quote Management</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/account-manager/catalog/" class="nav-link {% if 'catalog' in request.path %}active{% endif %}">
+                    <i class="fas fa-box"></i><span>Product Catalog</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/account-manager/dashboard/" class="nav-link {% if 'dashboard' in request.path %}active{% endif %}">
+                    <i class="far fa-calendar-check"></i><span>Dashboard</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/account-manager/analytics/" class="nav-link {% if 'analytics' in request.path %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i><span>Analytics</span>
+                </a>
+            </div>
+
+        {% elif 'production' in request.path %}
+            <!-- Production Team Nav -->
+            <div class="nav-item">
+                <a href="/production/quotes/" class="nav-link {% if 'quotes' in request.path %}active{% endif %}">
+                    <i class="far fa-file-alt"></i><span>Quote Review Queue</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/production/catalog/" class="nav-link {% if 'catalog' in request.path %}active{% endif %}">
+                    <i class="fas fa-box"></i><span>Production Catalog</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/production/dashboard/" class="nav-link {% if 'dashboard' in request.path %}active{% endif %}">
+                    <i class="far fa-calendar-check"></i><span>Dashboard</span>
+                </a>
+            </div>
+            <div class="nav-item">
+                <a href="/production/analytics/" class="nav-link {% if 'analytics' in request.path %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i><span>Analytics</span>
+                </a>
+            </div>
+        {% endif %}
+    </div>
+            </nav>
+
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    {% block extra_js %}
+{% endblock %}
+</body>
+
+
+</html>

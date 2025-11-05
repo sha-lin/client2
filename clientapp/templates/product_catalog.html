@@ -1,0 +1,303 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+<style>
+    .product-catalog-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .page-header {
+        margin-bottom: 2rem;
+    }
+
+    .page-title-section h1 {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin: 0 0 0.5rem 0;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .page-title-section p {
+        color: #6b7280;
+        font-size: 0.95rem;
+        margin: 0;
+    }
+
+    .search-filter-bar {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        align-items: center;
+    }
+
+    .search-box {
+        flex: 1;
+        position: relative;
+    }
+
+    .search-box input {
+        width: 100%;
+        padding: 0.75rem 1rem 0.75rem 2.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: #fafafa;
+    }
+
+    .search-box input:focus {
+        outline: none;
+        border-color: #9ca3af;
+        background: #fff;
+    }
+
+    .search-box i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #9ca3af;
+    }
+
+    .filter-dropdown {
+        min-width: 180px;
+    }
+
+    .filter-dropdown select {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: #fafafa;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 1rem center;
+        padding-right: 2.5rem;
+    }
+
+    .filter-dropdown select:focus {
+        outline: none;
+        border-color: #9ca3af;
+        background-color: #fff;
+    }
+
+    .products-table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .products-table thead {
+        background: #fafafa;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .products-table th {
+        padding: 1rem;
+        text-align: left;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .products-table td {
+        padding: 1.25rem 1rem;
+        border-bottom: 1px solid #f3f4f6;
+        color: #1a1a1a;
+        font-size: 0.9rem;
+    }
+
+    .products-table tbody tr:last-child td {
+        border-bottom: none;
+    }
+
+    .products-table tbody tr:hover {
+        background: #fafafa;
+    }
+
+    .sku-cell {
+        font-family: 'Courier New', monospace;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .product-name {
+        font-weight: 500;
+        color: #1a1a1a;
+    }
+
+    .type-badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .type-non-custom {
+        background: #f3f4f6;
+        color: #374151;
+    }
+
+    .type-semi-custom {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .price {
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+
+    .availability-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.85rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        white-space: nowrap;
+    }
+
+    .availability-always {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .availability-in-stock {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .availability-low {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .availability-out {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .availability-lead {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .availability-badge i {
+        font-size: 1rem;
+    }
+
+    .stock-info {
+        color: #6b7280;
+        font-size: 0.9rem;
+    }
+
+    .last-updated {
+        color: #9ca3af;
+        font-size: 0.85rem;
+    }
+</style>
+
+<div class="product-catalog-container">
+    <div class="page-header">
+        <div class="page-title-section">
+            <h1>
+                <i class="fas fa-box"></i>
+                Product Catalog
+            </h1>
+            <p>Real-time inventory and availability tracking</p>
+        </div>
+    </div>
+
+    <div class="search-filter-bar">
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Search by product name or SKU...">
+        </div>
+        <div class="filter-dropdown">
+            <select>
+                <option>All Products</option>
+                <option>Non-Custom</option>
+                <option>Semi-Custom</option>
+                <option>Fully Custom</option>
+            </select>
+        </div>
+    </div>
+
+    <table class="products-table">
+        <thead>
+            <tr>
+                <th>SKU</th>
+                <th>Product Name</th>
+                <th>Type</th>
+                <th>Base Price (EVP)</th>
+                <th>Availability</th>
+                <th>Stock/Lead Time</th>
+                <th>Last Updated</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="sku-cell">PRD-001</td>
+                <td class="product-name">Standard Business Card (500ct)</td>
+                <td><span class="type-badge type-non-custom">Non-Custom</span></td>
+                <td class="price">$45.00</td>
+                <td><span class="availability-badge availability-always"><i class="fas fa-check-circle"></i> Always Available</span></td>
+                <td class="stock-info">2-3 business days</td>
+                <td class="last-updated">11/1/2025</td>
+            </tr>
+            <tr>
+                <td class="sku-cell">PRD-002</td>
+                <td class="product-name">Custom Tote Bag - Canvas</td>
+                <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
+                <td class="price">$8.50</td>
+                <td><span class="availability-badge availability-in-stock"><i class="fas fa-check-circle"></i> In Stock</span></td>
+                <td class="stock-info">450 units</td>
+                <td class="last-updated">11/2/2025</td>
+            </tr>
+            <tr>
+                <td class="sku-cell">PRD-003</td>
+                <td class="product-name">Aluminum Water Bottle 20oz</td>
+                <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
+                <td class="price">$12.75</td>
+                <td><span class="availability-badge availability-low"><i class="fas fa-exclamation-circle"></i> Low Stock</span></td>
+                <td class="stock-info">85 units</td>
+                <td class="last-updated">11/3/2025</td>
+            </tr>
+            <tr>
+                <td class="sku-cell">PRD-004</td>
+                <td class="product-name">Custom Embroidered Cap</td>
+                <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
+                <td class="price">$15.00</td>
+                <td><span class="availability-badge availability-out"><i class="fas fa-times-circle"></i> Out of Stock</span></td>
+                <td class="stock-info">0 units</td>
+                <td class="last-updated">10/28/2025</td>
+            </tr>
+            <tr>
+                <td class="sku-cell">PRD-005</td>
+                <td class="product-name">Premium Trade Show Banner 8x10</td>
+                <td><span class="type-badge type-non-custom">Non-Custom</span></td>
+                <td class="price">$125.00</td>
+                <td><span class="availability-badge availability-lead"><i class="fas fa-clock"></i> 3-Day Lead</span></td>
+                <td class="stock-info">3 business days</td>
+                <td class="last-updated">11/1/2025</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}
