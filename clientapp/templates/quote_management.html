@@ -1,4 +1,4 @@
-{% extends 'base2.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 <style>
@@ -481,6 +481,33 @@
         font-size: 0.9rem;
         line-height: 1.6;
     }
+
+    /* Override base template modal styles - removed container specificity since modal is outside container */
+    .modal-overlay {
+        display: none !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        background: rgba(0, 0, 0, 0.5) !important;
+        z-index: 1000 !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .modal-overlay.active {
+        display: flex !important;
+    }
+
+    .modal {
+        background: #fff;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
 </style>
 
 <div class="quote-management-container">
@@ -521,73 +548,85 @@
                 </tr>
             </thead>
             <tbody>
+                {% for quote_data in quotes %}
                 <tr>
-                    <td>Q-2025-001</td>
-                    <td>Acme Corp</td>
+                    <td>{{ quote_data.quote.quote_id }}</td>
+                    <td>
+                        {% if quote_data.quote.client %}
+                            {{ quote_data.quote.client.name }}
+                        {% elif quote_data.quote.lead %}
+                            {{ quote_data.quote.lead.name }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td>
                         <div class="product-info">
-                            <span class="product-name">Standard Business Card (500ct)</span>
-                            <span class="product-sku">PRD-001</span>
+                            <span class="product-name">{{ quote_data.quote.product_name }}</span>
+                            <span class="product-sku">{{ quote_data.quote.product.sku|default:"-" }}</span>
                         </div>
                     </td>
-                    <td><span class="type-badge type-non-custom">Non-Custom</span></td>
-                    <td><span class="status-badge status-approved"><i class="fas fa-check-circle"></i> Approved</span></td>
-                    <td><span class="availability-badge availability-available">Available</span></td>
-                    <td><span class="price">$ 45.00</span></td>
-                    <td><span class="eta"><i class="far fa-calendar"></i> 2-3 business days</span></td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-001')"><i class="far fa-eye"></i> View</button></td>
+                    <td>
+                        {% if quote_data.quote.product %}
+                            {% if quote_data.quote.product.product_type == 'non_custom' %}
+                                <span class="type-badge type-non-custom">Non-Custom</span>
+                            {% elif quote_data.quote.product.product_type == 'semi_custom' %}
+                                <span class="type-badge type-semi-custom">Semi-Custom</span>
+                            {% else %}
+                                <span class="type-badge type-custom">Custom</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="type-badge type-custom">Custom</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if quote_data.quote.status == 'Approved' %}
+                            <span class="status-badge status-approved"><i class="fas fa-check-circle"></i> Approved</span>
+                        {% elif quote_data.quote.status == 'Quoted' %}
+                            <span class="status-badge status-pending"><i class="fas fa-clock"></i> Quoted</span>
+                        {% elif quote_data.quote.status == 'Draft' %}
+                            <span class="status-badge status-pt-adjusted"><i class="fas fa-edit"></i> Draft</span>
+                        {% else %}
+                            <span class="status-badge status-pending"><i class="fas fa-question"></i> {{ quote_data.quote.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if quote_data.quote.product %}
+                            {% if quote_data.quote.product.availability == 'always' %}
+                                <span class="availability-badge availability-available">Always</span>
+                            {% elif quote_data.quote.product.availability == 'in_stock' %}
+                                <span class="availability-badge availability-available">In Stock</span>
+                            {% elif quote_data.quote.product.availability == 'low_stock' %}
+                                <span class="availability-badge availability-low">Low Stock</span>
+                            {% else %}
+                                <span class="availability-badge availability-out">Out of Stock</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="availability-badge availability-out">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td><span class="price">KES {{ quote_data.total_amount|floatformat:2 }}</span></td>
+                    <td>
+                        {% if quote_data.quote.product and quote_data.quote.product.lead_time %}
+                            <span class="eta"><i class="far fa-calendar"></i> {{ quote_data.quote.product.lead_time }}</span>
+                        {% else %}
+                            <span class="eta"><i class="far fa-calendar"></i> TBD</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="flex gap-1">
+                            <a href="{% url 'quote_detail' quote_data.quote.quote_id %}" class="btn btn-secondary text-sm py-1 px-2">View</a>
+                            {% if quote_data.quote.status in 'Quoted,Client Review' %}
+                            <button onclick="updateQuoteStatus('{{ quote_data.quote.quote_id }}')" class="btn btn-primary text-sm py-1 px-2">Update</button>
+                            {% endif %}
+                        </div>
+                    </td>
                 </tr>
+                {% empty %}
                 <tr>
-                    <td>Q-2025-002</td>
-                    <td>TechStart Inc</td>
-                    <td>
-                        <div class="product-info">
-                            <span class="product-name">Custom Tote Bag - Canvas (Red, 100ct)</span>
-                            <span class="product-sku">PRD-002</span>
-                        </div>
-                    </td>
-                    <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
-                    <td><span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending PT Review</span></td>
-                    <td><span class="availability-badge availability-available">Available</span></td>
-                    <td><span class="price">$ 850.00</span></td>
-                    <td><span class="eta"><i class="far fa-calendar"></i> 3-5 business days</span></td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-002')"><i class="far fa-eye"></i> View</button></td>
+                    <td colspan="9" style="text-align: center; padding: 2rem; color: #6b7280;">No quotes found</td>
                 </tr>
-                <tr>
-                    <td>Q-2025-003</td>
-                    <td>Green Solutions</td>
-                    <td>
-                        <div class="product-info">
-                            <span class="product-name">Aluminum Water Bottle 20oz (Custom Engraving)</span>
-                            <span class="product-sku">PRD-003</span>
-                        </div>
-                    </td>
-                    <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
-                    <td><span class="status-badge status-pt-adjusted"><i class="fas fa-info-circle"></i> PT-Adjusted</span></td>
-                    <td><span class="availability-badge availability-low">Low Stock</span></td>
-                    <td>
-                        <span class="price">$ 1450.00</span>
-                        <span class="price-original">$1275.00</span>
-                    </td>
-                    <td><span class="eta"><i class="far fa-calendar"></i> 7-10 business days</span></td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-003')"><i class="far fa-eye"></i> View</button></td>
-                </tr>
-                <tr>
-                    <td>Q-2025-004</td>
-                    <td>SportsFit Gym</td>
-                    <td>
-                        <div class="product-info">
-                            <span class="product-name">Custom Embroidered Cap (250ct)</span>
-                            <span class="product-sku">PRD-004</span>
-                        </div>
-                    </td>
-                    <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
-                    <td><span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending PT Review</span></td>
-                    <td><span class="availability-badge availability-out">Out of Stock</span></td>
-                    <td><span class="price">$ 3750.00</span></td>
-                    <td><span class="eta"><i class="far fa-calendar"></i> TBD</span></td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-004')"><i class="far fa-eye"></i> View</button></td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
@@ -606,30 +645,46 @@
                 </tr>
             </thead>
             <tbody>
+                {% for quote_data in quotes %}
+                    {% if quote_data.quote.status in 'Quoted,Draft' %}
+                    <tr>
+                        <td>{{ quote_data.quote.quote_id }}</td>
+                        <td>
+                            {% if quote_data.quote.client %}
+                                {{ quote_data.quote.client.name }}
+                            {% elif quote_data.quote.lead %}
+                                {{ quote_data.quote.lead.name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ quote_data.quote.product_name }}</td>
+                        <td>
+                            {% if quote_data.quote.status == 'Quoted' %}
+                                <span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending PT Review</span>
+                            {% else %}
+                                <span class="status-badge status-pt-adjusted"><i class="fas fa-info-circle"></i> PT Adjusted</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if quote_data.quote.product.availability == 'always' %}
+                                <span class="availability-badge availability-available">Always</span>
+                            {% elif quote_data.quote.product.availability == 'in_stock' %}
+                                <span class="availability-badge availability-available">In Stock</span>
+                            {% elif quote_data.quote.product.availability == 'low_stock' %}
+                                <span class="availability-badge availability-low">Low Stock</span>
+                            {% else %}
+                                <span class="availability-badge availability-out">Out of Stock</span>
+                            {% endif %}
+                        </td>
+                        <td><button class="action-btn" onclick="viewQuote('{{ quote_data.quote.quote_id }}')"><i class="far fa-eye"></i> Review</button></td>
+                    </tr>
+                    {% endif %}
+                {% empty %}
                 <tr>
-                    <td>Q-2025-002</td>
-                    <td>TechStart Inc</td>
-                    <td>Custom Tote Bag - Canvas (Red, 100ct)</td>
-                    <td><span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending PT Review</span></td>
-                    <td><span class="availability-badge availability-available">Available</span></td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-002')"><i class="far fa-eye"></i> Review</button></td>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #6b7280;">No pending quotes</td>
                 </tr>
-                <tr>
-                    <td>Q-2025-003</td>
-                    <td>Green Solutions</td>
-                    <td>Aluminum Water Bottle 20oz (Custom Engraving)</td>
-                    <td><span class="status-badge status-pt-adjusted"><i class="fas fa-info-circle"></i> PT Adjusted</span></td>
-                    <td><span class="availability-badge availability-low">Low Stock</span></td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-003')"><i class="far fa-eye"></i> Review</button></td>
-                </tr>
-                <tr>
-                    <td>Q-2025-004</td>
-                    <td>SportsFit Gym</td>
-                    <td>Custom Embroidered Cap (250ct)</td>
-                    <td><span class="status-badge status-pending"><i class="fas fa-clock"></i> Pending PT Review</span></td>
-                    <td><span class="availability-badge availability-out">Out of Stock</span></td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-004')"><i class="far fa-eye"></i> Review</button></td>
-                </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
@@ -648,14 +703,30 @@
                 </tr>
             </thead>
             <tbody>
+                {% for quote_data in quotes %}
+                    {% if quote_data.quote.status == 'Approved' %}
+                    <tr>
+                        <td>{{ quote_data.quote.quote_id }}</td>
+                        <td>
+                            {% if quote_data.quote.client %}
+                                {{ quote_data.quote.client.name }}
+                            {% elif quote_data.quote.lead %}
+                                {{ quote_data.quote.lead.name }}
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td>{{ quote_data.quote.product_name }}</td>
+                        <td>KES {{ quote_data.total_amount|floatformat:2 }}</td>
+                        <td>{{ quote_data.quote.product.lead_time|default:"TBD" }}</td>
+                        <td><button class="action-btn" onclick="viewQuote('{{ quote_data.quote.quote_id }}')"><i class="far fa-eye"></i> View</button></td>
+                    </tr>
+                    {% endif %}
+                {% empty %}
                 <tr>
-                    <td>Q-2025-001</td>
-                    <td>Acme Corp</td>
-                    <td>Standard Business Card (500ct)</td>
-                    <td>$45.00</td>
-                    <td>2-3 business days</td>
-                    <td><button class="action-btn" onclick="viewQuote('Q-2025-001')"><i class="far fa-eye"></i> View</button></td>
+                    <td colspan="6" style="text-align: center; padding: 2rem; color: #6b7280;">No approved quotes</td>
                 </tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
@@ -672,24 +743,40 @@
             <button class="modal-close" onclick="closeNewQuoteModal()">×</button>
         </div>
         <div class="modal-body">
-            <div class="form-row">
-                <div class="form-group">
-                    <label class="form-label">Client Name</label>
-                    <input type="text" class="form-input" placeholder="Enter client name">
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Client/Lead Name</label>
+                        <select class="form-input" id="client_select">
+                            <option value="">Select client or lead...</option>
+                            <optgroup label="Active Clients">
+                                {% for client in clients %}
+                                <option value="client_{{ client.id }}">{{ client.name }} (Client)</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="Active Leads">
+                                {% for lead in leads %}
+                                <option value="lead_{{ lead.id }}">{{ lead.name }} (Lead)</option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Product Name</label>
+                        <select class="form-select" id="product_select" required>
+                            <option value="">Select a product...</option>
+                            {% for product in products %}
+                            <option value="{{ product.name }}" data-sku="{{ product.sku }}" data-type="{{ product.product_type }}" data-price="{{ product.base_price }}">
+                                {{ product.name }} ({{ product.sku }}) - KES {{ product.base_price|floatformat:2 }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label class="form-label">Product SKU</label>
-                    <input type="text" class="form-input" placeholder="PRD-XXX">
-                </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Product Name</label>
-                <input type="text" class="form-input" placeholder="Search catalog or enter custom product">
-            </div>
-            <div class="form-row">
                 <div class="form-group">
                     <label class="form-label">Product Type</label>
-                    <select class="form-select">
+                    <select class="form-select" name="product_type">
                         <option>Select type</option>
                         <option>Non-Custom</option>
                         <option>Semi-Custom</option>
@@ -697,25 +784,25 @@
                 </div>
                 <div class="form-group">
                     <label class="form-label">Quantity</label>
-                    <input type="number" class="form-input" value="100">
+                    <input type="number" class="form-input" name="quantity" value="100">
                 </div>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Artwork Required?</label>
-                <select class="form-select">
-                    <option>Select option</option>
-                    <option>Yes</option>
-                    <option>No</option>
-                </select>
-            </div>
-            <div class="form-group">
-                <label class="form-label">Notes</label>
-                <textarea class="form-textarea" placeholder="Add any special requirements or notes..."></textarea>
-            </div>
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeNewQuoteModal()">Cancel</button>
-            <button class="btn btn-primary" onclick="createQuote()">Create Quote</button>
+                <div class="form-group">
+                    <label class="form-label">Artwork Required?</label>
+                    <select class="form-select" name="artwork_required">
+                        <option>Select option</option>
+                        <option>Yes</option>
+                        <option>No</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea class="form-textarea" name="notes" placeholder="Add any special requirements or notes..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" onclick="closeNewQuoteModal()">Cancel</button>
+                    <button class="btn btn-primary" onclick="createQuote()">Create Quote</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -766,11 +853,11 @@
                 <h3 class="detail-section-title">Pricing & Timeline</h3>
                 <div class="detail-row">
                     <span class="detail-label">Base EVP:</span>
-                    <span class="detail-value">$1275.00</span>
+                    <span class="detail-value">KES 1,275.00</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">PT Adjusted Price:</span>
-                    <span class="detail-value price-highlight">$1450.00</span>
+                    <span class="detail-value price-highlight">KES 1,450.00</span>
                 </div>
                 <div class="detail-row">
                     <span class="detail-label">Estimated Delivery:</span>
@@ -821,21 +908,111 @@
 
     // New Quote Modal
     function openNewQuoteModal() {
-        document.getElementById('newQuoteModal').classList.add('active');
+        const modal = document.getElementById('newQuoteModal');
+        modal.classList.add('active');
+        // Force display in case CSS is not working
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        const modalContent = modal.querySelector('.modal');
+        if (modalContent) {
+            modalContent.style.display = 'block';
+        }
     }
 
     function closeNewQuoteModal() {
-        document.getElementById('newQuoteModal').classList.remove('active');
+        const modal = document.getElementById('newQuoteModal');
+        modal.classList.remove('active');
+        modal.style.display = 'none';
     }
 
     function createQuote() {
-        alert('Quote created successfully!');
-        closeNewQuoteModal();
+        // Get form data from the modal
+        const formData = new FormData();
+        
+        // Add form fields
+        const clientSelect = document.getElementById('client_select');
+        const selectedValue = clientSelect.value;
+
+        let clientId = null;
+        let leadId = null;
+        let quoteType = null;
+
+        if (selectedValue.startsWith('client_')) {
+            clientId = selectedValue.replace('client_', '');
+            quoteType = 'client';
+        } else if (selectedValue.startsWith('lead_')) {
+            leadId = selectedValue.replace('lead_', '');
+            quoteType = 'lead';
+        }
+
+        // Update formData
+        formData.append('client_id', clientId);
+        formData.append('lead_id', leadId);
+        formData.append('quote_type', quoteType);
+        
+        // Get selected product details
+        const productSelect = document.getElementById('product_select');
+        const selectedOption = productSelect.options[productSelect.selectedIndex];
+        
+        const productName = selectedOption.value;
+        const productSKU = selectedOption.getAttribute('data-sku');
+        const productType = selectedOption.getAttribute('data-type') || document.querySelector('select[name="product_type"]').value;
+        const quantity = document.querySelector('input[name="quantity"]').value;
+        const artworkRequired = document.querySelector('select[name="artwork_required"]').value;
+        const notes = document.querySelector('textarea[name="notes"]').value;
+        
+        // Update formData with product details
+        formData.append('product_name', productName);
+        formData.append('product_sku', productSKU);
+        formData.append('product_type', productType);
+        formData.append('quantity', quantity);
+        formData.append('artwork_required', artworkRequired);
+        formData.append('notes', notes);
+        
+        // Submit via AJAX
+        fetch('/quotes/create/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                closeNewQuoteModal();
+                // Refresh the page to show the new quote
+                location.reload();
+            } else {
+                alert('Error creating quote: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error creating quote. Please try again.');
+        });
     }
 
-    // Quote Details Modal
+    // Auto-fill product details when product is selected
+    document.getElementById('product_select').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const productType = selectedOption.getAttribute('data-type');
+        const productTypeSelect = document.querySelector('select[name="product_type"]');
+        
+        if (productType && productTypeSelect) {
+            // Set the product type dropdown
+            productTypeSelect.value = productType;
+            
+            // You could also show price information or other details here
+            console.log('Selected product price:', selectedOption.getAttribute('data-price'));
+        }
+    });
+
+    // Quote Details Modal - Changed to redirect to quote detail page
     function viewQuote(quoteId) {
-        document.getElementById('quoteDetailsModal').classList.add('active');
+        window.location.href = `/quotes/${quoteId}/`;
     }
 
     function closeQuoteDetailsModal() {

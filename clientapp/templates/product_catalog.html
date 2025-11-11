@@ -1,4 +1,4 @@
-{% extends 'base2.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 <style>
@@ -224,20 +224,34 @@
         </div>
     </div>
 
-    <div class="search-filter-bar">
+    <form method="get" class="search-filter-bar">
         <div class="search-box">
             <i class="fas fa-search"></i>
-            <input type="text" placeholder="Search by product name or SKU...">
+            <input type="text" name="search" value="{{ search }}" placeholder="Search by product name or SKU..." class="search-input">
         </div>
         <div class="filter-dropdown">
-            <select>
-                <option>All Products</option>
-                <option>Non-Custom</option>
-                <option>Semi-Custom</option>
-                <option>Fully Custom</option>
+            <select name="product_type" class="filter-select">
+                <option value="all" {% if product_type == 'all' %}selected{% endif %}>All Products</option>
+                <option value="non_custom" {% if product_type == 'non_custom' %}selected{% endif %}>Non-Custom</option>
+                <option value="semi_custom" {% if product_type == 'semi_custom' %}selected{% endif %}>Semi-Custom</option>
+                <option value="custom" {% if product_type == 'custom' %}selected{% endif %}>Custom</option>
             </select>
         </div>
-    </div>
+        <div class="filter-dropdown">
+            <select name="availability" class="filter-select">
+                <option value="all" {% if availability == 'all' %}selected{% endif %}>All Availability</option>
+                <option value="always" {% if availability == 'always' %}selected{% endif %}>Always Available</option>
+                <option value="in_stock" {% if availability == 'in_stock' %}selected{% endif %}>In Stock</option>
+                <option value="low_stock" {% if availability == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                <option value="out_of_stock" {% if availability == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                <option value="lead_time" {% if availability == 'lead_time' %}selected{% endif %}>Lead Time</option>
+            </select>
+        </div>
+        <button type="submit" class="add-product-btn">
+            <i class="fas fa-filter"></i>
+            Apply Filters
+        </button>
+    </form>
 
     <table class="products-table">
         <thead>
@@ -252,51 +266,46 @@
             </tr>
         </thead>
         <tbody>
+            {% for product in products %}
             <tr>
-                <td class="sku-cell">PRD-001</td>
-                <td class="product-name">Standard Business Card (500ct)</td>
-                <td><span class="type-badge type-non-custom">Non-Custom</span></td>
-                <td class="price">$45.00</td>
-                <td><span class="availability-badge availability-always"><i class="fas fa-check-circle"></i> Always Available</span></td>
-                <td class="stock-info">2-3 business days</td>
-                <td class="last-updated">11/1/2025</td>
+                <td class="sku-cell">{{ product.sku }}</td>
+                <td class="product-name">{{ product.name }}</td>
+                <td>
+                    {% if product.product_type == 'non_custom' %}
+                        <span class="type-badge type-non-custom">{{ product.get_product_type_display }}</span>
+                    {% else %}
+                        <span class="type-badge type-semi-custom">{{ product.get_product_type_display }}</span>
+                    {% endif %}
+                </td>
+                <td class="price">KES {{ product.base_price|floatformat:2 }}</td>
+                <td>
+                    {% if product.availability == 'always' %}
+                        <span class="availability-badge availability-always"><i class="fas fa-check-circle"></i> Always Available</span>
+                    {% elif product.availability == 'in_stock' %}
+                        <span class="availability-badge availability-in-stock"><i class="fas fa-check-circle"></i> In Stock</span>
+                    {% elif product.availability == 'low_stock' %}
+                        <span class="availability-badge availability-low"><i class="fas fa-exclamation-circle"></i> Low Stock</span>
+                    {% elif product.availability == 'out_of_stock' %}
+                        <span class="availability-badge availability-out"><i class="fas fa-times-circle"></i> Out of Stock</span>
+                    {% else %}
+                        <span class="availability-badge availability-lead"><i class="fas fa-clock"></i> Lead Time</span>
+                    {% endif %}
+                </td>
+                <td class="stock-info">
+                    {% if product.availability == 'always' or product.availability == 'in_stock' or product.availability == 'low_stock' or product.availability == 'out_of_stock' %}
+
+                        {{ product.stock_quantity }} units
+                    {% else %}
+                        {{ product.lead_time|default:'—' }}
+                    {% endif %}
+                </td>
+                <td class="last-updated">{{ product.updated_at|date:"M d, Y" }}</td>
             </tr>
+            {% empty %}
             <tr>
-                <td class="sku-cell">PRD-002</td>
-                <td class="product-name">Custom Tote Bag - Canvas</td>
-                <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
-                <td class="price">$8.50</td>
-                <td><span class="availability-badge availability-in-stock"><i class="fas fa-check-circle"></i> In Stock</span></td>
-                <td class="stock-info">450 units</td>
-                <td class="last-updated">11/2/2025</td>
+                <td colspan="7" class="text-center py-6 text-gray-500">No products match your filters.</td>
             </tr>
-            <tr>
-                <td class="sku-cell">PRD-003</td>
-                <td class="product-name">Aluminum Water Bottle 20oz</td>
-                <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
-                <td class="price">$12.75</td>
-                <td><span class="availability-badge availability-low"><i class="fas fa-exclamation-circle"></i> Low Stock</span></td>
-                <td class="stock-info">85 units</td>
-                <td class="last-updated">11/3/2025</td>
-            </tr>
-            <tr>
-                <td class="sku-cell">PRD-004</td>
-                <td class="product-name">Custom Embroidered Cap</td>
-                <td><span class="type-badge type-semi-custom">Semi-Custom</span></td>
-                <td class="price">$15.00</td>
-                <td><span class="availability-badge availability-out"><i class="fas fa-times-circle"></i> Out of Stock</span></td>
-                <td class="stock-info">0 units</td>
-                <td class="last-updated">10/28/2025</td>
-            </tr>
-            <tr>
-                <td class="sku-cell">PRD-005</td>
-                <td class="product-name">Premium Trade Show Banner 8x10</td>
-                <td><span class="type-badge type-non-custom">Non-Custom</span></td>
-                <td class="price">$125.00</td>
-                <td><span class="availability-badge availability-lead"><i class="fas fa-clock"></i> 3-Day Lead</span></td>
-                <td class="stock-info">3 business days</td>
-                <td class="last-updated">11/1/2025</td>
-            </tr>
+            {% endfor %}
         </tbody>
     </table>
 </div>

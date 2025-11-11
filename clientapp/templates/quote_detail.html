@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}Quote {{ quote_id }} - Print Duka{% endblock %}
 
@@ -52,20 +53,12 @@
                             <span class="text-sm font-medium">{{ first_quote.payment_terms }}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span class="text-sm text-gray-600">Status:</span>
-                            <span>
-                                {% if first_quote.status == 'Draft' %}
-                                    <span class="quote-status-badge draft">Draft</span>
-                                {% elif first_quote.status == 'Quoted' %}
-                                    <span class="quote-status-badge quoted">Quoted</span>
-                                {% elif first_quote.status == 'Client Review' %}
-                                    <span class="quote-status-badge quoted">Client Review</span>
-                                {% elif first_quote.status == 'Approved' %}
-                                    <span class="quote-status-badge approved">Approved</span>
-                                {% elif first_quote.status == 'Lost' %}
-                                    <span class="quote-status-badge lost">Lost</span>
-                                {% endif %}
-                            </span>
+                            <span class="text-sm text-gray-600">Quote Status:</span>
+                            <span class="text-sm font-medium">{{ first_quote.get_status_display }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-sm text-gray-600">Production Status:</span>
+                            <span class="text-sm font-medium">{{ first_quote.get_production_status_display }}</span>
                         </div>
                     </div>
                 </div>
@@ -113,8 +106,6 @@
                         <tr>
                             <th class="text-left py-3 px-4 text-xs font-semibold text-gray-600">PRODUCT/SERVICE</th>
                             <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">QTY</th>
-                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">COST</th>
-                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">MARKUP</th>
                             <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">UNIT PRICE</th>
                             <th class="text-right py-3 px-4 text-xs font-semibold text-gray-600">AMOUNT</th>
                         </tr>
@@ -126,9 +117,7 @@
                                 <div class="font-medium text-sm">{{ quote.product_name }}</div>
                             </td>
                             <td class="py-3 px-4 text-right text-sm">{{ quote.quantity }}</td>
-                            <td class="py-3 px-4 text-right text-sm">KES {{ quote.cost_price|floatformat:2 }}</td>
-                            <td class="py-3 px-4 text-right text-sm">{{ quote.markup_percentage }}%</td>
-                            <td class="py-3 px-4 text-right text-sm font-medium">KES {{ quote.selling_price|floatformat:2 }}</td>
+                            <td class="py-3 px-4 text-right text-sm font-medium">KES {{ quote.unit_price|floatformat:2 }}</td>
                             <td class="py-3 px-4 text-right text-sm font-bold">KES {{ quote.total_amount|floatformat:2 }}</td>
                         </tr>
                         {% endfor %}
@@ -157,6 +146,27 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Production Updates -->
+            {% if production_updates %}
+            <div class="border-t border-gray-200 pt-6 mt-6">
+                <h3 class="text-sm font-semibold text-gray-600 mb-3">PRODUCTION UPDATES</h3>
+                <div class="space-y-3">
+                    {% for update in production_updates %}
+                    <div class="p-3 border border-gray-200 rounded-lg">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-semibold">{{ update.get_status_display }}</span>
+                            <span class="text-gray-500">{{ update.created_at|naturaltime }}</span>
+                        </div>
+                        {% if update.notes %}
+                        <p class="text-sm text-gray-600 mt-2">{{ update.notes }}</p>
+                        {% endif %}
+                        <p class="text-xs text-gray-400 mt-1">By {{ update.created_by.get_full_name|default:update.created_by.username }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Notes and Terms -->
             {% if first_quote.notes %}

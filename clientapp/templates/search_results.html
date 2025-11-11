@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto px-4">
+    <h1 class="text-2xl font-semibold mb-4">Search</h1>
+    <form method="get" action="{% url 'search' %}" class="mb-6">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search..." class="form-input w-full" />
+    </form>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card p-4">
+            <h2 class="text-sm font-semibold mb-3">Clients ({{ clients|length }})</h2>
+            <ul class="space-y-2">
+                {% for c in clients %}
+                    <li class="flex items-center justify-between text-sm">
+                        <span>{{ c.company|default:c.name }}</span>
+                        <span class="flex items-center gap-2">
+                            <a class="text-blue-600" href="{% url 'client_profile' c.pk %}">View</a>
+                            <a class="text-gray-600" href="{% url 'edit_client' c.pk %}">Edit</a>
+                        </span>
+                    </li>
+                {% empty %}
+                    <li class="text-gray-500 text-sm">No clients found.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card p-4">
+            <h2 class="text-sm font-semibold mb-3">Leads ({{ leads|length }})</h2>
+            <ul class="space-y-2">
+                {% for l in leads %}
+                    <li class="flex items-center justify-between text-sm">
+                        <span>{{ l.name }} — {{ l.lead_id }}</span>
+                        <a class="text-blue-600" href="{% url 'lead_intake' %}?search={{ l.lead_id }}">Open</a>
+                    </li>
+                {% empty %}
+                    <li class="text-gray-500 text-sm">No leads found.</li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="card p-4">
+            <h2 class="text-sm font-semibold mb-3">Quotes ({{ quotes|length }})</h2>
+            <ul class="space-y-2">
+                {% for qx in quotes %}
+                    <li class="flex items-center justify-between text-sm">
+                        <span>{{ qx.quote_id }} — {{ qx.product_name }}</span>
+                        <a class="text-blue-600" href="{% url 'quote_detail' qx.quote_id %}">View</a>
+                    </li>
+                {% empty %}
+                    <li class="text-gray-500 text-sm">No quotes found.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

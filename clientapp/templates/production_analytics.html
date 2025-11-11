@@ -1,4 +1,4 @@
-{% extends 'base2.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 <style>
@@ -303,11 +303,11 @@
         <div class="kpi-card">
             <div class="kpi-header">
                 <div class="kpi-icon">
-                    <i class="fas fa-dollar-sign"></i>
+                    <i class="fas fa-coins"></i>
                 </div>
                 <span class="kpi-title">Avg Quote Value</span>
             </div>
-            <div class="kpi-value">$427</div>
+            <div class="kpi-value">KES {{ avg_quote_value|floatformat:0 }}</div>
             <div class="kpi-change negative">-8% vs last month</div>
         </div>
 

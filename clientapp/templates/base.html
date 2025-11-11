@@ -1,3 +1,5 @@
+{% load group_tags %}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -355,6 +357,83 @@
     </style>
 </head>
 <body class="bg-gray-50">
+    <!-- Top Bar -->
+    <header class="fixed top-0 left-[var(--sidebar-width)] right-0 h-14 bg-blue-900 text-white flex items-center justify-between px-6 z-40">
+        <div class="flex items-center gap-4">
+            <span class="font-semibold">Print Duka</span>
+            <form action="{% url 'search' %}" method="get" class="hidden md:flex items-center gap-2 bg-blue-800/50 rounded-lg px-3 py-1.5">
+                <svg class="w-4 h-4 text-blue-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>
+                <input type="text" name="q" value="{{ request.GET.q|default:'' }}" placeholder="Search clients, leads, quotes..." class="bg-transparent placeholder-blue-200 text-sm outline-none" />
+            </form>
+        </div>
+        <div class="flex items-center gap-4">
+            <a href="{% url 'notifications' %}" class="relative hover:bg-blue-800 p-2 rounded-lg">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1"></path>
+                </svg>
+                {% if unread_notifications_count %}
+                    <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                {% endif %}
+            </a>
+            {% if user.is_authenticated %}
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center font-semibold text-sm">
+                    {{ user.first_name|default:user.username|slice:":1" }}
+                </div>
+                <div class="text-sm">
+                    <p class="font-medium">{{ user.get_full_name|default:user.username }}</p>
+                    <p class="text-xs text-blue-300">{% if user|has_group:"Account Manager" %}Account Manager{% elif user|has_group:"Production Team" %}Production Team{% else %}User{% endif %}</p>
+                </div>
+            </div>
+            <a href="{% url 'logout' %}" class="hover:bg-blue-800 p-2 rounded-lg transition-colors" title="Logout">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+            </a>
+            {% endif %}
+        </div>
+    </header>
+    <!-- Top Bar -->
+    <header class="fixed top-0 left-0 right-0 h-14 bg-blue-900 text-white z-40 flex items-center justify-between px-6">
+        <div class="flex items-center gap-6">
+            {% if current_view == 'dashboard' %}
+            <h1 class="text-lg font-semibold">Print Duka</h1>
+            {% endif %}
+            <form action="{% url 'search' %}" method="get" class="relative w-80 hidden md:block">
+                <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                </svg>
+                <input name="q" type="text" placeholder="Search clients, leads, quotes..." class="w-full pl-9 pr-3 py-2 rounded-lg bg-blue-800 text-white placeholder-blue-300 border-none focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </form>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'notifications' %}" class="relative hover:bg-blue-800 p-2 rounded-lg" title="Notifications">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                </svg>
+                {% if unread_notifications_count %}
+                    <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                {% endif %}
+            </a>
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center font-semibold text-sm">
+                    {% if user.is_authenticated %}{{ user.first_name|default:user.username|first|upper }}{% else %}?{% endif %}
+                </div>
+                <div class="text-sm">
+                    <p class="font-medium">{% if user.is_authenticated %}{{ user.get_full_name|default:user.username }}{% else %}Guest{% endif %}</p>
+                    <p class="text-xs text-blue-300">{% if user.is_authenticated %}{% if user|has_group:"Account Manager" %}Account Manager{% elif user|has_group:"Production Team" %}Production Team{% else %}User{% endif %}{% endif %}</p>
+                </div>
+            </div>
+            {% if user.is_authenticated %}
+            <form method="post" action="{% url 'logout' %}" class="inline">
+                {% csrf_token %}
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded text-sm font-medium transition-colors cursor-pointer" title="Logout">
+                    Logout
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </header>
     <!-- Sidebar -->
     <aside class="sidebar fixed top-0 left-0 h-full bg-white">
         <div class="flex items-center gap-8">
@@ -363,41 +442,98 @@
     </div>
         
         <nav class="py-4">
-            <a href="{% url 'dashboard' %}" class="sidebar-item {% if current_view == 'dashboard' %}active{% endif %}">
-                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                <span>Dashboard</span>
-            </a>
-            
-            <a href="{% url 'lead_intake' %}" class="sidebar-item {% if current_view == 'leads' %}active{% endif %}">
-                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
-                <span>Lead Intake</span>
-            </a>
-            
-            <a href="{% url 'client_onboarding' %}" class="sidebar-item {% if current_view == 'onboarding' %}active{% endif %}">
-                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M3 10h18"></path><path d="M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path></svg>
-                <span>Client Onboarding</span>
-            </a>
-            
-            <a href="{% url 'client_list' %}" class="sidebar-item {% if current_view == 'clients' %}active{% endif %}">
-                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-                <span>Client List</span>
-            </a>
-            <a href="{% url 'base_view' %}" class="sidebar-item {% if current_view == 'base_view' %}active{% endif %}">
-                <!-- Production / Factory icon -->
-               <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 21h18"></path>
-                    <path d="M3 10l6-6 6 6v11H3z"></path>
-                    <path d="M9 21V10"></path>
-                </svg>
-                <span>Production</span>
-            </a>
-            
-            
+            {% load group_tags %}
+            {% if user.is_authenticated and user|has_group:"Finance" %}
+                <a href="{% url 'finance_dashboard' %}" class="sidebar-item {% if current_view == 'finance_dashboard' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 1 1 0 7H6"></path></svg>
+                    <span>Financial Management</span>
+                </a>
+                <a href="{% url 'django_ledger:entity-list' %}" class="sidebar-item">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Ledger Entities</span>
+                </a>
+                <a href="{% url 'notifications' %}" class="sidebar-item {% if current_view == 'notifications' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path></svg>
+                    <span>Notifications</span>
+                    {% if unread_notifications_count %}
+                        <span class="badge badge-danger">{{ unread_notifications_count }}</span>
+                    {% endif %}
+                </a>
+            {% elif user.is_authenticated and user|has_group:"Production Team" %}
+                <a href="{% url 'production_dashboard2' %}" class="sidebar-item {% if current_view == 'production_dashboard' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Production Dashboard</span>
+                </a>
+                <a href="{% url 'production_quote_review' %}" class="sidebar-item {% if current_view == 'production_quotes' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M3 10l6-6 6 6v11H3z"></path><path d="M9 21V10"></path><path d="M15 21V13"></path></svg>
+                    <span>Quote Queue</span>
+                </a>
+                <a href="{% url 'production_catalog' %}" class="sidebar-item {% if current_view == 'production_catalog' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path></svg>
+                    <span>Product Catalog</span>
+                </a>
+                <a href="{% url 'production_jobs' %}" class="sidebar-item {% if current_view == 'production_jobs' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path><path d="M8 11v10"></path><path d="M16 11v10"></path></svg>
+                    <span>Task Management</span>
+                </a>
+                <a href="{% url 'production_analytics' %}" class="sidebar-item {% if current_view == 'production_analytics' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>Analytics</span>
+                </a>
+            {% else %}
+                <a href="{% url 'dashboard' %}" class="sidebar-item {% if current_view == 'dashboard' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{% url 'lead_intake' %}" class="sidebar-item {% if current_view == 'leads' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+                    <span>Lead Intake</span>
+                </a>
+                <a href="{% url 'client_onboarding' %}" class="sidebar-item {% if current_view == 'onboarding' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M3 10h18"></path><path d="M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path></svg>
+                    <span>Client Onboarding</span>
+                </a>
+                <a href="{% url 'client_list' %}" class="sidebar-item {% if current_view == 'clients' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                    <span>Client List</span>
+                </a>
+                <a href="{% url 'quote_management' %}" class="sidebar-item {% if current_view == 'quote_management' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M3 10l6-6 6 6v11H3z"></path><path d="M9 21V10"></path><path d="M15 21V13"></path></svg>
+                    <span>Production</span>
+                </a>
+                <a href="{% url 'analytics' %}" class="sidebar-item {% if current_view == 'analytics' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>Analytics</span>
+                </a>
+                <a href="{% url 'product_catalog' %}" class="sidebar-item {% if current_view == 'product_catalog' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path></svg>
+                    <span>Product Catalog</span>
+                </a>
+            {% endif %}
+{% if user|has_group:"Finance" %}
+<a href="{% url 'finance_dashboard' %}" class="sidebar-item {% if current_view == 'finance_dashboard' %}active{% endif %}">
+    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23"></line>
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+    </svg>
+    <span>Financial Management</span>
+</a>
+{% endif %}
+
+            {% if user.is_authenticated %}
+                <a href="{% url 'notifications' %}" class="sidebar-item {% if current_view == 'notifications' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path></svg>
+                    <span>Notifications</span>
+                    {% if unread_notifications_count %}
+                        <span class="badge badge-danger">{{ unread_notifications_count }}</span>
+                    {% endif %}
+                </a>
+            {% endif %}
         </nav>
     </aside>
     
     <!-- Main Content -->
-    <main class="main-content p-8">
+    <main class="main-content p-8" style="padding-top:4.5rem;">
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }}">

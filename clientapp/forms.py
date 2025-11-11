@@ -1,5 +1,5 @@
 from django import forms
-from .models import Lead, Client, Job
+from .models import Lead, Client, Job, Product, Quote, ProductionUpdate
 
 class LeadForm(forms.ModelForm):
     PRODUCT_CHOICES = [
@@ -152,4 +152,53 @@ class JobForm(forms.ModelForm):
             'status': forms.Select(attrs={
                 'class': 'form-select border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-black focus:border-black w-full'
             }),
+        }
+
+
+class ProductForm(forms.ModelForm):
+    class Meta:
+        model = Product
+        fields = [
+            'category', 'name', 'product_type', 'base_price', 'availability',
+            'stock_quantity', 'lead_time', 'description', 'is_active'
+        ]
+        widgets = {
+            'category': forms.Select(attrs={'class': 'form-select'}),
+            'name': forms.TextInput(attrs={'class': 'form-input'}),
+            'product_type': forms.Select(attrs={'class': 'form-select'}),
+            'base_price': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01'}),
+            'availability': forms.Select(attrs={'class': 'form-select'}),
+            'stock_quantity': forms.NumberInput(attrs={'class': 'form-input', 'min': '0'}),
+            'lead_time': forms.TextInput(attrs={'class': 'form-input'}),
+            'description': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'h-4 w-4'}),
+        }
+
+
+class QuoteCostingForm(forms.ModelForm):
+    class Meta:
+        model = Quote
+        fields = [
+            'unit_price', 'production_cost', 'production_status',
+            'production_notes', 'status', 'payment_terms', 'include_vat'
+        ]
+        widgets = {
+            'unit_price': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01'}),
+            'production_cost': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01'}),
+            'production_status': forms.Select(attrs={'class': 'form-select'}),
+            'production_notes': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 4}),
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'payment_terms': forms.Select(attrs={'class': 'form-select'}),
+            'include_vat': forms.CheckboxInput(attrs={'class': 'h-4 w-4'}),
+        }
+
+
+class ProductionUpdateForm(forms.ModelForm):
+    class Meta:
+        model = ProductionUpdate
+        fields = ['status', 'progress', 'notes']
+        widgets = {
+            'status': forms.Select(attrs={'class': 'form-select'}),
+            'progress': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100'}),
+            'notes': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
         }

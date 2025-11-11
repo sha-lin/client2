@@ -1,4 +1,4 @@
-{% extends 'base2.html' %}
+{% extends 'base.html' %}
 
 {% block content %}
 <style>
@@ -318,9 +318,9 @@
         <div class="stat-card">
             <div class="stat-header">
                 <span class="stat-title">Avg Quote Value</span>
-                <i class="fas fa-dollar-sign stat-icon"></i>
+                <i class="fas fa-coins stat-icon"></i> <!-- Changed from dollar-sign to coins -->
             </div>
-            <div class="stat-value">$427</div>
+            <div class="stat-value">KES {{ avg_quote_value|floatformat:0 }}</div>
             <div class="stat-change">+8% vs last month</div>
         </div>
 

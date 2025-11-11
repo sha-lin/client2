@@ -3,7 +3,10 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.urls import reverse
 from datetime import timedelta
+from decimal import Decimal
 
 class Lead(models.Model):
     """Lead model for prospect tracking"""
@@ -32,7 +35,7 @@ class Lead(models.Model):
     
     lead_id = models.CharField(max_length=20, unique=True, editable=False)
     name = models.CharField(max_length=200)
-    email = models.EmailField()
+    email = models.EmailField(blank=True)
     phone = models.CharField(max_length=20)
     source = models.CharField(max_length=50, choices=SOURCE_CHOICES, blank=True)
     product_interest = models.CharField(max_length=200, blank=True)
@@ -81,8 +84,8 @@ class Lead(models.Model):
 class Client(models.Model):
     """Client model for active customers"""
     CLIENT_TYPE_CHOICES = [
-        ('B2B', 'B2B Company'),
-        ('B2C', 'B2C Individual'),
+        ('B2B', 'B2B Business'),
+        ('B2C', 'B2C Retail'),
     ]
     
     STATUS_CHOICES = [
@@ -347,6 +350,100 @@ class ComplianceDocument(models.Model):
             days_until_expiry = (self.expiry_date - timezone.now().date()).days
             return 0 < days_until_expiry <= 30
         return False
+
+
+class Product(models.Model):
+    """Product catalog entries maintained by the production team"""
+
+    # Add category field
+    CATEGORY_CHOICES = [
+        ('business_cards', 'Business Cards'),
+        ('brochures', 'Brochures & Flyers'),
+        ('posters', 'Posters & Banners'),
+        ('t-shirts', 'T-Shirts & Apparel'),
+        ('mugs', 'Mugs & Drinkware'),
+        ('bags', 'Bags & Totes'),
+        ('stickers', 'Stickers & Labels'),
+        ('signage', 'Signage & Displays'),
+        ('packaging', 'Packaging'),
+        ('other', 'Other'),
+    ]
+
+    PRODUCT_TYPE_CHOICES = [
+        ('non_custom', 'Non-Custom'),
+        ('semi_custom', 'Semi-Custom'),
+        ('custom', 'Custom'),
+    ]
+
+    AVAILABILITY_CHOICES = [
+        ('always', 'Always Available'),
+        ('in_stock', 'In Stock'),
+        ('low_stock', 'Low Stock'),
+        ('out_of_stock', 'Out of Stock'),
+        ('lead_time', 'Lead Time'),
+    ]
+
+    # Add category field first
+    category = models.CharField(
+        max_length=20, 
+        choices=CATEGORY_CHOICES, 
+        default='other',
+        help_text="Product category for organization"
+    )
+    
+    sku = models.CharField(max_length=20, unique=True, editable=False)
+    name = models.CharField(max_length=255)
+    product_type = models.CharField(max_length=20, choices=PRODUCT_TYPE_CHOICES, default='non_custom')
+    base_price = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0)])
+    availability = models.CharField(max_length=20, choices=AVAILABILITY_CHOICES, default='always')
+    stock_quantity = models.PositiveIntegerField(default=0)
+    lead_time = models.CharField(max_length=100, blank=True)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='products_created'
+    )
+    updated_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='products_updated'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['category', 'name']
+        indexes = [
+            models.Index(fields=['sku']),
+            models.Index(fields=['category']),
+            models.Index(fields=['product_type']),
+            models.Index(fields=['availability']),
+        ]
+
+    def __str__(self):
+        return f"{self.sku} - {self.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.sku:
+            year = timezone.now().year
+            prefix = f'PRD-{year}-'
+            last_product = Product.objects.filter(sku__startswith=prefix).order_by('sku').last()
+            if last_product:
+                try:
+                    last_number = int(last_product.sku.split('-')[-1])
+                except (ValueError, IndexError):
+                    last_number = 0
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            self.sku = f'{prefix}{new_number:03d}'
+
+        super().save(*args, **kwargs)
 # Updated Quote Model - Replace in your models.py
 
 class Quote(models.Model):
@@ -357,6 +454,16 @@ class Quote(models.Model):
         ('Client Review', 'Client Review'),
         ('Approved', 'Approved'),
         ('Lost', 'Lost'),
+    ]
+
+    PRODUCTION_STATUS_CHOICES = [
+        ('pending', 'Pending Costing'),
+        ('in_progress', 'Costing In Progress'),
+        ('costed', 'Costed'),
+        ('sent_to_client', 'Sent To Client'),
+        ('on_hold', 'On Hold'),
+        ('in_production', 'In Production'),
+        ('completed', 'Completed'),
     ]
     
     PAYMENT_TERMS_CHOICES = [
@@ -384,6 +491,16 @@ class Quote(models.Model):
     payment_terms = models.CharField(max_length=20, choices=PAYMENT_TERMS_CHOICES, default='Prepaid')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Draft')
     include_vat = models.BooleanField(default=False)
+    production_status = models.CharField(max_length=20, choices=PRODUCTION_STATUS_CHOICES, default='pending')
+    production_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    production_notes = models.TextField(blank=True)
+    costed_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='quotes_costed'
+    )
     
     # Dates
     quote_date = models.DateField(default=timezone.now)
@@ -407,6 +524,7 @@ class Quote(models.Model):
             models.Index(fields=['quote_id']),
             models.Index(fields=['status']),
             models.Index(fields=['client']),
+            models.Index(fields=['production_status']),
         ]
     
     def __str__(self):
@@ -432,11 +550,25 @@ class Quote(models.Model):
             self.quote_id = f'QT-{year}-{new_number:03d}'
         
         # Calculate total amount (unit_price * quantity)
-        self.total_amount = self.unit_price * self.quantity
+        unit_price = self.unit_price if self.unit_price is not None else Decimal('0')
+        subtotal = unit_price * self.quantity
+        if self.include_vat:
+            vat_amount = subtotal * Decimal('0.16')
+            self.total_amount = subtotal + vat_amount
+        else:
+            self.total_amount = subtotal
         
         # Set valid_until if not set (default 30 days)
         if not self.valid_until:
             self.valid_until = timezone.now().date() + timedelta(days=30)
+
+        # Update production status transitions automatically
+        if self.status in ['Quoted', 'Client Review'] and self.production_status == 'pending':
+            self.production_status = 'costed'
+        if self.status == 'Approved' and self.production_status not in ['in_production', 'completed']:
+            self.production_status = 'in_production'
+        if self.status == 'Lost':
+            self.production_status = 'completed'
         
         # Handle Lead to Client conversion when approved
         if self.status == 'Approved' and self.lead and not self.lead.converted_to_client:
@@ -534,6 +666,113 @@ class ActivityLog(models.Model):
     def __str__(self):
         return f"{self.activity_type} - {self.client.name} - {self.created_at.strftime('%Y-%m-%d')}"
     
+
+class ProductionUpdate(models.Model):
+    """Progress updates submitted by the production team"""
+
+    UPDATE_TYPE_CHOICES = [
+        ('quote', 'Quote'),
+        ('job', 'Job'),
+    ]
+
+    update_type = models.CharField(max_length=10, choices=UPDATE_TYPE_CHOICES)
+    quote = models.ForeignKey(
+        Quote,
+        on_delete=models.CASCADE,
+        related_name='production_updates',
+        null=True,
+        blank=True
+    )
+    job = models.ForeignKey(
+        'Job',
+        on_delete=models.CASCADE,
+        related_name='production_updates',
+        null=True,
+        blank=True
+    )
+    status = models.CharField(max_length=20, choices=Quote.PRODUCTION_STATUS_CHOICES, default='pending')
+    progress = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    notes = models.TextField(blank=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='production_updates_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['update_type']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        subject = self.quote.quote_id if self.quote else (self.job.job_number if self.job else 'Update')
+        return f"{subject} - {self.get_status_display()}"
+
+    def clean(self):
+        super().clean()
+        if not self.quote and not self.job:
+            raise ValidationError('A production update must be linked to a quote or a job.')
+        if self.quote and self.job:
+            raise ValidationError('A production update can only target a quote or a job, not both.')
+
+    def save(self, *args, **kwargs):
+        is_new = self.pk is None
+        self.clean()
+        target_client = None
+
+        if self.quote and self.status:
+            # Sync quote production status
+            self.quote.production_status = self.status
+            if self.status in ['costed', 'sent_to_client'] and self.created_by:
+                self.quote.costed_by = self.created_by
+            self.quote.save(update_fields=['production_status', 'costed_by', 'updated_at'])
+            target_client = self.quote.client
+        elif self.job:
+            target_client = self.job.client
+
+        super().save(*args, **kwargs)
+
+        # Notify account manager on fresh updates
+        if is_new and target_client and target_client.account_manager:
+            title = 'Production Update'
+            if self.quote:
+                title = f"Quote {self.quote.quote_id} Update"
+            elif self.job:
+                title = f"Job {self.job.job_number} Update"
+
+            Notification.objects.create(
+                recipient=target_client.account_manager,
+                title=title,
+                message=self.notes or f"Production status changed to {self.get_status_display()}",
+                link=self._resolve_notification_link()
+            )
+
+    def _resolve_notification_link(self):
+        if self.quote:
+            return reverse('quote_detail', args=[self.quote.quote_id])
+        if self.job:
+            return reverse('job_detail', args=[self.job.pk])
+        return ''
+
+
+class Notification(models.Model):
+    """Internal notifications for account managers"""
+
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=150)
+    message = models.TextField()
+    link = models.CharField(max_length=255, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', 'is_read']),
+        ]
+
+    def __str__(self):
+        return f"Notification for {self.recipient.username} - {self.title}"
+
 #  Add this to your models.py - Enhanced Job model
 from datetime import date
 class Job(models.Model):
@@ -567,6 +806,7 @@ class Job(models.Model):
     
     # Basic Info
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='jobs')
+    quote = models.OneToOneField(Quote, on_delete=models.CASCADE, related_name='job', null=True, blank=True)
     job_number = models.CharField(max_length=50, editable=False, null=True, blank=True)
     job_name = models.CharField(max_length=255)
     job_type = models.CharField(max_length=50, choices=JOB_TYPE_CHOICES)

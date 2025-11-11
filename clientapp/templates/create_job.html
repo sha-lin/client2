@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load humanize %}
 
 {% block title %}Create Job - Print Duka{% endblock %}
 
@@ -646,9 +647,62 @@
             </div>
         </form>
     </div>
-</div>
 
+    {% if is_update %}
+    <div class="mt-10 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white border border-gray-200 rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Record Production Update</h2>
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="record_update">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-600">Status</label>
+                        {{ update_form.status }}
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-600">Progress (%)</label>
+                        {{ update_form.progress }}
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm font-medium text-gray-600">Notes</label>
+                    {{ update_form.notes }}
+                </div>
+                <div class="flex justify-end">
+                    <button type="submit" class="add-product-btn">
+                        <i class="fas fa-save"></i>
+                        Save Update
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl shadow p-6">
+            <h2 class="text-lg font-semibold mb-4">Recent Updates</h2>
+            <div class="space-y-4 max-h-80 overflow-y-auto pr-2">
+                {% for update in job_updates %}
+                <div class="border border-gray-200 rounded-lg p-3">
+                    <div class="flex justify-between text-sm">
+                        <span class="font-semibold">{{ update.get_status_display }}</span>
+                        <span class="text-gray-500">{{ update.created_at|naturaltime }}</span>
+                    </div>
+                    {% if update.notes %}
+                    <p class="text-sm text-gray-600 mt-2">{{ update.notes }}</p>
+                    {% endif %}
+                    <p class="text-xs text-gray-400 mt-1">By {{ update.created_by.get_full_name|default:update.created_by.username }}</p>
+                </div>
+                {% empty %}
+                <p class="text-sm text-gray-500">No updates recorded yet.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
 {% endblock %}
+
+
 {% block extra_js %}
 <script>
     // 1. Live Client Information Display
@@ -814,5 +868,5 @@
         fileInput.addEventListener('change', renderFilesList);
     });
 </script>
-{% endblock extra_js %}
+{% endblock %}
 

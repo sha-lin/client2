@@ -1,0 +1,18 @@
+# Auto detect text files and normalize line endings to LF
+* text=auto
+
+# Force LF for specific files that must have Unix line endings
+*.sh text eol=lf
+*.py text eol=lf
+*.md text eol=lf
+
+# Force CRLF for Windows files
+*.bat text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
