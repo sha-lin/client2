@@ -2967,21 +2967,16 @@ def login_redirect(request):
     Custom login redirect view that sends users to appropriate dashboard based on their group
     """
     if request.user.is_authenticated:
-        # Check if user is superuser/admin
         if request.user.is_superuser or request.user.is_staff:
-            return redirect('/admin/')  # ← Admins go to admin panel
-        
-        # Check Production Team
+            return redirect('/admin/')
         elif request.user.groups.filter(name='Production Team').exists():
             return redirect('production2_dashboard')
-        
-        # Check Account Manager
         elif request.user.groups.filter(name='Account Manager').exists():
             return redirect('dashboard')
-        
-        # Fallback for users without groups → send to login with error
         else:
             messages.error(request, "Your account is not assigned to any group. Please contact admin.")
+            from django.contrib.auth import logout
+            logout(request)
             return redirect('login')
     else:
         return redirect('login')
