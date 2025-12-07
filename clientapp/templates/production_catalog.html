@@ -1,416 +1,193 @@
 {% extends 'base.html' %}
 
+{% block title %}Product Catalog - Production Management{% endblock %}
+
 {% block content %}
-<style>
-    .catalog-container {
-        max-width: 1400px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .page-header {
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        margin-bottom: 2rem;
-    }
-
-    .page-title {
-        font-size: 1.5rem;
-        font-weight: 600;
-        color: #1a1a1a;
-        margin: 0 0 0.5rem 0;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .page-subtitle {
-        color: #6b7280;
-        font-size: 0.95rem;
-        margin: 0;
-    }
-
-    .add-product-btn {
-        background: #000;
-        color: #fff;
-        border: none;
-        padding: 0.75rem 1.5rem;
-        border-radius: 8px;
-        font-size: 0.95rem;
-        font-weight: 500;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .add-product-btn:hover {
-        background: #333;
-    }
-
-    .search-filter-bar {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        align-items: center;
-    }
-
-    .search-box {
-        flex: 1;
-        position: relative;
-    }
-
-    .search-box i {
-        position: absolute;
-        left: 1rem;
-        top: 50%;
-        transform: translateY(-50%);
-        color: #9ca3af;
-    }
-
-    .search-input {
-        width: 100%;
-        padding: 0.75rem 1rem 0.75rem 2.75rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        background: #f9fafb;
-    }
-
-    .search-input:focus {
-        outline: none;
-        border-color: #000;
-        background: #fff;
-    }
-
-    .filter-select {
-        padding: 0.75rem 2.5rem 0.75rem 1rem;
-        border: 1px solid #d1d5db;
-        border-radius: 8px;
-        font-size: 0.9rem;
-        background: #fff;
-        cursor: pointer;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 1rem center;
-    }
-
-    .catalog-table {
-        width: 100%;
-        border-collapse: collapse;
-        background: #fff;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-    }
-
-    .catalog-table thead {
-        background: #fafafa;
-        border-bottom: 1px solid #e5e7eb;
-    }
-
-    .catalog-table th {
-        padding: 1rem;
-        text-align: left;
-        font-size: 0.85rem;
-        font-weight: 600;
-        color: #374151;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-
-    .catalog-table td {
-        padding: 1.25rem 1rem;
-        border-bottom: 1px solid #f3f4f6;
-        color: #1a1a1a;
-        font-size: 0.9rem;
-    }
-
-    .catalog-table tbody tr:last-child td {
-        border-bottom: none;
-    }
-
-    .catalog-table tbody tr:hover {
-        background: #fafafa;
-    }
-
-    .type-badge {
-        display: inline-block;
-        padding: 0.35rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
-
-    .type-non-custom {
-        background: #f3f4f6;
-        color: #374151;
-    }
-
-    .type-semi-custom {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .availability-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.35rem 0.75rem;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 500;
-    }
-
-    .availability-always {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .availability-in-stock {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .availability-low-stock {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .availability-out {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .availability-lead {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .price {
-        font-weight: 600;
-        color: #1a1a1a;
-    }
-
-    .edit-btn {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.5rem 1rem;
-        border: 1px solid #e5e7eb;
-        background: #fff;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 500;
-        color: #374151;
-        cursor: pointer;
-        transition: all 0.2s;
-    }
-
-    .edit-btn:hover {
-        background: #f9fafb;
-        border-color: #d1d5db;
-    }
-
-    .last-updated {
-        color: #9ca3af;
-        font-size: 0.85rem;
-    }
-</style>
-
-<div class="catalog-container">
-    <div class="page-header">
+<div class="p-8">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="page-title">
-                <i class="fas fa-box"></i>
-                Product Catalog
-            </h1>
-            <p class="page-subtitle">Real-time inventory and availability tracking</p>
+            <h2 class="text-2xl font-medium text-gray-900 mb-1">Product Catalog</h2>
+            <p class="text-gray-600">Manage and browse your product inventory</p>
         </div>
-        <div>
-            {% if editing_product %}
-                <span class="badge badge-warning">Editing {{ editing_product.name }}</span>
-            {% endif %}
-        </div>
+        <a href="{% url 'product_create' %}"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            Add Product
+        </a>
     </div>
 
-    <div class="mb-6 card p-6">
-        <form method="post" class="space-y-4">
-            {% csrf_token %}
-            {% if editing_product %}
-                <input type="hidden" name="product_id" value="{{ editing_product.id }}">
-            {% endif %}
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Category</label>
-                    <select name="category" class="form-select" required>
-                        {% for value, label in form.fields.category.choices %}
-                            <option value="{{ value }}" {% if form.category.value == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Product Name</label>
-                    <input type="text" name="name" value="{{ form.name.value|default:'' }}" class="form-input" placeholder="e.g. Premium Business Cards" required>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Product Type</label>
-                    <select name="product_type" class="form-select" required>
-                        {% for value, label in form.fields.product_type.choices %}
-                            <option value="{{ value }}" {% if form.product_type.value == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Base Price (KES)</label>
-                    <input type="number" name="base_price" step="0.01" value="{{ form.base_price.value|default:'' }}" class="form-input" required>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Availability</label>
-                    <select name="availability" class="form-select" required>
-                        {% for value, label in form.fields.availability.choices %}
-                            <option value="{{ value }}" {% if form.availability.value == value %}selected{% endif %}>{{ label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Stock Quantity</label>
-                    <input type="number" name="stock_quantity" value="{{ form.stock_quantity.value|default:'' }}" class="form-input" min="0" required>
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Lead Time</label>
-                    <input type="text" name="lead_time" value="{{ form.lead_time.value|default:'' }}" class="form-input" placeholder="e.g. 3-5 business days">
-                </div>
-                <div>
-                    <label class="text-sm font-medium text-gray-600">Description</label>
-                    <textarea name="description" class="form-textarea" rows="2" placeholder="Product description...">{{ form.description.value|default:'' }}</textarea>
-                </div>
+    <!-- Filters and Search -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div class="lg:col-span-2 relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input type="text" name="search" value="{{ search_query }}"
+                    placeholder="Search products by name or ID..."
+                    class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
-            
-            <div class="flex items-center gap-2">
-                <input type="checkbox" name="is_active" {% if form.is_active.value %}checked{% endif %} class="h-4 w-4">
-                <label class="text-sm font-medium text-gray-600">Active Product</label>
-            </div>
-            
-            <div class="flex gap-3 pt-4">
-                <button type="submit" class="btn btn-primary">
-                    {% if editing_product %}Update Product{% else %}Add Product{% endif %}
-                </button>
-                {% if editing_product %}
-                    <a href="{% url 'production_catalog' %}" class="btn btn-secondary">Cancel</a>
-                {% endif %}
-            </div>
+
+            <select name="category"
+                class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="all">All Categories</option>
+                <option value="Print Materials" {% if category_filter=='Print Materials' %}selected{% endif %}>Print
+                    Materials</option>
+                <option value="Signage" {% if category_filter=='Signage' %}selected{% endif %}>Signage</option>
+                <option value="Apparel" {% if category_filter=='Apparel' %}selected{% endif %}>Apparel</option>
+                <option value="Promotional Items" {% if category_filter=='Promotional Items' %}selected{% endif %}>
+                    Promotional Items</option>
+                <option value="Packaging" {% if category_filter=='Packaging' %}selected{% endif %}>Packaging</option>
+            </select>
+
+            <select name="status"
+                class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="all">All Status</option>
+                <option value="Active" {% if status_filter=='Active' %}selected{% endif %}>Active</option>
+                <option value="New" {% if status_filter=='New' %}selected{% endif %}>New</option>
+                <option value="Phasing Out" {% if status_filter=='Phasing Out' %}selected{% endif %}>Phasing Out
+                </option>
+                <option value="Retired" {% if status_filter=='Retired' %}selected{% endif %}>Retired</option>
+            </select>
+
+            <select name="tier"
+                class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="all">All Tiers</option>
+                <option value="Non-Custom" {% if tier_filter=='Non-Custom' %}selected{% endif %}>Non-Custom</option>
+                <option value="Semi-Custom" {% if tier_filter=='Semi-Custom' %}selected{% endif %}>Semi-Custom</option>
+                <option value="Fully Custom" {% if tier_filter=='Fully Custom' %}selected{% endif %}>Fully Custom
+                </option>
+            </select>
         </form>
     </div>
 
-    <form method="get" class="search-filter-bar">
-        <div class="search-box">
-            <i class="fas fa-search"></i>
-            <input type="text" name="search" value="{{ search }}" class="search-input" placeholder="Search by product name or SKU...">
-        </div>
-        <select name="product_type" class="filter-select">
-            <option value="all" {% if product_type == 'all' %}selected{% endif %}>All Products</option>
-            <option value="non_custom" {% if product_type == 'non_custom' %}selected{% endif %}>Non-Custom</option>
-            <option value="semi_custom" {% if product_type == 'semi_custom' %}selected{% endif %}>Semi-Custom</option>
-            <option value="custom" {% if product_type == 'custom' %}selected{% endif %}>Custom</option>
-        </select>
-        <select name="availability" class="filter-select">
-            <option value="all" {% if availability == 'all' %}selected{% endif %}>All Availability</option>
-            <option value="always" {% if availability == 'always' %}selected{% endif %}>Always Available</option>
-            <option value="in_stock" {% if availability == 'in_stock' %}selected{% endif %}>In Stock</option>
-            <option value="low_stock" {% if availability == 'low_stock' %}selected{% endif %}>Low Stock</option>
-            <option value="out_of_stock" {% if availability == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
-            <option value="lead_time" {% if availability == 'lead_time' %}selected{% endif %}>Lead Time</option>
-        </select>
-        <button type="submit" class="add-product-btn">
-            <i class="fas fa-filter"></i>
-            Apply Filters
+    <!-- Results Summary -->
+    <div class="mb-4 flex items-center justify-between">
+        <p class="text-sm text-gray-600">Showing {{ products|length }} products</p>
+        <button class="px-4 py-2 border border-gray-200 rounded-lg text-sm hover:bg-gray-50 flex items-center gap-2">
+            <i data-lucide="filter" class="w-4 h-4"></i>
+            Advanced Filters
         </button>
-    </form>
+    </div>
 
-    <table class="catalog-table">
-        <thead>
-            <tr>
-                <th>SKU</th>
-                <th>Product Name</th>
-                <th>Type</th>
-                <th>Base Price (EVP)</th>
-                <th>Availability</th>
-                <th>Stock/Lead Time</th>
-                <th>Last Updated</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for product in products %}
-            <tr>
-                <td>{{ product.sku }}</td>
-                <td>{{ product.name }}</td>
-                <td>
-                    {% if product.product_type == 'non_custom' %}
-                        <span class="type-badge type-non-custom">{{ product.get_product_type_display }}</span>
-                    {% else %}
-                        <span class="type-badge type-semi-custom">{{ product.get_product_type_display }}</span>
-                    {% endif %}
-                </td>
-                <td><span class="price">KES {{ product.base_price|floatformat:2 }}</span></td>
-                <td>
-                    {% if product.availability == 'always' %}
-                        <span class="availability-badge availability-always"><i class="fas fa-check-circle"></i> Always Available</span>
-                    {% elif product.availability == 'in_stock' %}
-                        <span class="availability-badge availability-in-stock"><i class="fas fa-check-circle"></i> In Stock</span>
-                    {% elif product.availability == 'low_stock' %}
-                        <span class="availability-badge availability-low-stock"><i class="fas fa-exclamation-circle"></i> Low Stock</span>
-                    {% elif product.availability == 'out_of_stock' %}
-                        <span class="availability-badge availability-out"><i class="fas fa-times-circle"></i> Out of Stock</span>
-                    {% else %}
-                        <span class="availability-badge availability-lead"><i class="fas fa-clock"></i> Lead Time</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if product.availability == 'always' or product.availability == 'in_stock' or product.availability == 'low_stock' or product.availability == 'out_of_stock' %}
-
-                        {{ product.stock_quantity }} units
-                    {% else %}
-                        {{ product.lead_time|default:'—' }}
-                    {% endif %}
-                </td>
-                <td><span class="last-updated">{{ product.updated_at|date:"M d, Y" }}</span></td>
-                <td>
-                    {% if product.is_active %}
-                        <span class="badge badge-success">Active</span>
-                    {% else %}
-                        <span class="badge badge-secondary">Inactive</span>
-                    {% endif %}
-                </td>
-                <td>
-                    <div class="flex gap-2">
-                        <a href="{% url 'production_catalog' %}?product_id={{ product.id }}" class="edit-btn"><i class="fas fa-edit"></i> Edit</a>
-                        <form method="post">
-                            {% csrf_token %}
-                            <input type="hidden" name="product_id" value="{{ product.id }}">
-                            <input type="hidden" name="action" value="toggle">
-                            <button type="submit" class="edit-btn">
-                                {% if product.is_active %}
-                                    <i class="fas fa-eye-slash"></i> Deactivate
-                                {% else %}
-                                    <i class="fas fa-eye"></i> Activate
+    <!-- Products Table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50">
+                <tr class="border-b border-gray-200">
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Product</th>
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Category</th>
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Tier</th>
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Base Price</th>
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Margin</th>
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Availability</th>
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Performance</th>
+                    <th class="text-left py-3 px-4 text-sm font-medium text-gray-600">Status</th>
+                    <th class="text-center py-3 px-4 text-sm font-medium text-gray-600">Data</th>
+                    <th class="text-right py-3 px-4 text-sm font-medium text-gray-600">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products %}
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-3 px-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <p class="text-sm text-gray-900">{{ product.name }}</p>
+                                {% if product.featured %}
+                                <span class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Featured</span>
                                 {% endif %}
-                            </button>
-                        </form>
-                    </div>
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="9" class="text-center py-6 text-gray-500">No products match your filters.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-</div>
+                                {% if product.bestseller %}
+                                <span
+                                    class="px-2 py-1 text-xs border border-gray-300 text-gray-700 rounded flex items-center gap-1">
+                                    <i data-lucide="trending-up" class="w-3 h-3"></i>
+                                    Bestseller
+                                </span>
+                                {% endif %}
+                            </div>
+                            <p class="text-xs text-gray-500">{{ product.id }}</p>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-sm text-gray-600">{{ product.category }}</td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 text-xs border border-gray-300 rounded">{{ product.customization_tier
+                            }}</span>
+                    </td>
+                    <td class="py-3 px-4 text-sm text-gray-900">KES {{ product.base_price|floatformat:0 }}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-2">
+                            <p
+                                class="text-sm {% if product.margin >= 25 %}text-green-600{% elif product.margin >= 15 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                {{ product.margin }}%
+                            </p>
+                            {% if product.margin < 20 %} <i data-lucide="alert-circle" class="w-3 h-3 text-yellow-600">
+                                </i>
+                                {% endif %}
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 text-xs rounded
+                            {% if product.availability == 'In Stock' %}bg-green-100 text-green-700
+                            {% elif product.availability == 'Vendor Standard' %}bg-blue-100 text-blue-700
+                            {% elif product.availability == 'Limited Supply' %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-red-100 text-red-700{% endif %}">
+                            {{ product.availability }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="text-sm">
+                            <p class="text-gray-900">{{ product.quote_count }} quotes</p>
+                            <p class="text-xs text-gray-500">{{ product.win_rate }}% win rate</p>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <span class="px-2 py-1 text-xs rounded
+                            {% if product.status == 'Active' %}bg-green-100 text-green-700
+                            {% elif product.status == 'New' %}bg-blue-100 text-blue-700
+                            {% elif product.status == 'Phasing Out' %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ product.status }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <div class="inline-block w-3 h-3 rounded-full
+                            {% if product.data_freshness == 'Green' %}bg-green-500
+                            {% elif product.data_freshness == 'Yellow' %}bg-yellow-500
+                            {% else %}bg-red-500{% endif %}" title="Data freshness indicator">
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 text-right">
+                        <div class="flex items-center justify-end gap-2">
 
+                            <a href="{% url 'product_edit' product.id %}" class="p-2 hover:bg-gray-100 rounded">
+                                <i data-lucide="edit" class="w-4 h-4"></i>
+                            </a>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="py-12 text-center text-gray-500">
+                        No products found matching your criteria.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        lucide.createIcons();
+
+        // Auto-submit form on filter change
+        const form = document.querySelector('form');
+        const selects = form.querySelectorAll('select');
+        selects.forEach(select => {
+            select.addEventListener('change', () => form.submit());
+        });
+    });
+</script>
 {% endblock %}

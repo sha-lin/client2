@@ -1,0 +1,633 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        background-color: #f5f5f5;
+        padding: 20px;
+        color: #333;
+    }
+
+    .container {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    /* Job Header Card */
+    .job-header {
+        background: linear-gradient(135deg, #d4f4dd 0%, #e8f8ed 100%);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        position: relative;
+    }
+
+    .job-header-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+    }
+
+    .job-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .checkmark-icon {
+        width: 24px;
+        height: 24px;
+        background-color: #10b981;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 14px;
+    }
+
+    .qc-badge {
+        background-color: #10b981;
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .qc-badge-header {
+        font-size: 12px;
+        opacity: 0.9;
+        margin-bottom: 2px;
+    }
+
+    .qc-badge-status {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 2px;
+    }
+
+    .qc-badge-score {
+        font-size: 13px;
+        opacity: 0.95;
+    }
+
+    .job-details {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .job-details-item {
+        font-size: 14px;
+        color: #1f2937;
+    }
+
+    /* Card */
+    .card {
+        background: white;
+        border-radius: 12px;
+        padding: 28px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .card-title {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        color: #111827;
+    }
+
+    .card-subtitle {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 20px;
+    }
+
+    /* Packaging Verification */
+    .checklist {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .checkbox-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        color: #374151;
+    }
+
+    .checkbox-item input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+        cursor: pointer;
+        accent-color: #10b981;
+    }
+
+    .warning-box {
+        background-color: #fef3c7;
+        border: 1px solid #fbbf24;
+        border-radius: 8px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: #92400e;
+    }
+
+    .warning-icon {
+        color: #f59e0b;
+        font-size: 18px;
+    }
+
+    /* Dropdown */
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+
+    .select-wrapper {
+        position: relative;
+    }
+
+    .select-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        background-color: #f9fafb;
+        cursor: pointer;
+        appearance: none;
+    }
+
+    .select-wrapper::after {
+        content: '▼';
+        position: absolute;
+        right: 16px;
+        top: 50%;
+        transform: translateY(-50%);
+        pointer-events: none;
+        color: #6b7280;
+        font-size: 12px;
+    }
+
+    /* Upload */
+    .upload-area {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 60px 20px;
+        text-align: center;
+        background-color: #fafafa;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .upload-area:hover {
+        border-color: #10b981;
+        background-color: #f0fdf4;
+    }
+
+    .upload-icon {
+        font-size: 48px;
+        color: #9ca3af;
+        margin-bottom: 12px;
+    }
+
+    .upload-text {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+
+    .upload-subtext {
+        font-size: 13px;
+        color: #9ca3af;
+    }
+
+    /* Notes */
+    .notes-input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1px solid #d1d5db;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 80px;
+        background-color: #f9fafb;
+    }
+
+    /* Cost Summary */
+    .cost-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 12px 0;
+        font-size: 14px;
+    }
+
+    .cost-label {
+        color: #374151;
+    }
+
+    .cost-value {
+        font-weight: 600;
+        color: #111827;
+    }
+
+    .variance-row {
+        border-top: 1px solid #e5e7eb;
+        padding-top: 12px;
+        margin-top: 8px;
+    }
+
+    .variance-value {
+        color: #f59e0b;
+    }
+
+    .variance-badge {
+        background-color: #d1fae5;
+        color: #065f46;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 12px;
+    }
+
+    .variance-dot {
+        width: 8px;
+        height: 8px;
+        background-color: #10b981;
+        border-radius: 50%;
+    }
+
+    /* Confirmation */
+    .confirmation-box {
+        background-color: #fffbeb;
+        border: 2px solid #fbbf24;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+    }
+
+    .confirmation-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #111827;
+    }
+
+    .warning-triangle {
+        color: #f59e0b;
+        font-size: 18px;
+    }
+
+    .action-buttons {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        margin-top: 20px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+
+    .btn-cancel {
+        background-color: white;
+        color: #374151;
+        border: 1px solid #d1d5db;
+    }
+
+    .btn-cancel:hover {
+        background-color: #f9fafb;
+    }
+
+    .btn-primary {
+        background-color: #10b981;
+        color: white;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background-color: #059669;
+    }
+
+    .btn-primary:disabled {
+        background-color: #d1d5db;
+        cursor: not-allowed;
+    }
+
+    .error-message {
+        background-color: #fee2e2;
+        border: 1px solid #fca5a5;
+        border-radius: 8px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 14px;
+        color: #991b1b;
+        margin-top: 16px;
+    }
+
+    .error-icon {
+        color: #dc2626;
+        font-size: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+
+    <!-- Job Header -->
+    <div class="job-header">
+        <div class="job-header-top">
+            <div class="job-title">
+                <div class="checkmark-icon">✓</div>
+                <span>DELIVERY HANDOFF - {{ job.job_number }}</span>
+            </div>
+            <div class="qc-badge">
+                <div class="qc-badge-header">✓ QC Status</div>
+                <div class="qc-badge-status">{% if qc_inspection %}{{ qc_inspection.get_status_display|upper }}{% else
+                    %}PENDING{% endif %}</div>
+                <div class="qc-badge-score">{% if qc_inspection and qc_inspection.status == 'passed' %}100%{% else
+                    %}--{% endif %}</div>
+            </div>
+        </div>
+        <div class="job-details">
+            <div class="job-details-item"><strong>•</strong> Client: {{ job.client.name }}</div>
+            <div class="job-details-item"><strong>•</strong> Product: {{ job.product }} | {{ job.quantity|default:"--"
+                }} pieces</div>
+            <div class="job-details-item"><strong>•</strong> Job Type: {{ job.get_job_type_display }}</div>
+            <div class="job-details-item"><strong>•</strong> Delivery Date: {{ job.delivery_date|date:"M d,
+                Y"|default:"Not set" }}</div>
+        </div>
+    </div>
+
+    <!-- Packaging Verification -->
+    <div class="card">
+        <h2 class="card-title">Packaging Verification</h2>
+        <p class="card-subtitle">Verify all packaging requirements before handoff</p>
+
+        <div class="checklist">
+            <label class="checkbox-item">
+                <input type="checkbox" id="boxes-sealed">
+                <span>All boxes sealed</span>
+            </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="job-labels">
+                <span>Anonymous Job ID labels on each box</span>
+            </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="quantity-marked">
+                <span>Quantity per box marked (1,000/box × 5)</span>
+            </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="total-quantity">
+                <span>Total quantity confirmed (5,000 pcs)</span>
+            </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="fragile-stickers">
+                <span>Fragile stickers applied</span>
+            </label>
+        </div>
+
+        <div class="warning-box">
+            <span class="warning-icon">⚠</span>
+            <span>Please complete all packaging verification checks before proceeding</span>
+        </div>
+    </div>
+
+    <!-- Staging Location -->
+    <div class="card">
+        <h2 class="card-title">Staging Location</h2>
+        <div class="form-group">
+            <label class="form-label">Select staging area:</label>
+            <div class="select-wrapper">
+                <select class="select-input" id="staging-location">
+                    <option value="shelf-b">Shelf B - Standard/Ready Today</option>
+                    <option value="shelf-a">Shelf A - Urgent/Priority</option>
+                    <option value="shelf-c">Shelf C - Future Delivery</option>
+                    <option value="warehouse">Warehouse - Overflow</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Package Photos -->
+    <div class="card">
+        <h2 class="card-title">Package Photos</h2>
+        <p class="card-subtitle">Upload photos showing packaging, labels, and overall condition</p>
+
+        <div class="upload-area" onclick="document.getElementById('photo-upload').click()">
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">Click to upload package photos</div>
+            <div class="upload-subtext">Min 3 photos required</div>
+        </div>
+        <input type="file" id="photo-upload" multiple accept="image/*" style="display: none;">
+    </div>
+
+    <!-- Notes to Account Manager -->
+    <div class="card">
+        <h2 class="card-title">Notes to Account Manager</h2>
+        <textarea class="notes-input" id="notes" placeholder="Add any notes for the account manager..."></textarea>
+    </div>
+
+    <!-- Cost Summary -->
+    <div class="card">
+        <h2 class="card-title">Cost Summary</h2>
+
+        <div class="cost-row">
+            <span class="cost-label">Locked EVP (Incl VAT):</span>
+            <span class="cost-value">{{ locked_evp|floatformat:0 }} KES</span>
+        </div>
+        <div class="cost-row">
+            <span class="cost-label">Actual Cost (Incl VAT):</span>
+            <span class="cost-value">{{ actual_cost|floatformat:0 }} KES</span>
+        </div>
+        <div class="cost-row variance-row">
+            <span class="cost-label">Variance:</span>
+            <span class="cost-value variance-value">{% if variance >= 0 %}+{% endif %}{{ variance|floatformat:0 }} KES
+                ({{ variance_percentage|floatformat:1 }}%)</span>
+        </div>
+
+        <div class="variance-badge">
+            <span class="variance-dot"></span>
+            <span>Variance within acceptable range (&lt; 5%)</span>
+        </div>
+    </div>
+
+    <!-- Handoff Confirmation -->
+    <div class="confirmation-box">
+        <div class="confirmation-header">
+            <span class="warning-triangle">⚠</span>
+            <span>HANDOFF CONFIRMATION</span>
+        </div>
+
+        <div class="checklist">
+            <label class="checkbox-item">
+                <input type="checkbox" id="confirm-ready">
+                <span>I confirm job is ready for delivery</span>
+            </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="confirm-responsibility">
+                <span>I understand PT responsibility ends here</span>
+            </label>
+            <label class="checkbox-item">
+                <input type="checkbox" id="confirm-am">
+                <span>AM will coordinate final delivery</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons">
+        <button class="btn btn-cancel">Cancel</button>
+        <button class="btn btn-primary" id="complete-btn" disabled>
+            <span>📋</span>
+            <span>Complete Handoff to AM →</span>
+        </button>
+    </div>
+
+    <div class="error-message" style="display: none;" id="error-message">
+        <span class="error-icon">⚠</span>
+        <span>Please complete all verification checks and handoff confirmations to proceed</span>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+
+<script>
+    // Track checkbox states
+    const packagingChecks = {
+        'boxes-sealed': false,
+        'job-labels': false,
+        'quantity-marked': false,
+        'total-quantity': false,
+        'fragile-stickers': false
+    };
+
+    const confirmationChecks = {
+        'confirm-ready': false,
+        'confirm-responsibility': false,
+        'confirm-am': false
+    };
+
+    function updateSubmitButton() {
+        const allPackagingChecked = Object.values(packagingChecks).every(v => v);
+        const allConfirmationChecked = Object.values(confirmationChecks).every(v => v);
+        const allChecked = allPackagingChecked && allConfirmationChecked;
+
+        document.getElementById('complete-btn').disabled = !allChecked;
+
+        const errorMsg = document.getElementById('error-message');
+        errorMsg.style.display = allChecked ? "none" : "block";
+    }
+
+    // Setup checkbox listeners
+    document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', function () {
+            if (packagingChecks.hasOwnProperty(this.id)) {
+                packagingChecks[this.id] = this.checked;
+            }
+            if (confirmationChecks.hasOwnProperty(this.id)) {
+                confirmationChecks[this.id] = this.checked;
+            }
+            updateSubmitButton();
+        });
+    });
+
+    // Handle form submission
+    document.getElementById('complete-btn').addEventListener('click', function () {
+        if (this.disabled) return;
+
+        // Collect form data
+        const formData = {
+            job_id: {{ job.id }
+    },
+        staging_location: document.getElementById('staging-location').value,
+        notes_to_am: document.getElementById('notes').value,
+        boxes_sealed: packagingChecks['boxes-sealed'],
+        job_labels: packagingChecks['job-labels'],
+        quantity_marked: packagingChecks['quantity-marked'],
+        total_quantity: packagingChecks['total-quantity'],
+        fragile_stickers: packagingChecks['fragile-stickers'],
+        locked_evp: {{ locked_evp }},
+        actual_cost: {{ actual_cost }},
+        notify_am: true,
+        notify_via_email: true,
+        mark_urgent: false
+        };
+
+    // Disable button
+    this.disabled = true;
+    this.innerHTML = '<span>⏳</span><span>Processing...</span>';
+
+    // Submit via AJAX
+    fetch('{% url "submit_delivery_handoff" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(formData)
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                                alert(' Delivery handoff completed successfully!\n\nJob #: ' + data.job_number);
+                window.location.href = '{% url "production2_dashboard" %}';
+            } else {
+                alert('❌ Error: ' + data.message);
+                this.disabled = false;
+                this.innerHTML = '<span>📋</span><span>Complete Handoff to AM →</span>';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('❌ An error occurred. Please try again.');
+            this.disabled = false;
+            this.innerHTML = '<span>📋</span><span>Complete Handoff to AM →</span>';
+        });
+    });
+</script>
+{% endblock %}

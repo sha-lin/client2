@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0">Deliveries</h1>
+            <p class="text-muted">Track delivery handoffs</p>
+        </div>
+    </div>
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Delivery #</th>
+                            <th>Job</th>
+                            <th>Staging Location</th>
+                            <th>QC Score</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for delivery in deliveries %}
+                        <tr>
+                            <td>{{ delivery.delivery_number }}</td>
+                            <td>{{ delivery.job.name }}</td>
+                            <td>{{ delivery.staging_location }}</td>
+                            <td>{{ delivery.qc_score }}</td>
+                            <td>{{ delivery.status }}</td>
+                            <td>
+                                <a href="{% url 'delivery_handoff' delivery.id %}" class="btn btn-primary btn-sm">Handoff</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{%endblock%}

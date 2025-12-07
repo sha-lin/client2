@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Production Management{% endblock %}
+
+{% block content %}
+<div class="p-8 bg-gray-50 min-h-screen">
+    <!-- Key Metrics Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <!-- Total Products -->
+        <div class="bg-white p-6 rounded-lg border border-gray-200">
+            <div class="flex items-start justify-between mb-3">
+                <p class="text-sm text-gray-600">Total Products</p>
+                <div class="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="package" class="w-5 h-5 text-blue-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-semibold text-gray-900 mb-1">247</p>
+            <p class="text-xs text-green-600">↑ 12% from last month</p>
+        </div>
+
+        <!-- Active Quotes -->
+        <div class="bg-white p-6 rounded-lg border border-gray-200">
+            <div class="flex items-start justify-between mb-3">
+                <p class="text-sm text-gray-600">Active Quotes</p>
+                <div class="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="shopping-cart" class="w-5 h-5 text-green-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-semibold text-gray-900 mb-1">89</p>
+            <p class="text-xs text-green-600">↑ 8% conversion rate</p>
+        </div>
+
+        <!-- Avg Profit Margin -->
+        <div class="bg-white p-6 rounded-lg border border-gray-200">
+            <div class="flex items-start justify-between mb-3">
+                <p class="text-sm text-gray-600">Avg Profit Margin</p>
+                <div class="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="trending-up" class="w-5 h-5 text-purple-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-semibold text-gray-900 mb-1">28.5%</p>
+            <p class="text-xs text-gray-600">Target: 25%</p>
+        </div>
+
+        <!-- Data Freshness -->
+        <div class="bg-white p-6 rounded-lg border border-gray-200">
+            <div class="flex items-start justify-between mb-3">
+                <p class="text-sm text-gray-600">Data Freshness</p>
+                <div class="w-10 h-10 bg-yellow-50 rounded-lg flex items-center justify-center">
+                    <i data-lucide="zap" class="w-5 h-5 text-yellow-600"></i>
+                </div>
+            </div>
+            <p class="text-3xl font-semibold text-gray-900 mb-1">92%</p>
+            <p class="text-xs text-green-600">↑ Green status</p>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="mb-8">
+        <h3 class="text-sm font-medium text-gray-700 mb-3">Quick Actions</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'product_catalog2' %}" class="bg-gray-900 text-white p-6 rounded-lg hover:bg-gray-800 transition-colors flex items-center justify-center gap-3">
+                <i data-lucide="package" class="w-5 h-5"></i>
+                <span class="font-medium">Browse Catalog</span>
+            </a>
+            <a href="{% url 'production_analytics' %}" class="bg-white border border-gray-200 p-6 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-3">
+                <i data-lucide="bar-chart-2" class="w-5 h-5 text-gray-700"></i>
+                <span class="font-medium text-gray-700">View Analytics</span>
+            </a>
+            <a href="{% url 'self_quote' %}" class="bg-white border border-gray-200 p-6 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center gap-3">
+                <i data-lucide="file-text" class="w-5 h-5 text-gray-700"></i>
+                <span class="font-medium text-gray-700">Create Quote</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="bg-white rounded-lg border border-gray-200">
+        <div class="p-6 border-b border-gray-200">
+            <h3 class="text-lg font-medium text-gray-900">Recent Activity</h3>
+        </div>
+        <div class="divide-y divide-gray-200">
+            <!-- Activity Item 1 -->
+            <div class="p-6 flex items-start gap-4 hover:bg-gray-50 transition-colors">
+                <div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">Product Updated</p>
+                    <p class="text-sm text-gray-600">Premium Business Cards</p>
+                </div>
+                <span class="text-xs text-gray-500">5 minutes ago</span>
+            </div>
+
+            <!-- Activity Item 2 -->
+            <div class="p-6 flex items-start gap-4 hover:bg-gray-50 transition-colors">
+                <div class="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">New Quote</p>
+                    <p class="text-sm text-gray-600">Roll-Up Banner - Standard</p>
+                </div>
+                <span class="text-xs text-gray-500">12 minutes ago</span>
+            </div>
+
+            <!-- Activity Item 3 -->
+            <div class="p-6 flex items-start gap-4 hover:bg-gray-50 transition-colors">
+                <div class="w-2 h-2 bg-yellow-500 rounded-full mt-2"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">Price Adjusted</p>
+                    <p class="text-sm text-gray-600">T-Shirt Printing - Cotton</p>
+                </div>
+                <span class="text-xs text-gray-500">1 hour ago</span>
+            </div>
+
+            <!-- Activity Item 4 -->
+            <div class="p-6 flex items-start gap-4 hover:bg-gray-50 transition-colors">
+                <div class="w-2 h-2 bg-red-500 rounded-full mt-2"></div>
+                <div class="flex-1">
+                    <p class="text-sm font-medium text-gray-900">Stock Alert</p>
+                    <p class="text-sm text-gray-600">300gsm Gloss Paper</p>
+                </div>
+                <span class="text-xs text-gray-500">2 hours ago</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

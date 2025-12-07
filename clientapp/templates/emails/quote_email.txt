@@ -1,0 +1,28 @@
+{{ company_name }}
+Your Quote is Ready!
+
+Hello {{ recipient_name }},
+
+Thank you for your interest in our printing services! We're pleased to present your custom quote.
+
+QUOTE DETAILS
+--------------
+Quote Number: {{ quote.quote_id }}
+Product: {{ quote.product_name }}
+Quantity: {{ quote.quantity }}
+Total Amount: KES {{ quote.total_amount|floatformat:2 }}
+Valid Until: {{ quote.valid_until|date:"F d, Y" }}
+
+To review the complete details and approve this quote, please visit:
+{{ approval_url }}
+
+NOTE: This quote is valid until {{ quote.valid_until|date:"F d, Y" }}. Once approved, we'll begin production immediately.
+
+If you have any questions or need modifications, please don't hesitate to contact us.
+
+Best regards,
+{{ company_name }} Team
+
+---
+This is an automated email from {{ company_name }}.
+If you did not request this quote, please disregard this email.

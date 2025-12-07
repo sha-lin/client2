@@ -1,0 +1,413 @@
+{% extends 'base.html' %}
+
+{% block title %}Multi-Product Quotes - Production Management{% endblock %}
+
+{% block content %}
+<div class="p-8 bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h2 class="text-2xl font-semibold text-gray-900 mb-1">Multi-Product Quotes</h2>
+            <p class="text-sm text-gray-600">Manage quotes with multiple products</p>
+        </div>
+        <a href="{% url 'quote_create' %}" class="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            New Quote
+        </a>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-5 rounded-lg border border-gray-200">
+            <p class="text-xs text-gray-600 mb-1">Total Quotes</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">{{ quotes|length|default:"6" }}</p>
+            <p class="text-xs text-gray-500">This month</p>
+        </div>
+        <div class="bg-white p-5 rounded-lg border border-gray-200">
+            <p class="text-xs text-gray-600 mb-1">Pending Approval</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">1</p>
+            <p class="text-xs text-yellow-600">Awaiting client</p>
+        </div>
+        <div class="bg-white p-5 rounded-lg border border-gray-200">
+            <p class="text-xs text-gray-600 mb-1">Total Value</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">KES 480,500</p>
+            <p class="text-xs text-green-600">Active quotes</p>
+        </div>
+        <div class="bg-white p-5 rounded-lg border border-gray-200">
+            <p class="text-xs text-gray-600 mb-1">Avg Margin</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">28.8%</p>
+            <p class="text-xs text-green-600">Above target</p>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <form method="GET" class="flex gap-4">
+            <div class="flex-1 relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+                <input 
+                    type="text" 
+                    name="search"
+                    value="{{ search_query }}"
+                    placeholder="Search by quote number or client name..." 
+                    class="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+            </div>
+
+            <select name="status" class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-white">
+                <option value="all">All Status</option>
+                <option value="Draft" {% if status_filter == 'Draft' %}selected{% endif %}>Draft</option>
+                <option value="Pending PT Costing" {% if status_filter == 'Pending PT Costing' %}selected{% endif %}>Pending PT Costing</option>
+                <option value="Ready to Send" {% if status_filter == 'Ready to Send' %}selected{% endif %}>Ready to Send</option>
+                <option value="Sent to Client" {% if status_filter == 'Sent to Client' %}selected{% endif %}>Sent to Client</option>
+                <option value="Partially Approved" {% if status_filter == 'Partially Approved' %}selected{% endif %}>Partially Approved</option>
+                <option value="Fully Approved" {% if status_filter == 'Fully Approved' %}selected{% endif %}>Fully Approved</option>
+                <option value="Rejected" {% if status_filter == 'Rejected' %}selected{% endif %}>Rejected</option>
+                <option value="Expired" {% if status_filter == 'Expired' %}selected{% endif %}>Expired</option>
+            </select>
+        </form>
+    </div>
+
+    <!-- Results Summary -->
+    <div class="mb-4">
+        <p class="text-sm text-gray-600">Showing {{ quotes|length|default:"6" }} of {{ quotes|length|default:"6" }} quotes</p>
+    </div>
+
+    <!-- Quotes Table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-white border-b border-gray-200">
+                <tr>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Quote #</th>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Client</th>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Account Manager</th>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Items</th>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Total Value</th>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Margin</th>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Status</th>
+                    <th class="text-left py-3 px-4 text-xs font-medium text-gray-600">Valid Until</th>
+                    <th class="text-right py-3 px-4 text-xs font-medium text-gray-600">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for quote in quotes %}
+                <tr class="border-b border-gray-200 hover:bg-gray-50 cursor-pointer transition-colors" onclick=window.location='{% url "quote_detail" quote.id %}'">
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ quote.quote_number }}</p>
+                            <p class="text-xs text-gray-500">{{ quote.created_date }}</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-900">{{ quote.client_name }}</td>
+                    <td class="py-4 px-4 text-sm text-gray-600">{{ quote.account_manager }}</td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">{{ quote.item_count }} products</p>
+                            {% if quote.approved_items > 0 %}
+                            <p class="text-xs text-green-600">{{ quote.approved_items }} approved</p>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        {% if quote.total_value > 0 %}
+                        <p class="text-sm font-medium text-gray-900">KES {{ quote.total_value|floatformat:0 }}</p>
+                        {% else %}
+                        <p class="text-sm text-gray-500">Pending</p>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-4">
+                        {% if quote.margin > 0 %}
+                        <span class="text-sm font-medium {% if quote.margin >= 25 %}text-green-600{% elif quote.margin >= 15 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                            {{ quote.margin }}%
+                        </span>
+                        {% else %}
+                        <span class="text-sm text-gray-500">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1
+                            {% if quote.status == 'Draft' %}bg-gray-100 text-gray-700
+                            {% elif quote.status == 'Pending PT Costing' %}bg-yellow-100 text-yellow-700
+                            {% elif quote.status == 'Ready to Send' %}bg-blue-100 text-blue-700
+                            {% elif quote.status == 'Sent to Client' %}bg-purple-100 text-purple-700
+                            {% elif quote.status == 'Partially Approved' %}bg-orange-100 text-orange-700
+                            {% elif quote.status == 'Fully Approved' %}bg-green-100 text-green-700
+                            {% elif quote.status == 'Rejected' %}bg-red-100 text-red-700
+                            {% else %}bg-gray-100 text-gray-500{% endif %}">
+                            {% if quote.status == 'Fully Approved' %}
+                            <i data-lucide="check-circle" class="w-3 h-3"></i>
+                            {% elif quote.status == 'Rejected' %}
+                            <i data-lucide="x-circle" class="w-3 h-3"></i>
+                            {% elif quote.status == 'Partially Approved' %}
+                            <i data-lucide="alert-circle" class="w-3 h-3"></i>
+                            {% else %}
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            {% endif %}
+                            {{ quote.status }}
+                        </span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">{{ quote.valid_until }}</p>
+                            {% if quote.days_remaining > 0 and quote.days_remaining <= 7 %}
+                            <p class="text-xs text-yellow-600">{{ quote.days_remaining }} days left</p>
+                            {% elif quote.days_remaining <= 0 %}
+                            <p class="text-xs text-red-600">Expired</p>
+                            {% endif %}
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <a href="{% url 'download_quote_pdf' quote.quote_number %}"
+   class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors" 
+   onclick="event.stopPropagation()">
+    <i data-lucide="download" class="w-4 h-4"></i>
+    Download
+</a>
+                        <a href="{% url 'quote_detail' quote.id %}" class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors" onclick="event.stopPropagation()">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            View
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <!-- Sample Data when no quotes exist -->
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">#Q-2024-5678</p>
+                            <p class="text-xs text-gray-500">Nov 10, 2024</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-900">Acme Corporation</td>
+                    <td class="py-4 px-4 text-sm text-gray-600">John Doe</td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">5 products</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm font-medium text-gray-900">KES 125,000</p>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="text-sm font-medium text-green-600">28.5%</span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 bg-purple-100 text-purple-700">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            Sent to Client
+                        </span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm text-gray-900">Nov 24, 2024</p>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <button class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            View
+                        </button>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">#Q-2024-5679</p>
+                            <p class="text-xs text-gray-500">Nov 9, 2024</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-900">Tech Innovations Ltd</td>
+                    <td class="py-4 px-4 text-sm text-gray-600">Jane Smith</td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">4 products</p>
+                            <p class="text-xs text-green-600">2 approved</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm font-medium text-gray-900">KES 87,500</p>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="text-sm font-medium text-green-600">32.1%</span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 bg-orange-100 text-orange-700">
+                            <i data-lucide="alert-circle" class="w-3 h-3"></i>
+                            Partially Approved
+                        </span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm text-gray-900">Nov 25, 2024</p>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <button class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            View
+                        </button>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">#Q-2024-5680</p>
+                            <p class="text-xs text-gray-500">Nov 12, 2024</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-900">Globe Brands Inc</td>
+                    <td class="py-4 px-4 text-sm text-gray-600">John Doe</td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">7 products</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm font-medium text-gray-900">KES 156,000</p>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="text-sm font-medium text-green-600">25.8%</span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 bg-gray-100 text-gray-700">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            Draft
+                        </span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm text-gray-900">Nov 26, 2024</p>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <button class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            View
+                        </button>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">#Q-2024-5681</p>
+                            <p class="text-xs text-gray-500">Nov 8, 2024</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-900">StartUp Solutions</td>
+                    <td class="py-4 px-4 text-sm text-gray-600">Jane Smith</td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">3 products</p>
+                            <p class="text-xs text-green-600">3 approved</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm font-medium text-gray-900">KES 45,000</p>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="text-sm font-medium text-green-600">35.2%</span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 bg-green-100 text-green-700">
+                            <i data-lucide="check-circle" class="w-3 h-3"></i>
+                            Fully Approved
+                        </span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm text-gray-900">Nov 22, 2024</p>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <button class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            View
+                        </button>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">#Q-2024-5682</p>
+                            <p class="text-xs text-gray-500">Nov 12, 2024</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-900">Enterprise Corp</td>
+                    <td class="py-4 px-4 text-sm text-gray-600">John Doe</td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">6 products</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm text-gray-500">Pending</p>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="text-sm text-gray-500">-</span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 bg-yellow-100 text-yellow-700">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            Pending PT Costing
+                        </span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm text-gray-900">Nov 26, 2024</p>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <button class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            View
+                        </button>
+                    </td>
+                </tr>
+                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">#Q-2024-5683</p>
+                            <p class="text-xs text-gray-500">Oct 28, 2024</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-sm text-gray-900">Retail Partners Ltd</td>
+                    <td class="py-4 px-4 text-sm text-gray-600">Jane Smith</td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">4 products</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4">
+                        <p class="text-sm font-medium text-gray-900">KES 67,000</p>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="text-sm font-medium text-yellow-600">22.3%</span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <span class="px-2.5 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 bg-gray-100 text-gray-500">
+                            <i data-lucide="clock" class="w-3 h-3"></i>
+                            Expired
+                        </span>
+                    </td>
+                    <td class="py-4 px-4">
+                        <div>
+                            <p class="text-sm text-gray-900">Nov 11, 2024</p>
+                            <p class="text-xs text-red-600">Expired</p>
+                        </div>
+                    </td>
+                    <td class="py-4 px-4 text-right">
+                        <button class="inline-flex items-center gap-2 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 rounded transition-colors">
+                            <i data-lucide="eye" class="w-4 h-4"></i>
+                            View
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+        
+        // Auto-submit form on filter change
+        const form = document.querySelector('form');
+        const select = form.querySelector('select');
+        select.addEventListener('change', () => form.submit());
+    });
+</script>
+{% endblock %}

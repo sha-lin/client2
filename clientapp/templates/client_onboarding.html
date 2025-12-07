@@ -4,52 +4,52 @@
 
 {% block content %}
 <style>
-.segmented-progress-container {
-    background-color: #f3f4f6; 
-    border-radius: 16px; 
-    padding: 0.5rem;
-    margin-bottom: 1.5rem;
-}
+    .segmented-progress-container {
+        background-color: #f3f4f6;
+        border-radius: 16px;
+        padding: 0.5rem;
+        margin-bottom: 1.5rem;
+    }
 
-.segmented-progress {
-    display: flex;
-    justify-content: space-between;
-    gap: 0.5rem;
-}
+    .segmented-progress {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.5rem;
+    }
 
-.progress-segment {
-    flex: 1;
-    text-align: center;
-    background-color: transparent;
-    border: none;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #374151;
-    cursor: pointer;
-    transition: all 0.25s ease-in-out;
-    height: 25px;
-}
+    .progress-segment {
+        flex: 1;
+        text-align: center;
+        background-color: transparent;
+        border: none;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: #374151;
+        cursor: pointer;
+        transition: all 0.25s ease-in-out;
+        height: 25px;
+    }
 
-.progress-segment.active {
-    background-color: #ffffff; 
-    color: #111827;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-    height: 25px;
-}
+    .progress-segment.active {
+        background-color: #ffffff;
+        color: #111827;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+        height: 25px;
+    }
 
-.progress-segment:hover:not(.active) {
-    background-color: #e5e7eb; 
-}
+    .progress-segment:hover:not(.active) {
+        background-color: #e5e7eb;
+    }
 
-.progress-segment:first-child {
-    border-top-left-radius: 12px;
-    border-bottom-left-radius: 12px;
-}
+    .progress-segment:first-child {
+        border-top-left-radius: 12px;
+        border-bottom-left-radius: 12px;
+    }
 
-.progress-segment:last-child {
-    border-top-right-radius: 12px;
-    border-bottom-right-radius: 12px;
-}
+    .progress-segment:last-child {
+        border-top-right-radius: 12px;
+        border-bottom-right-radius: 12px;
+    }
 </style>
 
 <div>
@@ -64,7 +64,7 @@
                 {% endif %}
             </p>
         </div>
-        
+
         <div class="card">
             <div class="border-b border-gray-200 px-6 py-4">
                 <!-- Progress Navigation Bar - Only for B2B -->
@@ -78,17 +78,18 @@
 
                 <div class="flex items-center justify-between">
                     <div>
-                        <h3 class="text-lg font-semibold">Step <span id="currentStep">1</span> of <span id="totalSteps">3</span></h3>
+                        <h3 class="text-lg font-semibold">Step <span id="currentStep">1</span> of <span
+                                id="totalSteps">3</span></h3>
                         <p class="text-sm text-gray-600" id="stepDescription">Core client details</p>
                     </div>
                     <span id="clientTypeBadge" class="badge badge-primary">B2B</span>
                 </div>
             </div>
-            
+
             <div class="p-6 space-y-6">
-                <form method="post" id="onboardingForm">
+                <form method="post" id="onboardingForm" novalidate>
                     {% csrf_token %}
-                    
+
                     <!-- Step 1: Core Details -->
                     <div id="step1" class="step-content">
                         <div class="space-y-6">
@@ -96,25 +97,41 @@
                                 <div>
                                     <label class="text-sm font-medium">Client Type *</label>
                                     <div class="flex gap-4 mt-2">
-                                        <div class="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-gray-50 client-type-option" data-type="B2B">
-                                            <input type="radio" name="client_type" value="B2B" id="b2b" checked class="w-4 h-4">
+                                        <div class="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-gray-50 client-type-option"
+                                            data-type="B2B">
+                                            <input type="radio" name="client_type" value="B2B" id="b2b" checked
+                                                class="w-4 h-4">
                                             <label for="b2b" class="flex items-center gap-2 cursor-pointer flex-1">
-                                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"></path><path d="M3 10h18"></path><path d="M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z"></path></svg>
+                                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path d="M3 21h18"></path>
+                                                    <path d="M3 10h18"></path>
+                                                    <path
+                                                        d="M5 6h14a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z">
+                                                    </path>
+                                                </svg>
                                                 B2B Business
                                             </label>
                                         </div>
-                                        <div class="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-gray-50 client-type-option" data-type="B2C">
+                                        <div class="flex items-center space-x-2 border rounded-lg p-4 flex-1 cursor-pointer hover:bg-gray-50 client-type-option"
+                                            data-type="B2C">
                                             <input type="radio" name="client_type" value="B2C" id="b2c" class="w-4 h-4">
                                             <label for="b2c" class="flex items-center gap-2 cursor-pointer flex-1">
-                                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                                    stroke-width="2">
+                                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                                                    <circle cx="12" cy="7" r="4"></circle>
+                                                </svg>
                                                 B2C Retail
                                             </label>
                                         </div>
                                     </div>
                                 </div>
-                                
+
                                 <hr class="border-gray-200">
-                                
+
                                 <!-- B2B Fields -->
                                 <div id="b2bFields">
                                     <div class="grid grid-cols-2 gap-4">
@@ -135,7 +152,8 @@
                                             {{ form.phone }}
                                         </div>
                                         <div class="space-y-2">
-                                            <label for="id_preferred_channel" class="text-sm font-medium">Preferred Channel</label>
+                                            <label for="id_preferred_channel" class="text-sm font-medium">Preferred
+                                                Channel</label>
                                             {{ form.preferred_channel }}
                                         </div>
                                         <div class="space-y-2">
@@ -143,31 +161,35 @@
                                             {{ form.lead_source }}
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Financial & Credit Control - B2B Only -->
                                     <div class="mt-6">
                                         <h3 class="text-lg font-semibold">Financial & Credit Control</h3>
                                         <p class="text-sm text-gray-600 mb-4">Set up payment terms and credit limits</p>
-                                        
+
                                         <div class="grid grid-cols-2 gap-4">
                                             <div class="space-y-2">
-                                                <label for="id_vat_tax_id" class="text-sm font-medium">VAT / Tax ID</label>
+                                                <label for="id_vat_tax_id" class="text-sm font-medium">VAT / Tax
+                                                    ID</label>
                                                 {{ form.vat_tax_id }}
                                             </div>
                                             <div class="space-y-2">
-                                                <label for="id_payment_terms" class="text-sm font-medium">Payment Terms *</label>
+                                                <label for="id_payment_terms" class="text-sm font-medium">Payment Terms
+                                                    *</label>
                                                 {{ form.payment_terms }}
                                             </div>
                                             <div class="space-y-2">
-                                                <label for="id_risk_rating" class="text-sm font-medium">Risk Rating</label>
+                                                <label for="id_risk_rating" class="text-sm font-medium">Risk
+                                                    Rating</label>
                                                 {{ form.risk_rating }}
                                             </div>
                                         </div>
-                                        
+
                                         <div class="flex items-center justify-between p-4 border rounded-lg mt-4">
                                             <div class="space-y-1">
                                                 <label class="text-sm font-medium">Agency / Reseller</label>
-                                                <p class="text-sm text-gray-600">Mark if this client manages multiple brands</p>
+                                                <p class="text-sm text-gray-600">Mark if this client manages multiple
+                                                    brands</p>
                                             </div>
                                             <label class="toggle-switch">
                                                 {{ form.is_reseller }}
@@ -176,432 +198,487 @@
                                         </div>
                                     </div>
                                 </div>
-                                
-                                <!-- B2C Fields -->
-                                <div id="b2cFields" class="hidden">
-                                    <div class="grid grid-cols-2 gap-4">
+
+                                <!-- Delivery Details - B2B Only -->
+                                <div class="mt-6">
+                                    <h3 class="text-lg font-semibold">Delivery Details</h3>
+                                    <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
+
+                                    <div class="grid grid-cols-1 gap-4">
                                         <div class="space-y-2">
-                                            <label for="id_company_b2c" class="text-sm font-medium">Company Name (Optional)</label>
-                                            <input type="text" name="company_b2c" id="id_company_b2c" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                            <label for="id_delivery_address" class="text-sm font-medium">Delivery
+                                                Address</label>
+                                            {{ form.delivery_address }}
                                         </div>
                                         <div class="space-y-2">
-                                            <label for="id_name_b2c" class="text-sm font-medium">Contact Person *</label>
-                                            <input type="text" name="name_b2c" id="id_name_b2c" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
+                                            <label for="id_delivery_instructions" class="text-sm font-medium">Delivery
+                                                Instructions</label>
+                                            {{ form.delivery_instructions }}
                                         </div>
-                                        <div class="space-y-2">
-                                            <label for="id_email_b2c" class="text-sm font-medium">Email (Optional)</label>
-                                            <input type="email" name="email_b2c" id="id_email_b2c" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                        </div>
-                                        <div class="space-y-2">
-                                            <label for="id_phone_b2c" class="text-sm font-medium">Phone *</label>
-                                            <input type="text" name="phone_b2c" id="id_phone_b2c" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" required>
-                                        </div>
-                                        <div class="space-y-2">
-                                            <label for="id_preferred_channel_b2c" class="text-sm font-medium">Preferred Channel</label>
-                                            <select name="preferred_channel_b2c" id="id_preferred_channel_b2c" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                                <option value="Email">Email</option>
-                                                <option value="Phone">Phone</option>
-                                                <option value="WhatsApp">WhatsApp</option>
-                                                <option value="In-Person">In-Person</option>
-                                            </select>
-                                        </div>
-                                        <div class="space-y-2">
-    <label for="id_lead_source_b2c" class="text-sm font-medium">Lead Source</label>
-    <input type="text" name="lead_source_b2c" id="id_lead_source_b2c" 
-           class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none" 
-           readonly>
-</div>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div id="validationErrors" class="hidden alert alert-error"></div>
-                        </div>
-                    </div>
-                    
-                    <!-- Step 2: Contacts & Brand (B2B Only) -->
-                    <div id="step2" class="step-content hidden">
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
-                            <div>
-                                <h2 class="text-xl font-semibold text-gray-900">Contact Management & Approvals</h2>
-                                <p class="text-gray-600">Manage multiple contacts and assign approval roles for quotes and artwork</p>
-                            </div>
-
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                                    <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter full name">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                                    <input type="email" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter email">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                                    <input type="text" class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none" placeholder="Enter phone number">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                                    <select class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                        <option>None</option>
-                                        <option>Approve Quotes</option>
-                                        <option>Approve Artwork</option>
-                                        <option>Billing Contact</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <button type="button" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
-                                        + Add New Contact
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div class="border border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 bg-gray-50">
-                                <p>No contacts added yet.</p>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6 mt-8">
-                            <div>
-                                <h2 class="text-xl font-semibold text-gray-900">Brand Asset Library</h2>
-                                <p class="text-gray-600">Upload brand guidelines, logos, and assets accessible to Design & Production teams</p>
-                            </div>
-
-                            <div class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 transition">
-                                <input type="file" id="brandFiles" multiple class="hidden" />
-                                <label for="brandFiles" class="block text-gray-500 cursor-pointer">
-                                    <span class="text-gray-700 font-medium">Drag and drop files here, or click to browse</span>
-                                </label>
-                            </div>
-
-                            <div class="text-gray-500 text-sm text-center">
-                                Upload brand guides, logos, color palettes, and fonts
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Step 3: Compliance (B2B Only) -->
-                    <div id="step3" class="step-content hidden">
-                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
-                            <div>
-                                <h2 class="text-xl font-semibold text-gray-900">Compliance & Legal Documents</h2>
-                                <p class="text-gray-600">Upload compliance documents for B2B clients</p>
-                            </div>
-                            
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
-                                    <select id="doc_type" name="doc_type" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
-                                        <option value="">Select Document Type</option>
-                                        <option value="coi">Certificate of Incorporation (COI)</option>
-                                        <option value="kra">KRA Pin Certificate</option>
-                                        <option value="po_terms">Purchase Order Terms (PO Terms)</option>
-                                        <option value="nda">Non-Disclosure Agreement (NDA)</option>
-                                        <option value="other">Other Legal Document</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                                    <input id="doc_expiry" name="doc_expiry" type="date" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Upload Document</label>
-                                    <div class="flex gap-2">
-                                        <button type="button" id="uploadBtn" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
-                                            Choose Files
-                                        </button>
-                                        <input id="complianceFiles" name="compliance_files" type="file" multiple accept=".pdf,.doc,.docx,.jpg,.png" class="hidden" />
-                                        <span id="filesCount" class="text-sm text-gray-600 self-center"></span>
                                     </div>
                                 </div>
                             </div>
 
-                            <div id="selectedFiles" class="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-lg">
-                                <p id="noFiles" class="text-gray-600">No files selected</p>
-                                <ul id="filesList" class="mt-2 space-y-2"></ul>
+                            <!-- B2C Fields -->
+                            <div id="b2cFields" class="hidden">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div class="space-y-2">
+                                        <label for="id_company_b2c" class="text-sm font-medium">Company Name
+                                            (Optional)</label>
+                                        <input type="text" name="company_b2c" id="id_company_b2c"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label for="id_name_b2c" class="text-sm font-medium">Contact Person
+                                            *</label>
+                                        <input type="text" name="name_b2c" id="id_name_b2c"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            required>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label for="id_email_b2c" class="text-sm font-medium">Email
+                                            (Optional)</label>
+                                        <input type="email" name="email_b2c" id="id_email_b2c"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label for="id_phone_b2c" class="text-sm font-medium">Phone *</label>
+                                        <input type="text" name="phone_b2c" id="id_phone_b2c"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            required>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label for="id_preferred_channel_b2c" class="text-sm font-medium">Preferred
+                                            Channel</label>
+                                        <select name="preferred_channel_b2c" id="id_preferred_channel_b2c"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                            <option value="Email">Email</option>
+                                            <option value="Phone">Phone</option>
+                                            <option value="WhatsApp">WhatsApp</option>
+                                            <option value="In-Person">In-Person</option>
+                                        </select>
+                                    </div>
+                                    <div class="space-y-2">
+                                        <label for="id_lead_source_b2c" class="text-sm font-medium">Lead
+                                            Source</label>
+                                        <input type="text" name="lead_source_b2c" id="id_lead_source_b2c"
+                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                            readonly>
+                                    </div>
+                                </div>
                             </div>
                         </div>
+
+                        <div id="validationErrors" class="hidden alert alert-error"></div>
                     </div>
-                    
-                    <!-- Navigation Buttons -->
-                    <div class="flex justify-between pt-4 border-t border-gray-200">
-                        <button type="button" id="prevBtn" onclick="previousStep(event)" class="btn btn-secondary" disabled>Previous</button>
-                        <button type="button" id="nextBtn" onclick="nextStep(event)" class="btn btn-primary">Next</button>
-                        <button type="submit" id="submitBtn" class="btn btn-primary hidden">
-                            <svg class="w-4 h-4 mr-2 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                            Save Client
-                        </button>
-                    </div>
-                </form>
             </div>
+
+            <!-- Step 2: Contacts & Brand (B2B Only) -->
+            <div id="step2" class="step-content hidden">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Contact Management & Approvals</h2>
+                        <p class="text-gray-600">Manage multiple contacts and assign approval roles for quotes
+                            and artwork</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                            <input type="text"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                placeholder="Enter full name">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                placeholder="Enter email">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                            <input type="text"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                placeholder="Enter phone number">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                            <select
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                <option>None</option>
+                                <option>Approve Quotes</option>
+                                <option>Approve Artwork</option>
+                                <option>Billing Contact</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="button"
+                                class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                                + Add New Contact
+                            </button>
+                        </div>
+                    </div>
+
+                    <div
+                        class="border border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 bg-gray-50">
+                        <p>No contacts added yet.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6 mt-8">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Brand Asset Library</h2>
+                        <p class="text-gray-600">Upload brand guidelines, logos, and assets accessible to Design
+                            & Production teams</p>
+                    </div>
+
+                    <div
+                        class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 transition">
+                        <input type="file" id="brandFiles" multiple class="hidden" />
+                        <label for="brandFiles" class="block text-gray-500 cursor-pointer">
+                            <span class="text-gray-700 font-medium">Drag and drop files here, or click to
+                                browse</span>
+                        </label>
+                    </div>
+
+                    <div class="text-gray-500 text-sm text-center">
+                        Upload brand guides, logos, color palettes, and fonts
+                    </div>
+                </div>
+            </div>
+
+            <!-- Step 3: Compliance (B2B Only) -->
+            <div id="step3" class="step-content hidden">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
+                    <div>
+                        <h2 class="text-xl font-semibold text-gray-900">Compliance & Legal Documents</h2>
+                        <p class="text-gray-600">Upload compliance documents for B2B clients</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
+                            <select id="doc_type" name="doc_type"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                                <option value="">Select Document Type</option>
+                                <option value="coi">Certificate of Incorporation (COI)</option>
+                                <option value="kra">KRA Pin Certificate</option>
+                                <option value="po_terms">Purchase Order Terms (PO Terms)</option>
+                                <option value="nda">Non-Disclosure Agreement (NDA)</option>
+                                <option value="other">Other Legal Document</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                            <input id="doc_expiry" name="doc_expiry" type="date"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Document</label>
+                            <div class="flex gap-2">
+                                <button type="button" id="uploadBtn"
+                                    class="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                                    Choose Files
+                                </button>
+                                <input id="complianceFiles" name="compliance_files" type="file" multiple
+                                    accept=".pdf,.doc,.docx,.jpg,.png" class="hidden" />
+                                <span id="filesCount" class="text-sm text-gray-600 self-center"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="selectedFiles" class="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-lg">
+                        <p id="noFiles" class="text-gray-600">No files selected</p>
+                        <ul id="filesList" class="mt-2 space-y-2"></ul>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Buttons -->
+            <div class="flex justify-between pt-4 border-t border-gray-200">
+                <button type="button" id="prevBtn" onclick="previousStep(event)" class="btn btn-secondary"
+                    disabled>Previous</button>
+                <button type="button" id="nextBtn" onclick="nextStep(event)" class="btn btn-primary">Next</button>
+                <button type="submit" id="submitBtn" class="btn btn-primary hidden">
+                    <svg class="w-4 h-4 mr-2 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    Save Client
+                </button>
+            </div>
+            </form>
         </div>
     </div>
 </div>
+</div>
 
 <script>
-// REPLACE THE ENTIRE <script> SECTION IN YOUR client_onboarding.html WITH THIS:
-let currentStep = 1;
-let totalSteps = 3;
-let clientType = 'B2B';
+    // REPLACE THE ENTIRE <script> SECTION IN YOUR client_onboarding.html WITH THIS:
+    let currentStep = 1;
+    let totalSteps = 3;
+    let clientType = 'B2B';
 
-// Client Type Selection
-document.querySelectorAll('.client-type-option').forEach(option => {
-    option.addEventListener('click', function() {
-        const type = this.dataset.type;
-        clientType = type;
-        
-        // Update radio button
-        document.getElementById(type.toLowerCase()).checked = true;
-        
-        // Update badge
-        document.getElementById('clientTypeBadge').textContent = type;
-        document.getElementById('clientTypeBadge').className = type === 'B2B'
-            ? 'badge badge-primary'
-            : 'badge badge-success';
-        
-        // Toggle fields and handle required attributes
-        if (type === 'B2C') {
-            // Hide B2B fields
-            document.getElementById('b2bFields').classList.add('hidden');
-            document.getElementById('b2cFields').classList.remove('hidden');
-            document.getElementById('progressContainer').classList.add('hidden');
-            
-            // Remove 'required' from B2B fields (they're hidden)
-            removeRequiredFromB2B();
-            
-            // Add 'required' to B2C fields
-            addRequiredToB2C();
-            
-            totalSteps = 1;
-            document.getElementById('totalSteps').textContent = '1';
-            document.getElementById('stepDescription').textContent = 'Client contact information';
-        } else {
-            // Show B2B fields
-            document.getElementById('b2bFields').classList.remove('hidden');
-            document.getElementById('b2cFields').classList.add('hidden');
-            document.getElementById('progressContainer').classList.remove('hidden');
-            
-            // Remove 'required' from B2C fields (they're hidden)
-            removeRequiredFromB2C();
-            
-            // Add 'required' to B2B fields
-            addRequiredToB2B();
-            
-            totalSteps = 3;
-            document.getElementById('totalSteps').textContent = '3';
-            document.getElementById('stepDescription').textContent = 'Core client details';
+    // Client Type Selection
+    document.querySelectorAll('.client-type-option').forEach(option => {
+        option.addEventListener('click', function () {
+            const type = this.dataset.type;
+            clientType = type;
+
+            // Update radio button
+            document.getElementById(type.toLowerCase()).checked = true;
+
+            // Update badge
+            document.getElementById('clientTypeBadge').textContent = type;
+            document.getElementById('clientTypeBadge').className = type === 'B2B'
+                ? 'badge badge-primary'
+                : 'badge badge-success';
+
+            // Toggle fields and handle required attributes
+            if (type === 'B2C') {
+                // Hide B2B fields
+                document.getElementById('b2bFields').classList.add('hidden');
+                document.getElementById('b2cFields').classList.remove('hidden');
+                document.getElementById('progressContainer').classList.add('hidden');
+
+                // Remove 'required' from B2B fields (they're hidden)
+                removeRequiredFromB2B();
+
+                // Add 'required' to B2C fields
+                addRequiredToB2C();
+
+                totalSteps = 1;
+                document.getElementById('totalSteps').textContent = '1';
+                document.getElementById('stepDescription').textContent = 'Client contact information';
+            } else {
+                // Show B2B fields
+                document.getElementById('b2bFields').classList.remove('hidden');
+                document.getElementById('b2cFields').classList.add('hidden');
+                document.getElementById('progressContainer').classList.remove('hidden');
+
+                // Remove 'required' from B2C fields (they're hidden)
+                removeRequiredFromB2C();
+
+                // Add 'required' to B2B fields
+                addRequiredToB2B();
+
+                totalSteps = 3;
+                document.getElementById('totalSteps').textContent = '3';
+                document.getElementById('stepDescription').textContent = 'Core client details';
+            }
+
+            updateButtons();
+        });
+    });
+
+    // Helper functions to manage required attributes
+    function removeRequiredFromB2B() {
+        const b2bFields = ['id_company', 'id_name', 'id_email', 'id_phone'];
+        b2bFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.removeAttribute('required');
+                field.disabled = true; // Disable so they don't submit
+            }
+        });
+    }
+
+    function addRequiredToB2B() {
+        const b2bFields = ['id_company', 'id_name', 'id_email', 'id_phone'];
+        b2bFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.setAttribute('required', 'required');
+                field.disabled = false; // Enable for submission
+            }
+        });
+    }
+
+    function removeRequiredFromB2C() {
+        const b2cFields = ['id_name_b2c', 'id_phone_b2c']; // Removed email from required
+        b2cFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.removeAttribute('required');
+                field.disabled = true; // Disable so they don't submit
+            }
+        });
+
+        // Explicitly remove required from email
+        const emailField = document.getElementById('id_email_b2c');
+        if (emailField) {
+            emailField.removeAttribute('required');
         }
-        
+    }
+
+    function addRequiredToB2C() {
+        const b2cFields = ['id_name_b2c', 'id_phone_b2c']; // Removed email from required
+        b2cFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.setAttribute('required', 'required');
+                field.disabled = false; // Enable for submission
+            }
+        });
+
+        // Explicitly remove required from email
+        const emailField = document.getElementById('id_email_b2c');
+        if (emailField) {
+            emailField.removeAttribute('required');
+        }
+    }
+
+    // Clickable step segments (B2B only)
+    document.querySelectorAll('.progress-segment').forEach(tab => {
+        tab.addEventListener('click', function () {
+            if (clientType === 'B2B') {
+                const targetStep = parseInt(this.dataset.step);
+                goToStep(targetStep);
+            }
+        });
+    });
+
+    function goToStep(step) {
+        if (clientType === 'B2C') return;
+
+        // Hide all steps
+        document.querySelectorAll('.step-content').forEach(c => c.classList.add('hidden'));
+
+        // Show target step
+        const target = document.getElementById('step' + step);
+        if (target) target.classList.remove('hidden');
+
+        // Update progress bar
+        document.querySelectorAll('.progress-segment').forEach(t => t.classList.remove('active'));
+        const seg = document.querySelector(`.progress-segment[data-step="${step}"]`);
+        if (seg) seg.classList.add('active');
+
+        currentStep = step;
+        updateProgress();
         updateButtons();
-    });
-});
-
-// Helper functions to manage required attributes
-function removeRequiredFromB2B() {
-    const b2bFields = ['id_company', 'id_name', 'id_email', 'id_phone'];
-    b2bFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.removeAttribute('required');
-            field.disabled = true; // Disable so they don't submit
-        }
-    });
-}
-
-function addRequiredToB2B() {
-    const b2bFields = ['id_company', 'id_name', 'id_email', 'id_phone'];
-    b2bFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.setAttribute('required', 'required');
-            field.disabled = false; // Enable for submission
-        }
-    });
-}
-
-function removeRequiredFromB2C() {
-    const b2cFields = ['id_name_b2c', 'id_phone_b2c']; // Removed email from required
-    b2cFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.removeAttribute('required');
-            field.disabled = true; // Disable so they don't submit
-        }
-    });
-    
-    // Explicitly remove required from email
-    const emailField = document.getElementById('id_email_b2c');
-    if (emailField) {
-        emailField.removeAttribute('required');
     }
-}
 
-function addRequiredToB2C() {
-    const b2cFields = ['id_name_b2c', 'id_phone_b2c']; // Removed email from required
-    b2cFields.forEach(fieldId => {
-        const field = document.getElementById(fieldId);
-        if (field) {
-            field.setAttribute('required', 'required');
-            field.disabled = false; // Enable for submission
+    function nextStep(e) {
+        e.preventDefault();
+
+        if (!validateStep(currentStep)) {
+            return;
         }
-    });
-    
-    // Explicitly remove required from email
-    const emailField = document.getElementById('id_email_b2c');
-    if (emailField) {
-        emailField.removeAttribute('required');
-    }
-}
 
-// Clickable step segments (B2B only)
-document.querySelectorAll('.progress-segment').forEach(tab => {
-    tab.addEventListener('click', function() {
-        if (clientType === 'B2B') {
-            const targetStep = parseInt(this.dataset.step);
-            goToStep(targetStep);
+        if (clientType === 'B2C') {
+            return;
         }
-    });
-});
 
-function goToStep(step) {
-    if (clientType === 'B2C') return;
-    
-    // Hide all steps
-    document.querySelectorAll('.step-content').forEach(c => c.classList.add('hidden'));
-    
-    // Show target step
-    const target = document.getElementById('step' + step);
-    if (target) target.classList.remove('hidden');
-    
-    // Update progress bar
-    document.querySelectorAll('.progress-segment').forEach(t => t.classList.remove('active'));
-    const seg = document.querySelector(`.progress-segment[data-step="${step}"]`);
-    if (seg) seg.classList.add('active');
-    
-    currentStep = step;
-    updateProgress();
-    updateButtons();
-}
+        // B2B flow - move to next step
+        if (currentStep < totalSteps) {
+            document.getElementById('step' + currentStep).classList.add('hidden');
+            currentStep++;
+            document.getElementById('step' + currentStep).classList.remove('hidden');
 
-function nextStep(e) {
-    e.preventDefault();
-    
-    if (!validateStep(currentStep)) {
-        return;
+            // Update progress segment
+            document.querySelectorAll('.progress-segment').forEach(t => t.classList.remove('active'));
+            const seg = document.querySelector(`.progress-segment[data-step="${currentStep}"]`);
+            if (seg) seg.classList.add('active');
+        }
+
+        updateProgress();
+        updateButtons();
     }
-    
-    if (clientType === 'B2C') {
-        return;
-    }
-    
-    // B2B flow - move to next step
-    if (currentStep < totalSteps) {
+
+    function previousStep(e) {
+        e.preventDefault();
+        if (clientType === 'B2C' || currentStep === 1) return;
+
         document.getElementById('step' + currentStep).classList.add('hidden');
-        currentStep++;
+        currentStep--;
         document.getElementById('step' + currentStep).classList.remove('hidden');
-        
+
         // Update progress segment
         document.querySelectorAll('.progress-segment').forEach(t => t.classList.remove('active'));
         const seg = document.querySelector(`.progress-segment[data-step="${currentStep}"]`);
         if (seg) seg.classList.add('active');
+
+        updateProgress();
+        updateButtons();
     }
-    
-    updateProgress();
-    updateButtons();
-}
 
-function previousStep(e) {
-    e.preventDefault();
-    if (clientType === 'B2C' || currentStep === 1) return;
-    
-    document.getElementById('step' + currentStep).classList.add('hidden');
-    currentStep--;
-    document.getElementById('step' + currentStep).classList.remove('hidden');
-    
-    // Update progress segment
-    document.querySelectorAll('.progress-segment').forEach(t => t.classList.remove('active'));
-    const seg = document.querySelector(`.progress-segment[data-step="${currentStep}"]`);
-    if (seg) seg.classList.add('active');
-    
-    updateProgress();
-    updateButtons();
-}
+    function validateStep(step) {
+        const errors = [];
+        const errorDiv = document.getElementById('validationErrors');
 
-function validateStep(step) {
-    const errors = [];
-    const errorDiv = document.getElementById('validationErrors');
+        // ... (validation logic unchanged)
 
-    // ... (validation logic unchanged)
+        if (errors.length > 0) {
+            const html = '<strong>Please fix the following:</strong><ul>' +
+                errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
 
-    if (errors.length > 0) {
-        const html = '<strong>Please fix the following:</strong><ul>' + 
-            errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
-
-        if (errorDiv) {
-            errorDiv.innerHTML = html;
-            errorDiv.classList.remove('hidden');
+            if (errorDiv) {
+                errorDiv.innerHTML = html;
+                errorDiv.classList.remove('hidden');
+            } else {
+                // defensive fallback if the div is missing in DOM
+                alert('Please fix the following:\n' + errors.join('\n'));
+            }
+            return false;
         } else {
-            // defensive fallback if the div is missing in DOM
-            alert('Please fix the following:\n' + errors.join('\n'));
+            if (errorDiv) errorDiv.classList.add('hidden');
+            return true;
         }
-        return false;
-    } else {
-        if (errorDiv) errorDiv.classList.add('hidden');
-        return true;
     }
-}
 
 
-function updateButtons() {
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const submitBtn = document.getElementById('submitBtn');
-    
-    if (!prevBtn || !nextBtn || !submitBtn) return;
-    
-    prevBtn.disabled = currentStep === 1;
-    
-    if (clientType === 'B2C') {
-        nextBtn.classList.add('hidden');
-        submitBtn.classList.remove('hidden');
-        prevBtn.classList.add('hidden');
-    } else {
-        prevBtn.classList.remove('hidden');
-        if (currentStep === totalSteps) {
+    function updateButtons() {
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (!prevBtn || !nextBtn || !submitBtn) return;
+
+        prevBtn.disabled = currentStep === 1;
+
+        if (clientType === 'B2C') {
             nextBtn.classList.add('hidden');
             submitBtn.classList.remove('hidden');
+            prevBtn.classList.add('hidden');
         } else {
-            nextBtn.classList.remove('hidden');
-            submitBtn.classList.add('hidden');
+            prevBtn.classList.remove('hidden');
+            if (currentStep === totalSteps) {
+                nextBtn.classList.add('hidden');
+                submitBtn.classList.remove('hidden');
+            } else {
+                nextBtn.classList.remove('hidden');
+                submitBtn.classList.add('hidden');
+            }
         }
     }
-}
 
-function updateProgress() {
-    const currentStepEl = document.getElementById('currentStep');
-    if (currentStepEl) {
-        currentStepEl.textContent = currentStep;
-    }
-    
-    // Update step description
-    const descriptions = {
-        1: 'Core client details',
-        2: 'Contacts & Brand',
-        3: 'Compliance'
-    };
-    const stepDescEl = document.getElementById('stepDescription');
-    if (stepDescEl && descriptions[currentStep]) {
-        stepDescEl.textContent = descriptions[currentStep];
-    }
-}
+    function updateProgress() {
+        const currentStepEl = document.getElementById('currentStep');
+        if (currentStepEl) {
+            currentStepEl.textContent = currentStep;
+        }
 
-// ================= Prefill Data Handling =================
-{% if prefilled_lead %}
-document.addEventListener('DOMContentLoaded', function() {
-    const prefilledData = {{ prefilled_lead|safe }};
-    
+        // Update step description
+        const descriptions = {
+            1: 'Core client details',
+            2: 'Contacts & Brand',
+            3: 'Compliance'
+        };
+        const stepDescEl = document.getElementById('stepDescription');
+        if (stepDescEl && descriptions[currentStep]) {
+            stepDescEl.textContent = descriptions[currentStep];
+        }
+    }
+
+    // ================= Prefill Data Handling =================
+    {% if prefilled_lead %}
+    document.addEventListener('DOMContentLoaded', function () {
+        const prefilledData = {{ prefilled_lead| safe
+    }};
+
     // Always populate B2B fields (Django form fields get initial data automatically)
     // For B2C fields, populate manually
     if (prefilledData.name) {
@@ -619,35 +696,35 @@ document.addEventListener('DOMContentLoaded', function() {
     if (prefilledData.lead_source) {
         document.getElementById('id_lead_source_b2c').value = prefilledData.lead_source;
     }
-    
+
     // Switch to B2C if that's the intended type (you might want to add logic here)
     // For now, assume B2B is default but prefilled data indicates B2C
 });
-{% endif %}
+    {% endif %}
 
-// ================= Contact Management Fix =================
-document.addEventListener('DOMContentLoaded', function() {
-    const addContactBtns = document.querySelectorAll('button');
-    addContactBtns.forEach(btn => {
-        if (btn.textContent.trim() === '+ Add New Contact') {
-            btn.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                // Get current input values
-                const nameInput = document.querySelector('input[placeholder="Enter full name"]');
-                const emailInput = document.querySelector('input[placeholder="Enter email"]');
-                const phoneInput = document.querySelector('input[placeholder="Enter phone number"]');
-                const roleSelect = document.querySelector('select');
-                
-                const currentName = nameInput ? nameInput.value : '';
-                const currentEmail = emailInput ? emailInput.value : '';
-                const currentPhone = phoneInput ? phoneInput.value : '';
-                const currentRole = roleSelect ? roleSelect.value : 'None';
-                
-                // Create new contact container with current values
-                const container = document.createElement('div');
-                container.classList.add('p-4', 'border', 'rounded-lg', 'mt-4', 'bg-gray-50');
-                container.innerHTML = `
+    // ================= Contact Management Fix =================
+    document.addEventListener('DOMContentLoaded', function () {
+        const addContactBtns = document.querySelectorAll('button');
+        addContactBtns.forEach(btn => {
+            if (btn.textContent.trim() === '+ Add New Contact') {
+                btn.addEventListener('click', function (e) {
+                    e.preventDefault();
+
+                    // Get current input values
+                    const nameInput = document.querySelector('input[placeholder="Enter full name"]');
+                    const emailInput = document.querySelector('input[placeholder="Enter email"]');
+                    const phoneInput = document.querySelector('input[placeholder="Enter phone number"]');
+                    const roleSelect = document.querySelector('select');
+
+                    const currentName = nameInput ? nameInput.value : '';
+                    const currentEmail = emailInput ? emailInput.value : '';
+                    const currentPhone = phoneInput ? phoneInput.value : '';
+                    const currentRole = roleSelect ? roleSelect.value : 'None';
+
+                    // Create new contact container with current values
+                    const container = document.createElement('div');
+                    container.classList.add('p-4', 'border', 'rounded-lg', 'mt-4', 'bg-gray-50');
+                    container.innerHTML = `
                     <div class="grid grid-cols-4 gap-4">
                         <input type="text" name="contact_name[]" placeholder="Full Name" class="border rounded-lg px-3 py-2" value="${currentName}">
                         <input type="email" name="contact_email[]" placeholder="Email" class="border rounded-lg px-3 py-2" value="${currentEmail}">
@@ -661,280 +738,280 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                     <button type="button" class="mt-2 text-red-600 text-sm hover:underline remove-contact">Remove</button>
                 `;
-                
-                // Add remove functionality
-                container.querySelector('.remove-contact').addEventListener('click', function() {
-                    container.remove();
-                });
-                
-                const target = document.querySelector('#step2 .border-dashed');
-                if (target) target.before(container);
-                
-                // Clear the input fields for next entry
-                if (nameInput) nameInput.value = '';
-                if (emailInput) emailInput.value = '';
-                if (phoneInput) phoneInput.value = '';
-                if (roleSelect) roleSelect.value = 'None';
-            });
-        }
-    });
-});
 
-// ================= Brand Asset Upload Handling =================
-document.addEventListener('DOMContentLoaded', function() {
-    const brandDropZone = document.querySelector('.border-2.border-dashed');
-    const brandFileInput = document.getElementById('brandFiles');
-    const brandAssetTypeSelect = document.createElement('select');
-    brandAssetTypeSelect.id = 'brand_asset_type';
-    brandAssetTypeSelect.name = 'brand_asset_type';
-    brandAssetTypeSelect.className = 'w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white';
-    brandAssetTypeSelect.innerHTML = `
+                    // Add remove functionality
+                    container.querySelector('.remove-contact').addEventListener('click', function () {
+                        container.remove();
+                    });
+
+                    const target = document.querySelector('#step2 .border-dashed');
+                    if (target) target.before(container);
+
+                    // Clear the input fields for next entry
+                    if (nameInput) nameInput.value = '';
+                    if (emailInput) emailInput.value = '';
+                    if (phoneInput) phoneInput.value = '';
+                    if (roleSelect) roleSelect.value = 'None';
+                });
+            }
+        });
+    });
+
+    // ================= Brand Asset Upload Handling =================
+    document.addEventListener('DOMContentLoaded', function () {
+        const brandDropZone = document.querySelector('.border-2.border-dashed');
+        const brandFileInput = document.getElementById('brandFiles');
+        const brandAssetTypeSelect = document.createElement('select');
+        brandAssetTypeSelect.id = 'brand_asset_type';
+        brandAssetTypeSelect.name = 'brand_asset_type';
+        brandAssetTypeSelect.className = 'w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white';
+        brandAssetTypeSelect.innerHTML = `
         <option value="Logo">Logo</option>
         <option value="Brand Guidelines">Brand Guidelines</option>
         <option value="Color Palette">Color Palette</option>
         <option value="Font Files">Font Files</option>
         <option value="Other">Other</option>
     `;
-    
-    // Add asset type selector above the drop zone
-    if (brandDropZone) {
-        const typeContainer = document.createElement('div');
-        typeContainer.className = 'mb-4';
-        typeContainer.innerHTML = '<label class="block text-sm font-medium text-gray-700 mb-1">Asset Type</label>';
-        typeContainer.appendChild(brandAssetTypeSelect);
-        brandDropZone.parentNode.insertBefore(typeContainer, brandDropZone);
-    }
-    
-    let brandFiles = new Map();
-    
-    // Drag and drop functionality
-    if (brandDropZone && brandFileInput) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            brandDropZone.addEventListener(eventName, preventDefaults, false);
-        });
-        
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
+
+        // Add asset type selector above the drop zone
+        if (brandDropZone) {
+            const typeContainer = document.createElement('div');
+            typeContainer.className = 'mb-4';
+            typeContainer.innerHTML = '<label class="block text-sm font-medium text-gray-700 mb-1">Asset Type</label>';
+            typeContainer.appendChild(brandAssetTypeSelect);
+            brandDropZone.parentNode.insertBefore(typeContainer, brandDropZone);
         }
-        
-        ['dragenter', 'dragover'].forEach(eventName => {
-            brandDropZone.addEventListener(eventName, highlight, false);
-        });
-        
-        ['dragleave', 'drop'].forEach(eventName => {
-            brandDropZone.addEventListener(eventName, unhighlight, false);
-        });
-        
-        function highlight(e) {
-            brandDropZone.classList.add('border-blue-400', 'bg-blue-50');
-        }
-        
-        function unhighlight(e) {
-            brandDropZone.classList.remove('border-blue-400', 'bg-blue-50');
-        }
-        
-        brandDropZone.addEventListener('drop', handleDrop, false);
-        
-        function handleDrop(e) {
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            handleBrandFiles(files);
-        }
-        
-        brandDropZone.addEventListener('click', () => brandFileInput.click());
-        brandFileInput.addEventListener('change', (e) => handleBrandFiles(e.target.files));
-        
-        function handleBrandFiles(files) {
-            Array.from(files).forEach(file => {
-                const key = `${file.name}_${file.size}_${file.lastModified}`;
-                if (!brandFiles.has(key)) {
-                    brandFiles.set(key, file);
-                }
+
+        let brandFiles = new Map();
+
+        // Drag and drop functionality
+        if (brandDropZone && brandFileInput) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                brandDropZone.addEventListener(eventName, preventDefaults, false);
             });
-            renderBrandFiles();
-        }
-        
-        function renderBrandFiles() {
-            const fileList = document.createElement('div');
-            fileList.className = 'mt-4 space-y-2';
-            fileList.id = 'brandFileList';
-            
-            if (brandFiles.size > 0) {
-                brandFiles.forEach((file, key) => {
-                    const fileItem = document.createElement('div');
-                    fileItem.className = 'flex items-center justify-between bg-white p-2 rounded border';
-                    fileItem.innerHTML = `
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                brandDropZone.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                brandDropZone.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight(e) {
+                brandDropZone.classList.add('border-blue-400', 'bg-blue-50');
+            }
+
+            function unhighlight(e) {
+                brandDropZone.classList.remove('border-blue-400', 'bg-blue-50');
+            }
+
+            brandDropZone.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleBrandFiles(files);
+            }
+
+            brandDropZone.addEventListener('click', () => brandFileInput.click());
+            brandFileInput.addEventListener('change', (e) => handleBrandFiles(e.target.files));
+
+            function handleBrandFiles(files) {
+                Array.from(files).forEach(file => {
+                    const key = `${file.name}_${file.size}_${file.lastModified}`;
+                    if (!brandFiles.has(key)) {
+                        brandFiles.set(key, file);
+                    }
+                });
+                renderBrandFiles();
+            }
+
+            function renderBrandFiles() {
+                const fileList = document.createElement('div');
+                fileList.className = 'mt-4 space-y-2';
+                fileList.id = 'brandFileList';
+
+                if (brandFiles.size > 0) {
+                    brandFiles.forEach((file, key) => {
+                        const fileItem = document.createElement('div');
+                        fileItem.className = 'flex items-center justify-between bg-white p-2 rounded border';
+                        fileItem.innerHTML = `
                         <div class="text-sm">
                             <div>${file.name}</div>
                             <div class="text-xs text-gray-500">${(file.size / 1024).toFixed(1)} KB</div>
                         </div>
                         <button type="button" class="text-red-600 text-sm hover:underline remove-brand-file" data-key="${key}">Remove</button>
                     `;
-                    fileList.appendChild(fileItem);
-                });
-            }
-            
-            // Replace existing file list
-            const existingList = document.getElementById('brandFileList');
-            if (existingList) existingList.remove();
-            
-            if (brandFiles.size > 0) {
-                brandDropZone.parentNode.appendChild(fileList);
-                
-                // Add remove functionality
-                document.querySelectorAll('.remove-brand-file').forEach(btn => {
-                    btn.addEventListener('click', function() {
-                        const key = this.getAttribute('data-key');
-                        brandFiles.delete(key);
-                        renderBrandFiles();
+                        fileList.appendChild(fileItem);
                     });
-                });
-            }
-        }
-    }
-});
+                }
 
-// ================= File Upload Handling (Compliance) =================
-(function() {
-    const uploadBtn = document.getElementById('uploadBtn');
-    const fileInput = document.getElementById('complianceFiles');
-    const filesList = document.getElementById('filesList');
-    const noFiles = document.getElementById('noFiles');
-    const filesCount = document.getElementById('filesCount');
-    const selected = new Map();
-    
-    if (uploadBtn && fileInput) {
-        uploadBtn.addEventListener('click', e => {
-            e.preventDefault();
-            fileInput.click();
-        });
-        
-        fileInput.addEventListener('change', e => {
-            const files = Array.from(e.target.files);
-            files.forEach(file => {
-                const key = `${file.name}__${file.size}__${file.lastModified}`;
-                if (!selected.has(key)) selected.set(key, file);
-            });
-            renderFiles();
-            fileInput.value = '';
-        });
-        
-        function renderFiles() {
-            if (!filesList || !noFiles || !filesCount) return;
-            
-            filesList.innerHTML = '';
-            if (selected.size === 0) {
-                noFiles.style.display = 'block';
-                filesCount.textContent = '';
-                return;
+                // Replace existing file list
+                const existingList = document.getElementById('brandFileList');
+                if (existingList) existingList.remove();
+
+                if (brandFiles.size > 0) {
+                    brandDropZone.parentNode.appendChild(fileList);
+
+                    // Add remove functionality
+                    document.querySelectorAll('.remove-brand-file').forEach(btn => {
+                        btn.addEventListener('click', function () {
+                            const key = this.getAttribute('data-key');
+                            brandFiles.delete(key);
+                            renderBrandFiles();
+                        });
+                    });
+                }
             }
-            noFiles.style.display = 'none';
-            filesCount.textContent = `${selected.size} file(s) selected`;
-            
-            selected.forEach((file, key) => {
-                const li = document.createElement('li');
-                li.className = 'flex items-center justify-between bg-white p-2 rounded border';
-                
-                const left = document.createElement('div');
-                left.className = 'text-sm';
-                left.innerHTML = `<div>${file.name}</div><div class="text-xs text-gray-500">${Math.round(file.size/1024)} KB</div>`;
-                
-                const removeBtn = document.createElement('button');
-                removeBtn.type = 'button';
-                removeBtn.className = 'text-red-600 text-sm hover:underline';
-                removeBtn.textContent = 'Remove';
-                removeBtn.addEventListener('click', () => {
-                    selected.delete(key);
-                    renderFiles();
+        }
+    });
+
+    // ================= File Upload Handling (Compliance) =================
+    (function () {
+        const uploadBtn = document.getElementById('uploadBtn');
+        const fileInput = document.getElementById('complianceFiles');
+        const filesList = document.getElementById('filesList');
+        const noFiles = document.getElementById('noFiles');
+        const filesCount = document.getElementById('filesCount');
+        const selected = new Map();
+
+        if (uploadBtn && fileInput) {
+            uploadBtn.addEventListener('click', e => {
+                e.preventDefault();
+                fileInput.click();
+            });
+
+            fileInput.addEventListener('change', e => {
+                const files = Array.from(e.target.files);
+                files.forEach(file => {
+                    const key = `${file.name}__${file.size}__${file.lastModified}`;
+                    if (!selected.has(key)) selected.set(key, file);
                 });
-                
-                const right = document.createElement('div');
-                right.appendChild(removeBtn);
-                li.appendChild(left);
-                li.appendChild(right);
-                filesList.appendChild(li);
+                renderFiles();
+                fileInput.value = '';
             });
-        }
-        
-        const form = document.getElementById('onboardingForm');
-        if (form) {
-            form.addEventListener('submit', function(e) {
-                // Re-enable all fields before submission so they get sent
-                if (clientType === 'B2C') {
-                    // Enable B2C fields, disable B2B fields
-                    document.querySelectorAll('#b2cFields input, #b2cFields select').forEach(field => {
-                        field.disabled = false;
-                    });
-                    document.querySelectorAll('#b2bFields input, #b2bFields select').forEach(field => {
-                        field.disabled = true;
-                    });
-                } else {
-                    // Enable B2B fields, disable B2C fields
-                    document.querySelectorAll('#b2bFields input, #b2bFields select').forEach(field => {
-                        field.disabled = false;
-                    });
-                    document.querySelectorAll('#b2cFields input, #b2cFields select').forEach(field => {
-                        field.disabled = true;
-                    });
-                }
-                
-                // Final validation before submit
-                if (clientType === 'B2B' && currentStep !== totalSteps) {
-                    e.preventDefault();
-                    alert('Please complete all steps before submitting');
+
+            function renderFiles() {
+                if (!filesList || !noFiles || !filesCount) return;
+
+                filesList.innerHTML = '';
+                if (selected.size === 0) {
+                    noFiles.style.display = 'block';
+                    filesCount.textContent = '';
                     return;
                 }
-                
-                if (!validateStep(currentStep)) {
-                    e.preventDefault();
-                    return;
-                }
-                
-                // If B2B and has files, attach them properly
-                if (selected.size > 0 && clientType === 'B2B') {
-                    e.preventDefault();
-                    const url = form.action || window.location.href;
-                    const fd = new FormData(form);
-                    selected.forEach(file => fd.append('compliance_files', file));
-                    
-                    // Disable submit button to prevent double submission
-                    const submitBtn = document.getElementById('submitBtn');
-                    if (submitBtn) {
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML = 'Saving...';
+                noFiles.style.display = 'none';
+                filesCount.textContent = `${selected.size} file(s) selected`;
+
+                selected.forEach((file, key) => {
+                    const li = document.createElement('li');
+                    li.className = 'flex items-center justify-between bg-white p-2 rounded border';
+
+                    const left = document.createElement('div');
+                    left.className = 'text-sm';
+                    left.innerHTML = `<div>${file.name}</div><div class="text-xs text-gray-500">${Math.round(file.size / 1024)} KB</div>`;
+
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'text-red-600 text-sm hover:underline';
+                    removeBtn.textContent = 'Remove';
+                    removeBtn.addEventListener('click', () => {
+                        selected.delete(key);
+                        renderFiles();
+                    });
+
+                    const right = document.createElement('div');
+                    right.appendChild(removeBtn);
+                    li.appendChild(left);
+                    li.appendChild(right);
+                    filesList.appendChild(li);
+                });
+            }
+
+            const form = document.getElementById('onboardingForm');
+            if (form) {
+                form.addEventListener('submit', function (e) {
+                    // Re-enable all fields before submission so they get sent
+                    if (clientType === 'B2C') {
+                        // Enable B2C fields, disable B2B fields
+                        document.querySelectorAll('#b2cFields input, #b2cFields select').forEach(field => {
+                            field.disabled = false;
+                        });
+                        document.querySelectorAll('#b2bFields input, #b2bFields select').forEach(field => {
+                            field.disabled = true;
+                        });
+                    } else {
+                        // Enable B2B fields, disable B2C fields
+                        document.querySelectorAll('#b2bFields input, #b2bFields select').forEach(field => {
+                            field.disabled = false;
+                        });
+                        document.querySelectorAll('#b2cFields input, #b2cFields select').forEach(field => {
+                            field.disabled = true;
+                        });
                     }
-                    
-                    fetch(url, {
-                        method: 'POST',
-                        body: fd,
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                        credentials: 'same-origin'
-                    }).then(resp => {
-                        if (resp.redirected) {
-                            window.location.href = resp.url;
-                            return;
-                        }
-                        return resp.text();
-                    }).then(text => {
-                        if (text && text.includes('<!DOCTYPE')) {
-                            // It's HTML, probably a redirect page
-                            window.location.reload();
-                        }
-                    }).catch(err => {
-                        console.error(err);
-                        alert('Upload failed — check console for details.');
+
+                    // Final validation before submit
+                    if (clientType === 'B2B' && currentStep !== totalSteps) {
+                        e.preventDefault();
+                        alert('Please complete all steps before submitting');
+                        return;
+                    }
+
+                    if (!validateStep(currentStep)) {
+                        e.preventDefault();
+                        return;
+                    }
+
+                    // If B2B and has files, attach them properly
+                    if (selected.size > 0 && clientType === 'B2B') {
+                        e.preventDefault();
+                        const url = form.action || window.location.href;
+                        const fd = new FormData(form);
+                        selected.forEach(file => fd.append('compliance_files', file));
+
+                        // Disable submit button to prevent double submission
+                        const submitBtn = document.getElementById('submitBtn');
                         if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = '<svg class="w-4 h-4 mr-2 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>Save Client';
+                            submitBtn.disabled = true;
+                            submitBtn.innerHTML = 'Saving...';
                         }
-                    });
-                }
-                // Otherwise let form submit normally
-            });
+
+                        fetch(url, {
+                            method: 'POST',
+                            body: fd,
+                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                            credentials: 'same-origin'
+                        }).then(resp => {
+                            if (resp.redirected) {
+                                window.location.href = resp.url;
+                                return;
+                            }
+                            return resp.text();
+                        }).then(text => {
+                            if (text && text.includes('<!DOCTYPE')) {
+                                // It's HTML, probably a redirect page
+                                window.location.reload();
+                            }
+                        }).catch(err => {
+                            console.error(err);
+                            alert('Upload failed — check console for details.');
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = '<svg class="w-4 h-4 mr-2 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>Save Client';
+                            }
+                        });
+                    }
+                    // Otherwise let form submit normally
+                });
+            }
         }
-    }
-})();
+    })();
 </script>
 
 

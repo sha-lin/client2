@@ -1,3 +1,4 @@
+import decimal
 import json
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -9,17 +10,21 @@ from django.db import transaction
 from django.db.models import Avg, Count, Q, Sum
 from django.urls import reverse
 from django.http import JsonResponse
+from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from functools import wraps
+from django.contrib.auth.models import User
+from .models import BrandAsset
+
 
 from .forms import (
     LeadForm,
     ClientForm,
-    ProductForm,
     QuoteCostingForm,
     ProductionUpdateForm,
 )
+
 from .models import (
     Lead,
     Client,
@@ -32,8 +37,42 @@ from .models import (
     Notification,
     Job,
     JobProduct,
+    ProductTag,
 )
+def notification_count_processor(request):
+    """Add unread notification count to all templates"""
+    if request.user.is_authenticated:
+        unread_count = Notification.objects.filter(
+            recipient=request.user,
+            is_read=False
+        ).count()
+        return {'unread_notifications_count': unread_count}
+    return {'unread_notifications_count': 0}
 
+from clientapp.quote_approval_services import QuoteApprovalService
+def send_quote_email(quote_id, request):
+    """
+    Send quote to client via email with approval link
+    """
+    from clientapp.quote_approval_services import QuoteApprovalService
+    
+    try:
+        # Get quote
+        quotes = Quote.objects.filter(quote_id=quote_id)
+        if not quotes.exists():
+            return {'success': False, 'message': 'Quote not found'}
+        
+        first_quote = quotes.first()
+        
+        # ✅ Use the service to send the email (which generates the token properly)
+        result = QuoteApprovalService.send_quote_via_email(first_quote, request)
+        
+        return result
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return {'success': False, 'message': str(e)}
 
 def group_required(group_name, allow_superuser=False):
     """
@@ -55,10 +94,15 @@ def group_required(group_name, allow_superuser=False):
                 return view_func(request, *args, **kwargs)
 
             messages.warning(request, "You don't have access to that section.")
-            fallback_name = 'dashboard'
             if user.groups.filter(name='Production Team').exists():
-                fallback_name = 'production_dashboard2'
-            return redirect(reverse(fallback_name))
+                return redirect(reverse('production2_dashboard'))
+            elif user.groups.filter(name='Account Manager').exists():
+                return redirect(reverse('dashboard'))
+            else:
+                # User has no recognized group → send to login
+                messages.error(request, "Access denied. Please contact administrator.")
+                return redirect(reverse('login'))
+
         return _wrapped
     return decorator
 
@@ -142,7 +186,7 @@ def group_required(group_name, allow_superuser=False):
             # Determine best fallback based on user's groups
             fallback_name = 'dashboard'
             if user.groups.filter(name='Production Team').exists():
-                fallback_name = 'production_dashboard2'
+                fallback_name = 'production2_dashboard'
             elif user.groups.filter(name='Account Manager').exists():
                 fallback_name = 'dashboard'
 
@@ -150,137 +194,170 @@ def group_required(group_name, allow_superuser=False):
         return _wrapped
     return decorator
 
-
 @login_required
+@group_required('Account Manager')
 def dashboard(request):
-    """
-    Unified Dashboard - Combines main dashboard + production metrics
-    Accessible to all authenticated users
-    """
-    # Redirect Finance users to their own dashboard
-    if request.user.is_authenticated and request.user.groups.filter(name='Finance').exists():
-        return redirect('finance_dashboard')
+    """Account Manager Dashboard - Matches original template structure"""
+    from datetime import timedelta
     from django.db.models import Count, Sum, Q
-    from datetime import datetime, timedelta
+    from decimal import Decimal
     
-    # ========== EXISTING LEAD/CLIENT METRICS ==========
-    total_leads = Lead.objects.count()
-    converted_leads = Lead.objects.filter(status='Converted').count()
-    active_clients = Client.objects.filter(status='Active').count()
-    b2b_clients = Client.objects.filter(client_type='B2B').count()
+    # Date ranges
+    today = timezone.now().date()
+    this_month_start = today.replace(day=1)
+    thirty_days_ago = today - timedelta(days=30)
     
-    # ========== PRODUCTION METRICS (MERGED FROM PRODUCTION DASHBOARD) ==========
-    from .models import Job, Quote
+    # ========== CORE METRICS (matches your template) ==========
     
-    # Job Statistics
-    total_jobs = Job.objects.count()
-    pending_jobs = Job.objects.filter(status='pending').count()
-    in_progress_jobs = Job.objects.filter(status='in_progress').count()
-    completed_jobs = Job.objects.filter(status='completed').count()
+    # Total leads
+    total_leads = Lead.objects.filter(created_by=request.user).count()
     
-    # Quote Statistics
-    total_quotes = Quote.objects.count()
-    draft_quotes = Quote.objects.filter(status='Draft').count()
-    pending_quotes = Quote.objects.filter(status='Quoted').count()
-    approved_quotes = Quote.objects.filter(status='Approved').count()
+    # Converted leads
+    converted_leads = Lead.objects.filter(created_by=request.user, status='Converted').count()
     
-    # Revenue from approved quotes
-    total_revenue = Quote.objects.filter(status='Approved').aggregate(
-        total=Sum('total_amount')
-    )['total'] or 0
+    # Active clients
+    active_clients = Client.objects.filter(account_manager=request.user, status='Active').count()
     
-    # Calculate quote conversion rate
-    sent_quotes = Quote.objects.filter(status__in=['Quoted', 'Client Review', 'Approved', 'Lost']).count()
-    conversion_rate = round((approved_quotes / sent_quotes * 100), 1) if sent_quotes > 0 else 0
+    # B2B and B2C clients
+    b2b_clients = Client.objects.filter(account_manager=request.user, client_type='B2B').count()
+    b2c_clients = Client.objects.filter(account_manager=request.user, client_type='B2C').count()
     
-    # Top Product Interests from leads
-    product_interests = Lead.objects.exclude(product_interest='').values('product_interest').annotate(
-        count=Count('id')
-    ).order_by('-count')[:5]
+    # ========== JOB METRICS ==========
+    total_jobs = Job.objects.filter(client__account_manager=request.user).count()
+    pending_jobs = Job.objects.filter(client__account_manager=request.user, status='pending').count()
+    in_progress_jobs = Job.objects.filter(client__account_manager=request.user, status='in_progress').count()
+    completed_jobs = Job.objects.filter(client__account_manager=request.user, status='completed').count()
     
-    total_with_interest = sum(item['count'] for item in product_interests)
-    top_products = []
-    if total_with_interest > 0:
-        for item in product_interests:
-            percentage = round((item['count'] / total_with_interest) * 100)
-            top_products.append({
-                'name': item['product_interest'],
-                'interest': percentage
-            })
-    else:
-        top_products = [
-            {'name': 'Business Cards', 'interest': 85},
-            {'name': 'Brochures', 'interest': 72},
-            {'name': 'Banners & Signage', 'interest': 68},
-            {'name': 'Packaging', 'interest': 54},
-            {'name': 'Corporate Stationery', 'interest': 45},
-        ]
+    # ========== QUOTE METRICS ==========
+    # Total unique quotes
+    total_quotes = Quote.objects.filter(created_by=request.user).values('quote_id').distinct().count()
     
-    # Recent Activity - Mix of leads, clients, jobs, and quotes
-    recent_activity = []
+    # Draft quotes
+    draft_quotes = Quote.objects.filter(created_by=request.user, status='Draft').values('quote_id').distinct().count()
     
-    # Recent clients
-    recent_clients = Client.objects.order_by('-created_at')[:2]
-    for client in recent_clients:
-        time_diff = datetime.now() - client.created_at.replace(tzinfo=None)
-        time_str = format_time_diff(time_diff)
-        recent_activity.append({
-            'client': client.company if client.company else client.name,
-            'action': 'Profile Activated',
-            'time': time_str,
-            'type': client.client_type
+    # Pending/Quoted
+    pending_quotes = Quote.objects.filter(
+        created_by=request.user, 
+        status__in=['Quoted', 'Client Review']
+    ).values('quote_id').distinct().count()
+    
+    # Approved quotes
+    approved_quotes = Quote.objects.filter(created_by=request.user, status='Approved').values('quote_id').distinct().count()
+    
+    # Total revenue (from approved quotes)
+    total_revenue = Quote.objects.filter(
+        created_by=request.user,
+        status='Approved'
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    
+    # Conversion rate
+    conversion_rate = round((approved_quotes / total_quotes * 100), 1) if total_quotes > 0 else 0
+    
+    # ========== MY PERSONAL KPIs (This Month) ==========
+    my_quotes_this_month = Quote.objects.filter(
+        created_by=request.user,
+        created_at__gte=this_month_start
+    ).values('quote_id').distinct().count()
+    
+    my_quotes_won = Quote.objects.filter(
+        created_by=request.user,
+        status='Approved',
+        created_at__gte=this_month_start
+    ).values('quote_id').distinct().count()
+    
+    my_clients_this_month = Client.objects.filter(
+        account_manager=request.user,
+        created_at__gte=this_month_start
+    ).count()
+    
+    my_revenue = Quote.objects.filter(
+        created_by=request.user,
+        status='Approved',
+        created_at__gte=this_month_start
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    
+    my_win_rate = round((my_quotes_won / my_quotes_this_month * 100), 1) if my_quotes_this_month > 0 else 0
+    
+    # Changes from last period (set to 0 for now, you can calculate later)
+    quotes_change = 0
+    clients_change = 0
+    revenue_change = Decimal('0')
+    clients_change_abs = 0
+    quotes_change_abs = 0
+    revenue_change_abs = 0
+    
+    # ========== RECENT ITEMS ==========
+    recent_quotes = Quote.objects.filter(
+        created_by=request.user
+    ).select_related('client', 'lead').order_by('-created_at')[:5]
+    
+    recent_clients = Client.objects.filter(
+        account_manager=request.user
+    ).order_by('-created_at')[:5]
+    
+    # ========== UPCOMING ACTIONS ==========
+    upcoming_actions = []
+    
+    # Get quotes that need follow-up
+    follow_up_quotes = Quote.objects.filter(
+        created_by=request.user,
+        status='Quoted',
+        created_at__gte=timezone.now() - timedelta(days=7)
+    ).select_related('client', 'lead')[:3]
+    
+    for quote in follow_up_quotes:
+        client_name = quote.client.name if quote.client else (quote.lead.name if quote.lead else 'Unknown')
+        upcoming_actions.append({
+            'type': 'quote',
+            'icon_color': 'blue',
+            'title': 'Follow Up Quote',
+            'description': f'Quote #{quote.quote_id} - {quote.product_name}',
+            'client': client_name,
+            'due_date': quote.created_at + timedelta(days=3),
+            'time': (quote.created_at + timedelta(days=3)).strftime('%I:%M %p'),
         })
     
-    # Recent jobs
-    recent_jobs = Job.objects.order_by('-created_at')[:2]
-    for job in recent_jobs:
-        time_diff = datetime.now() - job.created_at.replace(tzinfo=None)
-        time_str = format_time_diff(time_diff)
+    # ========== RECENT ACTIVITY ==========
+    recent_activity = []
+    
+    # Recent clients added
+    for client in recent_clients[:3]:
+        time_diff = timezone.now() - client.created_at
         recent_activity.append({
-            'client': job.client.name,
-            'action': f'Job Created - {job.product}',
-            'time': time_str,
-            'type': 'Job'
+            'client': client.name,
+            'action': 'New Client Onboarded',
+            'time': format_time_diff(time_diff),
+            'type': 'Client'
         })
     
     # Recent quotes
-    recent_quotes = Quote.objects.filter(status='Quoted').order_by('-created_at')[:2]
-    for quote in recent_quotes:
-        time_diff = datetime.now() - quote.created_at.replace(tzinfo=None)
-        time_str = format_time_diff(time_diff)
-        client_name = quote.client.name if quote.client else quote.lead.name
+    for quote in recent_quotes[:3]:
+        time_diff = timezone.now() - quote.created_at
+        client_name = quote.client.name if quote.client else (quote.lead.name if quote.lead else 'Unknown')
         recent_activity.append({
             'client': client_name,
-            'action': f'Quote {quote.quote_id} Sent',
-            'time': time_str,
+            'action': f'Quote {quote.quote_id} Created',
+            'time': format_time_diff(time_diff),
             'type': 'Quote'
         })
     
-    # Sort by most recent
-    recent_activity = sorted(recent_activity, key=lambda x: x['time'])[:6]
+    # ========== TOP PRODUCTS ==========
+    top_products = Quote.objects.filter(
+        created_by=request.user,
+        status='Approved'
+    ).values('product_name').annotate(
+        total=Count('id')
+    ).order_by('-total')[:5]
     
-    # Lifecycle status
-    dormant_clients = Client.objects.filter(status='Dormant').count()
-    inactive_clients = Client.objects.filter(status='Inactive').count()
+    # ========== NOTIFICATIONS ==========
+    notifications = Notification.objects.filter(
+        recipient=request.user
+    ).order_by('-created_at')[:5]
     
-    # Calculate average onboarding time
-    converted_with_dates = Lead.objects.filter(status='Converted').exclude(created_at=None)
-    if converted_with_dates.exists():
-        total_time = 0
-        count = 0
-        for lead in converted_with_dates:
-            try:
-                client = Client.objects.filter(email=lead.email).first()
-                if client:
-                    time_diff = (client.created_at - lead.created_at).days
-                    if time_diff >= 0:
-                        total_time += time_diff
-                        count += 1
-            except:
-                pass
-        avg_onboarding = round(total_time / count, 1) if count > 0 else 2.3
-    else:
-        avg_onboarding = 2.3
+    unread_notifications_count = Notification.objects.filter(
+        recipient=request.user,
+        is_read=False
+    ).count()
     
     context = {
         'current_view': 'dashboard',
@@ -290,12 +367,15 @@ def dashboard(request):
         'converted_leads': converted_leads,
         'active_clients': active_clients,
         'b2b_clients': b2b_clients,
+        'b2c_clients': b2c_clients,
         
-        # Production Metrics (NEW)
+        # Production Metrics
         'total_jobs': total_jobs,
         'pending_jobs': pending_jobs,
         'in_progress_jobs': in_progress_jobs,
         'completed_jobs': completed_jobs,
+        
+        # Quote Metrics
         'total_quotes': total_quotes,
         'draft_quotes': draft_quotes,
         'pending_quotes': pending_quotes,
@@ -303,15 +383,30 @@ def dashboard(request):
         'total_revenue': total_revenue,
         'conversion_rate': conversion_rate,
         
-        # Shared Data
+        # Personal KPIs
+        'my_new_clients': my_clients_this_month,
+        'clients_change': clients_change,
+        'clients_change_abs': clients_change_abs,
+        'my_win_rate': my_win_rate,
+        'my_quotes_sent': my_quotes_this_month,
+        'quotes_change': quotes_change,
+        'quotes_change_abs': quotes_change_abs,
+        'my_revenue': my_revenue,
+        'revenue_change': revenue_change,
+        'revenue_change_abs': revenue_change_abs,
+        
+        # Activity & History
         'recent_activity': recent_activity,
+        'recent_quotes': recent_quotes,
+        'recent_clients': recent_clients,
         'top_products': top_products,
-        'dormant_clients': dormant_clients,
-        'inactive_clients': inactive_clients,
-        'avg_onboarding': avg_onboarding,
-        'notifications': Notification.objects.filter(recipient=request.user).order_by('-created_at')[:5] if request.user.is_authenticated else [],
-        'unread_notifications_count': Notification.objects.filter(recipient=request.user, is_read=False).count() if request.user.is_authenticated else 0,
+        'upcoming_actions': upcoming_actions,
+        
+        # Notifications
+        'notifications': notifications,
+        'unread_notifications_count': unread_notifications_count,
     }
+    
     return render(request, 'dashboard.html', context)
 
 
@@ -379,7 +474,7 @@ def quote_management(request):
     
     clients = Client.objects.filter(status='Active').order_by('name')
     leads = Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('name')
-    products = Product.objects.filter(is_active=True).order_by('name')
+    products = Product.objects.filter(is_visible=True).order_by('name')
 
     context = {
         'current_view': 'quote_management',
@@ -396,122 +491,145 @@ def quote_management(request):
     return render(request, 'quote_management.html', context)
 
 
-# ========== STANDALONE VIEWS (NEW SIDEBAR ITEMS) ==========
+@login_required
+@group_required('Account Manager')
+def create_multi_quote(request):
+    """
+    Create a new quote from the multi-product quotes modal form
+    """
+    if request.method == 'POST':
+        try:
+            from decimal import Decimal
+            from django.contrib import messages
+            
+            # Get form data
+            quote_type = request.POST.get('quote_type')
+            client_id = request.POST.get('client_id')
+            lead_id = request.POST.get('lead_id')
+            product_id = request.POST.get('product')
+            quantity = int(request.POST.get('quantity', 1))
+            unit_price = Decimal(request.POST.get('unit_price', '0'))
+            notes = request.POST.get('notes', '')
+            
+            # Validate required fields
+            if not product_id:
+                messages.error(request, 'Please select a product')
+                return redirect('quote_management')
+            
+            if not (client_id or lead_id):
+                messages.error(request, 'Please select a client or lead')
+                return redirect('quote_management')
+            
+            # Get the product
+            product = Product.objects.get(id=product_id)
+            
+            # Create the quote
+            quote = Quote.objects.create(
+                client_id=client_id if quote_type == 'client' else None,
+                lead_id=lead_id if quote_type == 'lead' else None,
+                product=product,
+                product_name=product.name,
+                quantity=quantity,
+                unit_price=unit_price,
+                notes=notes,
+                status='Draft',
+                created_by=request.user,
+            )
+            
+            messages.success(request, f'Quote {quote.quote_id} created successfully!')
+            return redirect('quote_detail', quote_id=quote.quote_id)
+            
+        except Product.DoesNotExist:
+            messages.error(request, 'Selected product not found')
+            return redirect('quote_management')
+        except Exception as e:
+            messages.error(request, f'Error creating quote: {str(e)}')
+            return redirect('quote_management')
+    
+    return redirect('quote_management')
 
+
+# ========== STANDALONE VIEWS (NEW SIDEBAR ITEMS) ==========
+@login_required
 @group_required('Account Manager')
 def analytics(request):
-    """
-    Analytics Dashboard - Standalone tab on main sidebar
-    Shows comprehensive business analytics
-    """
-    from django.db.models import Count, Sum, Avg, Q
-    from datetime import datetime, timedelta
-    from decimal import Decimal
+    """Analytics page with live charts and metrics"""
+    from datetime import timedelta
+    from django.db.models import Count, Sum, Avg
+    import json
     
-    # Date ranges
-    today = datetime.now().date()
-    thirty_days_ago = today - timedelta(days=30)
-    ninety_days_ago = today - timedelta(days=90)
+    today = timezone.now().date()
     
-    # ========== SALES ANALYTICS ==========
-    # Revenue trends (last 6 months)
-    revenue_by_month = []
-    for i in range(6):
-        month_start = today.replace(day=1) - timedelta(days=30*i)
-        month_revenue = Quote.objects.filter(
+    # ================= REVENUE TREND (Last 6 months) =================
+    revenue_data = []
+    labels = []
+    
+    for i in range(5, -1, -1):
+        month_start = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
+        if month_start.month == 12:
+            month_end = month_start.replace(year=month_start.year + 1, month=1, day=1) - timedelta(days=1)
+        else:
+            month_end = month_start.replace(month=month_start.month + 1, day=1) - timedelta(days=1)
+        
+        revenue = Quote.objects.filter(
+            created_by=request.user,
             status='Approved',
-            approved_at__year=month_start.year,
-            approved_at__month=month_start.month
+            approved_at__gte=month_start,
+            approved_at__lte=month_end
         ).aggregate(total=Sum('total_amount'))['total'] or 0
         
-        revenue_by_month.insert(0, {
-            'month': month_start.strftime('%b'),
-            'revenue': float(month_revenue)  # ✅ FIXED: was revenue_revenue
-        })
+        revenue_data.append(float(revenue))
+        labels.append(month_start.strftime('%b %Y'))
     
-    # ========== QUOTE ANALYTICS ==========
-    # Quote conversion funnel
-    total_quotes = Quote.objects.values('quote_id').distinct().count()
-    quoted = Quote.objects.filter(status='Quoted').values('quote_id').distinct().count()
-    client_review = Quote.objects.filter(status='Client Review').values('quote_id').distinct().count()
-    approved = Quote.objects.filter(status='Approved').values('quote_id').distinct().count()
-    lost = Quote.objects.filter(status='Lost').values('quote_id').distinct().count()
+    # ================= TOP PRODUCTS =================
+    top_products = Quote.objects.filter(
+        created_by=request.user,
+        status='Approved'
+    ).values('product_name').annotate(
+        total_revenue=Sum('total_amount'),
+        quantity_sold=Sum('quantity')
+    ).order_by('-total_revenue')[:10]
     
-    conversion_rate = round((approved / total_quotes * 100), 1) if total_quotes > 0 else 0
+    # ================= CONVERSION FUNNEL =================
+    total_leads = Lead.objects.filter(created_by=request.user).count()
+    qualified_leads = Lead.objects.filter(created_by=request.user, status='Qualified').count()
+    converted_leads = Lead.objects.filter(created_by=request.user, status='Converted').count()
     
-    # Average quote value
-    avg_quote_value = Quote.objects.filter(status='Approved').aggregate(
-        avg=Avg('total_amount')
-    )['avg'] or 0
+    total_quotes = Quote.objects.filter(created_by=request.user).values('quote_id').distinct().count()
+    approved_quotes = Quote.objects.filter(created_by=request.user, status='Approved').values('quote_id').distinct().count()
     
-    # ========== CLIENT ANALYTICS ==========
-    # Client acquisition trend
-    new_clients_30d = Client.objects.filter(created_at__gte=thirty_days_ago).count()
-    new_clients_90d = Client.objects.filter(created_at__gte=ninety_days_ago).count()
+    # ================= CLIENT TYPE BREAKDOWN =================
+    b2b_clients = Client.objects.filter(account_manager=request.user, client_type='B2B').count()
+    b2c_clients = Client.objects.filter(account_manager=request.user, client_type='B2C').count()
     
-    # Client type breakdown
-    b2b_count = Client.objects.filter(client_type='B2B').count()
-    b2c_count = Client.objects.filter(client_type='B2C').count()
-    
-    # Top clients by revenue
-    top_clients = Client.objects.annotate(
-        total_revenue=Sum('quotes__total_amount', filter=Q(quotes__status='Approved'))
-    ).filter(total_revenue__isnull=False).order_by('-total_revenue')[:10]
-    
-    # ========== PRODUCT ANALYTICS ==========
-    # Top products by quote count
-    top_products = Quote.objects.filter(status='Approved').values('product_name').annotate(
-        count=Count('id'),
-        revenue=Sum('total_amount')
-    ).order_by('-revenue')[:10]
-    
-    # ========== LEAD ANALYTICS ==========
-    # Lead conversion funnel
-    total_leads = Lead.objects.count()
-    qualified_leads = Lead.objects.filter(status='Qualified').count()
-    converted_leads = Lead.objects.filter(status='Converted').count()
-    lost_leads = Lead.objects.filter(status='Lost').count()
-    
-    lead_conversion_rate = round((converted_leads / total_leads * 100), 1) if total_leads > 0 else 0
-    
-    # Lead sources performance
-    lead_sources = Lead.objects.values('source').annotate(
-        count=Count('id'),
-        converted=Count('id', filter=Q(status='Converted'))
-    ).order_by('-count')[:5]
+    # ================= AVERAGE DEAL SIZE =================
+    avg_deal_size = Quote.objects.filter(
+        created_by=request.user,
+        status='Approved'
+    ).aggregate(avg=Avg('total_amount'))['avg'] or 0
     
     context = {
         'current_view': 'analytics',
         
-        # Sales Analytics
-        'revenue_by_month': revenue_by_month,
-        'total_revenue': sum(m['revenue'] for m in revenue_by_month),
+        # Chart data (convert to JSON for JavaScript)
+        'revenue_labels': json.dumps(labels),
+        'revenue_data': json.dumps(revenue_data),
+        'top_products': list(top_products),
         
-        # Quote Analytics
-        'total_quotes': total_quotes,
-        'conversion_rate': conversion_rate,
-        'avg_quote_value': avg_quote_value,
-        'quote_funnel': {
-            'quoted': quoted,
-            'client_review': client_review,
-            'approved': approved,
-            'lost': lost,
-        },
-        
-        # Client Analytics
-        'new_clients_30d': new_clients_30d,
-        'new_clients_90d': new_clients_90d,
-        'b2b_count': b2b_count,
-        'b2c_count': b2c_count,
-        'top_clients': top_clients,
-        
-        # Product Analytics
-        'top_products': top_products,
-        
-        # Lead Analytics
+        # Funnel data
         'total_leads': total_leads,
-        'lead_conversion_rate': lead_conversion_rate,
-        'lead_sources': lead_sources,
+        'qualified_leads': qualified_leads,
+        'converted_leads': converted_leads,
+        'total_quotes': total_quotes,
+        'approved_quotes': approved_quotes,
+        
+        # Client breakdown
+        'b2b_clients': b2b_clients,
+        'b2c_clients': b2c_clients,
+        
+        # Metrics
+        'avg_deal_size': avg_deal_size,
+        'conversion_rate': round((approved_quotes / total_quotes * 100), 1) if total_quotes > 0 else 0,
     }
     
     return render(request, 'analytics.html', context)
@@ -525,7 +643,7 @@ def product_catalog(request):
     product_type = request.GET.get('product_type', 'all')
     availability = request.GET.get('availability', 'all')
 
-    products = Product.objects.filter(is_active=True)
+    products = Product.objects.filter(is_visible=True)
 
     if search:
         products = products.filter(Q(name__icontains=search) | Q(sku__icontains=search))
@@ -544,30 +662,57 @@ def product_catalog(request):
         'availability': availability,
     }
     
-    return render(request, 'product_catalog.html', context)
+    return render(request, 'product_create_edit.html', context)
 
 
 # ========== PRODUCTION TEAM VIEWS (Keep existing) ==========
 
-
-
-
+@login_required
+@group_required('Account Manager')
 def lead_intake(request):
-    """Lead intake and qualification view"""
+    """Lead intake with automatic notification creation"""
     if request.method == 'POST':
         form = LeadForm(request.POST)
         if form.is_valid():
-            lead = form.save()
-            messages.success(request, f'Lead {lead.lead_id} created successfully')
+            # Save the lead with the current user as creator
+            lead = form.save(commit=False)
+            lead.created_by = request.user
+            lead.save()
+            
+            # ✅ CREATE NOTIFICATION: Remind AM to create quote
+            Notification.objects.create(
+                recipient=request.user,
+                notification_type='quote_reminder',
+                title=f'📝 Create Quote for {lead.name}',
+                message=f'New lead created: {lead.name} ({lead.lead_id}). Remember to send them a quote.',
+                link=f'/create/quote?lead_id={lead.id}',
+                related_lead=lead,
+                action_url=f'/create/quote?lead_id={lead.id}',
+                action_label='Create Quote'
+            )
+            
+            # Notify all other account managers
+            other_ams = User.objects.filter(groups__name='Account Manager').exclude(id=request.user.id)
+            for am in other_ams:
+                Notification.objects.create(
+                    recipient=am,
+                    notification_type='lead_created',
+                    title=f'👤 New Lead: {lead.name}',
+                    message=f'{request.user.get_full_name() or request.user.username} created a new lead',
+                    link='/leads/',
+                    related_lead=lead
+                )
+            
+            messages.success(request, f'✅ Lead {lead.name} created! Check notifications for next steps.')
             return redirect('lead_intake')
         else:
             messages.error(request, 'Please fill in all required fields')
     else:
         form = LeadForm()
     
-    # Search and filter
+    # GET request - show leads list
     search_query = request.GET.get('search', '')
-    leads = Lead.objects.all()
+    leads = Lead.objects.all().order_by('-created_at')
     
     if search_query:
         leads = leads.filter(
@@ -576,8 +721,9 @@ def lead_intake(request):
             Q(lead_id__icontains=search_query)
         )
     
-    products = Product.objects.filter(is_active=True).order_by('name')
-
+    # Get products for the form
+    products = Product.objects.filter(is_visible=True).order_by('name')
+    
     context = {
         'current_view': 'leads',
         'leads': leads,
@@ -629,15 +775,6 @@ def client_onboarding(request):
         try:
             if client_type == 'B2C':
                 # ============ B2C SIMPLIFIED ONBOARDING - SINGLE STEP ============
-                # B2C Template Fields (all with _b2c suffix):
-                # 1. Company Name (Optional)
-                # 2. Contact Person (Required)
-                # 3. Email (Required)
-                # 4. Phone (Required)
-                # 5. Preferred Channel
-                # 6. Lead Source
-                # Then: Save Client button (no steps)
-                
                 company = request.POST.get('company_b2c', '').strip()  # Optional
                 name = request.POST.get('name_b2c', '').strip()  # Required
                 email = request.POST.get('email_b2c', '').strip()  # Optional now
@@ -645,7 +782,7 @@ def client_onboarding(request):
                 preferred_channel = request.POST.get('preferred_channel_b2c', 'Email')
                 lead_source = request.POST.get('lead_source_b2c', '')
                 
-                # Validate required B2C fields (only name, email, phone)
+                # Validate required B2C fields
                 if not name:
                     messages.error(request, 'Contact Person is required')
                     return redirect('client_onboarding')
@@ -657,20 +794,30 @@ def client_onboarding(request):
                 if email and Client.objects.filter(email=email).exists():
                     messages.error(request, f'A client with email {email} already exists')
                     return redirect('client_onboarding')
+
+                # LEAD CONVERSION CHECK (B2C)
+                # Check if this phone/email belongs to a Lead
+                existing_lead = Lead.objects.filter(Q(phone=phone) | Q(email=email) if email else Q(phone=phone)).first()
+                if existing_lead:
+                    # Check if Lead has an APPROVED quote
+                    has_approved_quote = Quote.objects.filter(lead=existing_lead, status='Approved').exists()
+                    if not has_approved_quote:
+                        messages.error(request, f"Cannot onboard Lead '{existing_lead.name}' yet. They must approve a quote first.")
+                        return redirect('client_onboarding')
                 
-                # Create B2C client - Single step, no complexity
+                # Create B2C client
                 client = Client.objects.create(
                     client_type='B2C',
-                    company=company if company else '',  # Optional
+                    company=company if company else '',
                     name=name,
                     email=email or '',
                     phone=phone,
                     preferred_channel=preferred_channel,
                     lead_source=lead_source,
-                    payment_terms='Prepaid',  # B2C always prepaid (hardcoded)
-                    risk_rating='Low',  # Default for B2C
-                    credit_limit=0,  # No credit for B2C
-                    is_reseller=False,  # B2C never resellers
+                    payment_terms='Prepaid',
+                    risk_rating='Low',
+                    credit_limit=0,
+                    is_reseller=False,
                     status='Active',
                     onboarded_by=request.user,
                     account_manager=request.user
@@ -694,45 +841,39 @@ def client_onboarding(request):
                 
             else:
                 # ============ B2B FULL ONBOARDING - 3 STEPS ============
-                # Step 1: Core Details (Company, Contact, Email, Phone + Financial)
-                # Step 2: Contacts & Brand Assets (Optional)
-                # Step 3: Compliance Documents (Optional)
-                # Then: Save Client button
-                
-                # STEP 1: Core Details - B2B fields (NO _b2c suffix)
-                company = request.POST.get('company', '').strip()  # Required
-                name = request.POST.get('name', '').strip()  # Required
-                email = request.POST.get('email', '').strip()  # Required
-                phone = request.POST.get('phone', '').strip()  # Required
+                company = request.POST.get('company', '').strip()
+                name = request.POST.get('name', '').strip()
+                email = request.POST.get('email', '').strip()
+                phone = request.POST.get('phone', '').strip()
                 preferred_channel = request.POST.get('preferred_channel', 'Email')
                 lead_source = request.POST.get('lead_source', '')
                 
-                # Financial fields (B2B only)
+                # Financial fields
                 vat_tax_id = request.POST.get('vat_tax_id', '')
                 payment_terms = request.POST.get('payment_terms', 'Prepaid')
                 risk_rating = request.POST.get('risk_rating', 'Low')
                 is_reseller = request.POST.get('is_reseller') == 'on'
                 
                 # Validate required B2B fields
-                if not company:
-                    messages.error(request, 'Company Name is required')
-                    return redirect('client_onboarding')
-                if not name:
-                    messages.error(request, 'Contact Person is required')
-                    return redirect('client_onboarding')
-                if not email:
-                    messages.error(request, 'Email is required')
-                    return redirect('client_onboarding')
-                if not phone:
-                    messages.error(request, 'Phone is required')
+                if not company or not name or not email or not phone:
+                    messages.error(request, 'Please fill in all required fields (Company, Name, Email, Phone)')
                     return redirect('client_onboarding')
                 
                 # Check for duplicate email
                 if Client.objects.filter(email=email).exists():
                     messages.error(request, f'A client with email {email} already exists')
                     return redirect('client_onboarding')
+
+                # LEAD CONVERSION CHECK (B2B)
+                existing_lead = Lead.objects.filter(Q(email=email) | Q(phone=phone)).first()
+                if existing_lead:
+                    # Check if Lead has an APPROVED quote
+                    has_approved_quote = Quote.objects.filter(lead=existing_lead, status='Approved').exists()
+                    if not has_approved_quote:
+                        messages.error(request, f"Cannot onboard Lead '{existing_lead.name}' yet. They must approve a quote first.")
+                        return redirect('client_onboarding')
                 
-                # Create B2B client with Step 1 data
+                # Create B2B client
                 client = Client.objects.create(
                     client_type='B2B',
                     company=company,
@@ -750,13 +891,12 @@ def client_onboarding(request):
                     account_manager=request.user
                 )
                 
-                # STEP 2: Contacts & Brand Assets (OPTIONAL - may be empty)
+                # STEP 2: Contacts
                 contact_names = request.POST.getlist('contact_name[]')
                 contact_emails = request.POST.getlist('contact_email[]')
                 contact_phones = request.POST.getlist('contact_phone[]')
                 contact_roles = request.POST.getlist('contact_role[]')
                 
-                # Only create contacts if data provided
                 for i, contact_name in enumerate(contact_names):
                     if contact_name.strip():
                         ClientContact.objects.create(
@@ -767,12 +907,11 @@ def client_onboarding(request):
                             role=contact_roles[i] if i < len(contact_roles) else 'None',
                         )
                 
-                # STEP 3: Compliance Documents (OPTIONAL - may be empty)
+                # STEP 3: Compliance Documents
                 compliance_files = request.FILES.getlist('compliance_files')
                 doc_type = request.POST.get('doc_type', '')
                 doc_expiry = request.POST.get('doc_expiry', None)
                 
-                # Only create compliance docs if files uploaded AND doc_type selected
                 if compliance_files and doc_type:
                     for file in compliance_files:
                         ComplianceDocument.objects.create(
@@ -783,27 +922,15 @@ def client_onboarding(request):
                             uploaded_by=request.user
                         )
 
-                # BRAND ASSETS (OPTIONAL)
+                # BRAND ASSETS
                 brand_files = request.FILES.getlist('brand_files')
                 brand_asset_type = request.POST.get('brand_asset_type', 'Logo')
                 if brand_files:
-                    for file in brand_files:
-                        BrandAsset.objects.create(
-                            client=client,
-                            asset_type=brand_asset_type if brand_asset_type else 'Logo',
-                            file=file,
-                            description=''
-                        )
-                
-                # BRAND ASSETS (OPTIONAL)
-                brand_files = request.FILES.getlist('brand_files')
-                brand_type = request.POST.get('brand_type', '')
-                if brand_files and brand_type:
                     from .models import BrandAsset
                     for file in brand_files:
                         BrandAsset.objects.create(
                             client=client,
-                            asset_type=brand_type,
+                            asset_type=brand_asset_type,
                             file=file,
                             description='',
                             uploaded_by=request.user
@@ -929,7 +1056,7 @@ def create_quote(request):
                 product_sku = request.POST.get('product_sku', '').strip()
                 if product_sku:
                     try:
-                        product = Product.objects.get(sku=product_sku, is_active=True)
+                        product = Product.objects.get(sku=product_sku, is_visible=True)
                         unit_price = product.base_price
                     except Product.DoesNotExist:
                         messages.error(request, f"Product with SKU {product_sku} not found.")
@@ -937,7 +1064,7 @@ def create_quote(request):
                 else:
                     # Fallback: try to find product by name
                     try:
-                        product = Product.objects.filter(name=product_name, is_active=True).first()
+                        product = Product.objects.filter(name=product_name, is_visible=True).first()
                         unit_price = product.base_price if product else Decimal('0')
                     except:
                         unit_price = Decimal('0')
@@ -1029,6 +1156,9 @@ def create_quote(request):
     products = Product.objects.filter(is_active=True).order_by('name')
     today = timezone.now().date()
     default_valid_until = today + timedelta(days=30)
+    
+    # Get account manager name
+    account_manager_name = request.user.get_full_name() or request.user.username
 
     context = {
         'clients': clients,
@@ -1036,10 +1166,242 @@ def create_quote(request):
         'products': products,
         'today': today.isoformat(),
         'default_valid_until': default_valid_until.isoformat(),
+        'current_year': today.year,
+        'account_manager_name': account_manager_name,
     }
-    return render(request, 'create_quote.html', context)
+    return render(request, 'quote_detail.html', context)
 
 
+
+@login_required
+@group_required('Account Manager')
+@transaction.atomic
+def quote_create(request):
+    """Create multi-product quote - matches quote_create.html template"""
+    if request.method == 'POST':
+        try:
+            # Get form data
+            client_name = request.POST.get('client_name', '').strip()
+            account_manager = request.POST.get('account_manager', request.user.get_full_name() or request.user.username)
+            valid_until = request.POST.get('valid_until')
+            delivery_deadline = request.POST.get('delivery_deadline')
+            special_instructions = request.POST.get('special_instructions', '')
+            action = request.POST.get('action', 'save_draft')
+            
+            # Validate required fields
+            if not client_name:
+                messages.error(request, 'Client name is required')
+                return redirect('quote_create')
+            
+            # Try to find existing client by name
+            client = Client.objects.filter(
+                Q(name__iexact=client_name) | Q(company__iexact=client_name)
+            ).first()
+            
+            # If no client found, this might be for a lead
+            lead = None
+            if not client:
+                lead = Lead.objects.filter(name__iexact=client_name).first()
+            
+            # Parse dates
+            valid_until_date = timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date() + timedelta(days=14)
+            delivery_deadline_date = timezone.datetime.fromisoformat(delivery_deadline).date() if delivery_deadline else None
+            
+            # Generate unique quote ID
+            import uuid
+            quote_id = f"Q-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+            
+            # Get line items from POST data
+            # Line items would be sent as arrays: product_name[], quantity[], unit_price[]
+            product_names = request.POST.getlist('product_name[]')
+            quantities = request.POST.getlist('quantity[]')
+            unit_prices = request.POST.getlist('unit_price[]')
+            
+            if not product_names or len(product_names) == 0:
+                messages.error(request, 'Please add at least one product to the quote')
+                return redirect('quote_create')
+            
+            # Create quote items
+            total_amount = Decimal('0')
+            for i, product_name in enumerate(product_names):
+                if not product_name.strip():
+                    continue
+                    
+                quantity = int(quantities[i]) if i < len(quantities) else 1
+                unit_price = Decimal(unit_prices[i]) if i < len(unit_prices) else Decimal('0')
+                
+                quote = Quote.objects.create(
+                    quote_id=quote_id,
+                    client=client,
+                    lead=lead,
+                    product_name=product_name.strip(),
+                    quantity=quantity,
+                    unit_price=unit_price,
+                    status='Draft' if action == 'save_draft' else 'Quoted',
+                    quote_date=timezone.now().date(),
+                    valid_until=valid_until_date,
+                    notes=special_instructions,
+                    created_by=request.user
+                )
+                
+                total_amount += quote.total_amount
+            
+            # Create activity log
+            if client:
+                ActivityLog.objects.create(
+                    client=client,
+                    activity_type='Quote',
+                    title=f"Multi-Product Quote {quote_id} Created",
+                    description=f"Quote created with {len(product_names)} items. Total: KES {total_amount:,.2f}",
+                    created_by=request.user
+                )
+            
+            # Get all quotes for this quote_id for status updates
+            quotes = Quote.objects.filter(quote_id=quote_id)
+            
+            # Handle action
+            if action == 'save_draft':
+                # Just save as draft - no notifications
+                quotes.update(status='Draft')
+                messages.success(request, f'💾 Quote {quote_id} saved as draft!')
+                return redirect('quotes_list')
+                
+            elif action == 'save_send_pt':
+                # Send to Production Team for approval
+                quotes.update(status='Pending PT Approval', production_status='pending')
+                
+                # Create notifications for ALL PT members
+                pt_users = User.objects.filter(groups__name='Production Team')
+                for pt in pt_users:
+                    Notification.objects.create(
+                        recipient=pt,
+                        notification_type='quote_sent_pt',
+                        title=f'📋 Quote {quote_id} Needs Your Approval',
+                        message=f'AM {request.user.get_full_name() or request.user.username} sent a quote for review. Total: KES {total_amount:,.2f}',
+                        link=f'/quote-detail/{quote_id}/',
+                        related_quote_id=quote_id,
+                        action_url=f'/quotes/{quote_id}/action/',
+                        action_label='Review Quote'
+                    )
+                
+                messages.success(request, f'✅ Quote {quote_id} sent to Production Team for approval!')
+                return redirect('quotes_list')
+                
+            elif action == 'send_to_client':
+                # Check if we're working with an existing approved quote
+                existing_quote_id = request.POST.get('existing_quote_id') or request.GET.get('quote_id')
+                
+                if existing_quote_id:
+                    # We're sending an existing quote - check if it's approved
+                    existing_quotes = Quote.objects.filter(quote_id=existing_quote_id)
+                    if existing_quotes.exists():
+                        first_existing = existing_quotes.first()
+                        if first_existing.production_status != 'approved':
+                            messages.error(request, '❌ Quote must be approved by Production Team before sending to client!')
+                            return redirect('quote_create')
+                        
+                        # Update status to "Sent to Client"
+                        existing_quotes.update(status='Sent to Client')
+                        
+                        # Send quote via email
+                        result = send_quote_email(existing_quote_id, request)
+                        if result['success']:
+                            messages.success(request, f'✅ Quote {existing_quote_id} sent to client!')
+                        else:
+                            messages.warning(request, f'Quote sent but email failed: {result["message"]}')
+                        
+                        return redirect('quotes_list')
+                
+                # If we get here, it's a newly created quote (shouldn't happen with current flow)
+                messages.error(request, '❌ Please save and send to PT for approval first!')
+                return redirect('quote_create')
+            
+        except Exception as e:
+            messages.error(request, f'Error creating quote: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return redirect('quote_create')
+    
+    # GET request - show form
+    clients = Client.objects.filter(status='Active').order_by('name')
+    leads = Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('-created_at')
+    products = Product.objects.filter(is_visible=True).order_by('name')
+    
+    # Check if we're editing an existing quote
+    quote_id_param = request.GET.get('quote_id')
+    existing_quote_data = None
+    
+    if quote_id_param:
+        # Load existing quote data
+        existing_quotes = Quote.objects.filter(quote_id=quote_id_param)
+        if existing_quotes.exists():
+            first_quote = existing_quotes.first()
+            
+            # Get all line items for this quote
+            line_items = []
+            for quote in existing_quotes:
+                line_items.append({
+                    'product_name': quote.product_name,
+                    'quantity': quote.quantity,
+                    'unit_price': float(quote.unit_price),
+                })
+            
+            # Determine client/lead name
+            if first_quote.client:
+                client_name = first_quote.client.name
+            elif first_quote.lead:
+                client_name = first_quote.lead.name
+            else:
+                client_name = ''
+            
+            existing_quote_data = {
+                'quote_id': quote_id_param,
+                'client_name': client_name,
+                'account_manager': first_quote.created_by.get_full_name() if first_quote.created_by else '',
+                'valid_until': first_quote.valid_until.strftime('%Y-%m-%d') if first_quote.valid_until else '',
+                'delivery_deadline': getattr(first_quote, 'delivery_deadline', None).strftime('%Y-%m-%d') if hasattr(first_quote, 'delivery_deadline') and first_quote.delivery_deadline else '',
+                'special_instructions': first_quote.notes or '',
+                'line_items': line_items,
+                'production_status': first_quote.production_status,
+                'status': first_quote.status,
+            }
+    
+    import json
+    context = {
+        'current_view': 'quote_create',
+        'clients': clients,
+        'leads': leads,
+        'products': products,
+        'existing_quote_data': json.dumps(existing_quote_data) if existing_quote_data else None,
+        'existing_quote_obj': existing_quote_data,
+    }
+    
+    return render(request, 'quote_create.html', context)
+
+
+@login_required
+def download_quote_pdf(request, quote_id):
+    """
+    Download quote as PDF
+    Accessible to account managers and authorized users
+    """
+    try:
+        from .pdf_utils import QuotePDFGenerator
+        
+        # Verify quote exists and user has access
+        quote = Quote.objects.filter(quote_id=quote_id).first()
+        if not quote:
+            messages.error(request, f'Quote {quote_id} not found')
+            return redirect('quotes_list')
+        
+        # Generate and return PDF
+        return QuotePDFGenerator.download_quote_pdf(quote_id, request)
+        
+    except Exception as e:
+        messages.error(request, f'Error generating PDF: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return redirect('quotes_list')
 
 def client_profile(request, pk):
     """Unified Client Profile View — includes jobs, quotes, activities, and financials"""
@@ -1067,84 +1429,50 @@ def client_profile(request, pk):
 
     quotes_list = list(quotes_dict.values())
 
-    # Quote statistics by status
-    quote_stats = {
-        'draft': {'count': 0, 'value': Decimal('0')},
-        'quoted': {'count': 0, 'value': Decimal('0')},
-        'client_review': {'count': 0, 'value': Decimal('0')},
-        'approved': {'count': 0, 'value': Decimal('0')},
-        'lost': {'count': 0, 'value': Decimal('0')},
-    }
-
-    for group in quotes_list:
-        status = group['quote'].status.lower().replace(' ', '_')
-        if status in quote_stats:
-            quote_stats[status]['count'] += 1
-            quote_stats[status]['value'] += group['total_amount']
-
-    total_quotes = len(quotes_list)
-    approved_value = quote_stats['approved']['value']
-    conversion_rate = round((quote_stats['approved']['count'] / total_quotes * 100), 1) if total_quotes > 0 else 0
-    avg_margin = 0  # placeholder, not used in simplified pricing
-
     # ================= ACTIVITIES =================
-    activities = client.activities.all().order_by('-created_at')[:20]
+    activities = client.activities.all().order_by('-created_at')
     recent_activities = activities[:5]
+    all_activities = activities
 
-    production_updates = ProductionUpdate.objects.filter(
-        Q(quote__client=client) | Q(job__client=client)
-    ).select_related('quote', 'job', 'created_by').order_by('-created_at')[:10]
+    # ================= DOCUMENTS =================
+    compliance_documents = ComplianceDocument.objects.filter(client=client)
+    brand_assets = BrandAsset.objects.filter(client=client) if hasattr(client, 'brand_assets') else []
+
+    # ================= CONTACTS =================
+    client_contacts = ClientContact.objects.filter(client=client)
 
     # ================= FINANCIAL METRICS =================
-    outstanding_balance = quote_stats['quoted']['value'] + quote_stats['client_review']['value']
-    lifetime_value = approved_value
-    payment_performance = 95  # mock; replace with real payment logic if available
-
-    credit_limit = client.credit_limit or Decimal('500000')
-    credit_used = outstanding_balance
-    available_credit = credit_limit - credit_used if credit_limit > credit_used else Decimal('0')
-    credit_utilization = round((credit_used / credit_limit * 100), 1) if credit_limit > 0 else 0
-
-    # ================= JOB STATISTICS =================
-    job_stats = {
-        'total': jobs.count(),
-        'pending': jobs.filter(status='pending').count(),
-        'in_progress': jobs.filter(status='in_progress').count(),
-        'completed': jobs.filter(status='completed').count(),
-        'on_hold': jobs.filter(status='on_hold').count(),
-    }
-
-    # ================= RECENT QUOTES FOR OVERVIEW =================
-    recent_quotes = quotes_list[:3]  # Get 3 most recent quotes
+    total_revenue = all_quotes.filter(status='Approved').aggregate(
+        total=Sum('total_amount')
+    )['total'] or Decimal('0')
+    
+    total_jobs_count = jobs.count()
+    
+    # Conversion rate (approved quotes / total quotes)
+    total_quotes = len(quotes_list)
+    approved_quotes = sum(1 for q in quotes_list if q['quote'].status == 'Approved')
+    conversion_rate = round((approved_quotes / total_quotes * 100), 1) if total_quotes > 0 else 0
+    
+    # Last activity
+    last_activity_date = recent_activities.first().created_at if recent_activities.exists() else None
 
     # ================= CONTEXT =================
     context = {
         'client': client,
-        'jobs': jobs,
+        'client_quotes': all_quotes,  # For quotes tab table
         'quotes': quotes_list,
-        'quote_stats': quote_stats,
-        'total_quotes': total_quotes,
-        'total_revenue': approved_value,
-        'conversion_rate': conversion_rate,
-        'avg_margin': avg_margin,
-
-        # Activity Log
-        'activities': activities,
+        'client_jobs': jobs,
         'recent_activities': recent_activities,
-
-        # Financial Data
-        'outstanding_balance': outstanding_balance,
-        'lifetime_value': lifetime_value,
-        'payment_performance': payment_performance,
-        'credit_limit': credit_limit,
-        'credit_used': credit_used,
-        'available_credit': available_credit,
-        'credit_utilization': credit_utilization,
-
-        # Job Statistics
-        'job_stats': job_stats,
-        'production_updates': production_updates,
-        'recent_quotes': recent_quotes,
+        'all_activities': all_activities,
+        'compliance_documents': compliance_documents,
+        'brand_assets': brand_assets,
+        'client_contacts': client_contacts,
+        
+        # Metrics for Overview tab
+        'total_jobs': total_jobs_count,
+        'total_revenue': total_revenue,
+        'conversion_rate': conversion_rate,
+        'last_activity_date': last_activity_date,
     }
 
     return render(request, 'client_profile.html', context)
@@ -1290,38 +1618,150 @@ def delete_quote(request, quote_id):
     
     return redirect('dashboard')
 
+@login_required
+def handle_quote_approval(request, quote_id):
+    """
+    Handle quote approval from client
+    Creates notifications across all portals
+    """
+    try:
+        quotes = Quote.objects.filter(quote_id=quote_id)
+        if not quotes.exists():
+            messages.error(request, 'Quote not found')
+            return redirect('quotes_list')
+        
+        first_quote = quotes.first()
+        lead = first_quote.lead
+        
+        # Update status
+        quotes.update(status='Approved', approved_at=timezone.now())
+        
+        # ✅ CREATE NOTIFICATIONS FOR ALL PORTALS
+        
+        # 1. Notify the Account Manager who created the quote
+        if first_quote.created_by:
+            Notification.objects.create(
+                recipient=first_quote.created_by,
+                notification_type='quote_approved',
+                title=f'🎉 Quote {quote_id} Approved!',
+                message=f'Client approved your quote. Time to onboard them!',
+                link=f'/client-onboarding/?lead_id={lead.id}' if lead else '/clients/',
+                related_quote_id=quote_id,
+                action_url=f'/client-onboarding/?lead_id={lead.id}' if lead else None,
+                action_label='Onboard Client' if lead else None
+            )
+        
+        # 2. Notify all Production Team members
+        pt_users = User.objects.filter(groups__name='Production Team')
+        for pt in pt_users:
+            Notification.objects.create(
+                recipient=pt,
+                notification_type='quote_approved',
+                title=f'✅ Quote {quote_id} Approved',
+                message=f'New approved quote ready for production. Value: KES {first_quote.total_amount:,.0f}',
+                link=f'/quote-detail/{quote_id}/',
+                related_quote_id=quote_id
+            )
+        
+        # 3. Notify all Admins
+        admins = User.objects.filter(is_superuser=True)
+        for admin in admins:
+            Notification.objects.create(
+                recipient=admin,
+                notification_type='quote_approved',
+                title=f'Quote {quote_id} Approved',
+                message=f'Value: KES {first_quote.total_amount:,.0f}',
+                link='/admin/clientapp/quote/',
+                related_quote_id=quote_id
+            )
+        
+        messages.success(request, f'Quote {quote_id} approved! Notifications sent.')
+        return redirect('quote_detail', quote_id=quote_id)
+        
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+        return redirect('quotes_list')
 
 
+@login_required
+@group_required('Account Manager')
 def quotes_list(request):
     """List all quotes with filters"""
+    from decimal import Decimal
+    from datetime import datetime, timedelta
     
-    all_quotes = Quote.objects.all().order_by('-created_at')
+    all_quotes = Quote.objects.select_related('client', 'lead', 'created_by').order_by('-created_at')
     
-   
+    # Group quotes by quote_id
     quotes_dict = {}
     for quote in all_quotes:
         if quote.quote_id not in quotes_dict:
+            # Determine client name
+            client_name = '-'
+            if quote.client:
+                client_name = quote.client.name
+            elif quote.lead:
+                client_name = quote.lead.name
+            
+            # Determine account manager
+            account_manager = '-'
+            if quote.created_by:
+                account_manager = quote.created_by.get_full_name() or quote.created_by.username
+            
+            # Calculate valid until date (30 days from creation)
+            valid_until = quote.created_at + timedelta(days=30)
+            days_remaining = (valid_until.date() - datetime.now().date()).days
+            
             quotes_dict[quote.quote_id] = {
-                'quote': quote,
-                'items_count': 0,
-                'total_amount': Decimal('0')
+                'id': quote.id,
+                'quote_number': quote.quote_id,
+                'client_name': client_name,
+                'account_manager': account_manager,
+                'item_count': 0,
+                'approved_items': 0,
+                'total_value': Decimal('0'),
+                'margin': 0,
+                'status': quote.status,
+                'created_date': quote.created_at.strftime('%b %d, %Y'),
+                'valid_until': valid_until.strftime('%b %d, %Y'),
+                'days_remaining': days_remaining,
             }
-        quotes_dict[quote.quote_id]['items_count'] += 1
-        quotes_dict[quote.quote_id]['total_amount'] += quote.total_amount
+        
+        # Increment counters
+        quotes_dict[quote.quote_id]['item_count'] += 1
+        quotes_dict[quote.quote_id]['total_value'] += quote.total_amount
+        
+        # Count approved items
+        if quote.status == 'Approved':
+            quotes_dict[quote.quote_id]['approved_items'] += 1
+        
+        # Calculate margin (simplified - you may want to adjust this)
+        if quote.unit_price > 0:
+            # Assuming 25% margin as default - adjust based on your business logic
+            quotes_dict[quote.quote_id]['margin'] = 25.0
     
     quotes_list = list(quotes_dict.values())
     
+    # Apply status filter
+    status_filter = request.GET.get('status', 'all')
+    if status_filter and status_filter != 'all':
+        quotes_list = [q for q in quotes_list if q['status'] == status_filter]
     
-    status_filter = request.GET.get('status')
-    if status_filter:
-        quotes_list = [q for q in quotes_list if q['quote'].status == status_filter]
+    # Apply search filter
+    search_query = request.GET.get('search', '')
+    if search_query:
+        quotes_list = [q for q in quotes_list if 
+                      search_query.lower() in q['quote_number'].lower() or 
+                      search_query.lower() in q['client_name'].lower()]
     
     context = {
         'quotes': quotes_list,
         'status_filter': status_filter,
+        'search_query': search_query,
     }
     
-    return render(request, 'quotes_list.html', context)
+    return render(request, 'quote_list.html', context)
+
 
 def get_client_details(request, client_id):
     """API endpoint to get client details for quote form"""
@@ -1554,70 +1994,440 @@ def create_job(request):
 
 @login_required
 def job_detail(request, pk):
-    """View and update an existing job"""
-    job = get_object_or_404(Job.objects.select_related('client'), pk=pk)
-    clients = Client.objects.filter(status='Active').order_by('name')
-    job_updates = job.production_updates.select_related('created_by').order_by('-created_at')
-    can_manage = request.user.groups.filter(name='Production Team').exists()
-
-    update_form = ProductionUpdateForm(initial={
-        'status': job.status if job.status in dict(Quote.PRODUCTION_STATUS_CHOICES) else 'in_progress',
-        'progress': 100 if job.status == 'completed' else 0,
-    })
-
-    if request.method == 'POST':
-        action = request.POST.get('action', 'update_job')
-
-        if action == 'record_update':
-            if not can_manage:
-                messages.error(request, 'Only production team members can record production updates.')
-                return redirect('job_detail', pk=job.pk)
-
-            update_form = ProductionUpdateForm(request.POST)
-            if update_form.is_valid():
-                update = update_form.save(commit=False)
-                update.update_type = 'job'
-                update.job = job
-                update.created_by = request.user
-                update.save()
-
-                if update.status in dict(Job.STATUS_CHOICES):
-                    job.status = update.status
-                    job.save(update_fields=['status', 'updated_at'])
-
-                messages.success(request, 'Production update recorded successfully.')
-            return redirect('job_detail', pk=job.pk)
+    """View job details with all related information"""
+    from django.utils import timezone
+    from datetime import timedelta
+    from decimal import Decimal
+    
+    job = get_object_or_404(Job.objects.select_related('client', 'quote', 'created_by'), pk=pk)
+    
+    # Get related data
+    attachments = job.attachments.select_related('uploaded_by').order_by('-uploaded_at')
+    notes = job.job_notes.select_related('created_by').order_by('-created_at')
+    production_updates = job.production_updates.select_related('created_by').order_by('-created_at')
+    
+    # Get vendor stages if they exist
+    vendor_stages = job.vendor_stages.select_related('vendor').order_by('stage_order') if hasattr(job, 'vendor_stages') else []
+    
+    # Get QC inspection if exists
+    qc_inspection = None
+    try:
+        qc_inspection = job.qc_inspection
+    except:
+        pass
+    
+    # Calculate progress
+    overall_progress = 0
+    current_stage = None
+    if vendor_stages:
+        total_stages = len(vendor_stages)
+        completed_stages = sum(1 for s in vendor_stages if s.status == 'completed')
+        in_progress_stage = next((s for s in vendor_stages if s.status in ['in_production', 'sent_to_vendor']), None)
+        
+        if in_progress_stage:
+            # Calculate based on stages + current stage progress
+            base_progress = (completed_stages / total_stages) * 100
+            stage_contribution = (in_progress_stage.progress / total_stages)
+            overall_progress = int(base_progress + stage_contribution)
+            current_stage = in_progress_stage
         else:
-            job.product = request.POST.get('product', job.product)
-            quantity_raw = request.POST.get('quantity', job.quantity)
-            try:
-                job.quantity = int(quantity_raw)
-            except (TypeError, ValueError):
-                pass
-
-            job.person_in_charge = request.POST.get('person_in_charge', job.person_in_charge)
-            job.notes = request.POST.get('notes', job.notes)
-
-            status_value = request.POST.get('status', job.status).lower()
-            if status_value in dict(Job.STATUS_CHOICES):
-                job.status = status_value
-
-            job.save()
-            messages.success(request, 'Job updated successfully.')
-            return redirect('job_detail', pk=job.pk)
-
+            overall_progress = int((completed_stages / total_stages) * 100) if completed_stages > 0 else 0
+    elif job.status == 'completed':
+        overall_progress = 100
+    elif job.status == 'in_progress':
+        # Get from last production update if available
+        last_update = production_updates.first()
+        overall_progress = last_update.progress if last_update else 50
+    else:
+        overall_progress = 0
+    
+    # Calculate deadline info
+    now = timezone.now()
+    deadline = timezone.make_aware(
+        timezone.datetime.combine(job.expected_completion, timezone.datetime.min.time())
+    ) if job.expected_completion else now
+    time_remaining = deadline - now
+    hours_remaining = int(time_remaining.total_seconds() / 3600)
+    is_overdue = hours_remaining < 0
+    
+    if is_overdue:
+        deadline_text = f"Overdue by {abs(hours_remaining)}h"
+    elif hours_remaining < 24:
+        deadline_text = f"{hours_remaining}h remaining"
+    else:
+        days_remaining = hours_remaining // 24
+        deadline_text = f"{days_remaining} days remaining"
+    
+    # Get primary vendor (from current stage or first stage)
+    primary_vendor = None
+    if vendor_stages:
+        current = current_stage or vendor_stages[0]
+        primary_vendor = current.vendor
+    
+    # Get account manager who created this job
+    am_name = "System"
+    if job.created_by:
+        am_name = job.created_by.get_full_name() or job.created_by.username
+    
+    # Calculate current stage info
+    current_stage_text = "Not Started"
+    if current_stage:
+        current_stage_text = f"{current_stage.stage_name} (Day {(now - current_stage.started_at).days + 1 if current_stage.started_at else 1} of {(current_stage.expected_completion - current_stage.started_at).days if current_stage.started_at and current_stage.expected_completion else '?'})"
+    elif job.status == 'completed':
+        current_stage_text = "Completed"
+    elif job.status == 'in_progress':
+        current_stage_text = "Vendor Production"
+    
+    # Get job specs from quote if available
+    specs = {}
+    if job.quote:
+        specs = {
+            'product_type': job.quote.product_name or job.product,
+            'colors': '4/4 (CMYK both sides)',  # Default, could be stored in quote
+            'size': 'A4 (210mm × 297mm)',  # Default
+            'finishing': 'Matt Lamination',  # Default
+            'quantity': f"{job.quantity:,} pcs",
+            'folding': 'Tri-fold',  # Default
+            'material': '150gsm Gloss Art Paper',  # Default
+            'binding': 'None',  # Default
+        }
+    else:
+        specs = {
+            'product_type': job.product,
+            'colors': '4/4 (CMYK both sides)',
+            'size': 'A4 (210mm × 297mm)',
+            'finishing': 'Matt Lamination',
+            'quantity': f"{job.quantity:,} pcs",
+            'folding': 'None',
+            'material': 'Standard',
+            'binding': 'None',
+        }
+    
+    # Check if user can manage
+    can_manage = request.user.groups.filter(name='Production Team').exists()
+    
+    # Get all jobs for the same client (for tabular view)
+    client_jobs = []
+    job_stats = {'total': 0, 'in_progress': 0, 'overdue': 0, 'completed': 0, 'pending': 0}
+    
+    if job.client:
+        client_jobs_qs = Job.objects.filter(client=job.client).select_related('quote').order_by('-created_at')
+        for cj in client_jobs_qs:
+            # Calculate progress for each job
+            cj_progress = 0
+            if cj.status == 'completed':
+                cj_progress = 100
+            elif cj.status == 'in_progress':
+                cj_progress = 50
+            elif cj.status == 'pending':
+                cj_progress = 10
+            
+            # Calculate deadline info
+            cj_days = (cj.expected_completion - now.date()).days if cj.expected_completion else 0
+            cj_is_overdue = cj_days < 0
+            
+            client_jobs.append({
+                'id': cj.id,
+                'job_number': cj.job_number,
+                'product': cj.product,
+                'quantity': cj.quantity,
+                'status': cj.status,
+                'status_display': cj.get_status_display(),
+                'priority': cj.priority,
+                'priority_display': cj.get_priority_display(),
+                'expected_completion': cj.expected_completion,
+                'days_remaining': cj_days,
+                'is_overdue': cj_is_overdue,
+                'progress': cj_progress,
+                'is_current': cj.id == job.id,
+                'job_type': cj.get_job_type_display(),
+                'person_in_charge': cj.person_in_charge,
+                'notes': cj.notes[:50] + '...' if cj.notes and len(cj.notes) > 50 else cj.notes,
+            })
+            
+            # Update stats
+            job_stats['total'] += 1
+            if cj.status == 'in_progress':
+                job_stats['in_progress'] += 1
+            elif cj.status == 'completed':
+                job_stats['completed'] += 1
+            elif cj.status == 'pending':
+                job_stats['pending'] += 1
+            if cj_is_overdue and cj.status != 'completed':
+                job_stats['overdue'] += 1
+    
     context = {
-        'clients': clients,
         'job': job,
-        'is_update': True,
-        'job_updates': job_updates,
-        'update_form': update_form,
+        'current_view': 'my_jobs',
+        'client_jobs': client_jobs,
+        'job_stats': job_stats,
+        
+        # Progress info
+        'overall_progress': overall_progress,
+        'current_stage': current_stage,
+        'current_stage_text': current_stage_text,
+        
+        # Deadline info
+        'deadline_text': deadline_text,
+        'hours_remaining': hours_remaining,
+        'is_overdue': is_overdue,
+        
+        # Related data
+        'attachments': attachments,
+        'notes': notes,
+        'production_updates': production_updates,
+        'vendor_stages': vendor_stages,
+        'qc_inspection': qc_inspection,
+        
+        # Vendor info
+        'primary_vendor': primary_vendor,
+        'am_name': am_name,
+        
+        # Job specs
+        'specs': specs,
+        
+        # Permissions
         'can_manage': can_manage,
-        'current_view': 'production_jobs',
+        
+        # For vendor/process lists
+        'vendors': Vendor.objects.filter(active=True).order_by('name'),
     }
-    return render(request, 'create_job.html', context)
+    
+    return render(request, 'job_detail.html', context)
 
 
+@login_required
+@require_POST
+def add_job_note(request, pk):
+    """Add a note to a job"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    content = request.POST.get('content', '').strip()
+    note_type = request.POST.get('note_type', 'general')
+    
+    if not content:
+        return JsonResponse({'success': False, 'message': 'Note content is required'})
+    
+    try:
+        from clientapp.models import JobNote
+        
+        note = JobNote.objects.create(
+            job=job,
+            content=content,
+            note_type=note_type,
+            created_by=request.user
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Note added successfully',
+            'note': {
+                'id': note.id,
+                'content': note.content,
+                'note_type': note.note_type,
+                'created_by': note.created_by.get_full_name() or note.created_by.username,
+                'created_at': note.created_at.strftime('%b %d, %H:%M'),
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@require_POST
+def upload_job_file(request, pk):
+    """Upload a file attachment to a job"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    if 'file' not in request.FILES:
+        return JsonResponse({'success': False, 'message': 'No file provided'})
+    
+    uploaded_file = request.FILES['file']
+    
+    # Validate file size (max 10MB)
+    if uploaded_file.size > 10 * 1024 * 1024:
+        return JsonResponse({'success': False, 'message': 'File too large (max 10MB)'})
+    
+    try:
+        from clientapp.models import JobAttachment
+        
+        attachment = JobAttachment.objects.create(
+            job=job,
+            file=uploaded_file,
+            file_name=uploaded_file.name,
+            file_size=uploaded_file.size,
+            uploaded_by=request.user
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'File uploaded successfully',
+            'attachment': {
+                'id': attachment.id,
+                'file_name': attachment.file_name,
+                'file_size': f"{attachment.file_size / 1024:.1f} KB" if attachment.file_size < 1024*1024 else f"{attachment.file_size / (1024*1024):.1f} MB",
+                'uploaded_at': attachment.uploaded_at.strftime('%b %d, %H:%M'),
+                'download_url': attachment.file.url,
+            }
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@require_POST
+def update_job_progress(request, pk):
+    """Update job progress and vendor stage"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    try:
+        import json
+        data = json.loads(request.body)
+        
+        stage_id = data.get('stage_id')
+        progress = data.get('progress', 0)
+        status = data.get('status')
+        notes = data.get('notes', '')
+        
+        if stage_id:
+            from clientapp.models import JobVendorStage
+            stage = get_object_or_404(JobVendorStage, pk=stage_id, job=job)
+            stage.progress = progress
+            if status:
+                stage.status = status
+                if status == 'completed' and not stage.completed_at:
+                    stage.completed_at = timezone.now()
+                elif status == 'in_production' and not stage.started_at:
+                    stage.started_at = timezone.now()
+            if notes:
+                stage.notes = notes
+            stage.save()
+        
+        # Update overall job status
+        if data.get('mark_completed'):
+            job.status = 'completed'
+            job.actual_completion = timezone.now().date()
+            job.save()
+            
+            # Also update related LPO status to 'completed'
+            if job.quote and hasattr(job.quote, 'lpo'):
+                try:
+                    lpo = job.quote.lpo
+                    if lpo.status != 'completed':
+                        lpo.status = 'completed'
+                        lpo.save()
+                except:
+                    pass
+        
+        return JsonResponse({'success': True, 'message': 'Progress updated'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@require_POST
+def add_vendor_stage(request, pk):
+    """Add a new vendor stage to a job"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    try:
+        from clientapp.models import JobVendorStage
+        
+        vendor_id = request.POST.get('vendor_id')
+        stage_name = request.POST.get('stage_name', 'Production')
+        expected_days = int(request.POST.get('expected_days', 3))
+        vendor_cost = request.POST.get('vendor_cost', 0)
+        
+        vendor = get_object_or_404(Vendor, pk=vendor_id)
+        
+        # Get next stage order
+        last_stage = job.vendor_stages.order_by('-stage_order').first()
+        next_order = (last_stage.stage_order + 1) if last_stage else 1
+        
+        stage = JobVendorStage.objects.create(
+            job=job,
+            vendor=vendor,
+            stage_order=next_order,
+            stage_name=stage_name,
+            expected_completion=timezone.now() + timedelta(days=expected_days),
+            vendor_cost=vendor_cost,
+        )
+        
+        # Update job status if first stage
+        if next_order == 1:
+            job.status = 'in_progress'
+            job.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Stage "{stage_name}" added',
+            'stage_id': stage.id
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)})
+
+
+@login_required
+@group_required('Production Team')
+def qc_inspection_start(request, job_id):
+    """Start a QC inspection for a completed job"""
+    job = get_object_or_404(Job.objects.select_related('client'), pk=job_id)
+    
+    # Check if QC inspection already exists
+    try:
+        existing_qc = job.qc_inspection
+        # If exists, redirect to it
+        return redirect('qc_inspection', inspection_id=existing_qc.id)
+    except:
+        pass
+    
+    # Check if job is completed
+    if job.status != 'completed':
+        messages.warning(request, 'Job must be completed before starting QC inspection.')
+        return redirect('job_detail', pk=job_id)
+    
+    # Create new QC inspection
+    try:
+        from clientapp.models import QCInspection, Vendor
+        
+        # Generate reference number
+        from django.utils import timezone
+        year = timezone.now().year
+        month = timezone.now().month
+        count = QCInspection.objects.filter(
+            created_at__year=year,
+            created_at__month=month
+        ).count() + 1
+        ref_number = f"QC-{year}{month:02d}-{count:04d}"
+        
+        # Get vendor from job's vendor stages if available
+        vendor = None
+        if hasattr(job, 'vendor_stages') and job.vendor_stages.exists():
+            last_stage = job.vendor_stages.order_by('-stage_order').first()
+            vendor = last_stage.vendor if last_stage else None
+        
+        # If no vendor, get the first active vendor as default
+        if not vendor:
+            vendor = Vendor.objects.filter(active=True).first()
+        
+        if not vendor:
+            messages.error(request, 'No vendor available for QC inspection. Please add a vendor first.')
+            return redirect('job_detail', pk=job_id)
+        
+        qc = QCInspection.objects.create(
+            job=job,
+            status='pending',
+            inspector=request.user
+        )
+        
+        messages.success(request, f'QC Inspection {ref_number} started.')
+        return redirect('qc_inspection', inspection_id=qc.id)
+    except Exception as e:
+        messages.error(request, f'Error creating QC inspection: {str(e)}')
+        return redirect('job_detail', pk=job_id)
+
+
+@login_required
 @group_required('Account Manager')
 def base_view(request):
     """Simple base view used by sidebar link"""
@@ -1704,7 +2514,7 @@ def update_quote_costing(request, quote_id):
             )
 
             messages.success(request, f'Quote {quote_obj.quote_id} updated successfully.')
-            return redirect('production_quote_review')
+            return redirect('my_quotes')
     else:
         form = QuoteCostingForm(instance=quote)
 
@@ -1713,8 +2523,132 @@ def update_quote_costing(request, quote_id):
         'related_quotes': related_quotes,
         'form': form,
         'current_view': 'production_quotes',
+        'processes': Process.objects.filter(status='active'),
     }
     return render(request, 'approve_quote.html', context)
+
+
+# Add this AFTER your existing update_quote_costing view (around line 1138)
+
+@login_required
+@group_required('Production Team')
+@transaction.atomic
+def update_quote_costing_v2(request, quote_id):
+    """
+    Updated quote costing with Process integration
+    Automatically pulls costs from linked processes
+    """
+    quote = get_object_or_404(Quote, quote_id=quote_id)
+    related_quotes = Quote.objects.filter(quote_id=quote.quote_id).order_by('created_at')
+    
+    if request.method == 'POST':
+        try:
+            # Get form data
+            action = request.POST.get('action', 'save')
+            
+            # Update each quote line item
+            for q in related_quotes:
+                # Get costs from form
+                production_cost = request.POST.get(f'production_cost_{q.id}')
+                vendor_id = request.POST.get(f'selected_vendor_{q.id}')
+                
+                if production_cost:
+                    q.production_cost = Decimal(production_cost)
+                
+                # Update status based on action
+                if action == 'approve':
+                    q.production_status = 'costed'
+                    q.status = 'Ready to Send'
+                    q.costed_by = request.user
+                
+                q.save()
+            
+            # Create production update
+            ProductionUpdate.objects.create(
+                update_type='quote',
+                quote=quote,
+                status='costed' if action == 'approve' else 'in_progress',
+                progress=100 if action == 'approve' else 50,
+                notes=request.POST.get('production_notes', ''),
+                created_by=request.user
+            )
+            
+            if action == 'approve':
+                # Notify AM
+                Notification.objects.create(
+                    recipient=quote.created_by,
+                    notification_type='quote_pt_approved',
+                    title=f'✅ Quote {quote_id} Costed & Ready',
+                    message=f'Production team has costed your quote. You can now send it to the client.',
+                    link=reverse('quote_create') + f'?quote_id={quote_id}',
+                    related_quote_id=quote_id,
+                    action_url=reverse('quote_create') + f'?quote_id={quote_id}',
+                    action_label='Send to Client'
+                )
+                
+                messages.success(request, f'✅ Quote {quote_id} costed and approved!')
+            else:
+                messages.success(request, f'💾 Quote {quote_id} costing saved as draft.')
+            
+            return redirect('my_quotes')
+            
+        except Exception as e:
+            messages.error(request, f'Error saving costing: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return redirect('production_quote_costing_v2', quote_id=quote_id)
+    
+    # GET request - prepare data for template
+    
+    # Get all available processes
+    processes = Process.objects.filter(status='active').order_by('process_name')
+    
+    # Prepare line items with process suggestions
+    line_items = []
+    for q in related_quotes:
+        # Try to find matching process by product name
+        suggested_process = None
+        process_cost = None
+        available_vendors = []
+        
+        # Search for process by product name similarity
+        for process in processes:
+            if q.product_name.lower() in process.process_name.lower() or \
+               process.process_name.lower() in q.product_name.lower():
+                suggested_process = process
+                
+                # Get pricing based on quantity
+                if process.pricing_type == 'tier':
+                    # Find matching tier
+                    tier = process.tiers.filter(
+                        quantity_from__lte=q.quantity,
+                        quantity_to__gte=q.quantity
+                    ).first()
+                    
+                    if tier:
+                        process_cost = tier.cost
+                
+                # Get vendors
+                available_vendors = process.process_vendors.all().order_by('-vps_score')
+                break
+        
+        line_items.append({
+            'quote': q,
+            'suggested_process': suggested_process,
+            'process_cost': process_cost,
+            'available_vendors': available_vendors,
+            'current_cost': q.production_cost or Decimal('0'),
+        })
+    
+    context = {
+        'quote_id': quote_id,
+        'quote': quote,
+        'line_items': line_items,
+        'processes': processes,
+        'current_view': 'production_quotes',
+    }
+    
+    return render(request, 'quote_costing_v2.html', context)
 
 
 @login_required
@@ -1737,7 +2671,7 @@ def production_catalog(request):
     products = products.order_by('name')
 
     editing_product = None
-    form = ProductForm()
+    form = ProductionUpdateForm()
 
     if request.method == 'POST':
         action = request.POST.get('action', 'save')
@@ -1754,7 +2688,7 @@ def production_catalog(request):
         if product_id:
             editing_product = get_object_or_404(Product, pk=product_id)
 
-        form = ProductForm(request.POST, instance=editing_product)
+        form = ProductionUpdateForm(request.POST, instance=editing_product)
         if form.is_valid():
             product = form.save(commit=False)
             if editing_product is None:
@@ -1767,7 +2701,7 @@ def production_catalog(request):
         product_id = request.GET.get('product_id')
         if product_id:
             editing_product = get_object_or_404(Product, pk=product_id)
-            form = ProductForm(instance=editing_product)
+            form = ProductionUpdateForm(instance=editing_product)
 
     context = {
         'current_view': 'production_catalog',
@@ -1778,77 +2712,246 @@ def production_catalog(request):
         'product_type': product_type,
         'availability': availability,
     }
-    return render(request, 'production_catalog.html', context)
-
+    return render(request, 'product_catalog.html', context)
 
 @login_required
 @group_required('Production Team')
 def production2_dashboard(request):
-    """Production Team dashboard"""
+    """Production Team dashboard with REAL data"""
+    from django.db.models import Q, Count
+    from datetime import timedelta
+    
+    # Get current user
+    user = request.user
+    
+    # ===== JOB COUNTS =====
     total_jobs = Job.objects.count()
-    pending_jobs = Job.objects.filter(status='pending').count()
-    in_progress_jobs = Job.objects.filter(status='in_progress').count()
     completed_jobs = Job.objects.filter(status='completed').count()
+    active_jobs = Job.objects.filter(status__in=['in_progress', 'pending']).count()
+    
+    # Quotes awaiting approval from PT
+    quote_jobs = Quote.objects.filter(
+        production_status='pending',
+        status='Draft'
+    ).count()
+    
+    # Jobs with issues (overdue or on hold)
+    today = timezone.now().date()
+    issue_jobs = Job.objects.filter(
+        Q(status='on_hold')
+        | Q(expected_completion__lt=today, status__in=['pending', 'in_progress'])
+    ).count()
+    
+    # ===== URGENT JOBS =====
+    # Jobs due within 3 days
+    three_days_from_now = today + timedelta(days=3)
+    urgent_jobs = Job.objects.filter(
+        status__in=['pending', 'in_progress'],
+        expected_completion__lte=three_days_from_now
+    ).select_related('client').order_by('expected_completion')[:5]
+    
+    # Add calculated fields
+    for job in urgent_jobs:
+        job.product_name = job.product
+        days_left = (job.expected_completion - today).days
+        if days_left == 0:
+            job.urgency_label = "Due Today"
+        elif days_left < 0:
+            job.urgency_label = f"Overdue by {abs(days_left)} days"
+        else:
+            job.urgency_label = f"{days_left} days left"
+    
+    # ===== MY ACTIVE JOBS (for logged-in user) =====
+    # Show jobs created by user OR where user is person in charge
+    my_active_jobs = Job.objects.filter(
+        Q(created_by=user) | 
+        Q(person_in_charge__icontains=user.first_name) | 
+        Q(person_in_charge__icontains=user.username),
+        status__in=['pending', 'in_progress']
+    ).select_related('client').order_by('expected_completion')[:5]
+    
+    # Add status badges and deadline info
+    for job in my_active_jobs:
+        job.status_class = job.status.replace('_', '-')
+        job.status_label = job.get_status_display()
+        
+        days_until = (job.expected_completion - today).days
+        if days_until < 0:
+            job.deadline_warning = True
+            job.deadline_text = f"Overdue by {abs(days_until)} days"
+        elif days_until == 0:
+            job.deadline_warning = True
+            job.deadline_text = "Due Today"
+        else:
+            job.deadline_warning = False
+            job.deadline_text = job.expected_completion.strftime("%b %d")
 
-    quotes_pending = Quote.objects.filter(production_status__in=['pending', 'in_progress']).count()
-    quotes_costed = Quote.objects.filter(production_status='costed').count()
-    quotes_sent = Quote.objects.filter(status__in=['Quoted', 'Client Review']).count()
+    # ===== USER PERFORMANCE METRICS =====
+    # Jobs completed by this user (created by or assigned to)
+    user_jobs_query = Q(created_by=user) | Q(person_in_charge__icontains=user.first_name) | Q(person_in_charge__icontains=user.username)
+    
+    user_jobs_total = Job.objects.filter(user_jobs_query).count()
+    user_jobs_completed = Job.objects.filter(
+        user_jobs_query, status='completed'
+    ).count()
+    user_completion_rate = (
+        round((user_jobs_completed / user_jobs_total) * 100, 1)
+        if user_jobs_total > 0
+        else 0
+    )
 
-    recent_updates = ProductionUpdate.objects.select_related('quote', 'job', 'created_by').order_by('-created_at')[:8]
+    # Average costing time (in hours) for quotes costed by this user
+    costed_quotes = Quote.objects.filter(
+        costed_by=user,
+        production_status__in=['costed', 'sent_to_client', 'in_production', 'completed'],
+    )
+    total_hours = 0
+    count_costed = 0
+    for q in costed_quotes:
+        # Use created_at -> updated_at as a proxy for costing duration
+        if q.created_at and q.updated_at and q.updated_at > q.created_at:
+            delta = q.updated_at - q.created_at
+            total_hours += delta.total_seconds() / 3600.0
+            count_costed += 1
 
+    average_costing_time = round(total_hours / count_costed, 1) if count_costed > 0 else 0.0
+    
     context = {
         'current_view': 'production_dashboard',
+        'user': user,
+        
+        # Job counts
         'total_jobs': total_jobs,
-        'pending_jobs': pending_jobs,
-        'in_progress_jobs': in_progress_jobs,
         'completed_jobs': completed_jobs,
-        'quotes_pending': quotes_pending,
-        'quotes_costed': quotes_costed,
-        'quotes_sent': quotes_sent,
-        'active_products': Product.objects.filter(is_active=True).count(),
-        'recent_updates': recent_updates,
+        'active_jobs': active_jobs,
+        'quote_jobs': quote_jobs,
+        'issue_jobs': issue_jobs,
+        
+        # Urgent section
+        'urgent_jobs': urgent_jobs,
+        
+        # My active jobs
+        'my_active_jobs': my_active_jobs,
+        
+        # Performance metrics
+        'user_jobs_total': user_jobs_total,
+        'user_jobs_completed': user_jobs_completed,
+        'user_completion_rate': user_completion_rate,
+        'average_costing_time': average_costing_time,
     }
+    
     return render(request, 'production2_dashboard.html', context)
-
-
 @login_required
 @group_required('Production Team')
 def production_analytics(request):
     """Production-side analytics"""
-    quotes_by_status = Quote.objects.values('production_status').annotate(count=Count('id'))
-    jobs_by_status = Job.objects.values('status').annotate(count=Count('id'))
-    avg_quote_value = Quote.objects.aggregate(avg=Avg('total_amount'))['avg'] or 0
-    recent_costings = Quote.objects.filter(costed_by__isnull=False).select_related('client', 'lead').order_by('-updated_at')[:10]
-
+    # 1. Total Revenue (90d)
+    ninety_days_ago = timezone.now().date() - timedelta(days=90)
+    
+    # Calculate revenue from completed jobs in last 90 days
+    completed_jobs_revenue = Job.objects.filter(
+        status='completed',
+        actual_completion__gte=ninety_days_ago
+    ).aggregate(total=Sum('quote__total_amount'))['total'] or 0
+    
+    # 2. Quote Conversion (Approved / Total Quoted)
+    total_quotes_90d = Quote.objects.filter(created_at__gte=ninety_days_ago).count()
+    approved_quotes_90d = Quote.objects.filter(
+        created_at__gte=ninety_days_ago, 
+        status='Approved'
+    ).count()
+    quote_conversion = (approved_quotes_90d / total_quotes_90d * 100) if total_quotes_90d > 0 else 0
+    
+    # 3. Avg Profit Margin
+    margin_quotes = Quote.objects.filter(
+        status='Approved',
+        production_cost__gt=0,
+        total_amount__gt=0,
+        created_at__gte=ninety_days_ago
+    )
+    
+    total_margin_revenue = margin_quotes.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    total_margin_cost = margin_quotes.aggregate(Sum('production_cost'))['production_cost__sum'] or 0
+    
+    avg_profit_margin = 0
+    if total_margin_revenue > 0:
+        avg_profit_margin = ((total_margin_revenue - total_margin_cost) / total_margin_revenue) * 100
+        
+    # 4. Catalog Health Score
+    total_products = Product.objects.count()
+    healthy_products = Product.objects.exclude(description='').count()
+    catalog_health = (healthy_products / total_products * 100) if total_products > 0 else 0
+    
+    # 5. Top Products
+    top_products = Job.objects.filter(
+        status='completed',
+        actual_completion__gte=ninety_days_ago
+    ).values(
+        'product__name'
+    ).annotate(
+        revenue=Sum('quote__total_amount'),
+        count=Count('id')
+    ).order_by('-revenue')[:5]
+    
     context = {
         'current_view': 'production_analytics',
-        'quotes_by_status': quotes_by_status,
-        'jobs_by_status': jobs_by_status,
-        'avg_quote_value': avg_quote_value,
-        'recent_costings': recent_costings,
+        'total_revenue': completed_jobs_revenue,
+        'quote_conversion': round(quote_conversion, 1),
+        'avg_profit_margin': round(avg_profit_margin, 1),
+        'catalog_health': round(catalog_health),
+        'top_products': top_products,
+        'quotes_by_status': Quote.objects.values('production_status').annotate(count=Count('id')),
+        'jobs_by_status': Job.objects.values('status').annotate(count=Count('id')),
     }
     return render(request, 'production_analytics.html', context)
 
+@login_required
+@group_required('Production Team')
+def production_settings(request):
+    """Production Team Settings"""
+    context = {
+        'current_view': 'production_settings',
+    }
+    return render(request, 'production_settings.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def self_quote(request):
+    return render(request, 'self_quote.html')
+# Add these updated views to your views.py file
 
 @login_required
 def notifications(request):
-    """List notifications for the logged-in user"""
-    user_notifications = Notification.objects.filter(recipient=request.user).order_by('-created_at')
-
+    """Display notifications with mark as read functionality"""
     if request.method == 'POST':
-        notification_ids = request.POST.getlist('mark_read')
-        if notification_ids:
-            Notification.objects.filter(recipient=request.user, id__in=notification_ids).update(is_read=True)
-            messages.success(request, 'Selected notifications marked as read.')
+        # Mark specific notification as read
+        notif_id = request.POST.get('mark_read')
+        if notif_id:
+            try:
+                notification = Notification.objects.get(id=notif_id, recipient=request.user)
+                notification.is_read = True
+                notification.save()
+                messages.success(request, 'Notification marked as read')
+            except Notification.DoesNotExist:
+                pass
         else:
+            # Mark all as read
             Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
-            messages.success(request, 'All notifications marked as read.')
+            messages.success(request, 'All notifications marked as read')
+        
         return redirect('notifications')
-
+    
+    # GET request - show notifications
+    notifications = Notification.objects.filter(
+        recipient=request.user
+    ).order_by('-created_at')
+    
     context = {
         'current_view': 'notifications',
-        'notifications': user_notifications,
+        'notifications': notifications,
     }
+    
     return render(request, 'notifications.html', context)
 
 
@@ -1856,26 +2959,111 @@ def permission_denied_view(request, *args, **kwargs):
     messages.warning(request, "You don't have access to that section.")
     fallback = 'dashboard'
     if request.user.groups.filter(name='Production Team').exists():
-        fallback = 'production_dashboard2'
+        fallback = 'production2_dashboard'
     return redirect(reverse(fallback))
-
 
 def login_redirect(request):
     """
     Custom login redirect view that sends users to appropriate dashboard based on their group
     """
     if request.user.is_authenticated:
-        if request.user.groups.filter(name='Finance').exists():
-            return redirect('finance_dashboard')
-        if request.user.groups.filter(name='Production Team').exists():
-            return redirect('production_dashboard2')
-        else:
-            # Default to main dashboard for Account Managers and other users
+        # Check if user is superuser/admin
+        if request.user.is_superuser or request.user.is_staff:
+            return redirect('/admin/')  # ← Admins go to admin panel
+        
+        # Check Production Team
+        elif request.user.groups.filter(name='Production Team').exists():
+            return redirect('production2_dashboard')
+        
+        # Check Account Manager
+        elif request.user.groups.filter(name='Account Manager').exists():
             return redirect('dashboard')
+        
+        # Fallback for users without groups → send to login with error
+        else:
+            messages.error(request, "Your account is not assigned to any group. Please contact admin.")
+            return redirect('login')
     else:
-        # Fallback for unauthenticated users
         return redirect('login')
 
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+import json
+
+def ajax_get_product_image(request, image_id):
+    """AJAX endpoint to get product image data"""
+    try:
+        image = ProductImage.objects.get(id=image_id)
+        return JsonResponse({
+            'success': True,
+            'image_url': image.image.url,
+            'file_name': image.image.name.split('/')[-1],
+            'file_size': f"{image.image.size / 1024:.1f} KB" if hasattr(image.image, 'size') else 'Unknown',
+            'dimensions': 'Unknown',  # You'd need to get actual dimensions
+            'alt_text': image.alt_text or '',
+            'caption': image.caption or '',
+            'image_type': image.image_type or 'product-photo'
+        })
+    except ProductImage.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Image not found'}, status=404)
+
+@require_POST
+def ajax_update_product_image(request, image_id):
+    """AJAX endpoint to update product image metadata"""
+    try:
+        image = ProductImage.objects.get(id=image_id)
+        data = json.loads(request.body)
+        
+        image.alt_text = data.get('alt_text', '')
+        image.caption = data.get('caption', '')
+        image.image_type = data.get('image_type', 'product-photo')
+        image.save()
+        
+        return JsonResponse({'success': True})
+    except ProductImage.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Image not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@require_POST
+def ajax_delete_product_image(request, image_id):
+    """AJAX endpoint to delete product image"""
+    try:
+        image = ProductImage.objects.get(id=image_id)
+        image.delete()
+        return JsonResponse({'success': True})
+    except ProductImage.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Image not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@require_POST
+def ajax_replace_product_image(request, image_id):
+    """AJAX endpoint to replace product image"""
+    try:
+        image = ProductImage.objects.get(id=image_id)
+        
+        if 'image' not in request.FILES:
+            return JsonResponse({'success': False, 'error': 'No image file provided'}, status=400)
+        
+        # Delete old file
+        if image.image:
+            image.image.delete(save=False)
+        
+        # Save new file
+        image.image = request.FILES['image']
+        image.save()
+        
+        return JsonResponse({
+            'success': True,
+            'new_image_url': image.image.url
+        })
+    except ProductImage.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Image not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+        
 # Add before the login_redirect function (around line 1859):
 @login_required
 @group_required('Production Team')
@@ -1897,7 +3085,6 @@ def production_jobs(request):
 
 
 # Add imports after existing imports:
-from django_ledger.models import EntityModel
 
 # Add finance decorator after group_required:
 def finance_required(view_func):
@@ -1905,52 +3092,7 @@ def finance_required(view_func):
     return group_required('Finance')(view_func)
 
 # Add finance dashboard view before login_redirect:
-@finance_required
-def finance_dashboard(request):
-    """Finance dashboard with Django Ledger integration"""
-    # Get or create entity for each client
-    entities = []  # list of {'entity': EntityModel, 'client_id': int}
-    # Resolve available EntityModel field names safely
-    entity_field_names = {f.name for f in EntityModel._meta.get_fields()}
-    for client in Client.objects.all():
-        entity_name = f"{client.name} ({client.client_id})"
-        entity = EntityModel.objects.filter(name=entity_name).first()
-        if not entity:
-            defaults = {}
-            if 'admin' in entity_field_names:
-                defaults['admin'] = request.user
-            if 'address_1' in entity_field_names:
-                defaults['address_1'] = getattr(client, 'address', '') or ''
-            if 'phone' in entity_field_names:
-                defaults['phone'] = getattr(client, 'phone', '') or ''
-            if 'email' in entity_field_names:
-                defaults['email'] = getattr(client, 'email', '') or ''
-            # Optional helpful fields if present in installed version
-            if 'country' in entity_field_names:
-                defaults['country'] = 'KE'
-            if 'currency' in entity_field_names:
-                defaults['currency'] = 'KES'
 
-            # Use treebeard-friendly creation to avoid depth NULL (use add_root when available)
-            try:
-                if hasattr(EntityModel, 'add_root'):
-                    entity = EntityModel.add_root(name=entity_name, **defaults)
-                else:
-                    entity = EntityModel.objects.create(name=entity_name, **defaults)
-            except Exception:
-                # Fallback minimal create on any schema mismatch
-                minimal_kwargs = {'name': entity_name}
-                if 'admin' in entity_field_names:
-                    minimal_kwargs['admin'] = request.user
-                entity = EntityModel.objects.create(**minimal_kwargs)
-        entities.append({'entity': entity, 'client_id': client.id})
-    
-    context = {
-        'current_view': 'finance_dashboard',
-        'entities': entities,
-        'total_entities': EntityModel.objects.count(),
-    }
-    return render(request, 'finance_dashboard.html', context)
 
 # Add client-entity mapping view:
 @finance_required
@@ -1989,3 +3131,3578 @@ def finance_client_entity(request, client_id):
     # Render within our theme using an iframe wrapper
     return render(request, 'finance_entity.html', {'entity': entity, 'current_view': 'finance_dashboard'})
 
+
+# ========== LPO MANAGEMENT VIEWS ==========
+
+@login_required
+@group_required('Production Team')
+def lpo_list(request):
+    """List all LPOs for production team"""
+    from clientapp.models import LPO
+    
+    # Get filter parameters
+    status_filter = request.GET.get('status', 'all')
+    sync_filter = request.GET.get('sync', 'all')
+    search_query = request.GET.get('search', '').strip()
+    
+    lpos = LPO.objects.select_related('client', 'quote').order_by('-created_at')
+    
+    # Apply filters
+    if status_filter != 'all':
+        lpos = lpos.filter(status=status_filter)
+    
+    if sync_filter == 'synced':
+        lpos = lpos.filter(synced_to_quickbooks=True)
+    elif sync_filter == 'not_synced':
+        lpos = lpos.filter(synced_to_quickbooks=False)
+    
+    if search_query:
+        lpos = lpos.filter(
+            Q(lpo_number__icontains=search_query) |
+            Q(client__name__icontains=search_query) |
+            Q(client__company__icontains=search_query) |
+            Q(quote__quote_id__icontains=search_query)
+        )
+    
+    # Count by status
+    status_counts = {
+        'all': LPO.objects.count(),
+        'pending': LPO.objects.filter(status='pending').count(),
+        'approved': LPO.objects.filter(status='approved').count(),
+        'in_production': LPO.objects.filter(status='in_production').count(),
+        'completed': LPO.objects.filter(status='completed').count(),
+        'synced': LPO.objects.filter(synced_to_quickbooks=True).count(),
+        'not_synced': LPO.objects.filter(synced_to_quickbooks=False, status='completed').count(),
+    }
+    
+    context = {
+        'current_view': 'lpo_list',
+        'lpos': lpos,
+        'status_filter': status_filter,
+        'sync_filter': sync_filter,
+        'search_query': search_query,
+        'status_counts': status_counts,
+    }
+    
+    return render(request, 'lpo_list.html', context)
+
+
+@login_required
+def lpo_detail(request, lpo_number):
+    """View LPO details"""
+    from clientapp.models import LPO
+    
+    lpo = get_object_or_404(LPO, lpo_number=lpo_number)
+    
+    # Check permissions
+    is_am = request.user.groups.filter(name='Account Manager').exists()
+    is_production = request.user.groups.filter(name='Production Team').exists()
+    
+    if not (is_am or is_production or request.user.is_superuser):
+        messages.error(request, "You don't have permission to view this LPO")
+        return redirect('dashboard')
+    
+    # Get related job
+    job = None
+    job_completed = False
+    if hasattr(lpo.quote, 'job'):
+        job = lpo.quote.job
+        job_completed = job.status == 'completed'
+    
+    # Allow sync when: user is production team, not already synced, and (LPO is completed OR job is completed)
+    can_sync = (is_production or is_am) and not lpo.synced_to_quickbooks and (lpo.status == 'completed' or job_completed)
+    
+    context = {
+        'lpo': lpo,
+        'quote': lpo.quote,
+        'job': job,
+        'line_items': lpo.line_items.all(),
+        'can_sync': can_sync,
+        'current_view': 'lpo_detail',
+    }
+    
+    return render(request, 'lpo_detail.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def sync_to_quickbooks(request, lpo_number):
+    """Sync LPO to QuickBooks when production is complete"""
+    if request.method == 'POST':
+        try:
+            from clientapp.models import LPO
+            
+            lpo = get_object_or_404(LPO, lpo_number=lpo_number)
+            
+            # Check if already synced
+            if lpo.synced_to_quickbooks:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'LPO already synced to QuickBooks'
+                })
+            
+            # Check if production is complete (either LPO status or related job)
+            job_completed = False
+            if hasattr(lpo.quote, 'job') and lpo.quote.job:
+                job_completed = lpo.quote.job.status == 'completed'
+            
+            if lpo.status != 'completed' and not job_completed:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Production must be completed before syncing to QuickBooks'
+                })
+            
+            # Sync to QuickBooks
+            result = lpo.sync_to_quickbooks(request.user)
+            
+            if result['success']:
+                messages.success(request, result['message'])
+            
+            return JsonResponse(result)
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    })
+
+
+@login_required
+@group_required('Production Team')
+def complete_job(request, pk):
+    """Mark job as completed and update LPO status"""
+    if request.method == 'POST':
+        try:
+            job = get_object_or_404(Job, pk=pk)
+            
+            # Update job status
+            job.status = 'completed'
+            job.actual_completion = timezone.now().date()
+            job.save()
+            
+            # Update LPO status if exists
+            if hasattr(job.quote, 'lpo'):
+                lpo = job.quote.lpo
+                lpo.status = 'completed'
+                lpo.save()
+                
+                # Create notification for AM to sync to QuickBooks
+                if job.client.account_manager:
+                    Notification.objects.create(
+                        recipient=job.client.account_manager,
+                        title=f'Job {job.job_number} Completed',
+                        message=f'Job {job.job_number} is complete. LPO {lpo.lpo_number} ready to sync to QuickBooks.',
+                        link=reverse('lpo_detail', kwargs={'lpo_number': lpo.lpo_number})
+                    )
+            
+            # Create activity log
+            ActivityLog.objects.create(
+                client=job.client,
+                activity_type='Order',
+                title=f'Job {job.job_number} Completed',
+                description=f'Production completed for {job.job_name}',
+                created_by=request.user
+            )
+            
+            messages.success(request, f'Job {job.job_number} marked as completed!')
+            return redirect('job_detail', pk=job.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error: {str(e)}')
+            return redirect('job_detail', pk=pk)
+    
+    return redirect('job_detail', pk=pk)
+
+
+@login_required
+@group_required('Account Manager')
+def send_quote(request, quote_id):
+    """Send quote to client/lead via email"""
+    if request.method == 'POST':
+        from .quote_approval_services import QuoteApprovalService
+        
+        try:
+            quote = Quote.objects.filter(quote_id=quote_id).first()
+            if not quote:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Quote not found'
+                })
+            
+            send_method = request.POST.get('send_method', 'email')
+            
+            if send_method == 'email':
+                result = QuoteApprovalService.send_quote_via_email(quote, request)
+            elif send_method == 'whatsapp':
+                result = QuoteApprovalService.send_quote_via_whatsapp(quote)
+            else:
+                result = {
+                    'success': False,
+                    'message': 'Invalid send method'
+                }
+            
+            if result['success']:
+                # Create activity log
+                if quote.client:
+                    ActivityLog.objects.create(
+                        client=quote.client,
+                        activity_type='Quote',
+                        title=f"Quote {quote.quote_id} Sent",
+                        description=f"Quote sent via {send_method} to {quote.client.email if quote.client else quote.lead.email}",
+                        related_quote=quote,
+                        created_by=request.user
+                    )
+            
+            return JsonResponse(result)
+            
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    })
+
+from clientapp.quote_approval_services import QuoteApprovalService
+def quote_approval(request, token):
+    """
+    Public view for quote approval (no login required)
+    Client clicks link from email
+    Uses QuoteApprovalService to handle the full approval flow
+    """
+    
+    
+    # Call the service to approve the quote
+    result = QuoteApprovalService.approve_quote(token)
+    
+    if not result['success']:
+        # Approval failed
+        from django.http import HttpResponse
+        error_html = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Approval Failed</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    min-height: 100vh;
+                    margin: 0;
+                    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                }}
+                .container {{
+                    background: white;
+                    padding: 3rem;
+                    border-radius: 1rem;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                    text-align: center;
+                    max-width: 500px;
+                }}
+                .error-icon {{
+                    font-size: 4rem;
+                    color: #ef4444;
+                    margin-bottom: 1rem;
+                }}
+                h1 {{
+                    color: #1f2937;
+                    margin-bottom: 1rem;
+                }}
+                p {{
+                    color: #6b7280;
+                    font-size: 1.1rem;
+                    line-height: 1.6;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="error-icon">❌</div>
+                <h1>Approval Failed</h1>
+                <p>{result['message']}</p>
+                <p style="margin-top: 2rem; font-size: 0.9rem; color: #9ca3af;">
+                    Please contact us if you need assistance.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        return HttpResponse(error_html)
+    
+    # Success! Get the quote details
+    quote = result['quote']
+    lpo = result.get('lpo')
+    job = result.get('job')
+    
+    # Return success page
+    from django.http import HttpResponse
+    success_html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Quote Approved</title>
+        <style>
+            body {{
+                font-family: Arial, sans-serif;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                min-height: 100vh;
+                margin: 0;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            }}
+            .container {{
+                background: white;
+                padding: 3rem;
+                border-radius: 1rem;
+                box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                text-align: center;
+                max-width: 600px;
+            }}
+            .success-icon {{
+                font-size: 4rem;
+                color: #10b981;
+                margin-bottom: 1rem;
+            }}
+            h1 {{
+                color: #1f2937;
+                margin-bottom: 1rem;
+            }}
+            p {{
+                color: #6b7280;
+                font-size: 1.1rem;
+                line-height: 1.6;
+            }}
+            .quote-id {{
+                background: #f3f4f6;
+                padding: 0.5rem 1rem;
+                border-radius: 0.5rem;
+                font-family: monospace;
+                color: #4f46e5;
+                font-weight: bold;
+                margin: 1rem 0;
+            }}
+            .details {{
+                background: #f9fafb;
+                padding: 1.5rem;
+                border-radius: 0.5rem;
+                margin: 1.5rem 0;
+                text-align: left;
+            }}
+            .detail-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 0.5rem 0;
+                border-bottom: 1px solid #e5e7eb;
+            }}
+            .detail-row:last-child {{
+                border-bottom: none;
+            }}
+            .detail-label {{
+                font-weight: 600;
+                color: #4b5563;
+            }}
+            .detail-value {{
+                color: #1f2937;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="success-icon">✅</div>
+            <h1>Quote Approved Successfully!</h1>
+            <p class="quote-id">{quote.quote_id}</p>
+            
+            <div class="details">
+                <div class="detail-row">
+                    <span class="detail-label">LPO Number:</span>
+                    <span class="detail-value">{lpo.lpo_number if lpo else 'Generated'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Job Number:</span>
+                    <span class="detail-value">{job.job_number if job else 'Created'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Product:</span>
+                    <span class="detail-value">{quote.product_name}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Quantity:</span>
+                    <span class="detail-value">{quote.quantity}</span>
+                </div>
+            </div>
+            
+            <p>Thank you for approving your quote! We have:</p>
+            <ul style="text-align: left; color: #4b5563; line-height: 2;">
+                <li>✅ Generated your Local Purchase Order (LPO)</li>
+                <li>✅ Created a production job</li>
+                <li>✅ Notified our production team</li>
+            </ul>
+            
+            <p style="margin-top: 2rem;">
+                Our production team will begin work on your order shortly. 
+                You'll receive updates on the progress.
+            </p>
+            
+            <p style="margin-top: 2rem; font-size: 0.9rem; color: #9ca3af;">
+                You can now close this window.
+            </p>
+        </div>
+    </body>
+    </html>
+    """
+    
+    return HttpResponse(success_html)
+
+
+
+# ===== PRODUCT CATALOG VIEWS =====
+"""
+Complete Product Management Views
+Handles all product creation and editing with multi-tab interface
+"""
+
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.http import JsonResponse
+from django.utils.text import slugify
+from decimal import Decimal
+import json
+
+from .models import (
+    Product, ProductCategory, ProductSubCategory, ProductFamily,
+    ProductTag, Vendor, ProductPricing, ProductVariable,
+    ProductVariableOption, ProductImage, ProductVideo,
+    ProductDownloadableFile, ProductSEO, ProductReviewSettings,
+    ProductFAQ, ProductShipping, ProductLegal, ProductProduction,
+    ProductChangeHistory, ActivityLog,
+    # NEW: Process integration imports
+    Process, ProcessVariable, ProcessTier,
+    # Delivery handoff models
+    QCInspection, Delivery
+)
+
+from .product_forms import (
+    ProductGeneralInfoForm, ProductPricingForm, ProductSEOForm,
+    ProductShippingForm, ProductLegalForm, ProductProductionForm
+)
+
+from django.db import models
+
+def group_required(group_name):
+    """Decorator to require Production Team group membership"""
+    def decorator(view_func):
+        def wrapped(request, *args, **kwargs):
+            if not request.user.groups.filter(name=group_name).exists():
+                messages.error(request, "You don't have permission to access this page.")
+                return redirect('production2_dashboard')
+            return view_func(request, *args, **kwargs)
+        return wrapped
+    return decorator
+
+
+@login_required
+@group_required('Production Team')
+def product_catalog(request):
+    """List all products - Production Team view"""
+    
+    search = request.GET.get('search', '').strip()
+    category = request.GET.get('category', 'all')
+    status = request.GET.get('status', 'all')
+    
+    products = Product.objects.all()
+    
+    # Apply filters
+    if search:
+        products = products.filter(
+            models.Q(name__icontains=search) | 
+            models.Q(internal_code__icontains=search)
+        )
+    
+    if category != 'all':
+        products = products.filter(primary_category__slug=category)
+    
+    if status != 'all':
+        products = products.filter(status=status)
+    
+    # Get categories for filter dropdown
+    categories = ProductCategory.objects.all().order_by('name')
+    
+    context = {
+        'current_view': 'production_catalog',
+        'products': products.order_by('-created_at'),
+        'categories': categories,
+        'search': search,
+        'selected_category': category,
+        'selected_status': status,
+    }
+    
+    return render(request, 'product_catalog.html', context)
+
+
+
+def _get_product_form_context(product, general_form=None):
+    """Build context for product create/edit form"""
+    from clientapp.forms import ProductGeneralInfoForm
+    
+    if general_form is None:
+        if product:
+            general_form = ProductGeneralInfoForm(instance=product)
+        else:
+            general_form = ProductGeneralInfoForm()
+    
+    # Get processes for pricing integration
+    processes = Process.objects.filter(status='active').order_by('process_name')
+    
+    # Get vendors
+    vendors = Vendor.objects.filter(is_active=True).order_by('name')
+    
+    # Prepare existing variables JSON for editing
+    existing_variables_json = '[]'
+    if product and hasattr(product, 'variables'):
+        try:
+            variables_list = list(product.variables.all().values(
+                'id', 'name', 'variable_type', 'options', 'default_value', 
+                'is_required', 'affects_pricing', 'order'
+            ))
+            existing_variables_json = json.dumps(variables_list)
+        except:
+            existing_variables_json = '[]'
+    
+    context = {
+        'current_view': 'production_catalog',
+        'product': product,
+        'is_edit': product is not None,
+        'general_form': general_form,
+        'processes': processes,
+        'vendors': vendors,
+        'existing_variables_json': existing_variables_json,
+    }
+    
+    return context
+
+
+def _handle_pricing_tab(request, product):
+    """Handle Pricing & Variables tab data"""
+    from clientapp.models import ProductPricing, ProductVariable
+    
+    # Get or create pricing object
+    pricing, created = ProductPricing.objects.get_or_create(product=product)
+    
+    # Update pricing fields
+    pricing.pricing_model = request.POST.get('pricing_model', 'variable')
+    pricing.base_cost = Decimal(request.POST.get('base_cost', '0') or '0')
+    pricing.price_display = request.POST.get('price_display', 'from')
+    pricing.default_margin = Decimal(request.POST.get('default_margin', '30') or '30')
+    pricing.minimum_margin = Decimal(request.POST.get('minimum_margin', '15') or '15')
+    pricing.minimum_order_value = Decimal(request.POST.get('minimum_order_value', '0') or '0')
+    
+    # Process integration
+    process_id = request.POST.get('process')
+    if process_id:
+        try:
+            pricing.process = Process.objects.get(id=process_id)
+            # Save the "use_process_costs" preference
+            pricing.use_process_costs = request.POST.get('use_process_costs') == 'on'
+        except Process.DoesNotExist:
+            pricing.process = None
+            pricing.use_process_costs = False
+    else:
+        pricing.process = None
+        pricing.use_process_costs = False
+    
+    # Lead time
+    lead_time_value = request.POST.get('lead_time_value')
+    if lead_time_value:
+        pricing.lead_time_value = int(lead_time_value)
+    pricing.lead_time_unit = request.POST.get('lead_time_unit', 'days')
+    
+    # Production method
+    pricing.production_method = request.POST.get('production_method', '')
+    
+    # Vendor integration
+    primary_vendor_id = request.POST.get('primary_vendor')
+    if primary_vendor_id:
+        try:
+            pricing.primary_vendor = Vendor.objects.get(id=primary_vendor_id)
+        except Vendor.DoesNotExist:
+            pricing.primary_vendor = None
+    else:
+        pricing.primary_vendor = None
+    
+    # Minimum quantity
+    min_qty = request.POST.get('minimum_quantity')
+    if min_qty:
+        pricing.minimum_quantity = int(min_qty)
+    
+    # Rush options
+    pricing.rush_available = request.POST.get('rush_available') == 'on'
+    rush_lead_time = request.POST.get('rush_lead_time_value')
+    if rush_lead_time:
+        pricing.rush_lead_time_value = int(rush_lead_time)
+    pricing.rush_lead_time_unit = request.POST.get('rush_lead_time_unit', 'days')
+    rush_upcharge = request.POST.get('rush_upcharge')
+    if rush_upcharge:
+        pricing.rush_upcharge = Decimal(rush_upcharge)
+    
+    pricing.save()
+    
+    # Handle Product Variables
+    # If auto-importing from process
+    if request.POST.get('auto_import_variables') and pricing.process:
+        # Clear existing variables
+        product.variables.all().delete()
+        
+        if pricing.process.pricing_type == 'tier':
+            # For tier-based, create a Quantity variable with tier options
+            quantity_var = ProductVariable.objects.create(
+                product=product,
+                name='Quantity',
+                variable_type='required',
+                is_required=True,
+                affects_pricing=True,
+                order=0
+            )
+            
+            # Create options from process tiers
+            for tier in pricing.process.tiers.all().order_by('tier_number'):
+                ProductVariableOption.objects.create(
+                    variable=quantity_var,
+                    name=f"{tier.quantity_from}-{tier.quantity_to} pieces",
+                    value=str(tier.quantity_to),
+                    price_modifier=tier.price,
+                    display_order=tier.tier_number
+                )
+                
+        elif pricing.process.pricing_type == 'formula':
+            # For formula-based, import each process variable
+            for proc_var in pricing.process.variables.all().order_by('order'):
+                ProductVariable.objects.create(
+                    product=product,
+                    name=proc_var.variable_name,
+                    variable_type=proc_var.variable_type,
+                    default_value=str(proc_var.default_value) if proc_var.default_value else '',
+                    is_required=True,
+                    affects_pricing=True,
+                    order=proc_var.order,
+                    source_process_variable=proc_var
+                )
+    
+    # Handle manually added variables (from JSON)
+    variables_json = request.POST.get('product_variables_json')
+    if variables_json and not request.POST.get('auto_import_variables'):
+        try:
+            import json
+            variables_data = json.loads(variables_json)
+            
+            # Only add new variables (don't clear existing unless explicitly importing)
+            for var_data in variables_data:
+                if not product.variables.filter(name=var_data.get('name')).exists():
+                    product_var = ProductVariable.objects.create(
+                        product=product,
+                        name=var_data.get('name', ''),
+                        variable_type=var_data.get('variable_type', 'required'),
+                        is_required=var_data.get('variable_type') == 'required',
+                        affects_pricing=True,
+                        order=var_data.get('display_order', 0)
+                    )
+                    
+                    # Create options
+                    for opt_data in var_data.get('options', []):
+                        ProductVariableOption.objects.create(
+                            variable=product_var,
+                            name=opt_data.get('value', ''),
+                            value=opt_data.get('value', ''),
+                            price_modifier=Decimal(str(opt_data.get('price_adjustment', 0))),
+                            display_order=0
+                        )
+        except json.JSONDecodeError:
+            pass
+
+def _handle_images_tab(request, product):
+    """Handle Images & Media tab data"""
+    from clientapp.models import ProductImage
+    
+    # Handle new image uploads
+    images = request.FILES.getlist('product_images')
+    for idx, image in enumerate(images):
+        ProductImage.objects.create(
+            product=product,
+            image=image,
+            is_primary=(idx == 0 and not product.images.filter(is_primary=True).exists()),
+            order=product.images.count()
+        )
+
+
+def _handle_seo_tab(request, product):
+    """Handle E-commerce & SEO tab data - COMPLETE VERSION"""
+    
+    # Get or create SEO instance
+    seo, created = ProductSEO.objects.get_or_create(product=product)
+    
+    # Basic SEO fields
+    seo.meta_title = request.POST.get('meta_title', '')[:60]
+    seo.meta_description = request.POST.get('meta_description', '')[:160]
+    seo.focus_keyword = request.POST.get('focus_keyword', '')
+    seo.additional_keywords = request.POST.get('additional_keywords', '')
+    
+    # Slug handling
+    seo.auto_generate_slug = request.POST.get('auto_generate_slug') == 'on'
+    if seo.auto_generate_slug or not seo.slug:
+        seo.slug = slugify(product.name)
+    else:
+        seo.slug = slugify(request.POST.get('slug', product.name))
+    
+    # Display settings
+    seo.show_price = request.POST.get('show_price') == 'on'
+    seo.price_display_format = request.POST.get('price_display_format', 'from')
+    seo.show_stock_status = request.POST.get('show_stock_status', 'in-stock-only')
+    
+    seo.save()
+    
+    # Handle related products (many-to-many)
+    related_product_ids = request.POST.getlist('related_products')
+    seo.related_products.clear()
+    for prod_id in related_product_ids:
+        try:
+            related_prod = Product.objects.get(id=prod_id)
+            seo.related_products.add(related_prod)
+        except Product.DoesNotExist:
+            pass
+    
+    # Handle upsell products
+    upsell_product_ids = request.POST.getlist('upsell_products')
+    seo.upsell_products.clear()
+    for prod_id in upsell_product_ids:
+        try:
+            upsell_prod = Product.objects.get(id=prod_id)
+            seo.upsell_products.add(upsell_prod)
+        except Product.DoesNotExist:
+            pass
+    
+    # Handle frequently bought together
+    bundle_product_ids = request.POST.getlist('frequently_bought_together')
+    seo.frequently_bought_together.clear()
+    for prod_id in bundle_product_ids:
+        try:
+            bundle_prod = Product.objects.get(id=prod_id)
+            seo.frequently_bought_together.add(bundle_prod)
+        except Product.DoesNotExist:
+            pass
+    
+    # Review Settings
+    review_settings, created = ProductReviewSettings.objects.get_or_create(product=product)
+    review_settings.enable_reviews = request.POST.get('enable_reviews') == 'on'
+    review_settings.require_purchase = request.POST.get('require_purchase') == 'on'
+    review_settings.auto_approve_reviews = request.POST.get('auto_approve_reviews') == 'on'
+    review_settings.review_reminder = request.POST.get('review_reminder', '7')
+    review_settings.save()
+    
+    # FAQs - Delete existing and create new
+    product.faqs.all().delete()
+    
+    faq_questions = request.POST.getlist('faq_question[]')
+    faq_answers = request.POST.getlist('faq_answer[]')
+    
+    for idx, question in enumerate(faq_questions):
+        if question.strip() and idx < len(faq_answers) and faq_answers[idx].strip():
+            ProductFAQ.objects.create(
+                product=product,
+                question=question.strip(),
+                answer=faq_answers[idx].strip(),
+                display_order=idx,
+                is_active=True
+            )
+
+
+def _handle_shipping_tab(request, product):
+    """Handle shipping configuration"""
+    product.weight = Decimal(request.POST.get('weight', '0') or '0')
+    product.weight_unit = request.POST.get('weight_unit', 'kg')
+    product.save()
+
+
+def _handle_legal_tab(request, product):
+    """Handle legal/compliance data"""
+    product.warranty = request.POST.get('warranty', '')
+    product.country_of_origin = request.POST.get('country_of_origin', 'kenya')
+    product.save()
+
+
+def _handle_production_tab(request, product):
+    """Handle production settings"""
+    from clientapp.models import ProductPricing
+    
+    pricing, created = ProductPricing.objects.get_or_create(product=product)
+    
+    # Lead time
+    lead_time_value = int(request.POST.get('lead_time_value', '3') or '3')
+    lead_time_unit = request.POST.get('lead_time_unit', 'days')
+    pricing.lead_time = f"{lead_time_value} {lead_time_unit}"
+    
+    # Rush production
+    pricing.rush_available = request.POST.get('rush_available') == 'on'
+    if pricing.rush_available:
+        rush_value = int(request.POST.get('rush_lead_time_value', '1') or '1')
+        rush_unit = request.POST.get('rush_lead_time_unit', 'days')
+        pricing.rush_lead_time = f"{rush_value} {rush_unit}"
+        pricing.rush_upcharge = Decimal(request.POST.get('rush_upcharge', '50') or '50')
+    
+    pricing.minimum_quantity = int(request.POST.get('minimum_quantity', '1') or '1')
+    pricing.production_method = request.POST.get('production_method', '')
+    
+    pricing.save()
+
+# ==================== PRODUCT MANAGEMENT VIEWS ====================
+# Complete product creation and editing with all tabs
+from django.utils.text import slugify
+from django.urls import reverse
+import json
+from decimal import Decimal
+
+@login_required
+@group_required('Production Team')
+@transaction.atomic
+def product_create(request):
+    """Create new product - Multi-tab form"""
+    
+    if request.method == 'POST':
+        try:
+            action = request.POST.get('action', 'save_draft')
+            next_tab = request.POST.get('next_tab', '')
+            
+            # TAB 1: GENERAL INFO
+            general_form = ProductGeneralInfoForm(request.POST)
+            
+            if not general_form.is_valid():
+                messages.error(request, 'Please correct the errors in General Info tab')
+                for field, errors in general_form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+                context = _get_product_form_context(None, general_form=general_form)
+                return render(request, 'product_create_edit.html', context)
+            
+            product = general_form.save(commit=False)
+            product.created_by = request.user
+            product.updated_by = request.user
+            
+            # Set status based on action
+            if action == 'publish':
+                product.status = 'published'
+            else:
+                product.status = 'draft'
+            
+            product.save()
+            general_form.save_m2m()
+            
+            # Handle dynamic tags
+            tag_names = request.POST.getlist('new_tag[]')
+            for tag_name in tag_names:
+                tag_name = tag_name.strip()
+                if tag_name:
+                    tag_slug = slugify(tag_name)
+                    tag, created = ProductTag.objects.get_or_create(
+                        slug=tag_slug,
+                        defaults={'name': tag_name}
+                    )
+                    product.tags.add(tag)
+            
+            # Handle custom unit
+            if product.unit_of_measure == 'other':
+                custom_unit = request.POST.get('unit_of_measure_custom', '').strip()
+                if custom_unit:
+                    product.unit_of_measure_custom = custom_unit
+                    product.save()
+            
+            # Handle all tabs
+            _handle_pricing_tab(request, product)
+            _handle_images_tab(request, product)
+            _handle_seo_tab(request, product)
+            _handle_shipping_tab(request, product)
+            _handle_legal_tab(request, product)
+            _handle_production_tab(request, product)
+            
+            # Create history
+            ProductChangeHistory.objects.create(
+                product=product,
+                changed_by=request.user,
+                change_type='created',
+                notes=f'Product created with status: {product.status}'
+            )
+            
+            # Success message
+            if action == 'publish':
+                messages.success(request, f'✓ Product "{product.name}" ({product.internal_code}) published successfully!')
+            else:
+                messages.success(request, f'✓ Product "{product.name}" ({product.internal_code}) saved as draft!')
+            
+            # Redirect based on next_tab or action
+            if next_tab and action != 'publish':
+                return redirect(f"{reverse('product_edit', kwargs={'pk': product.pk})}?tab={next_tab}")
+            elif action == 'publish':
+                # After publish, go to catalog
+                return redirect('production_catalog')
+            else:
+                return redirect('product_edit', pk=product.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error creating product: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            context = _get_product_form_context(None)
+            return render(request, 'product_create_edit.html', context)
+    
+    # GET request
+    context = _get_product_form_context(None)
+    return render(request, 'product_create_edit.html', context)
+
+
+@login_required
+@group_required('Production Team')
+@transaction.atomic
+def product_edit(request, pk):
+    """Edit existing product - Multi-tab form"""
+    
+    product = get_object_or_404(Product, pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            action = request.POST.get('action', 'save_draft')
+            next_tab = request.POST.get('next_tab', '')
+            
+            # Update general info
+            general_form = ProductGeneralInfoForm(request.POST, instance=product)
+            
+            if not general_form.is_valid():
+                messages.error(request, 'Please correct the errors in General Info tab')
+                for field, errors in general_form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+                context = _get_product_form_context(product, general_form=general_form)
+                return render(request, 'product_create_edit.html', context)
+            
+            product = general_form.save(commit=False)
+            product.updated_by = request.user
+            
+            # Update status if publishing
+            if action == 'publish':
+                old_status = product.status
+                product.status = 'published'
+                if old_status != 'published':
+                    ProductChangeHistory.objects.create(
+                        product=product,
+                        changed_by=request.user,
+                        change_type='published',
+                        field_changed='status',
+                        old_value=old_status,
+                        new_value='published'
+                    )
+            
+            product.save()
+            general_form.save_m2m()
+            
+            # Handle dynamic tags
+            product.tags.clear()
+            tag_names = request.POST.getlist('new_tag[]')
+            for tag_name in tag_names:
+                tag_name = tag_name.strip()
+                if tag_name:
+                    tag, created = ProductTag.objects.get_or_create(
+                        name=tag_name,
+                        defaults={'slug': slugify(tag_name)}
+                    )
+                    product.tags.add(tag)
+            
+            # Handle custom unit
+            if product.unit_of_measure == 'other':
+                custom_unit = request.POST.get('unit_of_measure_custom', '').strip()
+                if custom_unit:
+                    product.unit_of_measure_custom = custom_unit
+                    product.save()
+            
+            # Update all tabs
+            _handle_pricing_tab(request, product)
+            _handle_images_tab(request, product)
+            _handle_seo_tab(request, product)
+            _handle_shipping_tab(request, product)
+            _handle_legal_tab(request, product)
+            _handle_production_tab(request, product)
+            
+            # Create change history
+            ProductChangeHistory.objects.create(
+                product=product,
+                changed_by=request.user,
+                change_type='updated',
+                notes=f'Product updated - Action: {action}'
+            )
+            
+            # Success messages
+            if action == 'publish':
+                messages.success(request, f'✓ Product "{product.name}" published successfully!')
+                return redirect('production_catalog')
+            else:
+                messages.success(request, f'✓ Product "{product.name}" updated successfully!')
+            
+            # Redirect based on next_tab
+            if next_tab:
+                return redirect(f"{reverse('product_edit', kwargs={'pk': product.pk})}?tab={next_tab}")
+            else:
+                return redirect('product_edit', pk=product.pk)
+            
+        except Exception as e:
+            messages.error(request, f'Error updating product: {str(e)}')
+            import traceback
+            traceback.print_exc()
+            return redirect('product_edit', pk=product.pk)
+    
+    # GET request
+    context = _get_product_form_context(product)
+    return render(request, 'product_create_edit.html', context)
+
+
+def _handle_pricing_tab(request, product):
+    """Handle pricing and variables tab - UPDATED"""
+    
+    # Get or create pricing instance
+    pricing, created = ProductPricing.objects.get_or_create(product=product)
+    
+    # Save basic pricing fields
+    pricing.pricing_model = request.POST.get('pricing_model', 'variable')
+    
+    # Base cost - ensure it's never NULL
+    base_cost = request.POST.get('base_cost', '').strip()
+    if not base_cost or base_cost == '':
+        base_cost = '15'
+    try:
+        pricing.base_cost = Decimal(base_cost)
+    except (ValueError, decimal.InvalidOperation):
+        pricing.base_cost = Decimal('15')
+    
+    pricing.price_display = request.POST.get('price_display', 'from')
+    
+    # Margins
+    try:
+        pricing.default_margin = Decimal(request.POST.get('default_margin', '30'))
+        pricing.minimum_margin = Decimal(request.POST.get('minimum_margin', '15'))
+    except:
+        pricing.default_margin = Decimal('30')
+        pricing.minimum_margin = Decimal('15')
+    
+    # Minimum order value
+    try:
+        pricing.minimum_order_value = Decimal(request.POST.get('minimum_order_value', '0'))
+    except:
+        pricing.minimum_order_value = Decimal('0')
+    
+    # Lead time
+    try:
+        pricing.lead_time_value = int(request.POST.get('lead_time_value', '3'))
+    except:
+        pricing.lead_time_value = 3
+    
+    pricing.lead_time_unit = request.POST.get('lead_time_unit', 'days')
+    pricing.production_method = request.POST.get('production_method', 'digital-offset')
+    
+    # Handle custom production method
+    if pricing.production_method == 'other':
+        custom_method = request.POST.get('production_method_custom', '').strip()
+        if custom_method:
+            pricing.production_method = custom_method
+    
+    # Primary vendor
+    primary_vendor_id = request.POST.get('primary_vendor')
+    if primary_vendor_id:
+        try:
+            pricing.primary_vendor = Vendor.objects.get(id=primary_vendor_id)
+        except Vendor.DoesNotExist:
+            pass
+    
+    # Minimum quantity
+    try:
+        pricing.minimum_quantity = int(request.POST.get('minimum_quantity', '1'))
+    except:
+        pricing.minimum_quantity = 1
+    
+    # Rush production
+    pricing.rush_available = request.POST.get('rush_available') == 'on'
+    
+    if pricing.rush_available:
+        try:
+            pricing.rush_lead_time_value = int(request.POST.get('rush_lead_time_value', '1'))
+        except:
+            pricing.rush_lead_time_value = 1
+        
+        pricing.rush_lead_time_unit = request.POST.get('rush_lead_time_unit', 'days')
+        
+        try:
+            pricing.rush_upcharge = Decimal(request.POST.get('rush_upcharge', '0'))
+        except:
+            pricing.rush_upcharge = Decimal('0')
+    
+    pricing.enable_conditional_logic = request.POST.get('enable_conditional_logic') == 'on'
+    pricing.enable_conflict_detection = request.POST.get('enable_conflict_detection') == 'on'
+    
+    pricing.save()
+    
+    # ===== NEW: Handle process linking and variable import =====
+    process_id = request.POST.get('process')
+    auto_import = request.POST.get('auto_import_variables') == 'on'
+    
+    if process_id:
+        try:
+            process = Process.objects.get(id=process_id)
+            # Link the process to product pricing
+            pricing.process = process
+            pricing.save()
+            messages.success(request, f'Linked to process: {process.process_name}')
+            
+            # Auto-import variables if requested
+            if auto_import:
+                imported_count = import_process_variables_to_product(process, product)
+                if imported_count > 0:
+                    messages.success(request, f'Imported {imported_count} variables from process')
+        except Process.DoesNotExist:
+            messages.warning(request, 'Selected process not found')
+    else:
+        # Clear process link if no process selected
+        pricing.process = None
+        pricing.save()
+    # ===== END NEW =====
+    
+    # Handle alternative vendors
+    alt_vendor_ids = request.POST.getlist('alternative_vendors')
+    pricing.alternative_vendors.clear()
+    for vendor_id in alt_vendor_ids:
+        try:
+            vendor = Vendor.objects.get(id=vendor_id)
+            pricing.alternative_vendors.add(vendor)
+        except Vendor.DoesNotExist:
+            pass
+    
+    # Handle Product Variables
+    variables_json = request.POST.get('product_variables_json')
+    if variables_json:
+        try:
+            product.variables.all().delete()
+            variables_data = json.loads(variables_json)
+            
+            for idx, var_data in enumerate(variables_data):
+                variable = ProductVariable.objects.create(
+                    product=product,
+                    name=var_data.get('name', f'Variable {idx+1}'),
+                    display_order=var_data.get('display_order', idx),
+                    variable_type=var_data.get('variable_type', 'required'),
+                    pricing_type=var_data.get('pricing_type', 'fixed'),
+                    is_active=True
+                )
+                
+                for opt_idx, opt_data in enumerate(var_data.get('options', [])):
+                    ProductVariableOption.objects.create(
+                        variable=variable,
+                        name=opt_data.get('value', f'Option {opt_idx+1}'),
+                        display_order=opt_idx,
+                        is_default=opt_data.get('is_default', False),
+                        price_modifier=Decimal(str(opt_data.get('price_adjustment', 0))),
+                        is_active=True
+                    )
+        except json.JSONDecodeError as e:
+            messages.warning(request, f"Error processing variables: {str(e)}")
+# ========== HELPER FUNCTIONS ==========
+
+def _get_product_form_context(product, general_form=None):
+    """Get context for product form"""
+    
+    # Existing variables JSON
+    existing_variables = []
+    if product:
+        for var in product.variables.all():
+            options = []
+            for opt in var.options.all():
+                options.append({
+                    'value': opt.name,
+                    'price_adjustment': float(opt.price_modifier),
+                    'is_default': opt.is_default
+                })
+            existing_variables.append({
+                'name': var.name,
+                'display_order': var.display_order,
+                'variable_type': var.variable_type,
+                'pricing_type': var.pricing_type,
+                'options': options
+            })
+    
+    context = {
+        'current_view': 'production_catalog',
+        'general_form': general_form or ProductGeneralInfoForm(instance=product),
+        'pricing_form': ProductPricingForm(instance=product.pricing if product and hasattr(product, 'pricing') else None),
+        'seo_form': ProductSEOForm(instance=product.seo if product and hasattr(product, 'seo') else None),
+        'shipping_form': ProductShippingForm(instance=product.shipping if product and hasattr(product, 'shipping') else None),
+        'legal_form': ProductLegalForm(instance=product.legal if product and hasattr(product, 'legal') else None),
+        'production_form': ProductProductionForm(instance=product.production if product and hasattr(product, 'production') else None),
+        'product': product,
+        'is_edit': product is not None,
+        'existing_variables_json': json.dumps(existing_variables),
+        'primary_image': product.images.filter(is_primary=True).first() if product else None,
+        'existing_images': product.images.filter(is_primary=False).order_by('display_order') if product else [],
+        'categories': ProductCategory.objects.all().order_by('name'),
+        'subcategories': ProductSubCategory.objects.all().order_by('name'),
+        'families': ProductFamily.objects.all().order_by('name'),
+        'vendors': Vendor.objects.filter(active=True).order_by('name'),
+        'all_tags': ProductTag.objects.all().order_by('name'),
+        # NEW: Add processes for process selection dropdown
+        'processes': Process.objects.filter(status='active').order_by('process_name'),
+    }
+    
+    return context
+
+def _handle_pricing_tab(request, product):
+    """Handle pricing and variables tab"""
+    
+    # Get or create pricing instance
+    pricing, created = ProductPricing.objects.get_or_create(product=product)
+    
+    # Save basic pricing fields
+    pricing.pricing_model = request.POST.get('pricing_model', 'variable')
+    
+    # Base cost - ensure it's never NULL
+    base_cost = request.POST.get('base_cost', '').strip()
+    if not base_cost or base_cost == '':
+        base_cost = '15'  # Default value matching the form
+    try:
+        pricing.base_cost = Decimal(base_cost)
+    except (ValueError, decimal.InvalidOperation):
+        pricing.base_cost = Decimal('15')
+    
+    # Price display format and amount
+    pricing.price_display = request.POST.get('price_display', 'from')
+    
+    # Margins
+    try:
+        pricing.default_margin = Decimal(request.POST.get('default_margin', '30'))
+        pricing.minimum_margin = Decimal(request.POST.get('minimum_margin', '15'))
+    except:
+        pricing.default_margin = Decimal('30')
+        pricing.minimum_margin = Decimal('15')
+    
+    # Minimum order value
+    try:
+        pricing.minimum_order_value = Decimal(request.POST.get('minimum_order_value', '0'))
+    except:
+        pricing.minimum_order_value = Decimal('0')
+    
+    # Production & Vendor Information
+    try:
+        pricing.lead_time_value = int(request.POST.get('lead_time_value', '3'))
+    except:
+        pricing.lead_time_value = 3
+    
+    pricing.lead_time_unit = request.POST.get('lead_time_unit', 'days')
+    pricing.production_method = request.POST.get('production_method', 'digital-offset')
+    
+    # Handle custom production method
+    if pricing.production_method == 'other':
+        custom_method = request.POST.get('production_method_custom', '').strip()
+        if custom_method:
+            pricing.production_method = custom_method
+    
+    # Primary vendor
+    primary_vendor_id = request.POST.get('primary_vendor')
+    if primary_vendor_id:
+        try:
+            pricing.primary_vendor = Vendor.objects.get(id=primary_vendor_id)
+        except Vendor.DoesNotExist:
+            pass
+    
+    # Minimum quantity
+    try:
+        pricing.minimum_quantity = int(request.POST.get('minimum_quantity', '1'))
+    except:
+        pricing.minimum_quantity = 1
+    
+    # Rush production
+    pricing.rush_available = request.POST.get('rush_available') == 'on'
+    
+    if pricing.rush_available:
+        try:
+            pricing.rush_lead_time_value = int(request.POST.get('rush_lead_time_value', '1'))
+        except:
+            pricing.rush_lead_time_value = 1
+        
+        pricing.rush_lead_time_unit = request.POST.get('rush_lead_time_unit', 'days')
+        
+        try:
+            pricing.rush_upcharge = Decimal(request.POST.get('rush_upcharge', '0'))
+        except:
+            pricing.rush_upcharge = Decimal('0')
+    
+    # Conditional logic and conflict detection
+    pricing.enable_conditional_logic = request.POST.get('enable_conditional_logic') == 'on'
+    pricing.enable_conflict_detection = request.POST.get('enable_conflict_detection') == 'on'
+    
+    pricing.save()
+    
+    # Handle alternative vendors (many-to-many)
+    alt_vendor_ids = request.POST.getlist('alternative_vendors')
+    pricing.alternative_vendors.clear()
+    for vendor_id in alt_vendor_ids:
+        try:
+            vendor = Vendor.objects.get(id=vendor_id)
+            pricing.alternative_vendors.add(vendor)
+        except Vendor.DoesNotExist:
+            pass
+    
+    # Check minimum margin trigger - send notification to admin
+    if pricing.default_margin < pricing.minimum_margin:
+        from django.contrib.auth.models import User
+        admins = User.objects.filter(is_superuser=True)
+        for admin in admins:
+            Notification.objects.create(
+                recipient=admin,
+                title=f'Margin Approval Required - {product.name}',
+                message=f'Product margin ({pricing.default_margin}%) is below minimum ({pricing.minimum_margin}%). Approval required.',
+                link=reverse('product_edit', kwargs={'pk': product.pk})
+            )
+    
+    # Handle Product Variables
+    variables_json = request.POST.get('product_variables_json')
+    if variables_json:
+        try:
+            # Delete existing variables
+            product.variables.all().delete()
+            
+            # Create new variables
+            variables_data = json.loads(variables_json)
+            for idx, var_data in enumerate(variables_data):
+                variable = ProductVariable.objects.create(
+                    product=product,
+                    name=var_data.get('name', f'Variable {idx+1}'),
+                    display_order=var_data.get('display_order', idx),
+                    variable_type=var_data.get('variable_type', 'required'),
+                    pricing_type=var_data.get('pricing_type', 'fixed'),
+                    is_active=True
+                )
+                
+                for opt_idx, opt_data in enumerate(var_data.get('options', [])):
+                    ProductVariableOption.objects.create(
+                        variable=variable,
+                        name=opt_data.get('value', f'Option {opt_idx+1}'),
+                        display_order=opt_idx,
+                        is_default=opt_data.get('is_default', False),
+                        price_modifier=Decimal(str(opt_data.get('price_adjustment', 0))),
+                        is_active=True
+                    )
+        except json.JSONDecodeError as e:
+            messages.warning(request, f"Error processing variables: {str(e)}")
+
+# Add this to your views.py - Update the _handle_images_tab function
+
+def _handle_images_tab(request, product):
+    """Handle images and media tab - COMPLETE WORKING VERSION"""
+    
+    # ===== PRIMARY IMAGE =====
+    primary_image = request.FILES.get('primary_image')
+    if primary_image:
+        # Validate file
+        if not primary_image.content_type.startswith('image/'):
+            messages.warning(request, 'Primary image must be an image file')
+        elif primary_image.size > 2 * 1024 * 1024:  # 2MB limit
+            messages.warning(request, 'Primary image must be less than 2MB')
+        else:
+            # Remove old primary
+            ProductImage.objects.filter(product=product, is_primary=True).delete()
+            # Create new primary
+            ProductImage.objects.create(
+                product=product,
+                image=primary_image,
+                alt_text=request.POST.get('primary_image_alt', product.name),
+                is_primary=True,
+                display_order=0,
+                image_type='product-photo'
+            )
+    
+    # ===== GALLERY IMAGES =====
+    gallery_images = request.FILES.getlist('gallery_images')
+    if gallery_images:
+        # Get max display order
+        max_order = product.images.aggregate(
+            models.Max('display_order')
+        )['display_order__max'] or 0
+        
+        for idx, img_file in enumerate(gallery_images, start=1):
+            # Validate file
+            if not img_file.content_type.startswith('image/'):
+                continue
+            if img_file.size > 2 * 1024 * 1024:
+                messages.warning(request, f'{img_file.name} is too large (max 2MB)')
+                continue
+            
+            ProductImage.objects.create(
+                product=product,
+                image=img_file,
+                alt_text=f"{product.name} - Image {max_order + idx}",
+                is_primary=False,
+                display_order=max_order + idx,
+                image_type='product-photo'
+            )
+    
+    # ===== HANDLE IMAGE DELETIONS =====
+    delete_image_ids = request.POST.getlist('delete_images[]')
+    if delete_image_ids:
+        ProductImage.objects.filter(
+            product=product,
+            id__in=delete_image_ids,
+            is_primary=False  # Don't allow deleting primary via this method
+        ).delete()
+    
+    # ===== PRODUCT VIDEOS =====
+    # Update existing videos
+    for video in product.videos.all():
+        video_url = request.POST.get(f'video_url_{video.pk}', '').strip()
+        if video_url:
+            video.video_url = video_url
+            video.video_type = request.POST.get(f'video_type_{video.pk}', 'demo')
+            
+            # Handle thumbnail update
+            thumbnail = request.FILES.get(f'video_thumbnail_{video.pk}')
+            if thumbnail:
+                video.thumbnail = thumbnail
+            
+            video.save()
+    
+    # Add new videos
+    new_video_urls = request.POST.getlist('new_video_url[]')
+    new_video_types = request.POST.getlist('new_video_type[]')
+    new_video_thumbnails = request.FILES.getlist('new_video_thumbnail[]')
+    
+    for idx, url in enumerate(new_video_urls):
+        if url.strip():
+            video_data = {
+                'product': product,
+                'video_url': url.strip(),
+                'video_type': new_video_types[idx] if idx < len(new_video_types) else 'demo',
+                'display_order': product.videos.count() + idx
+            }
+            
+            # Add thumbnail if provided
+            if idx < len(new_video_thumbnails):
+                video_data['thumbnail'] = new_video_thumbnails[idx]
+            
+            ProductVideo.objects.create(**video_data)
+    
+    # ===== DOWNLOADABLE FILES =====
+    # Update existing files
+    for file_obj in product.downloadable_files.all():
+        file_name = request.POST.get(f'file_name_{file_obj.pk}', '').strip()
+        if file_name:
+            file_obj.file_name = file_name
+            file_obj.file_type = request.POST.get(f'file_type_{file_obj.pk}', file_obj.file_type)
+            file_obj.description = request.POST.get(f'file_desc_{file_obj.pk}', '')
+            file_obj.save()
+    
+    # Add new files
+    new_files = request.FILES.getlist('new_downloadable_files')
+    new_file_names = request.POST.getlist('new_file_name[]')
+    new_file_types = request.POST.getlist('new_file_type[]')
+    new_file_descriptions = request.POST.getlist('new_file_description[]')
+    
+    for idx, file in enumerate(new_files):
+        # Validate file size (max 10MB)
+        if file.size > 10 * 1024 * 1024:
+            messages.warning(request, f'{file.name} is too large (max 10MB)')
+            continue
+        
+        # Get file extension
+        file_ext = file.name.split('.')[-1].lower()
+        
+        # Map extension to file type
+        file_type_map = {
+            'ai': 'illustrator',
+            'pdf': 'pdf',
+            'psd': 'psd',
+            'indd': 'indd',
+            'zip': 'zip'
+        }
+        file_type = new_file_types[idx] if idx < len(new_file_types) else file_type_map.get(file_ext, 'pdf')
+        file_name = new_file_names[idx] if idx < len(new_file_names) and new_file_names[idx].strip() else file.name
+        file_desc = new_file_descriptions[idx] if idx < len(new_file_descriptions) else ''
+        
+        ProductDownloadableFile.objects.create(
+            product=product,
+            file_name=file_name,
+            file=file,
+            file_type=file_type,
+            description=file_desc,
+            file_size=file.size,
+            display_order=product.downloadable_files.count() + idx
+        )
+
+@login_required
+@group_required('Production Team')
+def product_update_image_metadata(request, image_pk):
+    """Update image metadata via AJAX"""
+    if request.method == 'POST':
+        try:
+            image = get_object_or_404(ProductImage, pk=image_pk)
+            
+            image.alt_text = request.POST.get('alt_text', image.alt_text)
+            image.caption = request.POST.get('caption', '')
+            image.image_type = request.POST.get('image_type', image.image_type)
+            
+            # Handle variable associations if provided
+            var_id = request.POST.get('associated_variable')
+            opt_id = request.POST.get('associated_option')
+            
+            if var_id:
+                try:
+                    image.associated_variable_id = int(var_id)
+                except (ValueError, TypeError):
+                    pass
+            
+            if opt_id:
+                try:
+                    image.associated_option_id = int(opt_id)
+                except (ValueError, TypeError):
+                    pass
+            
+            image.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Image updated successfully'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'})
+
+def _handle_seo_tab(request, product):
+    """Handle SEO and e-commerce tab - COMPLETE VERSION"""
+    
+    # Get or create SEO instance
+    seo, created = ProductSEO.objects.get_or_create(product=product)
+    
+    # Basic SEO fields
+    seo.meta_title = request.POST.get('meta_title', '')[:60]
+    seo.meta_description = request.POST.get('meta_description', '')[:160]
+    seo.focus_keyword = request.POST.get('focus_keyword', '')
+    seo.additional_keywords = request.POST.get('additional_keywords', '')
+    
+    # Slug handling
+    seo.auto_generate_slug = request.POST.get('auto_generate_slug') == 'on'
+    if seo.auto_generate_slug or not seo.slug:
+        seo.slug = slugify(product.name)
+    else:
+        seo.slug = slugify(request.POST.get('slug', product.name))
+    
+    # Display settings
+    seo.show_price = request.POST.get('show_price') == 'on'
+    seo.price_display_format = request.POST.get('price_display_format', 'from')
+    seo.show_stock_status = request.POST.get('show_stock_status', 'in-stock-only')
+    
+    seo.save()
+    
+    # Handle related products (many-to-many)
+    related_product_ids = request.POST.getlist('related_products')
+    seo.related_products.clear()
+    for prod_id in related_product_ids:
+        try:
+            related_prod = Product.objects.get(id=prod_id)
+            seo.related_products.add(related_prod)
+        except Product.DoesNotExist:
+            pass
+    
+    # Handle upsell products
+    upsell_product_ids = request.POST.getlist('upsell_products')
+    seo.upsell_products.clear()
+    for prod_id in upsell_product_ids:
+        try:
+            upsell_prod = Product.objects.get(id=prod_id)
+            seo.upsell_products.add(upsell_prod)
+        except Product.DoesNotExist:
+            pass
+    
+    # Handle frequently bought together
+    bundle_product_ids = request.POST.getlist('frequently_bought_together')
+    seo.frequently_bought_together.clear()
+    for prod_id in bundle_product_ids:
+        try:
+            bundle_prod = Product.objects.get(id=prod_id)
+            seo.frequently_bought_together.add(bundle_prod)
+        except Product.DoesNotExist:
+            pass
+    
+    # Review Settings
+    review_settings, created = ProductReviewSettings.objects.get_or_create(product=product)
+    review_settings.enable_reviews = request.POST.get('enable_reviews') == 'on'
+    review_settings.require_purchase = request.POST.get('require_purchase') == 'on'
+    review_settings.auto_approve_reviews = request.POST.get('auto_approve_reviews') == 'on'
+    review_settings.review_reminder = request.POST.get('review_reminder', '7')
+    review_settings.save()
+    
+    # FAQs - Delete existing and create new
+    product.faqs.all().delete()
+    
+    faq_questions = request.POST.getlist('faq_question[]')
+    faq_answers = request.POST.getlist('faq_answer[]')
+    
+    for idx, question in enumerate(faq_questions):
+        if question.strip() and idx < len(faq_answers) and faq_answers[idx].strip():
+            ProductFAQ.objects.create(
+                product=product,
+                question=question.strip(),
+                answer=faq_answers[idx].strip(),
+                display_order=idx,
+                is_active=True
+            )
+
+
+def _handle_production_tab(request, product):
+    """Handle production tab - COMPLETE VERSION"""
+    
+    # Get or create production instance
+    production, created = ProductProduction.objects.get_or_create(product=product)
+    
+    # Production specifications
+    production.production_method_detail = request.POST.get('production_method_detail', '')
+    production.machine_equipment = request.POST.get('machine_equipment', '')
+    
+    # Additional production fields (add these to your ProductProduction model if not present)
+    # For now, we'll store in production_notes as JSON
+    production_data = {
+        'print_layout': request.POST.get('print_layout', ''),
+        'color_profile': request.POST.get('color_profile', ''),
+        'finishing': {
+            'lamination': request.POST.get('finishing_lamination') == 'on',
+            'packaging': request.POST.get('finishing_packaging') == 'on',
+            'die_cutting': request.POST.get('finishing_die_cutting') == 'on',
+            'embossing': request.POST.get('finishing_embossing') == 'on',
+            'registration': request.POST.get('finishing_registration') == 'on',
+            'cutting_accuracy': request.POST.get('finishing_cutting_accuracy') == 'on',
+        },
+        'quality_control': {
+            'color_match': request.POST.get('qc_color_match') == 'on',
+            'finish_quality': request.POST.get('qc_finish_quality') == 'on',
+            'registration': request.POST.get('qc_registration') == 'on',
+            'cutting': request.POST.get('qc_cutting') == 'on',
+        },
+        'bom': {
+            'material1': {
+                'type': request.POST.get('bom_mat1_type', ''),
+                'sheet_size': request.POST.get('bom_mat1_sheet_size', ''),
+                'quantity': request.POST.get('bom_mat1_quantity', ''),
+                'supplier': request.POST.get('bom_mat1_supplier', ''),
+                'cost_per': request.POST.get('bom_mat1_cost_per', '0'),
+            },
+            'material2': {
+                'type': request.POST.get('bom_mat2_type', ''),
+                'width': request.POST.get('bom_mat2_width', ''),
+                'length': request.POST.get('bom_mat2_length', ''),
+                'supplier': request.POST.get('bom_mat2_supplier', ''),
+                'cost_per': request.POST.get('bom_mat2_cost_per', '0'),
+            },
+            'material3': {
+                'type': request.POST.get('bom_mat3_type', ''),
+                'coverage': request.POST.get('bom_mat3_coverage', ''),
+                'estimated': request.POST.get('bom_mat3_estimated', ''),
+            }
+        },
+        'special_instructions': request.POST.get('production_special_instructions', ''),
+    }
+    
+    # Store as JSON in production_notes
+    import json
+    production.production_notes = json.dumps(production_data, indent=2)
+    
+    # Pre-Production Checklist
+    production.checklist_artwork = request.POST.get('checklist_artwork') == 'on'
+    production.checklist_preflight = request.POST.get('checklist_preflight') == 'on'
+    production.checklist_material = request.POST.get('checklist_material') == 'on'
+    production.checklist_proofs = request.POST.get('checklist_proofs') == 'on'
+    
+    production.save()
+@login_required
+@group_required('Production Team')
+def product_update_image_metadata(request, image_pk):
+    """Update image metadata via AJAX"""
+    if request.method == 'POST':
+        try:
+            image = get_object_or_404(ProductImage, pk=image_pk)
+            
+            image.alt_text = request.POST.get('alt_text', image.alt_text)
+            image.caption = request.POST.get('caption', '')
+            image.image_type = request.POST.get('image_type', image.image_type)
+            
+            # Handle variable associations if provided
+            var_id = request.POST.get('associated_variable')
+            opt_id = request.POST.get('associated_option')
+            
+            if var_id:
+                image.associated_variable_id = var_id
+            if opt_id:
+                image.associated_option_id = opt_id
+            
+            image.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Image updated successfully'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request'})
+
+def _handle_seo_tab(request, product):
+    """Handle SEO and e-commerce tab"""
+    
+    seo_form = ProductSEOForm(
+        request.POST,
+        instance=product.seo if hasattr(product, 'seo') else None
+    )
+    
+    if seo_form.is_valid():
+        seo = seo_form.save(commit=False)
+        seo.product = product
+        
+        # Auto-generate slug if enabled
+        if seo.auto_generate_slug or not seo.slug:
+            seo.slug = slugify(product.name)
+        
+        seo.save()
+        seo_form.save_m2m()
+    
+    # Review Settings
+    review_settings, created = ProductReviewSettings.objects.get_or_create(product=product)
+    review_settings.enable_reviews = request.POST.get('enable_reviews') == 'on'
+    review_settings.require_purchase = request.POST.get('require_purchase') == 'on'
+    review_settings.auto_approve_reviews = request.POST.get('auto_approve_reviews') == 'on'
+    review_settings.review_reminder = request.POST.get('review_reminder', '7')
+    review_settings.save()
+    
+    # FAQs - Delete existing and create new
+    product.faqs.all().delete()
+    
+    faq_questions = request.POST.getlist('faq_question[]')
+    faq_answers = request.POST.getlist('faq_answer[]')
+    
+    for idx, question in enumerate(faq_questions):
+        if question.strip() and idx < len(faq_answers) and faq_answers[idx].strip():
+            ProductFAQ.objects.create(
+                product=product,
+                question=question.strip(),
+                answer=faq_answers[idx].strip(),
+                display_order=idx,
+                is_active=True
+            )
+
+
+def _handle_shipping_tab(request, product):
+    """Handle shipping tab"""
+    
+    shipping_form = ProductShippingForm(
+        request.POST,
+        instance=product.shipping if hasattr(product, 'shipping') else None
+    )
+    
+    if shipping_form.is_valid():
+        shipping = shipping_form.save(commit=False)
+        shipping.product = product
+        shipping.save()
+
+
+def _handle_legal_tab(request, product):
+    """Handle legal tab"""
+    
+    legal_form = ProductLegalForm(
+        request.POST,
+        instance=product.legal if hasattr(product, 'legal') else None
+    )
+    
+    if legal_form.is_valid():
+        legal = legal_form.save(commit=False)
+        legal.product = product
+        legal.save()
+
+
+def _handle_production_tab(request, product):
+    """Handle production tab"""
+    
+    production_form = ProductProductionForm(
+        request.POST,
+        instance=product.production if hasattr(product, 'production') else None
+    )
+    
+    if production_form.is_valid():
+        production = production_form.save(commit=False)
+        production.product = product
+        production.save()
+
+
+# ========== AJAX ENDPOINTS ==========
+
+@login_required
+@group_required('Production Team')
+def product_delete_image(request, product_pk, image_pk):
+    """Delete product image via AJAX"""
+    
+    if request.method == 'POST':
+        try:
+            product = get_object_or_404(Product, pk=product_pk)
+            image = get_object_or_404(ProductImage, pk=image_pk, product=product)
+            
+            if image.is_primary:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Cannot delete primary image. Upload a new primary image first.'
+                })
+            
+            image.delete()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Image deleted successfully'
+            })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+
+@login_required
+@group_required('Production Team')
+def calculate_pricing(request):
+    """Calculate pricing breakdown via AJAX"""
+    
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            quantity = int(data.get('quantity', 1))
+            base_price = Decimal(str(data.get('base_price', 0)))
+            margin = Decimal(str(data.get('margin', 30)))
+            
+            # Get selected variable options
+            variable_costs = Decimal('0')
+            for var_option in data.get('variable_options', []):
+                variable_costs += Decimal(str(var_option.get('price_adjustment', 0)))
+            
+            # Calculate
+            unit_cost = base_price + variable_costs
+            subtotal_evp = unit_cost * quantity
+            margin_amount = subtotal_evp * (margin / 100)
+            customer_pays = subtotal_evp + margin_amount
+            per_unit = customer_pays / quantity if quantity > 0 else Decimal('0')
+            
+            return JsonResponse({
+                'success': True,
+                'breakdown': {
+                    'base_cost': float(base_price * quantity),
+                    'variable_costs': float(variable_costs * quantity),
+                    'subtotal_evp': float(subtotal_evp),
+                    'margin_percentage': float(margin),
+                    'margin_amount': float(margin_amount),
+                    'customer_pays': float(customer_pays),
+                    'per_unit': float(per_unit)
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+# ========== ADMIN DASHBOARD AJAX ENDPOINTS ==========
+
+@login_required
+def dismiss_alert(request, alert_id):
+    """Dismiss a system alert"""
+    if request.method == 'POST':
+        try:
+            from .models import SystemAlert
+            alert = get_object_or_404(SystemAlert, id=alert_id)
+            alert.dismiss(request.user)
+            return JsonResponse({'success': True})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+    return JsonResponse({'success': False, 'error': 'Invalid method'})
+
+
+@login_required
+def export_dashboard_report(request, report_type):
+    """Export dashboard reports to CSV"""
+    import csv
+    from django.http import HttpResponse
+    from datetime import datetime
+    
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="report_{report_type}_{datetime.now().strftime("%Y%m%d")}.csv"'
+    
+    writer = csv.writer(response)
+    
+    if report_type == 'products':
+        from .admin_dashboard import get_top_selling_products
+        products = get_top_selling_products(limit=50)
+        
+        writer.writerow(['Rank', 'Product Name', 'Total Revenue', 'Total Quantity', 'Order Count'])
+        for idx, product in enumerate(products, 1):
+            writer.writerow([
+                idx,
+                product['product_name'],
+                product['total_revenue'],
+                product['total_quantity'],
+                product['order_count']
+            ])
+    
+    elif report_type == 'margins':
+        from .admin_dashboard import get_profit_margin_data
+        margins = get_profit_margin_data()
+        
+        writer.writerow(['Metric', 'Value'])
+        writer.writerow(['Total Revenue', margins.get('total_revenue', 0)])
+        writer.writerow(['Total Cost', margins.get('total_cost', 0)])
+        writer.writerow(['Overall Margin %', margins.get('overall_margin', 0)])
+    
+    return response
+
+
+# Views for the 4 HTML templates
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+
+
+
+@login_required
+def quote_detail2(request, quote_id):
+    """Display detailed quote information with REAL data"""
+    
+    # Get all line items for this quote
+    quote_items = Quote.objects.filter(quote_id=quote_id).select_related('client', 'lead', 'created_by')
+    
+    if not quote_items.exists():
+        messages.error(request, f'Quote {quote_id} not found')
+        return redirect('my_quotes')
+    
+    first_quote = quote_items.first()
+    
+    # Calculate totals
+    subtotal = sum(item.unit_price * item.quantity for item in quote_items)
+    vat_amount = subtotal * Decimal('0.16') if first_quote.include_vat else Decimal('0')
+    total_amount = subtotal + vat_amount
+    
+    # Determine client
+    if first_quote.client:
+        client = first_quote.client
+        client_name = client.name
+        client_email = client.email
+        client_phone = client.phone
+    elif first_quote.lead:
+        client_name = first_quote.lead.name
+        client_email = first_quote.lead.email
+        client_phone = first_quote.lead.phone
+        client = None
+    else:
+        client_name = "Unknown"
+        client_email = "-"
+        client_phone = "-"
+        client = None
+    
+    # Calculate progress
+    completed_items = sum(1 for item in quote_items if item.production_status == 'completed')
+    in_progress_items = sum(1 for item in quote_items if item.production_status == 'in_progress')
+    pending_items = sum(1 for item in quote_items if item.production_status == 'pending')
+    
+    total_items = quote_items.count()
+    progress_percentage = int((completed_items / total_items) * 100) if total_items > 0 else 0
+    
+    # Days remaining
+    days_remaining = (first_quote.valid_until - timezone.now().date()).days
+    
+    # Timeline events
+    timeline_events = [
+        {
+            'title': 'Quote Created',
+            'date': first_quote.created_at,
+            'completed': True
+        },
+    ]
+    
+    if first_quote.production_status in ['costed', 'sent_to_client', 'in_production', 'completed']:
+        timeline_events.append({
+            'title': 'Costing Completed',
+            'date': first_quote.updated_at,
+            'completed': True
+        })
+    
+    if first_quote.status == 'Approved':
+        timeline_events.append({
+            'title': 'Client Approved',
+            'date': first_quote.approved_at or first_quote.updated_at,
+            'completed': True
+        })
+    
+    context = {
+        'current_view': 'quote_detail',
+        'quote_id': quote_id,
+        'first_quote': first_quote,
+        'quote_items': quote_items,
+        'client_name': client_name,
+        'client_email': client_email,
+        'client_phone': client_phone,
+        'client': client,
+        'account_manager': first_quote.created_by,
+        'subtotal': subtotal,
+        'vat_amount': vat_amount,
+        'total_amount': total_amount,
+        'progress_percentage': progress_percentage,
+        'completed_items': completed_items,
+        'in_progress_items': in_progress_items,
+        'pending_items': pending_items,
+        'days_remaining': days_remaining,
+        'timeline_events': timeline_events,
+    }
+    
+    return render(request, 'quote_detail2.html', context)
+
+
+from django.views.decorators.http import require_POST
+
+@login_required
+@group_required('Production Team')
+def quote_action(request, quote_id):
+    """Handle PT actions on quotes: Approve or Reject"""
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        quotes = Quote.objects.filter(quote_id=quote_id)
+        
+        if not quotes.exists():
+            messages.error(request, 'Quote not found')
+            return redirect('my_quotes')
+        
+        first_quote = quotes.first()
+        
+        if action == 'approve':
+            # Approve quote for sending to client
+            quotes.update(
+                production_status='approved',
+                status='Ready to Send',
+                costed_by=request.user
+                # Removed costed_at - field doesn't exist
+            )
+            
+            # Notify the AM who created it
+            Notification.objects.create(
+                recipient=first_quote.created_by,
+                notification_type='quote_pt_approved',
+                title=f'✅ Quote {quote_id} Approved by PT',
+                message=f'You can now send this quote to the client!',
+                link=f'/create/quote?quote_id={quote_id}',
+                related_quote_id=quote_id,
+                action_url=f'/create/quote?quote_id={quote_id}',
+                action_label='Send to Client'
+            )
+            
+            messages.success(request, f'✅ Quote {quote_id} approved!')
+            
+        elif action == 'reject':
+            reason = request.POST.get('reason', 'No reason provided')
+            
+            # Reject quote
+            quotes.update(
+                production_status='rejected',
+                status='Rejected',
+                production_notes=reason
+            )
+            
+            # Notify the AM
+            Notification.objects.create(
+                recipient=first_quote.created_by,
+                notification_type='quote_pt_rejected',
+                title=f'❌ Quote {quote_id} Rejected by PT',
+                message=f'Reason: {reason}',
+                link=f'/create/quote?quote_id={quote_id}',
+                related_quote_id=quote_id
+            )
+            
+            messages.warning(request, f'Quote {quote_id} rejected')
+        
+        return redirect('my_quotes')
+    
+    # GET request - shouldn't happen
+    messages.error(request, 'Invalid request')
+    return redirect('my_quotes')
+
+# ========== MY JOBS - UPDATED ==========
+@login_required
+@group_required('Production Team')
+def my_jobs(request):
+    """Show jobs for production team"""
+    
+    # Get all jobs
+    jobs = Job.objects.select_related('client').order_by('-created_at')
+    
+    # Apply filters
+    status_filter = request.GET.get('status', '')
+    if status_filter:
+        jobs = jobs.filter(status=status_filter)
+    
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        jobs = jobs.filter(
+            Q(job_number__icontains=search_query) |
+            Q(client__name__icontains=search_query) |
+            Q(product__icontains=search_query)
+        )
+    
+    # Prepare jobs data
+    today = timezone.now().date()
+    jobs_list = []
+    
+    for job in jobs:
+        # Determine status class
+        days_until_deadline = (job.expected_completion - today).days
+        
+        if job.status == 'completed':
+            status_class = 'completed'
+        elif days_until_deadline < 0:
+            status_class = 'urgent'
+        elif days_until_deadline <= 2:
+            status_class = 'urgent'
+        elif job.status == 'in_progress':
+            status_class = 'in-progress'
+        else:
+            status_class = 'on-track'
+        
+        # Calculate progress
+        if job.status == 'completed':
+            progress = 100
+        elif job.status == 'in_progress':
+            progress = 60
+        elif job.status == 'pending':
+            progress = 20
+        else:
+            progress = 0
+        
+        jobs_list.append({
+            'id': job.id,
+            'job_number': job.job_number,
+            'client_name': job.client.name if job.client else 'N/A',
+            'product_name': job.product,
+            'quantity': job.quantity,
+            'status_class': status_class,
+            'status_label': job.get_status_display(),
+            'deadline': job.expected_completion,
+            'deadline_time': job.expected_completion.strftime("%I:%M %p") if hasattr(job.expected_completion, 'strftime') else "12:00 PM",
+            'days_remaining': f"{days_until_deadline} days" if days_until_deadline > 0 else f"Overdue by {abs(days_until_deadline)} days",
+            'is_overdue': days_until_deadline < 0,
+            'progress': progress,
+        })
+    
+    context = {
+        'current_view': 'my_jobs',
+        'jobs': jobs_list,
+        'status_filter': status_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'my_jobs.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def my_quotes(request):
+    """Show quotes for Production Team approval/costing"""
+    from django.db.models import Q, Count
+    
+    # Get all quotes (PT sees all quotes from all AMs)
+    quotes = Quote.objects.select_related('client', 'lead', 'created_by').order_by('-created_at')
+    
+    # Apply filters
+    status_filter = request.GET.get('status', 'all')
+    if status_filter == 'urgent':
+        quotes = quotes.filter(production_status='pending', status='Draft')
+    elif status_filter == 'active':
+        quotes = quotes.filter(production_status__in=['in_progress', 'costed'])
+    elif status_filter == 'completed':
+        quotes = quotes.filter(production_status='completed')
+    
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        quotes = quotes.filter(
+            Q(quote_id__icontains=search_query) |
+            Q(client__name__icontains=search_query) |
+            Q(lead__name__icontains=search_query) |
+            Q(product_name__icontains=search_query)
+        )
+    
+    # Calculate snapshot counts
+    active_quotes_count = Quote.objects.filter(
+        production_status__in=['pending', 'in_progress']
+    ).values('quote_id').distinct().count()
+    
+    in_costing_count = Quote.objects.filter(
+        production_status='in_progress'
+    ).values('quote_id').distinct().count()
+    
+    awaiting_delivery_count = Quote.objects.filter(
+        status='Approved',
+        production_status='completed'
+    ).values('quote_id').distinct().count()
+    
+    completed_today_count = Quote.objects.filter(
+        production_status='completed',
+        updated_at__date=timezone.now().date()
+    ).values('quote_id').distinct().count()
+    
+    # Group quotes by quote_id and prepare for template
+    quotes_dict = {}
+    for quote in quotes:
+        if quote.quote_id not in quotes_dict:
+            # Determine client name
+            client_name = '-'
+            if quote.client:
+                client_name = quote.client.name
+            elif quote.lead:
+                client_name = quote.lead.name
+            
+            # Calculate days remaining
+            days_remaining = (quote.valid_until - timezone.now().date()).days
+            
+            quotes_dict[quote.quote_id] = {
+                'id': quote.id,
+                'quote_id': quote.quote_id,
+                'client_name': client_name,
+                'account_manager': quote.created_by.get_full_name() if quote.created_by else '-',
+                'total_amount': quote.total_amount,
+                'status': quote.production_status,
+                'status_display': quote.get_production_status_display(),
+                'created_date': quote.created_at,
+                'days_remaining': days_remaining,
+                'line_items': [],
+            }
+        
+        quotes_dict[quote.quote_id]['line_items'].append({
+            'product_name': quote.product_name,
+            'quantity': quote.quantity,
+            'status': quote.production_status,
+        })
+    
+    quotes_list = list(quotes_dict.values())
+    
+    context = {
+        'current_view': 'my_quotes',
+        'quotes': quotes_list,
+        'active_quotes_count': active_quotes_count,
+        'in_costing_count': in_costing_count,
+        'awaiting_delivery_count': awaiting_delivery_count,
+        'completed_today_count': completed_today_count,
+        'status_filter': status_filter,
+        'search_query': search_query,
+        'clients': Client.objects.filter(status='Active').order_by('name'),
+    }
+    
+    return render(request, 'my_quotes.html', context)
+
+
+from django.shortcuts import render, get_object_or_404, redirect
+from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_POST
+from django.db.models import Q
+from .models import Job, Vendor, VendorQuote, QCInspection
+import json
+
+@login_required
+def vendor_comparison(request, job_id):
+    """
+    Vendor comparison page for selecting vendors.
+    
+    Displays all vendor quotes for a specific job with filtering options
+    based on VPS score and lead time. Shows vendor details including:
+    - Lead time and cost
+    - VPS score and rating
+    - Specialties
+    - Any notices or special conditions
+    """
+    job = get_object_or_404(Job, id=job_id)
+    
+    # Get all vendor quotes for this job
+    vendor_quotes = VendorQuote.objects.filter(job=job).select_related('vendor')
+    
+    # Search filter
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        vendor_quotes = vendor_quotes.filter(
+            Q(vendor__name__icontains=search_query) |
+            Q(vendor__specialties__name__icontains=search_query)
+        ).distinct()
+    
+    # Filter vendors based on VPS score if specified
+    vps_filter = request.GET.get('vps_score', 'all')
+    if vps_filter != 'all' and vps_filter in ['A', 'B', 'C']:
+        vendor_quotes = vendor_quotes.filter(vendor__vps_score=vps_filter)
+    
+    # Filter by lead time if specified
+    lead_time_filter = request.GET.get('lead_time', 'all')
+    if lead_time_filter != 'all':
+        try:
+            lead_time = int(lead_time_filter)
+            if lead_time == 5:  # 5+ days
+                vendor_quotes = vendor_quotes.filter(lead_time__gte=5)
+            else:
+                vendor_quotes = vendor_quotes.filter(lead_time=lead_time)
+        except ValueError:
+            pass
+    
+    context = {
+        'job': job,
+        'vendor_quotes': vendor_quotes,
+        'total_vendors': VendorQuote.objects.filter(job=job).count(),
+        'vps_filter': vps_filter,
+        'lead_time_filter': lead_time_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'procurement/vendor_comparison.html', context)
+
+# Add these imports at the top
+from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
+import base64
+
+# QC Inspection View (WORKING VERSION)
+@login_required
+@group_required('Production Team')
+def qc_inspection(request, inspection_id):
+    """
+    Quality control inspection page - FULLY FUNCTIONAL
+    """
+    inspection = get_object_or_404(
+        QCInspection.objects.select_related('job', 'vendor', 'job__client', 'inspector'),
+        id=inspection_id
+    )
+    
+    job = inspection.job
+    vendor = inspection.vendor
+    
+    # Get vendor's recent QC history
+    vendor_history = QCInspection.objects.filter(
+        vendor=vendor,
+        status='passed'
+    ).exclude(
+        id=inspection.id
+        ).order_by('-created_at')[:3]
+    
+    # Calculate vendor's average QC score
+        # Calculate vendor's pass rate
+    if vendor:
+        total_inspections = QCInspection.objects.filter(vendor=vendor).count()
+        passed_inspections = QCInspection.objects.filter(vendor=vendor, status='passed').count()
+        vendor_pass_rate = (passed_inspections / total_inspections * 100) if total_inspections > 0 else 0
+    else:
+        vendor_pass_rate = 0
+    
+    # Calculate sampling requirement
+    quantity = job.quantity
+    if quantity < 100:
+        sample_percentage = 20
+    elif quantity < 1000:
+        sample_percentage = 10
+    elif quantity < 5000:
+        sample_percentage = 10
+    else:
+        sample_percentage = 5
+    
+    required_sample = max(int(quantity * sample_percentage / 100), 1)
+    
+    context = {
+        'current_view': 'qc_inspection',
+        'inspection': inspection,
+        'job': job,
+        'vendor': vendor,
+        'vendor_history': vendor_history,
+        'vendor_pass_rate': round(vendor_pass_rate),
+        'required_sample': required_sample,
+        'sample_percentage': sample_percentage,
+    }
+    
+    return render(request, 'quality_control.html', context)
+
+
+@login_required
+@group_required('Production Team')
+@require_POST
+def submit_qc(request):
+    """
+    AJAX endpoint to submit QC inspection results - FULLY FUNCTIONAL
+    """
+    try:
+        data = json.loads(request.body)
+        inspection_id = data.get('inspection_id')
+        
+        if not inspection_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Inspection ID is required'
+            }, status=400)
+        
+        inspection = get_object_or_404(QCInspection, id=inspection_id)
+        
+        # Update inspection ratings
+        inspection.print_quality_score = data.get('print_quality')
+        inspection.color_accuracy_score = data.get('color_accuracy')
+        inspection.material_quality_score = data.get('material_quality')
+        inspection.finishing_quality_score = data.get('finishing_quality')
+        inspection.overall_quality_score = data.get('overall_quality')
+        
+        # Update notes
+        inspection.print_quality_notes = data.get('print_quality_notes', '')
+        inspection.color_accuracy_notes = data.get('color_accuracy_notes', '')
+        inspection.material_quality_notes = data.get('material_quality_notes', '')
+        inspection.finishing_quality_notes = data.get('finishing_quality_notes', '')
+        inspection.overall_quality_notes = data.get('overall_quality_notes', '')
+        
+        inspection.delivery_notes = data.get('delivery_notes', '')
+        inspection.notes_to_am = data.get('notes_to_am', '')
+        
+        # Delivery preparation data
+        inspection.shelf_location = data.get('shelf_location', '')
+        inspection.box_count = data.get('box_count', 1)
+        
+        # Packaging verification
+        inspection.packaging_verified = {
+            'all_items_packed': data.get('pack1', False),
+            'job_id_label': data.get('pack2', False),
+            'quantity_marked': data.get('pack3', False),
+            'fragile_stickers': data.get('pack4', False),
+        }
+        
+        # Set decision and status
+        decision = data.get('decision')
+        inspection.decision = decision
+        inspection.status = 'completed'
+        inspection.inspector = request.user
+        inspection.completed_date = timezone.now()
+        
+        inspection.save()
+        
+        # Update vendor VPS score based on decision
+        vendor = inspection.vendor
+        if decision == 'pass':
+            vendor.vps_score_value += 1.0
+            messages.success(request, f'✅ QC passed! Vendor VPS +1.0')
+        elif decision == 'fail':
+            vendor.vps_score_value -= 2.0
+            messages.warning(request, f'❌ QC failed. Vendor VPS -2.0')
+        
+        # Recalculate VPS letter grade
+        if vendor.vps_score_value >= 8.0:
+            vendor.vps_score = 'A'
+        elif vendor.vps_score_value >= 5.0:
+            vendor.vps_score = 'B'
+        else:
+            vendor.vps_score = 'C'
+        
+        vendor.save()
+        
+        # Update job status
+        job = inspection.job
+        if decision == 'pass':
+            job.status = 'completed'
+            job.actual_completion = timezone.now().date()
+        elif decision == 'conditions':
+            job.status = 'completed'  # Still completed but with notes
+        else:  # fail
+            job.status = 'on_hold'
+        
+        job.save()
+        
+        # Create notification for AM
+        if job.client and job.client.account_manager:
+            notification_title = {
+                'pass': f'✅ Job {job.job_number} - QC Passed',
+                'conditions': f'⚠️ Job {job.job_number} - QC Passed with Conditions',
+                'fail': f'❌ Job {job.job_number} - QC Failed'
+            }
+            
+            notification_message = {
+                'pass': f'Quality inspection passed ({inspection.overall_score_percentage:.0f}%). Ready for delivery.',
+                'conditions': f'Quality inspection passed with conditions. Review notes before delivery.',
+                'fail': f'Quality inspection failed. Vendor must rework. Check inspection notes.'
+            }
+            
+            Notification.objects.create(
+                recipient=job.client.account_manager,
+                notification_type='job_completed' if decision != 'fail' else 'general',
+                title=notification_title[decision],
+                message=notification_message[decision],
+                link=reverse('job_detail', kwargs={'pk': job.pk}),
+                related_job=job,
+                action_url=reverse('delivery_handoff', kwargs={'job_id': job.id}) if decision == 'pass' else None,
+                action_label='Prepare Delivery' if decision == 'pass' else None
+            )
+        
+        # Create activity log
+        if job.client:
+            ActivityLog.objects.create(
+                client=job.client,
+                activity_type='Order',
+                title=f'QC Inspection Completed - {job.job_number}',
+                description=f'QC Decision: {decision.upper()}. Score: {inspection.overall_score_percentage:.0f}%',
+                created_by=request.user
+            )
+        
+        logger.info(f'QC inspection {inspection.reference_number} completed by {request.user.username}')
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'QC inspection submitted successfully',
+            'decision': decision,
+            'score': inspection.overall_score_percentage
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f'Error submitting QC: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+# Delivery Handoff View (WORKING VERSION)
+@login_required
+@group_required('Production Team')
+def delivery_handoff(request, job_id):
+    """
+    Delivery handoff page - FULLY FUNCTIONAL
+    """
+    job = get_object_or_404(Job.objects.select_related('client', 'quote'), id=job_id)
+    
+    # Get QC inspection if exists
+    qc_inspection = QCInspection.objects.filter(job=job).order_by('-created_at').first()
+    
+    # Check if delivery already exists
+    delivery = Delivery.objects.filter(job=job).first()
+    
+    # Calculate costs
+    locked_evp = job.quote.production_cost if job.quote else Decimal('0')
+    actual_cost = locked_evp  # You can update this based on actual vendor invoice
+    
+    # Add VAT
+    locked_evp_with_vat = locked_evp * Decimal('1.16')
+    actual_cost_with_vat = actual_cost * Decimal('1.16')
+    
+    context = {
+        'current_view': 'delivery',
+        'job': job,
+        'qc_inspection': qc_inspection,
+        'delivery': delivery,
+        'locked_evp': locked_evp_with_vat,
+        'actual_cost': actual_cost_with_vat,
+        'variance': actual_cost_with_vat - locked_evp_with_vat,
+        'variance_percentage': ((actual_cost_with_vat - locked_evp_with_vat) / locked_evp_with_vat * 100) if locked_evp_with_vat > 0 else 0,
+    }
+    
+    return render(request, 'delivery.html', context)
+
+
+@login_required
+@group_required('Production Team')
+@require_POST
+def submit_delivery_handoff(request):
+    """
+    AJAX endpoint to complete delivery handoff - FULLY FUNCTIONAL
+    """
+    try:
+        data = json.loads(request.body)
+        job_id = data.get('job_id')
+        
+        if not job_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Job ID is required'
+            }, status=400)
+        
+        job = get_object_or_404(Job, id=job_id)
+        
+        # Get or create delivery
+        delivery, created = Delivery.objects.get_or_create(
+            job=job,
+            defaults={
+                'created_by': request.user
+            }
+        )
+        
+        # Update delivery details
+        delivery.staging_location = data.get('staging_location', 'shelf-b')
+        delivery.notes_to_am = data.get('notes_to_am', '')
+        
+        # Packaging verification
+        delivery.packaging_verified = {
+            'boxes_sealed': data.get('boxes_sealed', False),
+            'job_labels': data.get('job_labels', False),
+            'quantity_marked': data.get('quantity_marked', False),
+            'total_quantity': data.get('total_quantity', False),
+            'fragile_stickers': data.get('fragile_stickers', False),
+        }
+        
+        # Costs
+        delivery.locked_evp = Decimal(str(data.get('locked_evp', 0)))
+        delivery.actual_cost = Decimal(str(data.get('actual_cost', 0)))
+        
+        # Handoff confirmation
+        delivery.handoff_confirmed = True
+        delivery.handoff_confirmed_at = timezone.now()
+        delivery.handoff_confirmed_by = request.user
+        
+        # Notification settings
+        delivery.notify_am = data.get('notify_am', True)
+        delivery.notify_via_email = data.get('notify_via_email', True)
+        delivery.mark_urgent = data.get('mark_urgent', False)
+        
+        # Status
+        delivery.status = 'staged'
+        
+        delivery.save()
+        
+        # Update job status
+        job.status = 'completed'
+        job.actual_completion = timezone.now().date()
+        job.save()
+        
+        # Notify Account Manager
+        if job.client and job.client.account_manager and delivery.notify_am:
+            Notification.objects.create(
+                recipient=job.client.account_manager,
+                notification_type='delivery_ready',
+                title=f'📦 Job {job.job_number} Ready for Delivery',
+                message=f'Staged at {delivery.get_staging_location_display()}. {delivery.notes_to_am[:100]}',
+                link=reverse('job_detail', kwargs={'pk': job.pk}),
+                related_job=job,
+                action_url=reverse('job_detail', kwargs={'pk': job.pk}),
+                action_label='View Job Details'
+            )
+            
+            # Send email if requested
+            if delivery.notify_via_email:
+                try:
+                    from django.core.mail import send_mail
+                    send_mail(
+                        subject=f'Job {job.job_number} Ready for Delivery',
+                        message=f'Job {job.job_number} has been completed and is ready for delivery.\n\nLocation: {delivery.get_staging_location_display()}\n\nNotes: {delivery.notes_to_am}',
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[job.client.account_manager.email],
+                        fail_silently=True
+                    )
+                except Exception as e:
+                    logger.warning(f'Failed to send delivery email: {str(e)}')
+        
+        # Create activity log
+        if job.client:
+            ActivityLog.objects.create(
+                client=job.client,
+                activity_type='Order',
+                title=f'Delivery Handoff Complete - {job.job_number}',
+                description=f'Job handed off to AM. Staged at {delivery.get_staging_location_display()}',
+                created_by=request.user
+            )
+        
+        logger.info(f'Delivery for {job.job_number} handed off by {request.user.username}')
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Delivery handoff completed successfully',
+            'delivery_id': delivery.id,
+            'job_number': job.job_number
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        logger.error(f'Error submitting delivery handoff: {str(e)}')
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+# Delivery List View
+@login_required
+def delivery_list(request):
+    """Display list of all deliveries"""
+    
+    # Check user permissions
+    is_production = request.user.groups.filter(name='Production Team').exists()
+    is_am = request.user.groups.filter(name='Account Manager').exists()
+    
+    if is_production:
+        # PT sees all deliveries
+        deliveries = Delivery.objects.all()
+    elif is_am:
+        # AM sees only their client deliveries
+        deliveries = Delivery.objects.filter(job__client__account_manager=request.user)
+    else:
+        deliveries = Delivery.objects.none()
+    
+    # Filter by status
+    status_filter = request.GET.get('status', 'all')
+    if status_filter != 'all':
+        deliveries = deliveries.filter(status=status_filter)
+    
+    # Search
+    search_query = request.GET.get('search', '').strip()
+    if search_query:
+        deliveries = deliveries.filter(
+            Q(delivery_number__icontains=search_query) |
+            Q(job__job_number__icontains=search_query) |
+            Q(job__client__name__icontains=search_query)
+        )
+    
+    deliveries = deliveries.select_related('job', 'job__client', 'qc_inspection').order_by('-created_at')
+    
+    context = {
+        'current_view': 'deliveries',
+        'deliveries': deliveries,
+        'status_filter': status_filter,
+        'search_query': search_query,
+    }
+    
+    return render(request, 'delivery_list.html', context)
+
+
+@login_required
+@require_POST
+def select_vendor(request):
+    """
+    AJAX endpoint to select a vendor and continue to PO creation.
+    
+    Updates the vendor quote as selected and sets the job's vendor.
+    Returns success status and redirect URL.
+    """
+    try:
+        data = json.loads(request.body)
+        vendor_quote_id = data.get('vendor_quote_id')
+        
+        if not vendor_quote_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Vendor quote ID is required'
+            }, status=400)
+        
+        vendor_quote = get_object_or_404(VendorQuote, id=vendor_quote_id)
+        
+        # Mark this quote as selected
+        vendor_quote.selected = True
+        vendor_quote.save()
+        
+        # Unselect other quotes for this job
+        VendorQuote.objects.filter(
+            job=vendor_quote.job
+        ).exclude(
+            id=vendor_quote_id
+        ).update(selected=False)
+        
+        # Update job status and selected vendor
+        job = vendor_quote.job
+        job.status = 'vendor_selected'
+        job.selected_vendor = vendor_quote.vendor
+        job.selected_vendor_quote = vendor_quote
+        job.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Vendor selected successfully',
+            'redirect_url': f'/procurement/purchase-order/{job.id}/'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+@require_POST
+def submit_qc(request):
+    """
+    AJAX endpoint to submit QC inspection results.
+    
+    Saves all quality ratings, notes, and decision.
+    Updates vendor VPS score based on the decision.
+    Changes job status based on pass/fail decision.
+    """
+    try:
+        data = json.loads(request.body)
+        inspection_id = data.get('inspection_id')
+        
+        if not inspection_id:
+            return JsonResponse({
+                'success': False,
+                'message': 'Inspection ID is required'
+            }, status=400)
+        
+        inspection = get_object_or_404(QCInspection, id=inspection_id)
+        
+        # Update inspection ratings
+        inspection.print_quality_score = data.get('print_quality')
+        inspection.color_accuracy_score = data.get('color_accuracy')
+        inspection.material_quality_score = data.get('material_quality')
+        inspection.finishing_quality_score = data.get('finishing_quality')
+        inspection.overall_quality_score = data.get('overall_quality')
+        
+        # Update notes
+        inspection.print_quality_notes = data.get('print_quality_notes', '')
+        inspection.color_accuracy_notes = data.get('color_accuracy_notes', '')
+        inspection.material_quality_notes = data.get('material_quality_notes', '')
+        inspection.finishing_quality_notes = data.get('finishing_quality_notes', '')
+        inspection.overall_quality_notes = data.get('overall_quality_notes', '')
+        
+        inspection.delivery_notes = data.get('delivery_notes', '')
+        inspection.notes_to_am = data.get('notes_to_am', '')
+        
+        # Set decision and status
+        decision = data.get('decision')
+        inspection.decision = decision
+        inspection.status = 'completed'
+        inspection.inspector = request.user
+        
+        from django.utils import timezone
+        inspection.completed_date = timezone.now()
+        
+        inspection.save()
+        
+        # Update vendor VPS score based on decision
+        vendor = inspection.vendor
+        if decision == 'pass':
+            vendor.vps_score_value += 1.0
+        elif decision == 'fail':
+            vendor.vps_score_value -= 2.0
+        
+        # Recalculate VPS letter grade
+        if vendor.vps_score_value >= 8.0:
+            vendor.vps_score = 'A'
+        elif vendor.vps_score_value >= 5.0:
+            vendor.vps_score = 'B'
+        else:
+            vendor.vps_score = 'C'
+        
+        vendor.save()
+        
+        # Update job status
+        job = inspection.job
+        if decision == 'pass':
+            job.status = 'qc_passed'
+        elif decision == 'conditions':
+            job.status = 'qc_conditional'
+        else:  # fail
+            job.status = 'qc_failed'
+        
+        job.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'QC inspection submitted successfully'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False,
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+@login_required
+def quality_control_list(request):
+    """List of QC Inspections"""
+    inspections = QCInspection.objects.all().order_by('-created_at')
+    return render(request, 'quality_control.html', {'inspections': inspections})
+
+@login_required
+def vendor_list(request):
+    """Vendor management page - list all vendors and their process links."""
+    vendors = Vendor.objects.all().order_by('-vps_score_value', 'name')
+    
+    process_links = (
+        ProcessVendor.objects.select_related('process')
+        .values(
+            'vendor_name',
+            'vendor_id',
+            'process__process_id',
+            'process__process_name',
+            'minimum_order',
+            'standard_lead_time',
+            'rush_lead_time',
+        )
+        .order_by('vendor_name', 'process__process_name')
+    )
+    
+    context = {
+        'current_view': 'vendor_list',
+        'vendors': vendors,
+        'process_links': process_links,
+    }
+    return render(request, 'vendors_list.html', context)
+
+
+
+
+
+# views.py
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db.models import Q
+from .models import Process, ProcessTier, ProcessVariable, ProcessVendor, Vendor, VendorTierPricing
+
+
+def process_list(request):
+    """Display list of all processes with filtering"""
+    processes = Process.objects.all()  # Show all processes (active, draft, inactive)
+    
+    # Search functionality
+    search_query = request.GET.get('search', '')
+    if search_query:
+        processes = processes.filter(
+            Q(process_name__icontains=search_query) |  # ✅ NEW: process_name
+            Q(process_id__icontains=search_query)
+        )
+    
+    # Filter by category
+    category = request.GET.get('category')
+    if category:
+        processes = processes.filter(category=category)
+    
+    # Filter by pricing type
+    pricing_type = request.GET.get('pricing_type')  # ✅ NEW: pricing_type
+    if pricing_type:
+        processes = processes.filter(pricing_type=pricing_type)  # ✅ NEW
+    
+    # Count by type
+    total_processes = processes.count()
+    tier_based_count = processes.filter(pricing_type='tier').count()
+    formula_based_count = processes.filter(pricing_type='formula').count()
+    outsourced_count = processes.filter(category='outsourced').count()
+    in_house_count = processes.filter(category='in_house').count()
+    
+    context = {
+        'processes': processes,
+        'search_query': search_query,
+        'total_processes': total_processes,
+        'tier_based_count': tier_based_count,
+        'formula_based_count': formula_based_count,
+        'outsourced_count': outsourced_count,
+        'in_house_count': in_house_count,
+    }
+    
+    return render(request, 'process_list.html', context)
+
+
+
+@login_required
+def process_create(request):
+    """
+    Screen 2: Process Editor - Create new process
+    Handles both GET (show form) and POST (save data)
+    """
+    if request.method == 'POST':
+        return handle_process_save(request, process=None)
+
+    vendors = Vendor.objects.filter(active=True).order_by('name')
+    
+    # GET request - show empty form
+    context = {
+        'mode': 'create',
+        'process': None,
+        'vendors': vendors
+    }
+    return render(request, 'process_create.html', context)
+
+
+@login_required
+def process_edit(request, process_id):
+    """Edit existing process"""
+    process = get_object_or_404(Process, process_id=process_id)
+    
+    if request.method == 'POST':
+        return handle_process_save(request, process=process)
+    
+    # GET request - show form with existing data
+    available_vendors = Vendor.objects.filter(active=True).order_by('name')
+    context = {
+        'mode': 'edit',
+        'process': process,
+        'tiers': list(process.tiers.all().values()),
+        'variables': list(process.variables.all().values()),
+        # Choices for the vendor dropdowns
+        'vendors': available_vendors,
+        # Existing vendor links for this process (can be used to pre-populate cards)
+        'process_vendors': process.process_vendors.all(),
+    }
+    return render(request, 'process_create.html', context)
+
+
+@transaction.atomic
+def handle_process_save(request, process=None):
+    """
+    Handle POST data for creating/updating a process
+    This is the core function that processes the form submission
+    """
+    data = request.POST
+    action = data.get('action', 'draft')  # 'draft' or 'activate'
+    
+    # Create or update main process
+    if process is None:
+        process = Process()
+        process.created_by = request.user
+    
+    # Update basic fields
+    process.process_name = data.get('process_name')
+    process.description = data.get('description', '')
+    process.category = data.get('category')
+    process.standard_lead_time = int(data.get('standard_lead_time', 5))
+    
+    # Determine which pricing type was selected from the pricing_method hidden field
+    # This field is set by JavaScript when user clicks "SELECT" on tier or formula card
+    pricing_method = data.get('pricing_method', 'tier')  # Default to tier if not specified
+    
+    if pricing_method == 'formula':
+        process.pricing_type = 'formula'
+        process.unit_of_measure = None  # Not applicable for formula-based
+    else:
+        process.pricing_type = 'tier'
+        process.unit_of_measure = data.get('unit_of_measure', 'per_piece')
+    
+    # Approval settings
+    process.approval_type = data.get('approval_settings', 'auto_approve')
+    
+    # Status
+    if action == 'activate':
+        process.status = 'active'
+    else:
+        process.status = 'draft'
+    
+    process.save()
+    
+    # ===== SAVE TIER-BASED PRICING =====
+    if process.pricing_type == 'tier':
+        # Delete existing tiers
+        process.tiers.all().delete()
+        
+        # Create new tiers from form data
+        tier_num = 1
+        while f'tier{tier_num}_from' in data:
+            ProcessTier.objects.create(
+                process=process,
+                tier_number=tier_num,
+                quantity_from=int(data.get(f'tier{tier_num}_from', 0)),
+                quantity_to=int(data.get(f'tier{tier_num}_to', 0)),
+                price=float(data.get(f'tier{tier_num}_price', 0)),
+                cost=float(data.get(f'tier{tier_num}_cost', 0)),
+            )
+            tier_num += 1
+    
+    # ===== SAVE FORMULA-BASED PRICING =====
+    # (Would need JavaScript to send this as JSON)
+    # For now, simplified version
+    
+    # ===== SAVE FORMULA-BASED PRICING =====
+    if process.pricing_type == 'formula':
+        # Delete existing variables
+        process.variables.all().delete()
+        
+        # Save formula fields
+        process.base_rate = float(data.get('base_rate', 0) or 0)
+        process.formula_expression = data.get('formula_expression', '')
+        
+        # Create variables from form data
+        var_num = 1
+        while f'var{var_num}_name' in data:
+            var_name = data.get(f'var{var_num}_name', '').strip()
+            var_unit = data.get(f'var{var_num}_unit', '').strip()
+            var_default = data.get(f'var{var_num}_default', '')
+            
+            if var_name:  # Only create if name exists
+                ProcessVariable.objects.create(
+                    process=process,
+                    variable_name=var_name,
+                    unit=var_unit,
+                    default_value=var_default
+                )
+            var_num += 1
+    
+    # ===== SAVE VENDORS =====
+    # Delete existing vendor links
+    process.process_vendors.all().delete()
+    
+    # Save Vendor 1 (Primary)
+    vendor_pk = data.get('vendor1_id')
+    if vendor_pk:
+        try:
+            vendor_obj = Vendor.objects.get(pk=vendor_pk)
+            
+            # Build formula_rates JSON if pricing type is formula
+            formula_rates = None
+            if process.pricing_type == 'formula':
+                formula_rates = {
+                    'base_rate': float(data.get('vendor1_base_rate', 0) or 0),
+                    'rate_per_unit': float(data.get('vendor1_rate_per_unit', 0) or 0),
+                    'setup_fee': float(data.get('vendor1_setup_fee', 0) or 0),
+                }
+            
+            # Get all vendor 1 fields from form
+            ProcessVendor.objects.create(
+                process=process,
+                vendor_name=vendor_obj.name,
+                vendor_id=data.get('vendor1_vendor_id', f"VND-{str(vendor_obj.id).zfill(3)}"),
+                vps_score=vendor_obj.vps_score_value,
+                priority='preferred',
+                rush_enabled=data.get('vendor1_rush_enabled') == 'on',
+                rush_fee_percentage=float(data.get('vendor1_rush_fee', 0) or 0),
+                rush_threshold_days=int(data.get('vendor1_rush_threshold', 3) or 3),
+                minimum_order=float(data.get('vendor1_min_order', 0) or 0),
+                standard_lead_time=int(data.get('vendor1_standard_days', 5) or 5),
+                rush_lead_time=int(data.get('vendor1_rush_days', 2) or 2),
+                notes=data.get('vendor1_notes', ''),
+                # Store formula-based pricing in JSON field
+                formula_rates=formula_rates,
+            )
+        except Vendor.DoesNotExist:
+            pass  # Vendor not found, skip
+    
+    
+    # Save Vendor 2 (Alternative) - if provided
+    vendor2_pk = data.get('vendor2_id')
+    if vendor2_pk:
+        try:
+            vendor2_obj = Vendor.objects.get(pk=vendor2_pk)
+            
+            ProcessVendor.objects.create(
+                process=process,
+                vendor_name=vendor2_obj.name,
+                vendor_id=data.get('vendor2_vendor_id', f"VND-{str(vendor2_obj.id).zfill(3)}"),
+                vps_score=vendor2_obj.vps_score_value,
+                priority='alternative',
+                rush_enabled=data.get('vendor2_rush_enabled') == 'on',
+                rush_fee_percentage=float(data.get('vendor2_rush_fee', 0) or 0),
+                rush_threshold_days=int(data.get('vendor2_rush_threshold', 3) or 3),
+                minimum_order=float(data.get('vendor2_min_order', 0) or 0),
+                standard_lead_time=int(data.get('vendor2_standard_days', 5) or 5),
+                rush_lead_time=int(data.get('vendor2_rush_days', 2) or 2),
+                notes=data.get('vendor2_notes', ''),
+                # Formula-based pricing fields
+                base_rate=float(data.get('vendor2_base_rate', 0) or 0),
+                rate_per_unit=float(data.get('vendor2_rate_per_unit', 0) or 0),
+                setup_fee=float(data.get('vendor2_setup_fee', 0) or 0),
+            )
+        except Vendor.DoesNotExist:
+            pass
+    
+    # Save Vendor 3 (Backup) - if provided
+    vendor3_pk = data.get('vendor3_id')
+    if vendor3_pk:
+        try:
+            vendor3_obj = Vendor.objects.get(pk=vendor3_pk)
+            
+            ProcessVendor.objects.create(
+                process=process,
+                vendor_name=vendor3_obj.name,
+                vendor_id=data.get('vendor3_vendor_id', f"VND-{str(vendor3_obj.id).zfill(3)}"),
+                vps_score=vendor3_obj.vps_score_value,
+                priority='backup',
+                rush_enabled=data.get('vendor3_rush_enabled') == 'on',
+                rush_fee_percentage=float(data.get('vendor3_rush_fee', 0) or 0),
+                rush_threshold_days=int(data.get('vendor3_rush_threshold', 3) or 3),
+                minimum_order=float(data.get('vendor3_min_order', 0) or 0),
+                standard_lead_time=int(data.get('vendor3_standard_days', 5) or 5),
+                rush_lead_time=int(data.get('vendor3_rush_days', 2) or 2),
+                notes=data.get('vendor3_notes', ''),
+                # Formula-based pricing fields
+                base_rate=float(data.get('vendor3_base_rate', 0) or 0),
+                rate_per_unit=float(data.get('vendor3_rate_per_unit', 0) or 0),
+                setup_fee=float(data.get('vendor3_setup_fee', 0) or 0),
+            )
+        except Vendor.DoesNotExist:
+            pass
+    
+    # Success message
+    if action == 'activate':
+        messages.success(request, f'Process "{process.process_name}" has been activated!')
+    else:
+        messages.success(request, f'Process "{process.process_name}" saved as draft.')
+    return redirect('process_list')
+
+
+# ===== AJAX ENDPOINTS =====
+
+@login_required
+def ajax_generate_process_id(request):
+    """Auto-generate Process ID from name (called via AJAX)"""
+    name = request.GET.get('name', '')
+    if name:
+        temp_process = Process(process_name=name)
+        process_id = temp_process.generate_process_id()
+        return JsonResponse({'process_id': process_id})
+    return JsonResponse({'process_id': ''})
+
+
+@login_required
+def ajax_calculate_margin(request):
+    """Calculate margin from price and cost (called via AJAX)"""
+    try:
+        price = float(request.GET.get('price', 0))
+        cost = float(request.GET.get('cost', 0))
+        
+        if price > 0:
+            margin_amount = price - cost
+            margin_percentage = (margin_amount / price) * 100
+            
+            # Determine status
+            if margin_percentage >= 25:
+                status = 'above'
+                color = 'green'
+                message = 'Above target (25%)'
+            elif margin_percentage >= 15:
+                status = 'on_target'
+                color = 'yellow'
+                message = 'On target'
+            else:
+                status = 'below'
+                color = 'red'
+                message = 'Below target'
+            
+            return JsonResponse({
+                'margin_amount': round(margin_amount, 2),
+                'margin_percentage': round(margin_percentage, 2),
+                'status': status,
+                'color': color,
+                'message': message,
+            })
+    except Exception as e:
+        return JsonResponse({'error': str(e)})
+    
+    return JsonResponse({'error': 'Invalid data'})
+
+@login_required
+@require_POST
+def ajax_create_vendor(request):
+    """Create a new Vendor and return it for dropdowns."""
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+        
+        # Get required fields
+        name = (payload.get('name') or '').strip()
+        email = (payload.get('email') or '').strip()
+        phone = (payload.get('phone') or '').strip()
+        
+        if not name:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Vendor name is required.'
+            }, status=400)
+        
+        if not email:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Email is required.'
+            }, status=400)
+        
+        if not phone:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Phone is required.'
+            }, status=400)
+        
+        # Get optional fields with defaults
+        address = (payload.get('address') or '').strip()
+        vps_score = payload.get('vps_score', 'B')
+        vps_score_value = float(payload.get('vps_score_value', 5.0))
+        rating = float(payload.get('rating', 4.0))
+        recommended = payload.get('recommended', False)
+        
+        # Create vendor
+        vendor = Vendor.objects.create(
+            name=name,
+            email=email,
+            phone=phone,
+            address=address,
+            vps_score=vps_score,
+            vps_score_value=vps_score_value,
+            rating=rating,
+            recommended=recommended,
+            active=True,
+        )
+        
+        logger.info(f"✅ Vendor '{vendor.name}' created successfully by {request.user.username}")
+        
+        return JsonResponse({
+            'success': True,
+            'id': vendor.id,
+            'name': vendor.name,
+            'vps_score_value': str(vendor.vps_score_value),
+            'vps_score': vendor.vps_score,
+            'rating': str(vendor.rating),
+            'message': f'Vendor "{vendor.name}" created successfully!'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False, 
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except ValueError as e:
+        return JsonResponse({
+            'success': False, 
+            'message': f'Invalid number format: {str(e)}'
+        }, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        logger.error(f"Error creating vendor: {str(e)}")
+        return JsonResponse({
+            'success': False, 
+            'message': str(e)
+        }, status=500)
+
+def delivery_list(request):
+    """Display list of all deliveries"""
+
+    return render(request, 'delivery.html')
+
+
+@login_required
+def get_product_price(request, product_id):
+    """API endpoint to get product price"""
+    try:
+        product = Product.objects.get(id=product_id)
+        
+        # Get the base price from the product
+        # Adjust this based on your Product model structure
+        if hasattr(product, 'base_price'):
+            price = product.base_price
+        elif hasattr(product, 'price'):
+            price = product.price
+        elif hasattr(product, 'unit_price'):
+            price = product.unit_price
+        else:
+            # Fallback: try to get from pricing tiers or return 0
+            price = 0
+        
+        return JsonResponse({
+            'success': True,
+            'price': float(price),
+            'product_name': product.name,
+            'sku': product.sku if hasattr(product, 'sku') else ''
+        })
+    except Product.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Product not found'
+        }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+@require_POST
+def ajax_create_vendor(request):
+    """Create a new Vendor from the Process editor and return it for dropdowns."""
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+        name = (payload.get('name') or '').strip()
+        email = (payload.get('email') or '').strip() or 'vendor@example.com'
+        phone = (payload.get('phone') or '').strip() or 'N/A'
+        address = (payload.get('address') or '').strip()
+        
+        if not name:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Vendor name is required.'
+            }, status=400)
+
+        # Create vendor with default VPS score
+        vendor = Vendor.objects.create(
+            name=name,
+            email=email,
+            phone=phone,
+            address=address,
+            vps_score='B',  # Default grade
+            vps_score_value=5.0,  # Default score
+            rating=4.0,  # Default rating
+            active=True,
+        )
+
+        return JsonResponse({
+            'success': True,
+            'id': vendor.id,
+            'name': vendor.name,
+            'vps_score_value': str(vendor.vps_score_value),
+            'message': f'Vendor "{vendor.name}" created successfully!'
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({
+            'success': False, 
+            'message': 'Invalid JSON data'
+        }, status=400)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'success': False, 
+            'message': str(e)
+        }, status=500)
+
+# ========== PROCESS-PRODUCT INTEGRATION HELPER FUNCTIONS ==========
+
+def import_process_variables_to_product(process, product):
+    """
+    Import variables from a Process to a Product
+    Returns the number of variables imported
+    """
+    imported_count = 0
+    
+    if process.pricing_type == 'formula':
+        # For formula-based pricing, import formula variables
+        process_variables = process.variables.all()
+        
+        for pv in process_variables:
+            # Check if variable already exists
+            existing = ProductVariable.objects.filter(
+                product=product,
+                name=pv.variable_name
+            ).first()
+            
+            if not existing:
+                # Create new product variable
+                ProductVariable.objects.create(
+                    product=product,
+                    name=pv.variable_name,
+                    variable_type='required',
+                    pricing_type='increment',
+                    source_process_variable=pv,
+                    display_order=pv.order
+                )
+                imported_count += 1
+                
+    elif process.pricing_type == 'tier':
+        # For tier-based pricing, import quantity as a variable
+        quantity_var, created = ProductVariable.objects.get_or_create(
+            product=product,
+            name='Quantity',
+            defaults={
+                'variable_type': 'required',
+                'pricing_type': 'fixed',
+                'display_order': 0
+            }
+        )
+        
+        if created:
+            # Create options from process tiers
+            tiers = process.tiers.all().order_by('tier_number')
+            for i, tier in enumerate(tiers):
+                ProductVariableOption.objects.create(
+                    variable=quantity_var,
+                    name=f"{tier.quantity_from}-{tier.quantity_to} pieces",
+                    display_order=i,
+                    price_modifier=tier.price
+                )
+            imported_count += 1
+    
+    return imported_count
+
+
+def ajax_process_variables(request, process_id):
+    """
+    AJAX endpoint to fetch process variables
+    """
+    try:
+        process = Process.objects.get(id=process_id)
+        
+        variables_data = []
+        
+        if process.pricing_type == 'formula':
+            for var in process.variables.all():
+                variables_data.append({
+                    'id': var.id,
+                    'name': var.variable_name,
+                    'type': var.variable_type,
+                    'unit': var.unit,
+                    'min_value': str(var.min_value) if var.min_value else None,
+                    'max_value': str(var.max_value) if var.max_value else None,
+                    'default_value': str(var.default_value) if var.default_value else None,
+                    'description': var.description
+                })
+        elif process.pricing_type == 'tier':
+            # Return tier information
+            for tier in process.tiers.all():
+                variables_data.append({
+                    'tier_number': tier.tier_number,
+                    'quantity_from': tier.quantity_from,
+                    'quantity_to': tier.quantity_to,
+                    'cost': str(tier.cost),
+                    'price': str(tier.price)
+                })
+        
+        return JsonResponse({
+            'success': True,
+            'pricing_type': process.pricing_type,
+            'variables': variables_data
+        })
+        
+    except Process.DoesNotExist:
+        return JsonResponse({
+            'success': False,
+            'error': 'Process not found'
+        }, status=404)

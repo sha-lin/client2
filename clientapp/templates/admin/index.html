@@ -1,0 +1,683 @@
+{% extends "admin/index.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block extrahead %}
+{{ block.super }}
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- Chart.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<!-- Custom Dashboard CSS -->
+<link rel="stylesheet" href="{% static 'admin/css/dashboard_theme.css' %}">
+
+<style>
+    /* Override to hide default Django admin content */
+    #content-main > *:not(.dashboard-container) {
+        display: none;
+    }
+    
+    /* Hide breadcrumbs */
+    .breadcrumbs {
+        display: none !important;
+    }
+    
+    /* Jazzmin Sidebar Styling */
+    #accordionSidebar,
+    .sidebar {
+        background: linear-gradient(180deg, #2c3e50 0%, #34495e 100%) !important;
+    }
+    
+    /* Jazzmin Header/Topbar Styling */
+    .navbar,
+    .topbar,
+    nav.navbar {
+        background: linear-gradient(90deg, #3a4d6b 0%, #4a5f7f 100%) !important;
+    }
+    
+    /* Page Title Styling */
+    #content h1 {
+        display: none !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Custom Dashboard Section - This replaces the default content -->
+<div class="dashboard-container">
+
+    <!-- Metrics Cards Row -->
+    <div class="metrics-row">
+        <!-- Total Clients Card -->
+        <div class="metric-card metric-card-blue">
+            <div class="metric-icon">
+                <i class="fas fa-user-tie"></i>
+            </div>
+            <div class="metric-content">
+                <div class="metric-label">Total Clients</div>
+                <h3 class="metric-value">{{ dashboard_stats.total_clients|default:0 }}</h3>
+                <span class="metric-trend positive">
+                    <i class="fas fa-arrow-up"></i> +{{ dashboard_stats.new_clients_trend|default:0 }} this month
+                </span>
+            </div>
+        </div>
+
+        <!-- Active Leads Card -->
+        <div class="metric-card metric-card-green">
+            <div class="metric-icon">
+                <i class="fas fa-user-plus"></i>
+            </div>
+            <div class="metric-content">
+                <div class="metric-label">Active Leads</div>
+                <h3 class="metric-value">{{ dashboard_stats.active_leads|default:0 }}</h3>
+                <span class="metric-trend positive">
+                    <i class="fas fa-arrow-up"></i> +{{ dashboard_stats.new_leads_trend|default:0 }} new
+                </span>
+            </div>
+        </div>
+
+        <!-- Pending Orders Card -->
+        <div class="metric-card metric-card-orange">
+            <div class="metric-icon">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="metric-content">
+                <div class="metric-label">Pending Orders</div>
+                <h3 class="metric-value">{{ dashboard_stats.pending_orders|default:0 }}</h3>
+                <span class="metric-trend positive">
+                    <i class="fas fa-arrow-up"></i> +{{ dashboard_stats.new_orders_trend|default:0 }} new
+                </span>
+            </div>
+        </div>
+
+        <!-- Active Jobs Card -->
+        <div class="metric-card metric-card-red">
+            <div class="metric-icon">
+                <i class="fas fa-briefcase"></i>
+            </div>
+            <div class="metric-content">
+                <div class="metric-label">Active Jobs</div>
+                <h3 class="metric-value">{{ dashboard_stats.active_jobs|default:0 }}</h3>
+                <span class="metric-trend">
+                    <i class="fas fa-briefcase"></i> In Progress
+                </span>
+            </div>
+        </div>
+
+        <!-- Total Products Card -->
+        <div class="metric-card metric-card-purple">
+            <div class="metric-icon">
+                <i class="fas fa-box"></i>
+            </div>
+            <div class="metric-content">
+                <div class="metric-label">Products</div>
+                <h3 class="metric-value">{{ dashboard_stats.total_products|default:0 }}</h3>
+                <span class="metric-trend">
+                    <i class="fas fa-check"></i> Published
+                </span>
+            </div>
+        </div>
+
+        <!-- Total Revenue Card -->
+        <div class="metric-card metric-card-teal">
+            <div class="metric-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="metric-content">
+                <div class="metric-label">Total Revenue</div>
+                <h3 class="metric-value">KES {{ dashboard_stats.total_revenue|floatformat:0|intcomma|default:"0" }}</h3>
+                <span class="metric-trend positive">
+                    <i class="fas fa-arrow-up"></i> +{{ dashboard_stats.revenue_trend|floatformat:0|intcomma|default:"0"
+                    }}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row -->
+    <div class="charts-row">
+        <!-- Sales Performance Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-chart-line"></i> Sales Performance</h3>
+                <span class="chart-subtitle">Last 6 months</span>
+            </div>
+            <div class="chart-body">
+                <canvas id="salesPerformanceChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Order Status Distribution Chart -->
+        <div class="chart-card">
+            <div class="chart-header">
+                <h3><i class="fas fa-chart-pie"></i> Order Status</h3>
+                <span class="chart-subtitle">Distribution</span>
+            </div>
+            <div class="chart-body">
+                <canvas id="orderStatusChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Orders Table -->
+    <div class="recent-orders-section">
+        <div class="section-header">
+            <h3><i class="fas fa-list"></i> Recent Orders</h3>
+            <a href="{% url 'admin:clientapp_lpo_changelist' %}" class="btn-view-all">
+                View All <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table-recent-orders">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Client</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td><strong>{{ order.lpo_number }}</strong></td>
+                        <td>{{ order.client.name }}</td>
+                        <td>KES {{ order.total_amount|floatformat:2|intcomma }}</td>
+                        <td>
+                            <span class="status-badge status-{{ order.status }}">
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td>{{ order.created_at|date:"M d, Y" }}</td>
+                        <td>
+                            <a href="{% url 'admin:clientapp_lpo_change' order.id %}" class="btn-action" title="View">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted">No recent orders</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+        <!-- Alerts & Notifications Section -->
+    <div class="alerts-section">
+        <div class="section-header">
+            <h3><i class="fas fa-bell"></i> Active Alerts & Notifications</h3>
+            <a href="{% url 'admin:clientapp_systemalert_changelist' %}" class="btn-view-all">
+                View All <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        <div class="alerts-grid">
+            {% for alert in active_alerts %}
+            <div class="alert-card alert-{{ alert.severity }}">
+                <div class="alert-icon">
+                    {% if alert.severity == 'critical' %}
+                        <i class="fas fa-exclamation-circle"></i>
+                    {% elif alert.severity == 'high' %}
+                        <i class="fas fa-exclamation-triangle"></i>
+                    {% elif alert.severity == 'medium' %}
+                        <i class="fas fa-info-circle"></i>
+                    {% else %}
+                        <i class="fas fa-bell"></i>
+                    {% endif %}
+                </div>
+                <div class="alert-content">
+                    <div class="alert-header">
+                        <span class="alert-type">{{ alert.get_alert_type_display }}</span>
+                        <span class="alert-time">{{ alert.created_at|timesince }} ago</span>
+                    </div>
+                    <h4 class="alert-title">{{ alert.title }}</h4>
+                    <p class="alert-message">{{ alert.message|truncatewords:20 }}</p>
+                    {% if alert.link %}
+                    <a href="{{ alert.link }}" class="alert-link">View Details <i class="fas fa-arrow-right"></i></a>
+                    {% endif %}
+                </div>
+                <button class="alert-dismiss" onclick="dismissAlert({{ alert.id }})">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            {% empty %}
+            <div class="no-alerts">
+                <i class="fas fa-check-circle"></i>
+                <p>No active alerts - All systems operational</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- User Activity Log Section -->
+    <div class="activity-section">
+        <div class="section-header">
+            <h3><i class="fas fa-history"></i> Recent User Activity</h3>
+            <a href="{% url 'admin:clientapp_activitylog_changelist' %}" class="btn-view-all">
+                View All <i class="fas fa-arrow-right"></i>
+            </a>
+        </div>
+        <div class="activity-timeline">
+            {% for activity in recent_activity %}
+            <div class="activity-item">
+                <div class="activity-dot"></div>
+                <div class="activity-content">
+                    <div class="activity-header">
+                        <strong>{{ activity.created_by.get_full_name|default:activity.created_by.username }}</strong>
+                        <span class="activity-time">{{ activity.created_at|timesince }} ago</span>
+                    </div>
+                    <div class="activity-title">{{ activity.title }}</div>
+                    <div class="activity-meta">
+                        <span class="activity-type">{{ activity.get_activity_type_display }}</span>
+                        {% if activity.client %}
+                        <span class="activity-client">Client: {{ activity.client.name }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="no-activity">
+                <p>No recent activity</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Analytics Section -->
+    <!-- Analytics Section -->
+    <div class="analytics-row">
+        <!-- Top Products Card -->
+        <div class="analytics-card">
+            <div class="section-header">
+                <h3><i class="fas fa-chart-bar"></i> Top Selling Products</h3>
+                <button onclick="exportReport('products')" class="btn-export">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+            <div class="chart-body">
+                <canvas id="topProductsChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Profit Margins Card -->
+        <div class="analytics-card">
+            <div class="section-header">
+                <h3><i class="fas fa-percentage"></i> Profit Margin Overview</h3>
+                <button onclick="exportReport('margins')" class="btn-export">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+            <div class="chart-body">
+                <canvas id="profitMarginChart"></canvas>
+            </div>
+        </div>
+    </div>
+        <!-- Financial Overview Section -->
+    <div class="financial-row">
+        <!-- Outstanding Receivables -->
+        <div class="financial-card">
+            <div class="section-header">
+                <h3><i class="fas fa-money-bill-wave"></i> Outstanding Receivables</h3>
+                <span class="financial-total">KES {{ receivables.total_receivables|floatformat:0|intcomma|default:"0" }}</span>
+            </div>
+            <div class="receivables-summary">
+                <div class="receivable-stat">
+                    <span class="stat-label">Overdue</span>
+                    <span class="stat-value overdue">KES {{ receivables.overdue_amount|floatformat:0|intcomma|default:"0" }}</span>
+                    <span class="stat-percent">({{ receivables.overdue_percentage }}%)</span>
+                </div>
+                <div class="aging-chart">
+                    <div class="aging-bar">
+                        <div class="aging-segment current" style="width: {{ receivables.current|default:0 }}%;" title="Current: KES {{ receivables.current|floatformat:0|intcomma }}"></div>
+                        <div class="aging-segment days-30" style="width: {{ receivables.days_30_60|default:0 }}%;" title="30-60 Days: KES {{ receivables.days_30_60|floatformat:0|intcomma }}"></div>
+                        <div class="aging-segment days-60" style="width: {{ receivables.days_60_90|default:0 }}%;" title="60-90 Days: KES {{ receivables.days_60_90|floatformat:0|intcomma }}"></div>
+                        <div class="aging-segment days-90" style="width: {{ receivables.over_90|default:0 }}%;" title="90+ Days: KES {{ receivables.over_90|floatformat:0|intcomma }}"></div>
+                    </div>
+                    <div class="aging-legend">
+                        <span><span class="legend-dot current"></span> Current: KES {{ receivables.current|floatformat:0|intcomma }}</span>
+                        <span><span class="legend-dot days-30"></span> 30-60: KES {{ receivables.days_30_60|floatformat:0|intcomma }}</span>
+                        <span><span class="legend-dot days-60"></span> 60-90: KES {{ receivables.days_60_90|floatformat:0|intcomma }}</span>
+                        <span><span class="legend-dot days-90"></span> 90+: KES {{ receivables.over_90|floatformat:0|intcomma }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Collection Rate -->
+        <div class="financial-card">
+            <div class="section-header">
+                <h3><i class="fas fa-chart-line"></i> Collection Performance</h3>
+            </div>
+            <div class="collection-stats">
+                <div class="collection-item">
+                    <span class="collection-label">Collection Rate</span>
+                    <span class="collection-value">{{ collection_rate.collection_rate|default:0 }}%</span>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ collection_rate.collection_rate|default:0 }}%;"></div>
+                    </div>
+                </div>
+                <div class="collection-item">
+                    <span class="collection-label">Avg. Days to Payment</span>
+                    <span class="collection-value">{{ collection_rate.avg_days_to_payment|default:0 }} days</span>
+                </div>
+                <div class="collection-item">
+                    <span class="collection-label">Invoiced (90 days)</span>
+                    <span class="collection-value">KES {{ collection_rate.total_invoiced|floatformat:0|intcomma|default:"0" }}</span>
+                </div>
+                <div class="collection-item">
+                    <span class="collection-label">Collected (90 days)</span>
+                    <span class="collection-value success">KES {{ collection_rate.total_collected|floatformat:0|intcomma|default:"0" }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Performance Section -->
+    <div class="staff-performance-row">
+        <!-- Sales Leaderboard -->
+        <div class="staff-card">
+            <div class="section-header">
+                <h3><i class="fas fa-trophy"></i> Sales Rep Leaderboard (30 Days)</h3>
+            </div>
+            <div class="leaderboard">
+                {% for rep in staff_performance.sales_leaderboard %}
+                <div class="leaderboard-item">
+                    <div class="rank">
+                        {% if forloop.counter == 1 %}🥇{% elif forloop.counter == 2 %}🥈{% elif forloop.counter == 3 %}🥉{% else %}{{ forloop.counter }}{% endif %}
+                    </div>
+                    <div class="rep-info">
+                        <strong>{{ rep.name }}</strong>
+                        <div class="rep-stats">
+                            <span>{{ rep.deals_closed }} deals</span>
+                            <span>{{ rep.win_rate }}% win rate</span>
+                        </div>
+                    </div>
+                    <div class="rep-revenue">
+                        KES {{ rep.revenue|floatformat:0|intcomma }}
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">No sales data available</p>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Production Team Performance -->
+        <div class="staff-card">
+            <div class="section-header">
+                <h3><i class="fas fa-users"></i> Production Team (30 Days)</h3>
+            </div>
+            <div class="leaderboard">
+                {% for staff in staff_performance.production_leaderboard %}
+                <div class="leaderboard-item">
+                    <div class="rank">{{ forloop.counter }}</div>
+                    <div class="rep-info">
+                        <strong>{{ staff.name }}</strong>
+                        <div class="rep-stats">
+                            <span>{{ staff.jobs_completed }} jobs completed</span>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-muted">No production data available</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Time-Based Insights Section -->
+    <div class="time-insights-section">
+        <div class="section-header">
+            <h3><i class="fas fa-clock"></i> Time-Based Performance</h3>
+        </div>
+        <div class="time-comparisons">
+            <div class="time-card">
+                <div class="time-label">Today vs Yesterday</div>
+                <div class="time-values">
+                    <span class="time-current">KES {{ time_insights.today_revenue|floatformat:0|intcomma|default:"0" }}</span>
+                    <span class="time-change {% if time_insights.daily_change >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if time_insights.daily_change >= 0 %}↑{% else %}↓{% endif %} {{ time_insights.daily_change_abs }}%
+                    </span>
+                </div>
+                <div class="time-previous">Yesterday: KES {{ time_insights.yesterday_revenue|floatformat:0|intcomma|default:"0" }}</div>
+            </div>
+            
+            <div class="time-card">
+                <div class="time-label">This Week vs Last Week</div>
+                <div class="time-values">
+                    <span class="time-current">KES {{ time_insights.this_week_revenue|floatformat:0|intcomma|default:"0" }}</span>
+                    <span class="time-change {% if time_insights.weekly_change >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if time_insights.weekly_change >= 0 %}↑{% else %}↓{% endif %} {{ time_insights.weekly_change_abs }}%
+                    </span>
+                </div>
+                <div class="time-previous">Last Week: KES {{ time_insights.last_week_revenue|floatformat:0|intcomma|default:"0" }}</div>
+            </div>
+            
+            <div class="time-card">
+                <div class="time-label">This Month vs Last Month</div>
+                <div class="time-values">
+                    <span class="time-current">KES {{ time_insights.this_month_revenue|floatformat:0|intcomma|default:"0" }}</span>
+                    <span class="time-change {% if time_insights.monthly_change >= 0 %}positive{% else %}negative{% endif %}">
+                        {% if time_insights.monthly_change >= 0 %}↑{% else %}↓{% endif %} {{ time_insights.monthly_change_abs }}%
+                    </span>
+                </div>
+                <div class="time-previous">Last Month: KES {{ time_insights.last_month_revenue|floatformat:0|intcomma|default:"0" }}</div>
+            </div>
+        </div>
+    </div>
+          
+
+</div>
+
+<!-- Default Django Admin Content (App List) - Keep this below custom dashboard -->
+{{ block.super }}
+
+<!-- Chart Data (Pass to JavaScript) -->
+<script>
+    // STEP 1: Define all data variables FIRST
+    
+    // Order Status Distribution Data
+    const orderStatusData = {{ order_distribution|safe }};
+
+    // Sales Performance Data
+    const salesPerformanceData = {{ sales_trend|safe }};
+    
+    // Top Products Data
+    const topProductsData = [
+        {% for product in top_products %}
+        {
+            name: "{{ product.product_name|escapejs }}",
+            revenue: {{ product.total_revenue|default:0 }},
+            orders: {{ product.order_count|default:0 }}
+        }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    ];
+
+    // Profit Margin Data
+    const profitMarginData = {
+        revenue: {{ profit_margins.total_revenue|default:0 }},
+        cost: {{ profit_margins.total_cost|default:0 }},
+        margin: {{ profit_margins.overall_margin|default:0 }}
+    };
+</script>
+
+<!-- Load Dashboard Charts (Sales & Order Status) -->
+<script src="{% static 'admin/js/dashboard_charts.js' %}"></script>
+
+<!-- Analytics Charts (Top Products & Profit Margin) -->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    
+    // ==================== TOP SELLING PRODUCTS CHART ====================
+    const topProductsCtx = document.getElementById('topProductsChart');
+    if (topProductsCtx && typeof topProductsData !== 'undefined' && topProductsData.length > 0) {
+        new Chart(topProductsCtx, {
+            type: 'bar',
+            data: {
+                labels: topProductsData.map(item => item.name),
+                datasets: [{
+                    label: 'Revenue (KES)',
+                    data: topProductsData.map(item => item.revenue),
+                    backgroundColor: [
+                        'rgba(52, 152, 219, 0.8)',
+                        'rgba(46, 204, 113, 0.8)',
+                        'rgba(155, 89, 182, 0.8)',
+                        'rgba(241, 196, 15, 0.8)',
+                        'rgba(231, 76, 60, 0.8)',
+                        'rgba(26, 188, 156, 0.8)',
+                        'rgba(230, 126, 34, 0.8)',
+                        'rgba(52, 73, 94, 0.8)',
+                        'rgba(149, 165, 166, 0.8)',
+                        'rgba(44, 62, 80, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(52, 152, 219, 1)',
+                        'rgba(46, 204, 113, 1)',
+                        'rgba(155, 89, 182, 1)',
+                        'rgba(241, 196, 15, 1)',
+                        'rgba(231, 76, 60, 1)',
+                        'rgba(26, 188, 156, 1)',
+                        'rgba(230, 126, 34, 1)',
+                        'rgba(52, 73, 94, 1)',
+                        'rgba(149, 165, 166, 1)',
+                        'rgba(44, 62, 80, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y', // Horizontal bar chart
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                return 'Revenue: KES ' + context.parsed.x.toLocaleString();
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.05)'
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return 'KES ' + value.toLocaleString();
+                            }
+                        }
+                    },
+                    y: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // ==================== PROFIT MARGIN CHART ====================
+    const profitMarginCtx = document.getElementById('profitMarginChart');
+    if (profitMarginCtx && typeof profitMarginData !== 'undefined') {
+        const profit = profitMarginData.revenue - profitMarginData.cost;
+        
+        new Chart(profitMarginCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Profit', 'Cost'],
+                datasets: [{
+                    data: [profit > 0 ? profit : 0, profitMarginData.cost],
+                    backgroundColor: [
+                        'rgba(46, 204, 113, 0.8)',
+                        'rgba(231, 76, 60, 0.8)'
+                    ],
+                    borderColor: [
+                        'rgba(46, 204, 113, 1)',
+                        'rgba(231, 76, 60, 1)'
+                    ],
+                    borderWidth: 2,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 13
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.parsed || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return label + ': KES ' + value.toLocaleString() + ' (' + percentage + '%)';
+                            },
+                            afterLabel: function(context) {
+                                if (context.label === 'Profit') {
+                                    return 'Margin: ' + profitMarginData.margin.toFixed(1) + '%';
+                                }
+                                return '';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+}); // Close DOMContentLoaded
+</script>
+
+<!-- Utility Functions -->
+<script>
+// Dismiss Alert Function
+function dismissAlert(alertId) {
+    if (!confirm('Dismiss this alert?')) return;
+    
+    fetch(`/admin/dismiss-alert/${alertId}/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error dismissing alert');
+        }
+    });
+}
+
+// Export Report Function
+function exportReport(reportType) {
+    const url = `/admin/export-report/${reportType}/`;
+    window.location.href = url;
+}
+</script>
+
+{% endblock %}

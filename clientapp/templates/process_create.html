@@ -1,0 +1,1201 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create New Process - Vendor Management{% endblock %}
+
+{% block content %}
+<div class="p-8">
+
+    <!-- Page Title -->
+    <h1 class="text-3xl font-semibold mb-6">CREATE NEW PROCESS</h1>
+
+    <form method="POST">
+        {% csrf_token %}
+        
+        <!-- Hidden field for pricing method - set by JavaScript when user selects tier or formula -->
+        <input type="hidden" name="pricing_method" value="tier" id="pricing-method-input">
+
+        <!-- ====================== BASIC INFORMATION ====================== -->
+        <div class="bg-white border rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-6 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                BASIC INFORMATION
+            </h2>
+
+            <!-- Process Name -->
+            <div class="mb-5">
+                <label class="block font-medium mb-2">Process Name: <span class="text-red-500">*</span></label>
+                <input type="text" name="process_name" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Hoodie Embroidery" required>
+            </div>
+
+            <!-- Process ID -->
+            <div class="mb-5">
+                <label class="block font-medium mb-2">Process ID: <span class="text-sm text-gray-500">(auto-generated)</span></label>
+                <input type="text" name="process_id" class="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100 text-gray-500" value="Generated from name" readonly>
+            </div>
+
+            <!-- Description -->
+            <div class="mb-5">
+                <label class="block font-medium mb-2">Description:</label>
+                <textarea name="description" rows="3" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Embroidery service specifically for hoodies. Pricing based on stitch count, positions, and quantity."></textarea>
+            </div>
+
+            <!-- Category -->
+            <div class="mb-5">
+                <label class="block font-medium mb-2">Category: <span class="text-red-500">*</span></label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="radio" name="category" value="outsourced" checked class="w-4 h-4 text-purple-600">
+                        <div>
+                            <div class="font-medium">Outsourced</div>
+                            <div class="text-sm text-gray-500">Uses external vendors</div>
+                        </div>
+                    </label>
+                    <label class="flex items-center gap-3 cursor-pointer">
+                        <input type="radio" name="category" value="in-house" class="w-4 h-4 text-purple-600">
+                        <div>
+                            <div class="font-medium">In-house</div>
+                            <div class="text-sm text-gray-500">Internal production</div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Standard Lead Time -->
+            <div>
+                <label class="block font-medium mb-2">Standard Lead Time: <span class="text-red-500">*</span></label>
+                <div class="flex items-center gap-2">
+                    <input type="number" name="standard_lead_time" class="border border-gray-300 rounded px-3 py-2 w-20" value="5" required>
+                    <span class="text-gray-600">days</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== PRICING METHOD ====================== -->
+        <div class="bg-white border rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                PRICING METHOD
+            </h2>
+            <p class="text-gray-600 mb-6">Choose how this process will be priced</p>
+
+            <div class="grid grid-cols-2 gap-4">
+                <!-- Tier-Based Pricing -->
+                <div class="border-2 border-blue-500 rounded-lg p-5 bg-blue-50">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                            <circle cx="10" cy="10" r="8"></circle>
+                        </svg>
+                        <h3 class="font-semibold text-base">TIER-BASED PRICING</h3>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium mb-1">Best for:</p>
+                        <ul class="text-sm text-gray-700 list-disc list-inside space-y-1">
+                            <li>Fixed-spec products</li>
+                            <li>Quantity discounts</li>
+                            <li>Simple pricing</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium mb-1">Examples:</p>
+                        <ul class="text-sm text-gray-700 list-disc list-inside space-y-1">
+                            <li>Business cards</li>
+                            <li>Flyers</li>
+                            <li>Standard products</li>
+                        </ul>
+                    </div>
+
+                    <button type="button" onclick="selectTierBased()" class="w-full bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+    SELECT
+</button>
+                </div>
+
+                <!-- Formula-Based Pricing -->
+                <div class="border border-gray-300 rounded-lg p-5 bg-white">
+                    <div class="flex items-center gap-2 mb-3">
+                        <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M3 4h14a1 1 0 011 1v10a1 1 0 01-1 1H3a1 1 0 01-1-1V5a1 1 0 011-1z"></path>
+                        </svg>
+                        <h3 class="font-semibold text-base">FORMULA-BASED PRICING</h3>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium mb-1">Best for:</p>
+                        <ul class="text-sm text-gray-700 list-disc list-inside space-y-1">
+                            <li>Customizable products</li>
+                            <li>Variable calculations</li>
+                            <li>Multi-variable pricing</li>
+                        </ul>
+                    </div>
+
+                    <div class="mb-3">
+                        <p class="text-sm font-medium mb-1">Examples:</p>
+                        <ul class="text-sm text-gray-700 list-disc list-inside space-y-1">
+                            <li>Embroidery (stitches)</li>
+                            <li>Printing (area)</li>
+                            <li>Custom products</li>
+                        </ul>
+                    </div>
+
+                    <button type="button" onclick="selectFormulaBased()" class="w-full bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition">
+    SELECT
+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ====================== TIER-BASED PRICING CONFIGURATION ====================== -->
+       <div class="bg-white border rounded-lg p-6 mb-6" id="tier-pricing-section" style="display: block;">
+    <h2 class="text-lg font-semibold mb-6 flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+        </svg>
+        TIER-BASED PRICING CONFIGURATION
+    </h2>
+
+            <!-- Unit of Measure -->
+            <div class="mb-6">
+                <label class="block font-medium mb-2">Unit of Measure: <span class="text-red-500">*</span></label>
+                <select name="unit_of_measure" class="w-64 border border-gray-300 rounded px-3 py-2">
+                    <option value="per_piece" selected>Per Piece</option>
+                    <option value="per_set">Per Set</option>
+                    <option value="per_box">Per Box</option>
+                    <option value="per_ream">Per Ream</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <p class="text-sm text-gray-500 mt-1">Options: Per Piece, Per Set, Per Box, Per Ream, Custom</p>
+            </div>
+
+            <!-- Quantity Tiers -->
+            <div class="mb-6">
+                <h3 class="font-semibold text-base mb-4">QUANTITY TIERS:</h3>
+
+                <!-- Tier 1 -->
+                <div class="border border-red-300 rounded-lg p-5 mb-4 bg-red-50 relative">
+                    <button type="button" class="absolute top-3 right-3 text-red-500 hover:text-red-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+
+                    <h4 class="font-semibold text-red-700 mb-4">TIER 1</h4>
+
+                    <!-- Quantity Range -->
+                    <div class="mb-4">
+                        <label class="block font-medium mb-2">Quantity Range:</label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-600">From:</span>
+                            <input type="number" name="tier1_from" class="border border-gray-300 rounded px-3 py-2 w-24" value="1">
+                            <span class="text-sm text-gray-600">To:</span>
+                            <input type="number" name="tier1_to" class="border border-gray-300 rounded px-3 py-2 w-24" value="500">
+                            <span class="text-gray-600">pieces</span>
+                        </div>
+                    </div>
+
+                    <!-- Price -->
+                    <div class="mb-4">
+                        <label class="block font-medium mb-2">Price:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="tier1_price" class="border border-gray-300 rounded px-3 py-2 w-32" value="3000">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Per unit: 3,000 KES</p>
+                    </div>
+
+                    <!-- Margin Settings -->
+                    <div>
+                        <label class="block font-medium mb-2">Margin Settings:</label>
+                        <label class="block font-medium mb-2">Cost:</label>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="number" name="tier1_cost" class="border border-gray-300 rounded px-3 py-2 w-32" value="2000">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="block font-medium mb-1">Margin:</label>
+                            <div class="flex items-center gap-3">
+                                <span class="font-semibold text-green-600">1,000 KES (33.3%)</span>
+                                <span class="inline-flex items-center gap-1 text-green-600">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Above target (25%)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tier 2 -->
+                <div class="border border-red-300 rounded-lg p-5 mb-4 bg-red-50 relative">
+                    <button type="button" class="absolute top-3 right-3 text-red-500 hover:text-red-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+
+                    <h4 class="font-semibold text-red-700 mb-4">TIER 2</h4>
+
+                    <!-- Quantity Range -->
+                    <div class="mb-4">
+                        <label class="block font-medium mb-2">Quantity Range:</label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-600">From:</span>
+                            <input type="number" name="tier2_from" class="border border-gray-300 rounded px-3 py-2 w-24" value="501">
+                            <span class="text-sm text-gray-600">To:</span>
+                            <input type="number" name="tier2_to" class="border border-gray-300 rounded px-3 py-2 w-24" value="1000">
+                            <span class="text-gray-600">pieces</span>
+                        </div>
+                    </div>
+
+                    <!-- Price -->
+                    <div class="mb-4">
+                        <label class="block font-medium mb-2">Price:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="tier2_price" class="border border-gray-300 rounded px-3 py-2 w-32" value="5000">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Per unit: 5,000 KES</p>
+                    </div>
+
+                    <!-- Margin Settings -->
+                    <div>
+                        <label class="block font-medium mb-2">Margin Settings:</label>
+                        <label class="block font-medium mb-2">Cost:</label>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="number" name="tier2_cost" class="border border-gray-300 rounded px-3 py-2 w-32" value="3500">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="block font-medium mb-1">Margin:</label>
+                            <div class="flex items-center gap-3">
+                                <span class="font-semibold text-green-600">1,500 KES (30.0%)</span>
+                                <span class="inline-flex items-center gap-1 text-green-600">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Above target (25%)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tier 3 -->
+                <div class="border border-red-300 rounded-lg p-5 mb-4 bg-red-50 relative">
+                    <button type="button" class="absolute top-3 right-3 text-red-500 hover:text-red-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+
+                    <h4 class="font-semibold text-red-700 mb-4">TIER 3</h4>
+
+                    <!-- Quantity Range -->
+                    <div class="mb-4">
+                        <label class="block font-medium mb-2">Quantity Range:</label>
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm text-gray-600">From:</span>
+                            <input type="number" name="tier3_from" class="border border-gray-300 rounded px-3 py-2 w-24" value="1001">
+                            <span class="text-sm text-gray-600">To:</span>
+                            <input type="number" name="tier3_to" class="border border-gray-300 rounded px-3 py-2 w-24" value="2500">
+                            <span class="text-gray-600">pieces</span>
+                        </div>
+                    </div>
+
+                    <!-- Price -->
+                    <div class="mb-4">
+                        <label class="block font-medium mb-2">Price:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="tier3_price" class="border border-gray-300 rounded px-3 py-2 w-32" value="11000">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Per unit: 4.40 KES</p>
+                    </div>
+
+                    <!-- Margin Settings -->
+                    <div>
+                        <label class="block font-medium mb-2">Margin Settings:</label>
+                        <label class="block font-medium mb-2">Cost:</label>
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="number" name="tier3_cost" class="border border-gray-300 rounded px-3 py-2 w-32" value="8000">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="block font-medium mb-1">Margin:</label>
+                            <div class="flex items-center gap-3">
+                                <span class="font-semibold text-green-600">3,000 KES (27.3%)</span>
+                                <span class="inline-flex items-center gap-1 text-green-600">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    Above target (25%)
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Another Tier Button -->
+                <button type="button" class="w-full border-2 border-dashed border-gray-300 rounded-lg py-3 text-gray-600 font-medium hover:border-blue-400 hover:text-blue-600 transition">
+                    + Add Another Tier
+                </button>
+            </div>
+        </div>
+
+        <!-- ====================== APPROVAL SETTINGS ====================== -->
+        <div class="bg-white border rounded-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold mb-6">APPROVAL SETTINGS:</h2>
+
+            <div class="space-y-3">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="radio" name="approval_settings" value="auto_approve" checked class="w-4 h-4 mt-1 text-purple-600">
+                    <div>
+                        <div class="font-medium">Auto-approve all quantities</div>
+                        <div class="text-sm text-gray-500">No PT review needed</div>
+                    </div>
+                </label>
+
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="radio" name="approval_settings" value="require_pt" class="w-4 h-4 mt-1 text-purple-600">
+                    <div>
+                        <div class="font-medium">Require PT approval for all quotes</div>
+                        <div class="text-sm text-gray-500">Manual review required</div>
+                    </div>
+                </label>
+
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="radio" name="approval_settings" value="custom_rules" class="w-4 h-4 mt-1 text-purple-600">
+                    <div>
+                        <div class="font-medium">Custom approval rules</div>
+                        <div class="text-sm text-gray-500">Configure thresholds</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+        <!-- ====================== FORMULA-BASED PRICING CONFIGURATION ====================== -->
+<div class="bg-white border rounded-lg p-6 mb-6" id="formula-pricing-section" style="display: none;">
+    <h2 class="text-lg font-semibold mb-6 flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+        </svg>
+        FORMULA-BASED PRICING CONFIGURATION
+    </h2>
+    <p class="text-gray-600 mb-6">Define variables and pricing formula for cost calculation</p>
+
+    <!-- REQUIRED VARIABLES -->
+    <div class="mb-8">
+        <h3 class="font-semibold text-blue-900 mb-4">REQUIRED VARIABLES:</h3>
+        <p class="text-sm text-gray-600 mb-4">What information is needed to calculate the price?</p>
+
+        <div id="variables-container">
+            <!-- VARIABLE 1 -->
+            <div class="border border-gray-300 rounded-lg p-5 mb-4 bg-white relative variable-card">
+                <button type="button" class="absolute top-3 right-3 text-red-500 hover:text-red-700 remove-variable-btn">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+
+                <h4 class="font-semibold mb-4">VARIABLE 1</h4>
+
+                <!-- Variable Name -->
+                <div class="mb-4">
+                    <label class="block font-medium mb-2">Variable Name: <span class="text-red-500">*</span></label>
+                    <input type="text" name="variable1_name" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Stitch Count" value="Stitch Count">
+                </div>
+
+                <!-- Variable Type & Unit -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block font-medium mb-2">Variable Type:</label>
+                        <select name="variable1_type" class="w-full border border-gray-300 rounded px-3 py-2">
+                            <option value="number" selected>Number</option>
+                            <option value="text">Text</option>
+                            <option value="dropdown">Dropdown</option>
+                            <option value="boolean">Boolean</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">Unit:</label>
+                        <input type="text" name="variable1_unit" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="stitches" value="stitches">
+                    </div>
+                </div>
+
+                <!-- Validation -->
+                <div class="mb-4">
+                    <label class="block font-medium mb-2">Validation:</label>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Min:</label>
+                            <input type="number" name="variable1_min" class="w-full border border-gray-300 rounded px-3 py-2" value="100">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Max:</label>
+                            <input type="number" name="variable1_max" class="w-full border border-gray-300 rounded px-3 py-2" value="50000">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-600 mb-1">Default:</label>
+                            <input type="number" name="variable1_default" class="w-full border border-gray-300 rounded px-3 py-2" value="5000">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block font-medium mb-2">Description:</label>
+                    <input type="text" name="variable1_description" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Total number of stitches in the design" value="Total number of stitches in the design">
+                </div>
+            </div>
+        </div>
+
+        <!-- Add Variable Button -->
+        <button type="button" id="add-variable-btn" class="w-full border-2 border-dashed border-blue-400 text-blue-600 rounded-lg py-3 hover:bg-blue-50 transition flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Add Variable
+        </button>
+    </div>
+
+    <!-- FORMULA BUILDER -->
+    <div class="mb-8">
+        <h3 class="font-semibold text-blue-900 mb-4">FORMULA BUILDER:</h3>
+        <p class="text-sm text-gray-600 mb-4">Build the formula using variables and operators</p>
+
+        <div id="formula-components-container">
+            <!-- COMPONENT 1: Base Cost -->
+            <div class="border border-gray-300 rounded-lg p-5 mb-4 bg-gray-50 relative formula-component">
+                <button type="button" class="absolute top-3 right-3 text-red-500 hover:text-red-700 remove-component-btn">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+
+                <h4 class="font-semibold mb-4">COMPONENT 1: Base Cost</h4>
+
+                <div class="grid grid-cols-3 gap-4">
+                    <div>
+                        <label class="block font-medium mb-2">Component Name:</label>
+                        <input type="text" name="component1_name" class="w-full border border-gray-300 rounded px-3 py-2" value="Base Cost">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">Type:</label>
+                        <select name="component1_type" class="w-full border border-gray-300 rounded px-3 py-2">
+                            <option value="fixed" selected>Fixed Value</option>
+                            <option value="variable_rate">Variable × Rate</option>
+                            <option value="variable_lookup">Variable Lookup</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">Value (KES):</label>
+                        <input type="number" step="0.01" name="component1_value" class="w-full border border-gray-300 rounded px-3 py-2" value="50">
+                    </div>
+                </div>
+
+                <p class="text-sm text-blue-600 mt-2">50 KES</p>
+            </div>
+        </div>
+
+        <!-- Add Component Button -->
+        <button type="button" id="add-component-btn" class="w-full border-2 border-dashed border-blue-400 text-blue-600 rounded-lg py-3 hover:bg-blue-50 transition flex items-center justify-center gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            Add Component
+        </button>
+    </div>
+
+    <!-- FORMULA PREVIEW -->
+    <div class="mb-8">
+        <h3 class="font-semibold text-blue-900 mb-4">FORMULA PREVIEW:</h3>
+        <div class="bg-gray-100 border border-gray-300 rounded-lg p-4">
+            <code id="formula-preview" class="text-sm text-gray-800">Cost = 50 + (StitchCount × 0.004) + (Positions × 100)</code>
+        </div>
+    </div>
+
+    <!-- TEST CALCULATOR -->
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-5">
+        <h3 class="font-semibold text-blue-900 mb-4">TEST CALCULATOR:</h3>
+        <p class="text-sm text-gray-600 mb-4">Test your formula with sample values</p>
+
+        <div class="grid grid-cols-3 gap-4 mb-4">
+            <div>
+                <label class="block font-medium mb-2">Stitch Count:</label>
+                <input type="number" id="test_stitch_count" class="w-full border border-gray-300 rounded px-3 py-2 bg-white" value="5000">
+            </div>
+            <div>
+                <label class="block font-medium mb-2">Quantity:</label>
+                <input type="number" id="test_quantity" class="w-full border border-gray-300 rounded px-3 py-2 bg-white" value="100">
+            </div>
+            <div>
+                <label class="block font-medium mb-2">Positions:</label>
+                <input type="number" id="test_positions" class="w-full border border-gray-300 rounded px-3 py-2 bg-white" value="2">
+            </div>
+        </div>
+
+        <button type="button" id="calculate-test-btn" class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition">
+            Calculate
+        </button>
+
+        <div id="test-result" class="mt-4 hidden">
+            <p class="text-lg font-semibold text-blue-900">Result: <span id="test-result-value" class="text-green-600">KES 0.00</span></p>
+        </div>
+    </div>
+</div>
+
+        <!-- ====================== VENDOR MANAGEMENT ====================== -->
+        <!-- ====================== VENDOR MANAGEMENT ====================== -->
+<div class="bg-white border rounded-lg p-6 mb-6">
+    <h2 class="text-lg font-semibold mb-6 flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+        </svg>
+        VENDOR MANAGEMENT
+    </h2>
+    <p class="text-gray-600 mb-6">Link vendors from your vendor system to this process</p>
+
+    <div id="vendors-container">
+        <!-- VENDOR 1: PREFERRED -->
+        <div class="border border-green-300 rounded-lg p-5 mb-4 bg-green-50 relative vendor-card">
+            <h4 class="font-semibold text-green-700 mb-4">VENDOR 1: PREFERRED</h4>
+
+            <!-- Vendor Selection -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block font-medium mb-2">Vendor:</label>
+                    <select name="vendor1_id" class="w-full border border-gray-300 rounded px-3 py-2 bg-white vendor-select">
+                        <option value="">Select vendor...</option>
+                        {% for vendor in vendors %}
+                        <option value="{{ vendor.id }}" data-vps="{{ vendor.vps_score_value }}" data-vendor-id="{{ vendor.id }}">
+                            {{ vendor.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="button" id="open-new-vendor" class="mt-2 text-xs text-blue-600 hover:text-blue-800">
+                        + Add New Vendor
+                    </button>
+                </div>
+                <div>
+                    <label class="block font-medium mb-2">Vendor ID:</label>
+                    <input type="text" name="vendor1_vendor_id" class="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100" readonly>
+                </div>
+            </div>
+
+            <!-- VPS Score Display -->
+            <div class="mb-4">
+                <span class="text-sm font-medium">VPS:</span>
+                <span class="font-semibold text-green-600 vendor-vps">--%</span>
+                <span class="ml-2 vendor-stars text-yellow-500">☆☆☆☆☆</span>
+            </div>
+
+            <!-- Pricing Fields (shown based on pricing type) -->
+            <div class="tier-pricing-fields">
+                <h5 class="font-semibold mb-3">For TIER-BASED pricing:</h5>
+                <p class="text-sm text-gray-600 mb-3">Enter vendor costs for each tier (will be populated from tier configuration)</p>
+            </div>
+
+            <div class="formula-pricing-fields" style="display: none;">
+                <h5 class="font-semibold mb-3">For FORMULA-BASED pricing:</h5>
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block font-medium mb-2">Rate Per Stitch:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" step="0.0001" name="vendor1_rate_stitch" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="0.004">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">Setup Fee Per Position:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="vendor1_setup_fee" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="100">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">Base Cost:</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="vendor1_base_cost" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="50">
+                            <span class="text-gray-600">KES</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rush Fees -->
+            <div class="mb-4">
+                <h5 class="font-semibold mb-3">Rush Fees:</h5>
+                <div class="flex items-center gap-2 mb-3">
+                    <input type="checkbox" name="vendor1_rush_enabled" id="vendor1_rush" value="1" class="w-4 h-4">
+                    <label for="vendor1_rush" class="font-medium">Enable rush pricing</label>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm mb-1">Rush fee =</label>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="vendor1_rush_fee" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="60" value="60">
+                            <span class="text-gray-600">% for lead time <</span>
+                            <input type="number" name="vendor1_rush_threshold" class="w-20 border border-gray-300 rounded px-3 py-2" value="3">
+                            <span class="text-gray-600">days</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Minimum Order & Lead Time -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block font-medium mb-2">Minimum Order:</label>
+                    <div class="flex items-center gap-2">
+                        <input type="number" name="vendor1_min_order" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="100" value="100">
+                        <span class="text-gray-600">KES</span>
+                    </div>
+                </div>
+                <div>
+                    <label class="block font-medium mb-2">Lead Time:</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="vendor1_standard_days" class="w-full border border-gray-300 rounded px-3 py-2" value="5">
+                            <span class="text-sm text-gray-600">days (standard)</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="number" name="vendor1_rush_days" class="w-full border border-gray-300 rounded px-3 py-2" value="2">
+                            <span class="text-sm text-gray-600">days (rush)</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+                <label class="block font-medium mb-2">Notes:</label>
+                <textarea name="vendor1_notes" rows="2" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Preferred vendor for premium embroidery. Excellent quality and reliable delivery."></textarea>
+            </div>
+        </div>
+    </div>
+
+    
+
+    <!-- Default Vendor Selection Logic -->
+    <div class="border-t pt-6">
+        <h4 class="font-semibold mb-4">Default Vendor Selection Logic:</h4>
+        <div class="space-y-2">
+            <label class="flex items-center gap-2">
+                <input type="radio" name="vendor_selection_logic" value="highest_vps" class="w-4 h-4" checked>
+                <span>Auto-select highest VPS vendor</span>
+            </label>
+            <label class="flex items-center gap-2">
+                <input type="radio" name="vendor_selection_logic" value="lowest_cost" class="w-4 h-4">
+                <span>Auto-select lowest cost vendor</span>
+            </label>
+            <label class="flex items-center gap-2">
+                <input type="radio" name="vendor_selection_logic" value="manual" class="w-4 h-4">
+                <span>Always require manual selection</span>
+            </label>
+        </div>
+    </div>
+</div>
+
+<!-- ====================== FORM ACTIONS (FIXED FOOTER) ====================== -->
+<div class="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg z-50">
+    <div class="max-w-7xl mx-auto px-8 py-4 flex items-center justify-between">
+        <button type="button" onclick="window.history.back()" class="px-6 py-2 text-gray-700 hover:text-gray-900 font-medium transition">
+            Cancel
+        </button>
+        
+        <div class="flex items-center gap-3">
+            <button type="submit" name="action" value="draft" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition">
+                Save as Draft
+            </button>
+            
+            <button type="submit" name="action" value="activate" class="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Save & Activate →
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Add padding to bottom of form to prevent content being hidden by fixed footer -->
+<div class="h-24"></div>
+
+
+
+    </form>
+
+</div>
+
+<!-- ============================================ -->
+<!-- ADD THIS AT THE BOTTOM OF process_create.html -->
+
+<!-- ============================================ -->
+
+<!-- Load JavaScript -->
+<script>
+(function() {
+    'use strict';
+    
+    console.log('🚀 Process form script starting...');
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('✅ DOM Content Loaded');
+        
+        // Get references to sections
+        const tierSection = document.getElementById('tier-pricing-section');
+        const formulaSection = document.getElementById('formula-pricing-section');
+        
+        console.log('Tier Section:', tierSection ? 'Found' : 'NOT FOUND');
+        console.log('Formula Section:', formulaSection ? 'Found' : 'NOT FOUND');
+        
+        // ===== AUTO-GENERATE PROCESS ID =====
+        const processNameInput = document.querySelector('input[name="process_name"]');
+        const processIdInput = document.querySelector('input[name="process_id"]');
+        
+        if (processNameInput && processIdInput) {
+            console.log('✅ Process name/ID inputs found');
+            processNameInput.addEventListener('blur', function() {
+                const name = this.value.trim();
+                if (name) {
+                    fetch(`/ajax/generate-process-id/?name=${encodeURIComponent(name)}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            processIdInput.value = data.process_id;
+                            console.log('Generated Process ID:', data.process_id);
+                        })
+                        .catch(error => console.error('Error generating process ID:', error));
+                }
+            });
+        }
+        
+        // ===== PRICING METHOD SELECTION =====
+        window.selectTierBased = function() {
+            console.log('Tier-Based pricing selected');
+            
+            const tierCard = document.querySelector('button[onclick="selectTierBased()"]').closest('.border');
+            const formulaCard = document.querySelector('button[onclick="selectFormulaBased()"]').closest('.border');
+            
+            if (tierCard) {
+                tierCard.classList.remove('border-gray-300', 'bg-white');
+                tierCard.classList.add('border-blue-500', 'bg-blue-50');
+            }
+            
+            if (formulaCard) {
+                formulaCard.classList.remove('border-blue-500', 'bg-blue-50');
+                formulaCard.classList.add('border-gray-300', 'bg-white');
+            }
+            
+            if (tierSection) tierSection.style.display = 'block';
+            if (formulaSection) formulaSection.style.display = 'none';
+            
+            document.querySelectorAll('.tier-pricing-fields').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.formula-pricing-fields').forEach(el => el.style.display = 'none');
+            
+            // Update hidden pricing method input
+            document.getElementById('pricing-method-input').value = 'tier';
+            console.log('Pricing method set to: tier');
+        };
+        
+        window.selectFormulaBased = function() {
+            console.log('Formula-Based pricing selected');
+            
+            const formulaCard = document.querySelector('button[onclick="selectFormulaBased()"]').closest('.border');
+            const tierCard = document.querySelector('button[onclick="selectTierBased()"]').closest('.border');
+            
+            if (formulaCard) {
+                formulaCard.classList.remove('border-gray-300', 'bg-white');
+                formulaCard.classList.add('border-blue-500', 'bg-blue-50');
+            }
+            
+            if (tierCard) {
+                tierCard.classList.remove('border-blue-500', 'bg-blue-50');
+                tierCard.classList.add('border-gray-300', 'bg-white');
+            }
+            
+            if (formulaSection) formulaSection.style.display = 'block';
+            if (tierSection) tierSection.style.display = 'none';
+            
+            document.querySelectorAll('.formula-pricing-fields').forEach(el => el.style.display = 'block');
+            document.querySelectorAll('.tier-pricing-fields').forEach(el => el.style.display = 'none');
+            
+            // Update hidden pricing method input
+            document.getElementById('pricing-method-input').value = 'formula';
+            console.log('Pricing method set to: formula');
+        };
+        
+        // ===== VENDOR DROPDOWN - POPULATE VENDOR ID & VPS =====
+        const vendorSelects = document.querySelectorAll('.vendor-select, select[name="vendor1_id"]');
+        console.log(`Found ${vendorSelects.length} vendor select dropdown(s)`);
+        
+        vendorSelects.forEach((select, idx) => {
+            console.log(`Setting up vendor select #${idx + 1}`);
+            select.addEventListener('change', function() {
+                console.log('Vendor dropdown changed');
+                const selectedOption = this.options[this.selectedIndex];
+                const vendorCard = this.closest('.vendor-card');
+                
+                if (selectedOption.value && vendorCard) {
+                    const vendorId = selectedOption.getAttribute('data-vendor-id') || selectedOption.value;
+                    const vpsScore = selectedOption.getAttribute('data-vps') || '5.0';
+                    
+                    console.log('Selected vendor:', {
+                        name: selectedOption.text,
+                        id: vendorId,
+                        vps: vpsScore
+                    });
+                    
+                    const vendorIdInput = vendorCard.querySelector('input[name$="_vendor_id"]');
+                    if (vendorIdInput) {
+                        vendorIdInput.value = `VND-${String(vendorId).padStart(3, '0')}`;
+                        console.log('✅ Set Vendor ID:', vendorIdInput.value);
+                    }
+                    
+                    const vpsDisplay = vendorCard.querySelector('.vendor-vps');
+                    if (vpsDisplay && vpsScore) {
+                        vpsDisplay.textContent = `${vpsScore}%`;
+                        
+                        const stars = Math.round(parseFloat(vpsScore) / 20);
+                        const starsDisplay = vendorCard.querySelector('.vendor-stars');
+                        if (starsDisplay) {
+                            starsDisplay.textContent = '★'.repeat(stars) + '☆'.repeat(5 - stars);
+                        }
+                    }
+                }
+            });
+        });
+        
+        // ===== NEW VENDOR MODAL - CRITICAL FIX =====
+        console.log('🔍 Looking for "Add New Vendor" button...');
+        const newVendorButton = document.getElementById('open-new-vendor');
+        
+        if (!newVendorButton) {
+            console.error('❌ CRITICAL: Button with id="open-new-vendor" NOT FOUND!');
+            console.log('Available buttons:', document.querySelectorAll('button'));
+        } else {
+            console.log('✅ Found "Add New Vendor" button:', newVendorButton);
+            
+            // Remove any existing listeners
+            newVendorButton.onclick = null;
+            
+            newVendorButton.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🟢 "Add New Vendor" button clicked!');
+                
+                try {
+                    // Create modal with inline styles (no Tailwind dependency)
+                    const modalHTML = `
+                        <div id="vendor-modal-overlay" style="
+                            position: fixed;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: rgba(0, 0, 0, 0.6);
+                            z-index: 99999;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            padding: 1rem;
+                        ">
+                            <div style="
+                                background: white;
+                                border-radius: 8px;
+                                padding: 2rem;
+                                max-width: 500px;
+                                width: 100%;
+                                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                                max-height: 90vh;
+                                overflow-y: auto;
+                            ">
+                                <h3 style="
+                                    font-size: 1.5rem;
+                                    font-weight: 600;
+                                    margin-bottom: 1.5rem;
+                                    color: #1f2937;
+                                ">Add New Vendor</h3>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: #374151;">
+                                        Vendor Name <span style="color: #dc2626;">*</span>
+                                    </label>
+                                    <input type="text" id="new-vendor-name" placeholder="Enter vendor name" required style="
+                                        width: 100%;
+                                        border: 1px solid #d1d5db;
+                                        border-radius: 4px;
+                                        padding: 0.75rem;
+                                        font-size: 1rem;
+                                    ">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: #374151;">
+                                        Email
+                                    </label>
+                                    <input type="email" id="new-vendor-email" placeholder="vendor@example.com" style="
+                                        width: 100%;
+                                        border: 1px solid #d1d5db;
+                                        border-radius: 4px;
+                                        padding: 0.75rem;
+                                        font-size: 1rem;
+                                    ">
+                                </div>
+                                
+                                <div style="margin-bottom: 1rem;">
+                                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: #374151;">
+                                        Phone
+                                    </label>
+                                    <input type="text" id="new-vendor-phone" placeholder="+254..." style="
+                                        width: 100%;
+                                        border: 1px solid #d1d5db;
+                                        border-radius: 4px;
+                                        padding: 0.75rem;
+                                        font-size: 1rem;
+                                    ">
+                                </div>
+                                
+                                <div style="margin-bottom: 1.5rem;">
+                                    <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: #374151;">
+                                        Address
+                                    </label>
+                                    <textarea id="new-vendor-address" rows="3" placeholder="Optional" style="
+                                        width: 100%;
+                                        border: 1px solid #d1d5db;
+                                        border-radius: 4px;
+                                        padding: 0.75rem;
+                                        font-size: 1rem;
+                                        resize: vertical;
+                                        font-family: inherit;
+                                    "></textarea>
+                                </div>
+                                
+                                <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+                                    <button type="button" id="cancel-vendor-btn" style="
+                                        padding: 0.75rem 1.5rem;
+                                        border: 1px solid #d1d5db;
+                                        border-radius: 4px;
+                                        background: white;
+                                        cursor: pointer;
+                                        font-size: 1rem;
+                                        font-weight: 500;
+                                    ">
+                                        Cancel
+                                    </button>
+                                    <button type="button" id="save-vendor-btn" style="
+                                        padding: 0.75rem 1.5rem;
+                                        background: #2563eb;
+                                        color: white;
+                                        border: none;
+                                        border-radius: 4px;
+                                        cursor: pointer;
+                                        font-size: 1rem;
+                                        font-weight: 500;
+                                    ">
+                                        Save Vendor
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    console.log('Creating modal...');
+                    document.body.insertAdjacentHTML('beforeend', modalHTML);
+                    console.log('✅ Modal created and added to DOM');
+                    
+                    // Focus on name input
+                    setTimeout(() => {
+                        const nameInput = document.getElementById('new-vendor-name');
+                        if (nameInput) nameInput.focus();
+                    }, 100);
+                    
+                    // Handle cancel
+                    const cancelBtn = document.getElementById('cancel-vendor-btn');
+                    if (cancelBtn) {
+                        cancelBtn.addEventListener('click', function() {
+                            console.log('🔴 Closing modal (cancelled)');
+                            const modal = document.getElementById('vendor-modal-overlay');
+                            if (modal) modal.remove();
+                        });
+                    }
+                    
+                    // Handle save
+                    const saveBtn = document.getElementById('save-vendor-btn');
+                    if (saveBtn) {
+                        saveBtn.addEventListener('click', function() {
+                            const name = document.getElementById('new-vendor-name').value.trim();
+                            const email = document.getElementById('new-vendor-email').value.trim();
+                            const phone = document.getElementById('new-vendor-phone').value.trim();
+                            const address = document.getElementById('new-vendor-address').value.trim();
+                            
+                            if (!name) {
+                                alert('Vendor name is required');
+                                return;
+                            }
+                            
+                            console.log('💾 Saving vendor:', name);
+                            
+                            // Show loading state
+                            saveBtn.textContent = 'Creating...';
+                            saveBtn.disabled = true;
+                            saveBtn.style.opacity = '0.6';
+                            saveBtn.style.cursor = 'not-allowed';
+                            
+                            // Get CSRF token
+                            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                            console.log('CSRF Token:', csrfToken ? 'Found' : 'NOT FOUND');
+                            
+                            // Make AJAX request
+                            fetch('/ajax/create-vendor/', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': csrfToken
+                                },
+                                body: JSON.stringify({
+                                    name: name,
+                                    email: email || 'vendor@example.com',
+                                    phone: phone || 'N/A',
+                                    address: address || ''
+                                })
+                            })
+                            .then(response => {
+                                console.log('Response status:', response.status);
+                                if (!response.ok) {
+                                    throw new Error(`HTTP error! status: ${response.status}`);
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log('Response data:', data);
+                                
+                                if (!data.success) {
+                                    alert(data.message || 'Error creating vendor');
+                                    saveBtn.textContent = 'Save Vendor';
+                                    saveBtn.disabled = false;
+                                    saveBtn.style.opacity = '1';
+                                    saveBtn.style.cursor = 'pointer';
+                                    return;
+                                }
+                                
+                                console.log('✅ Vendor created successfully:', data);
+                                
+                                // Add to all vendor dropdowns
+                                let addedCount = 0;
+                                const allSelects = document.querySelectorAll('.vendor-select, select[name="vendor1_id"]');
+                                console.log(`Found ${allSelects.length} dropdown(s) to update`);
+                                
+                                allSelects.forEach(select => {
+                                    const opt = document.createElement('option');
+                                    opt.value = data.id;
+                                    opt.textContent = data.name;
+                                    opt.setAttribute('data-vps', data.vps_score_value || '5.0');
+                                    opt.setAttribute('data-vendor-id', data.id);
+                                    select.appendChild(opt);
+                                    addedCount++;
+                                    
+                                    // Auto-select on first vendor dropdown
+                                    if (select.name === 'vendor1_id') {
+                                        select.value = data.id;
+                                        const event = new Event('change', { bubbles: true });
+                                        select.dispatchEvent(event);
+                                        console.log('✅ Auto-selected new vendor');
+                                    }
+                                });
+                                
+                                console.log(`✅ Added to ${addedCount} dropdown(s)`);
+                                
+                                // Close modal
+                                const modal = document.getElementById('vendor-modal-overlay');
+                                if (modal) modal.remove();
+                                
+                                // Show success message
+                                alert(`✅ Vendor "${data.name}" created successfully!`);
+                            })
+                            .catch(err => {
+                                console.error('❌ Error:', err);
+                                alert(`Error creating vendor: ${err.message}`);
+                                saveBtn.textContent = 'Save Vendor';
+                                saveBtn.disabled = false;
+                                saveBtn.style.opacity = '1';
+                                saveBtn.style.cursor = 'pointer';
+                            });
+                        });
+                    }
+                    
+                } catch (error) {
+                    console.error('❌ Error creating modal:', error);
+                    alert('Error opening modal: ' + error.message);
+                }
+            }, true); // Use capture phase
+            
+            console.log('✅ Click listener attached to "Add New Vendor" button');
+        }
+        
+        // ===== TIER MARGIN CALCULATION =====
+        function setupTierCalculations() {
+            const tierCards = document.querySelectorAll('.border-red-300');
+            console.log(`Found ${tierCards.length} tier card(s)`);
+            
+            tierCards.forEach((tierCard, index) => {
+                const priceInput = tierCard.querySelector('input[name*="_price"]');
+                const costInput = tierCard.querySelector('input[name*="_cost"]');
+                
+                if (priceInput && costInput) {
+                    const calculateMargin = () => {
+                        const price = parseFloat(priceInput.value) || 0;
+                        const cost = parseFloat(costInput.value) || 0;
+                        
+                        if (price > 0) {
+                            fetch(`/ajax/calculate-margin/?price=${price}&cost=${cost}`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (!data.error) {
+                                        const marginDisplays = tierCard.querySelectorAll('.flex.items-center.gap-3');
+                                        const marginDisplay = Array.from(marginDisplays).find(el => 
+                                            el.textContent.includes('KES') || el.textContent.includes('%') || el.textContent.includes('Margin')
+                                        );
+                                        
+                                        if (marginDisplay) {
+                                            marginDisplay.innerHTML = `
+                                                <span class="font-semibold text-${data.color}-600">
+                                                    ${data.margin_amount.toLocaleString()} KES (${data.margin_percentage.toFixed(1)}%)
+                                                </span>
+                                                <span class="inline-flex items-center gap-1 text-${data.color}-600">
+                                                    ${data.status === 'above' ? '✅' : data.status === 'below' ? '❌' : '⚠️'}
+                                                    ${data.message}
+                                                </span>
+                                            `;
+                                        }
+                                    }
+                                })
+                                .catch(error => console.error('Error calculating margin:', error));
+                        }
+                    };
+                    
+                    priceInput.addEventListener('input', calculateMargin);
+                    costInput.addEventListener('input', calculateMargin);
+                    
+                    if (priceInput.value && costInput.value) {
+                        calculateMargin();
+                    }
+                }
+            });
+        }
+        
+        setupTierCalculations();
+        
+        console.log('✅ All initialization complete');
+    });
+})();
+</script>
+{%endblock%}

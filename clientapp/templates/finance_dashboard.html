@@ -1,132 +1,338 @@
 {% extends 'base.html' %}
+{% load static %}
 
-{% block title %}Financial Management - Print Duka{% endblock %}
+{% block title %}Finance Dashboard - PrintDuka{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
-    <div class="flex justify-between items-center">
-        <h2 class="text-2xl font-bold text-gray-800">Financial Management</h2>
-        <div class="text-sm text-gray-600">
-            Powered by Django Ledger
+<div class="container-fluid px-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">Finance Dashboard</h1>
+            <a href="{% url 'qb_connect' %}" class="btn btn-primary">Connect to QuickBooks</a>
+
+        </div>
+       
+    <!-- Financial Summary Cards -->
+    <div class="row mb-4">
+        <!-- Total Revenue -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-primary shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                Total Revenue
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                KES {{ total_revenue|floatformat:2|default:"0.00" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-dollar-sign fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Outstanding Balance -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-warning shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                Outstanding
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                KES {{ outstanding_balance|floatformat:2|default:"0.00" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-clock fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Expenses -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-danger shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                Total Expenses
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                KES {{ total_expenses|floatformat:2|default:"0.00" }}
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-receipt fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Net Profit -->
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card border-left-success shadow h-100 py-2">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                Net Profit
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                KES {{ net_profit|floatformat:2|default:"0.00" }}
+                            </div>
+                            <small class="text-muted">{{ profit_margin|default:"0" }}% margin</small>
+                        </div>
+                        <div class="col-auto">
+                            <i class="fas fa-chart-line fa-2x text-gray-300"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Global Summary -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-            <div class="text-sm text-gray-600">Entities</div>
-            <div class="text-2xl font-bold">{{ total_entities|default:"0" }}</div>
+    <!-- Second Row of Stats -->
+    <div class="row mb-4">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total Invoices</p>
+                            <h4 class="mb-0">{{ total_invoices|default:"0" }}</h4>
+                        </div>
+                        <i class="fas fa-file-invoice fa-2x text-primary"></i>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-            <div class="text-sm text-gray-600">Clients (mapped)</div>
-            <div class="text-2xl font-bold">{{ entities|length }}</div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Paid Invoices</p>
+                            <h4 class="mb-0 text-success">{{ paid_invoices|default:"0" }}</h4>
+                            <small class="text-muted">{{ collection_rate|default:"0" }}% rate</small>
+                        </div>
+                        <i class="fas fa-check-circle fa-2x text-success"></i>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-            <div class="text-sm text-gray-600">Reports</div>
-            <div class="text-2xl font-bold text-blue-600">Global</div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Overdue</p>
+                            <h4 class="mb-0 text-danger">{{ overdue_invoices|default:"0" }}</h4>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div class="bg-white border border-gray-200 rounded-lg p-4">
-            <div class="text-sm text-gray-600">Accounting</div>
-            <div class="text-2xl font-bold text-green-600">Overview</div>
+
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <p class="text-muted mb-1">Total Customers</p>
+                            <h4 class="mb-0">{{ total_customers|default:"0" }}</h4>
+                        </div>
+                        <i class="fas fa-users fa-2x text-info"></i>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Global Ledger Sections (Theme-preserving shortcuts) -->
-    <div class="bg-white rounded-lg border border-gray-200">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold">Global Ledger Sections</h3>
-            <p class="text-sm text-gray-600 mt-1">Access ledger areas across all entities (opens within your theme)</p>
+    <div class="row">
+        <!-- Recent Invoices -->
+        <div class="col-lg-8 mb-4">
+            <div class="card shadow">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h6 class="m-0 font-weight-bold text-primary">Recent Invoices</h6>
+                    <a href="#" class="btn btn-sm btn-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_invoices %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>Customer</th>
+                                    <th>Date</th>
+                                    <th>Amount</th>
+                                    <th>Balance</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for invoice in recent_invoices %}
+                                <tr>
+                                    <td><strong>{{ invoice.number }}</strong></td>
+                                    <td>{{ invoice.customer }}</td>
+                                    <td>{{ invoice.date }}</td>
+                                    <td>{{ invoice.currency }} {{ invoice.total|floatformat:2 }}</td>
+                                    <td>{{ invoice.currency }} {{ invoice.balance|floatformat:2 }}</td>
+                                    <td>
+                                        {% if invoice.status == 'paid' %}
+                                        <span class="badge bg-success">Paid</span>
+                                        {% elif invoice.status == 'overdue' %}
+                                        <span class="badge bg-danger">Overdue</span>
+                                        {% elif invoice.status == 'sent' %}
+                                        <span class="badge bg-warning">Sent</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">{{ invoice.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4">No invoices found</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
-            <a href="{% url 'django_ledger:entity-list' %}" class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div class="font-semibold mb-1">Management</div>
-                <div class="text-sm text-gray-600">Manage entities and high-level settings</div>
-            </a>
-            <a href="{% url 'django_ledger:entity-list' %}" class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div class="font-semibold mb-1">Your Lists</div>
-                <div class="text-sm text-gray-600">Open lists by selecting an entity</div>
-            </a>
-            <a href="{% url 'django_ledger:entity-list' %}" class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div class="font-semibold mb-1">Reports</div>
-                <div class="text-sm text-gray-600">Choose an entity to view financial reports</div>
-            </a>
-            <a href="{% url 'django_ledger:entity-list' %}" class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div class="font-semibold mb-1">Accounting</div>
-                <div class="text-sm text-gray-600">Chart of accounts, journals, and entries</div>
-            </a>
-            <a href="{% url 'django_ledger:entity-list' %}" class="block border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                <div class="font-semibold mb-1">Administration</div>
-                <div class="text-sm text-gray-600">Entity-level settings and controls</div>
-            </a>
+
+        <!-- Top Customers & Recent Expenses -->
+        <div class="col-lg-4 mb-4">
+            <!-- Top Customers -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Top Customers</h6>
+                </div>
+                <div class="card-body">
+                    {% if top_customers %}
+                    <ul class="list-unstyled">
+                        {% for customer in top_customers %}
+                        <li class="mb-3">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>{{ customer.name }}</strong>
+                                    {% if customer.company %}
+                                    <br><small class="text-muted">{{ customer.company }}</small>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <strong class="text-success">KES {{ customer.outstanding|floatformat:0 }}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted text-center">No customer data</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Recent Expenses -->
+            <div class="card shadow">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">Recent Expenses</h6>
+                </div>
+                <div class="card-body">
+                    {% if recent_expenses %}
+                    <ul class="list-unstyled">
+                        {% for expense in recent_expenses|slice:":5" %}
+                        <li class="mb-3 pb-2 border-bottom">
+                            <div class="d-flex justify-content-between">
+                                <div>
+                                    <strong>{{ expense.description|truncatewords:4 }}</strong>
+                                    <br><small class="text-muted">{{ expense.date }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <strong class="text-danger">{{ expense.currency }} {{ expense.amount|floatformat:2 }}</strong>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <p class="text-muted text-center">No expenses found</p>
+                    {% endif %}
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- Client Entities -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold">Client Financial Entities</h3>
-            <p class="text-sm text-gray-600 mt-1">Manage accounting for each client</p>
-        </div>
-        
-        <div class="divide-y divide-gray-200">
-            {% for entity in entities %}
-            <div class="px-6 py-4 flex items-center justify-between hover:bg-gray-50">
-                <div>
-                    <h4 class="font-medium">{{ entity.entity.name }}</h4>
-                    <p class="text-sm text-gray-600">{{ entity.entity.email }}</p>
+    <!-- PrintDuka Integration Section -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-info text-white py-3">
+                    <h6 class="m-0 font-weight-bold">PrintDuka System Overview</h6>
                 </div>
-                <div class="flex gap-2">
-                    <a href="{% url 'finance_client_entity' entity.client_id %}" 
-                       class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700">
-                        Open in Ledger
-                    </a>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-file-alt fa-3x text-info mb-2"></i>
+                                <h4>{{ printduka_quotes_pending|default:"0" }}</h4>
+                                <p class="text-muted">Pending Quotes</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-tasks fa-3x text-warning mb-2"></i>
+                                <h4>{{ printduka_jobs_active|default:"0" }}</h4>
+                                <p class="text-muted">Active Jobs</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="text-center">
+                                <i class="fas fa-chart-line fa-3x text-success mb-2"></i>
+                                <h4>KES {{ printduka_revenue_month|floatformat:0|default:"0" }}</h4>
+                                <p class="text-muted">Revenue (This Month)</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-            {% empty %}
-            <div class="px-6 py-12 text-center text-gray-500">
-                <p>No client entities found. Clients will be automatically mapped.</p>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Django Ledger Features -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                    <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                <h3 class="font-semibold">Chart of Accounts</h3>
-            </div>
-            <p class="text-sm text-gray-600">Manage your accounting structure and financial categories.</p>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                    </svg>
-                </div>
-                <h3 class="font-semibold">Financial Reports</h3>
-            </div>
-            <p class="text-sm text-gray-600">Generate balance sheets, income statements, and cash flow reports.</p>
-        </div>
-
-        <div class="bg-white rounded-lg shadow p-6">
-            <div class="flex items-center gap-3 mb-4">
-                <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                    </svg>
-                </div>
-                <h3 class="font-semibold">Transaction Management</h3>
-            </div>
-            <p class="text-sm text-gray-600">Record and track all financial transactions and journal entries.</p>
         </div>
     </div>
+
+   
 </div>
+
+<style>
+.border-left-primary {
+    border-left: 0.25rem solid #4e73df !important;
+}
+.border-left-success {
+    border-left: 0.25rem solid #1cc88a !important;
+}
+.border-left-warning {
+    border-left: 0.25rem solid #f6c23e !important;
+}
+.border-left-danger {
+    border-left: 0.25rem solid #e74a3b !important;
+}
+.card {
+    border-radius: 0.5rem;
+}
+.text-xs {
+    font-size: 0.7rem;
+}
+</style>
 {% endblock %}

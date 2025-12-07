@@ -24,4 +24,6 @@ urlpatterns = [
     path('accounts/login/', auth_views.LoginView.as_view(template_name='admin/login.html'), name='login'),
 
     path('', include('clientapp.urls')),
+    path('quickbooks/', include('quickbooks_integration.urls')),
+
 ]

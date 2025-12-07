@@ -1,0 +1,3189 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if product %}Edit Product{% else %}Add Product{% endif %} - Production Management{% endblock %}
+
+{% block content %}
+<div class="p-8 max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{% url 'production_catalog' %}"
+            class="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4">
+            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            ← Back to Products
+        </a>
+
+        <div class="flex items-start justify-between">
+            <div>
+                <div class="flex items-center gap-3 mb-2">
+                    <h1 class="text-2xl font-semibold text-gray-900">
+                        {% if product %}{{ product.name }}{% else %}Premium Business Cards{% endif %}
+                    </h1>
+                    <span class="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded flex items-center gap-1">
+                        <i data-lucide="circle" class="w-2 h-2 fill-current"></i> Draft
+                    </span>
+                </div>
+                <p class="text-sm text-gray-500">
+                    {% if product %}{{ product.sku }}{% else %}[PRD-BC-001]{% endif %} • Last saved: 2 minutes ago
+                </p>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button type="button"
+                    class="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50 flex items-center gap-2">
+                    <i data-lucide="eye" class="w-4 h-4"></i>
+                    Preview
+                </button>
+                <button type="button" onclick="submitForm('save_draft')"
+                    class="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                    Save Draft
+                </button>
+                <button type="button" onclick="submitForm('publish')"
+                    class="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 flex items-center gap-2">
+                    <i data-lucide="save" class="w-4 h-4"></i>
+                    Publish
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="flex gap-1">
+                <button class="tab-button active px-4 py-3 border-b-2 border-black text-black font-medium text-sm"
+                    data-tab="general">
+                    General Info
+                </button>
+                <button
+                    class="tab-button px-4 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 text-sm"
+                    data-tab="pricing">
+                    Pricing & Variables
+                </button>
+                <button
+                    class="tab-button px-4 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 text-sm"
+                    data-tab="images">
+                    Images & Media
+                </button>
+                <button
+                    class="tab-button px-4 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 text-sm"
+                    data-tab="ecommerce">
+                    E-commerce & SEO
+                </button>
+                <button
+                    class="tab-button px-4 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 text-sm"
+                    data-tab="analytics">
+                    Analytics
+                </button>
+                <button
+                    class="tab-button px-4 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 text-sm"
+                    data-tab="production">
+                    Production
+                </button>
+                <button
+                    class="tab-button px-4 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 text-sm"
+                    data-tab="history">
+                    History
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form id="productForm" method="post" enctype="multipart/form-data"
+        action="{% if is_edit %}{% url 'product_edit' product.pk %}{% else %}{% url 'product_create' %}{% endif %}">
+        {% csrf_token %}
+
+        <!-- Hidden action field for save/publish actions -->
+        <input type="hidden" name="action" id="form_action" value="save_draft">
+        <input type="hidden" id="existing_variables_json" value="{{ existing_variables_json|escapejs }}">
+
+        <!-- Tab Content -->
+        <div id="tabContent">
+            <!-- General Info Tab -->
+            <div class="tab-content" data-content="general">
+                {% if messages %}
+                <div class="mb-6">
+                    {% for message in messages %}
+                    <div
+                        class="rounded-md p-4 {% if message.tags == 'error' %}bg-red-50 text-red-800{% elif message.tags == 'success' %}bg-green-50 text-green-800{% else %}bg-blue-50 text-blue-800{% endif %}">
+                        <div class="flex">
+                            <div class="flex-shrink-0">
+                                <i data-lucide="{% if message.tags == 'error' %}alert-circle{% elif message.tags == 'success' %}check-circle{% else %}info{% endif %}"
+                                    class="w-5 h-5"></i>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium">{{ message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <!-- Basic Product Information -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">Basic Product Information</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">
+                                Product Name <span class="text-red-500">*</span>
+                            </label>
+                            {{ general_form.name }}
+                            {% if general_form.name.errors %}
+                            <p class="text-xs text-red-600 mt-1">{{ general_form.name.errors.0 }}</p>
+                            {% endif %}
+                            <p class="text-xs text-gray-500 mt-1">Customer-facing name</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">
+                                Internal Code <span class="text-red-500">*</span>
+                            </label>
+                            <div class="flex gap-2">
+                                {{ general_form.internal_code }}
+                                <label
+                                    class="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm text-gray-700 whitespace-nowrap">
+                                    {{ general_form.auto_generate_code }}
+                                    Auto-generate
+                                </label>
+                            </div>
+                            {% if general_form.internal_code.errors %}
+                            <p class="text-xs text-red-600 mt-1">{{ general_form.internal_code.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">
+                                Short Description <span class="text-red-500">*</span>
+                            </label>
+                            {{ general_form.short_description }}
+                            {% if general_form.short_description.errors %}
+                            <p class="text-xs text-red-600 mt-1">{{ general_form.short_description.errors.0 }}</p>
+                            {% endif %}
+                            <p class="text-xs text-gray-500 mt-1">Character count: 87/150</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">
+                                Long Description <span class="text-red-500">*</span>
+                            </label>
+                            <div class="border border-gray-300 rounded-md">
+                                <div class="flex gap-1 p-2 border-b border-gray-300 bg-gray-50">
+                                    <button type="button"
+                                        class="px-2 py-1 text-sm font-semibold hover:bg-gray-200 rounded">Bold</button>
+                                    <button type="button"
+                                        class="px-2 py-1 text-sm italic hover:bg-gray-200 rounded">Italic</button>
+                                    <button type="button"
+                                        class="px-2 py-1 text-sm hover:bg-gray-200 rounded">List</button>
+                                    <button type="button"
+                                        class="px-2 py-1 text-sm hover:bg-gray-200 rounded">Link</button>
+                                </div>
+                                {{ general_form.long_description }}
+                            </div>
+                            {% if general_form.long_description.errors %}
+                            <p class="text-xs text-red-600 mt-1">{{ general_form.long_description.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Technical Specifications</label>
+                            {{ general_form.technical_specs }}
+                            {% if general_form.technical_specs.errors %}
+                            <p class="text-xs text-red-600 mt-1">{{ general_form.technical_specs.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Classification -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">Classification</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-900 mb-1">
+                                    Primary Category <span class="text-red-500">*</span>
+                                </label>
+                                <select name="primary_category" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="print-products" selected>Print Products</option>
+                                    <option value="signage">Signage</option>
+                                    <option value="apparel">Apparel</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-900 mb-1">
+                                    Sub-Category <span class="text-red-500">*</span>
+                                </label>
+                                <select name="sub_category" required
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="business-cards" selected>Business Cards</option>
+                                    <option value="flyers">Flyers</option>
+                                    <option value="brochures">Brochures</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-2">
+                                Product Type <span class="text-red-500">*</span>
+                            </label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="radio" name="product_type" value="physical" checked
+                                        class="mr-2 text-blue-600">
+                                    <span class="text-sm text-gray-900">Physical Product</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="product_type" value="digital" class="mr-2 text-blue-600">
+                                    <span class="text-sm text-gray-700">Digital Product</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="radio" name="product_type" value="service" class="mr-2 text-blue-600">
+                                    <span class="text-sm text-gray-700">Service</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Product Family</label>
+                            <select name="product_family"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="business-cards-family" selected>Business Cards Family</option>
+                                <option value="marketing-materials">Marketing Materials</option>
+                                <option value="corporate-stationery">Corporate Stationery</option>
+                            </select>
+                        </div>
+
+                        <div>
+    <label class="block text-sm font-medium text-gray-900 mb-2">Tags</label>
+    <div id="tags-container" class="flex flex-wrap gap-2 mb-2">
+        {% if product and product.tags.all %}
+            {% for tag in product.tags.all %}
+            <span class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded">
+                {{ tag.name }}
+                <button type="button" class="text-gray-500 hover:text-gray-700" onclick="this.parentElement.remove()">×</button>
+                <input type="hidden" name="tags" value="{{ tag.id }}">
+            </span>
+            {% endfor %}
+        {% endif %}
+    </div>
+    <div class="flex gap-2">
+        <input type="text" id="new_tag_input" placeholder="Add tag and press Enter"
+            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        <button type="button" id="add_tag_btn"
+            class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50">
+            Add
+        </button>
+    </div>
+</div>
+                    </div>
+                </div>
+
+                <!-- Status & Visibility -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">Status & Visibility</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-900">Product Status</label>
+                                    <p class="text-xs text-blue-600">Visible to customers?</p>
+                                </div>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" name="is_visible" checked class="sr-only peer">
+                                    <div
+                                        class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Visibility</label>
+                            <select name="visibility"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="catalog-search" selected>Catalog and Search</option>
+                                <option value="catalog-only">Catalog Only</option>
+                                <option value="search-only">Search Only</option>
+                                <option value="hidden">Hidden</option>
+                            </select>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" name="feature_product" class="mr-2 rounded text-blue-600">
+                                <span class="text-sm text-gray-700">Feature this product</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="bestseller_badge" class="mr-2 rounded text-blue-600">
+                                <span class="text-sm text-gray-700">Bestseller badge</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="new_arrival" checked class="mr-2 rounded text-blue-600">
+                                <span class="text-sm text-gray-700">New arrival (expires: Dec 31, 2024)</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" name="on_sale_badge" class="mr-2 rounded text-blue-600">
+                                <span class="text-sm text-gray-700">On sale badge</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product Attributes -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">Product Attributes</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-900 mb-1">Unit of Measure</label>
+                                <select name="unit_of_measure"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="pieces" selected>Pieces</option>
+                                    <option value="packs">Packs</option>
+                                    <option value="sets">Sets</option>
+                                    <option value="sqm">m²</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-900 mb-1">Weight (for
+                                    shipping)</label>
+                                <div class="flex gap-2">
+                                    <input type="number" name="weight" value="0.05" step="0.01"
+                                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <select name="weight_unit"
+                                        class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        <option value="kg" selected>kg</option>
+                                        <option value="g">g</option>
+                                        <option value="lb">lb</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Dimensions (L × W × H)</label>
+                            <div class="flex gap-2">
+                                <input type="number" name="length" value="8.5" step="0.1" placeholder="L"
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <input type="number" name="width" value="5.5" step="0.1" placeholder="W"
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <input type="number" name="height" value="0.03" step="0.01" placeholder="H"
+                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <select name="dimension_unit"
+                                    class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                    <option value="cm" selected>cm</option>
+                                    <option value="mm">mm</option>
+                                    <option value="in">in</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Warranty/Guarantee</label>
+                            <select name="warranty"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="satisfaction-guarantee" selected>Satisfaction Guarantee - Reprint if
+                                    defective</option>
+                                <option value="no-warranty">No Warranty</option>
+                                <option value="30-days">30 Days</option>
+                                <option value="90-days">90 Days</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Country of Origin</label>
+                            <select name="country_of_origin"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="kenya" selected>Kenya</option>
+                                <option value="china">China</option>
+                                <option value="india">India</option>
+                                <option value="uae">UAE</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes & Comments -->
+                <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <h3 class="text-base font-semibold text-gray-900 mb-4">Notes & Comments</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Internal Notes</label>
+                            <textarea name="internal_notes" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">Popular with corporate clients. Rush orders common in December.</textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-1">Client-Facing Notes</label>
+                            <textarea name="client_notes" rows="2"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">Artwork must be submitted 24 hours before production.</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-between">
+                    <button type="button" class="px-4 py-2 text-gray-700 hover:text-gray-900">
+                        Save Draft
+                    </button>
+                    <button type="submit" class="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800">
+                        Save & Next →
+                    </button>
+                </div>
+            </div>
+
+            <!-- Pricing & Variables Tab -->
+<div class="tab-content hidden" data-content="pricing">
+    <!-- Hidden input for existing variables when editing -->
+    <input type="hidden" id="existing_variables_json" value='{% if product and product.variables.all %}{{ product.variables.all|safe }}{% endif %}'>
+    
+    <!-- Base Pricing Information -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Base Pricing Information</h3>
+
+        <div class="space-y-6">
+            <!-- Pricing Model -->
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">
+                    Pricing Model <span class="text-red-500">*</span>
+                </label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="pricing_model" value="variable" 
+                            {% if not product or not product.pricing or product.pricing.pricing_model == 'variable' %}checked{% endif %}
+                            class="mr-3 text-blue-600">
+                        <span class="text-sm text-gray-900">Variable Pricing (customer selects options)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="pricing_model" value="simple" 
+                            {% if product and product.pricing and product.pricing.pricing_model == 'simple' %}checked{% endif %}
+                            class="mr-3 text-blue-600">
+                        <span class="text-sm text-gray-700">Simple/Fixed Pricing (one price)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="pricing_model" value="quote" 
+                            {% if product and product.pricing and product.pricing.pricing_model == 'quote' %}checked{% endif %}
+                            class="mr-3 text-blue-600">
+                        <span class="text-sm text-gray-700">Quote-Based (PT must cost)</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Base Cost and Price Display -->
+                        <!-- Base Cost and Price Display -->
+            <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Base Cost (EVP) <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex">
+                        <span
+                            class="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 text-gray-600 text-sm">
+                            KES
+                        </span>
+                        <input type="number" name="base_cost" id="id_base_cost" 
+                            value="{% if product and product.pricing %}{{ product.pricing.base_cost }}{% else %}15{% endif %}" 
+                            step="0.01" required
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                    <p id="base_cost_helper" class="text-xs text-gray-500 mt-1">Lowest possible vendor cost per piece</p>
+                    <!-- Process cost indicator (shown when process is linked) -->
+                    <p id="process_cost_indicator" class="text-xs text-blue-600 mt-1 hidden">
+                        <i data-lucide="link" class="w-3 h-3 inline"></i>
+                        <span id="process_cost_source">Linked to process pricing</span>
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Price Display <span class="text-red-500">*</span>
+                    </label>
+                    <select name="price_display" id="id_price_display"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="from" {% if not product or not product.pricing or product.pricing.price_display == 'from' %}selected{% endif %}>From KES X</option>
+                        <option value="starting" {% if product and product.pricing and product.pricing.price_display == 'starting' %}selected{% endif %}>Starting at KES X</option>
+                        <option value="plus" {% if product and product.pricing and product.pricing.price_display == 'plus' %}selected{% endif %}>KES X+</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Margins and Minimum Order Value -->
+            <div class="grid grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Default Margin % <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="default_margin" id="id_default_margin"
+                        value="{% if product and product.pricing %}{{ product.pricing.default_margin }}{% else %}30{% endif %}" 
+                        step="0.01" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Minimum Margin % <span class="text-red-500">*</span>
+                    </label>
+                    <input type="number" name="minimum_margin" id="id_minimum_margin"
+                        value="{% if product and product.pricing %}{{ product.pricing.minimum_margin }}{% else %}15{% endif %}" 
+                        step="0.01" required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <p class="text-xs text-gray-500 mt-1">Below this triggers approval</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Minimum Order Value
+                    </label>
+                    <div class="flex">
+                        <span
+                            class="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 text-gray-600 text-sm">
+                            KES
+                        </span>
+                        <input type="number" name="minimum_order_value" id="id_minimum_order_value"
+                            value="{% if product and product.pricing %}{{ product.pricing.minimum_order_value }}{% else %}2500{% endif %}" 
+                            step="1"
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+        <!-- ========== NEW SECTION: Process & Costing Integration ========== -->
+        <!-- ========== ENHANCED SECTION: Process & Costing Integration ========== -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">
+            <i data-lucide="settings" class="w-5 h-5 inline-block mr-2"></i>
+            Process & Costing
+        </h3>
+
+        <div class="space-y-4">
+            <!-- Process Selection Dropdown -->
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">
+                    Select Costing Process
+                    <span class="text-gray-500 font-normal">(Optional)</span>
+                </label>
+                <select name="process" id="id_process"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">-- No Process (Manual Pricing) --</option>
+                    {% for process in processes %}
+                    <option value="{{ process.id }}" 
+                        data-pricing-type="{{ process.pricing_type }}"
+                        data-category="{{ process.get_category_display }}"
+                        data-lead-time="{{ process.standard_lead_time }}"
+                        data-process-id="{{ process.process_id }}"
+                        {% if product and product.pricing and product.pricing.process_id == process.id %}selected{% endif %}>
+                        {{ process.process_id }} - {{ process.process_name }} ({{ process.get_pricing_type_display }})
+                    </option>
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-gray-500 mt-1">
+                    <i data-lucide="info" class="w-3 h-3 inline"></i>
+                    Select a process to auto-populate costs and variables from the costing system
+                </p>
+            </div>
+            
+            <!-- Use Process Costs Toggle -->
+            <div id="use-process-costs-section" class="hidden">
+                <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-md">
+                    <div>
+                        <label class="block text-sm font-medium text-blue-900">Use Process Costs</label>
+                        <p class="text-xs text-blue-700">Uncheck to manually override the base cost</p>
+                    </div>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" name="use_process_costs" id="id_use_process_costs" checked class="sr-only peer">
+                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                        </div>
+                    </label>
+                </div>
+            </div>
+            
+            <!-- Auto-import Variables Checkbox -->
+            <div id="auto-import-section" class="hidden">
+                <label class="flex items-center">
+                    <input type="checkbox" name="auto_import_variables" id="id_auto_import_variables" 
+                        class="mr-2 rounded text-blue-600">
+                    <span class="text-sm text-gray-700">
+                        Auto-import variables from selected process
+                    </span>
+                </label>
+                <p class="text-xs text-gray-500 mt-1 ml-6">
+                    This will replace existing product variables with variables from the process
+                </p>
+            </div>
+
+            <!-- Process Info Display (shown when process is selected) -->
+            <div id="process-info-display" class="hidden border-t border-gray-200 pt-4 mt-4">
+                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <i data-lucide="file-text" class="w-4 h-4"></i>
+                    Process Information
+                </h4>
+                <div class="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                        <span class="text-gray-600">Process ID:</span>
+                        <span id="process_id_display" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Pricing Type:</span>
+                        <span id="process_pricing_type" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Lead Time:</span>
+                        <span id="process_lead_time" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
+                    </div>
+                    <div>
+                        <span class="text-gray-600">Category:</span>
+                        <span id="process_category" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
+                    </div>
+                </div>
+                
+                <!-- Process Pricing Tiers Display (for tier-based) -->
+                <div id="process-tiers-display" class="mt-4 hidden">
+                    <h5 class="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
+                        <i data-lucide="layers" class="w-4 h-4"></i>
+                        Pricing Tiers from Process
+                    </h5>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm border border-gray-200 rounded-md">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-3 py-2 text-left text-gray-700 font-medium">Tier</th>
+                                    <th class="px-3 py-2 text-left text-gray-700 font-medium">Quantity Range</th>
+                                    <th class="px-3 py-2 text-right text-gray-700 font-medium">Vendor Cost (EVP)</th>
+                                    <th class="px-3 py-2 text-right text-gray-700 font-medium">Selling Price</th>
+                                    <th class="px-3 py-2 text-right text-gray-700 font-medium">Margin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="process-tiers-body">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        <i data-lucide="info" class="w-3 h-3 inline"></i>
+                        Base Cost will be set to the lowest tier cost: <strong id="lowest-tier-cost">-</strong>
+                    </p>
+                </div>
+                
+                <!-- Process Variables Display (for formula-based) -->
+                <div id="process-variables-preview" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md hidden">
+                    <h5 class="text-sm font-semibold text-blue-900 mb-2">Process Variables (Formula-Based):</h5>
+                    <div id="variables-list" class="text-sm text-blue-800">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Button to View Full Process Details -->
+                <div class="mt-3">
+                    <a id="view_process_link" href="#" target="_blank" 
+                        class="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center gap-2">
+                        <i data-lucide="external-link" class="w-3 h-3"></i>
+                        View Full Process Details
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- ========== END ENHANCED SECTION ========== -->
+    <!-- ========== END NEW SECTION ========== -->
+
+    <!-- Production & Vendor Information -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Production & Vendor Information</h3>
+
+        <div class="space-y-6">
+            <div class="grid grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Standard Lead Time <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex gap-2">
+                        <input type="number" name="lead_time_value" value="3" min="1"
+                            class="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <select name="lead_time_unit"
+                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="days" selected>Days</option>
+                            <option value="weeks">Weeks</option>
+                            <option value="hours">Hours</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Production Method
+                    </label>
+                    <select name="production_method"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="digital-offset" selected>Digital Offset Printing</option>
+                        <option value="offset">Offset Printing</option>
+                        <option value="screen">Screen Printing</option>
+                        <option value="digital">Digital Printing</option>
+                    </select>
+                </div>
+
+                                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Primary Vendor
+                    </label>
+                    <select name="primary_vendor"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">-- Select Vendor (Optional) --</option>
+                        {% for vendor in vendors %}
+                        <option value="{{ vendor.id }}" 
+                            {% if product and product.pricing and product.pricing.primary_vendor_id == vendor.id %}selected{% endif %}>
+                            {{ vendor.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+                        <div class="grid grid-cols-2 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Alternative Vendors (Optional)
+                    </label>
+                    <select name="alternative_vendors" multiple size="4"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        {% for vendor in vendors %}
+                        <option value="{{ vendor.id }}"
+                            {% if product and product.pricing and vendor in product.pricing.alternative_vendors.all %}selected{% endif %}>
+                            {{ vendor.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple vendors</p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-900 mb-2">
+                        Minimum Quantity
+                    </label>
+                    <input type="number" name="minimum_quantity" value="50" min="1"
+                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+            </div>
+
+            <!-- Rush Production Option -->
+            <div class="border-t border-gray-200 pt-6">
+                <label class="flex items-center mb-4">
+                    <input type="checkbox" name="rush_available" checked class="mr-3 rounded text-blue-600">
+                    <span class="text-sm font-medium text-gray-900">Rush production available</span>
+                </label>
+
+                <div class="grid grid-cols-2 gap-6 pl-7">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-2">
+                            Rush Lead Time
+                        </label>
+                        <div class="flex gap-2">
+                            <input type="number" name="rush_lead_time_value" value="1" min="1"
+                                class="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <select name="rush_lead_time_unit"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="days" selected>Days</option>
+                                <option value="hours">Hours</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-2">
+                            Rush Upcharge
+                        </label>
+                        <div class="flex">
+                            <input type="number" name="rush_upcharge" value="50" step="1"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <span
+                                class="inline-flex items-center px-3 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-600 text-sm">
+                                %
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Variables -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-6">
+            <h3 class="text-base font-semibold text-gray-900">Product Variables</h3>
+            <button type="button" data-action="add-variable"
+                class="px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-gray-800 flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Add Variable
+            </button>
+        </div>
+
+        <div id="variables-container" class="space-y-4">
+            <!-- Variables will be rendered here by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Conditional Logic -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold text-gray-900">Conditional Logic (Advanced)</h3>
+            <label class="flex items-center">
+                <input type="checkbox" name="enable_conditional_logic" class="mr-2 rounded text-blue-600">
+                <span class="text-sm text-gray-700">Enable Conditional Display Rules</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Conflict Detection -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-base font-semibold text-gray-900">Conflict Detection (Advanced)</h3>
+            <label class="flex items-center">
+                <input type="checkbox" name="enable_conflict_detection" class="mr-2 rounded text-blue-600">
+                <span class="text-sm text-gray-700">Enable Conflict Detection</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- Test Your Pricing -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Test Your Pricing</h3>
+
+        <div class="grid grid-cols-2 gap-6 mb-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Quantity</label>
+                <select name="test_quantity" id="test_quantity"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="500">500 pieces</option>
+                    <option value="100">100 pieces</option>
+                    <option value="250">250 pieces</option>
+                    <option value="1000">1000 pieces</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Paper Weight</label>
+                <select name="test_paper_weight" id="test_paper_weight"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="350">350gsm</option>
+                    <option value="250">250gsm</option>
+                    <option value="300">300gsm</option>
+                    <option value="400">400gsm</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Coating</label>
+                <select name="test_coating" id="test_coating"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="matte">Matte</option>
+                    <option value="none">None</option>
+                    <option value="gloss">Gloss</option>
+                    <option value="silk">Silk</option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Lamination Sides</label>
+                <select name="test_lamination" id="test_lamination"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="both">Both Sides</option>
+                    <option value="one">One Side</option>
+                    <option value="none">None</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="bg-gray-50 rounded-lg p-4 border border-gray-200" id="pricing-breakdown">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">CALCULATION BREAKDOWN:</h4>
+            <div class="space-y-2 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-gray-700">Base (500 × KES 12):</span>
+                    <span class="font-medium text-gray-900">KES 6,000</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-700">Premium Paper (× KES 4):</span>
+                    <span class="font-medium text-gray-900">KES 2,000</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-700">Matte Coating (× KES 2):</span>
+                    <span class="font-medium text-gray-900">KES 1,000</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-700">Both Sides (× KES 1.50):</span>
+                    <span class="font-medium text-gray-900">KES 750</span>
+                </div>
+                <div class="flex justify-between pt-2 border-t border-gray-300">
+                    <span class="text-gray-700">Subtotal EVP:</span>
+                    <span class="font-semibold text-gray-900">KES 9,750</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-gray-700">Margin (30%):</span>
+                    <span class="font-semibold text-gray-900">KES 2,925</span>
+                </div>
+                <div class="flex justify-between pt-2 border-t-2 border-gray-400">
+                    <span class="text-gray-900 font-semibold">CUSTOMER PAYS:</span>
+                    <span class="font-bold text-green-600 text-lg">KES 12,675</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                    <span class="text-gray-600">Per Unit:</span>
+                    <span class="font-medium text-gray-900">KES 25.35</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-4">
+            <button type="button" id="test-another-btn"
+                class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm">
+                Test Another Combination
+            </button>
+            <button type="button" id="reset-test-btn"
+                class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm">
+                Reset
+            </button>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-between">
+        <a href="{% url 'production_catalog' %}"
+            class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900">
+            ← Back to General Info
+        </a>
+        <div class="flex gap-3">
+            <button type="button"
+                class="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                Save Draft
+            </button>
+            <button type="submit"
+                class="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 flex items-center gap-2">
+                Save & Next →
+            </button>
+        </div>
+    </div>
+</div>
+
+            <!-- Images & Media Tab -->
+            <!-- Images & Media Tab - Complete UI matching screenshots -->
+<div class="tab-content hidden" data-content="images">
+
+    <!-- Product Images Section -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Product Images</h3>
+
+        <!-- Primary Image -->
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-900 mb-2">Primary Image (Required)</label>
+            <div class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-gray-400 hover:bg-gray-50 transition-all cursor-pointer" id="primaryImageDropzone">
+                <input type="file" name="primary_image" accept="image/*" class="hidden" id="primaryImageInput">
+                <label for="primaryImageInput" class="cursor-pointer">
+                    <i data-lucide="upload" class="w-12 h-12 text-gray-400 mx-auto mb-3"></i>
+                    <h4 class="text-base font-medium text-gray-900 mb-1">Main Product Image</h4>
+                    <p class="text-sm text-gray-600 mb-3">Drag & drop or click to browse</p>
+                    <p class="text-xs text-gray-500 mb-4">Recommended: 1200×1200px, JPG/PNG, Max 2MB</p>
+                    <span class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50 inline-flex items-center gap-2">
+                        <i data-lucide="upload" class="w-4 h-4"></i> Upload Image
+                    </span>
+                </label>
+            </div>
+
+            {% if primary_image %}
+            <div class="mt-4">
+                <p class="text-sm text-gray-600 mb-2">Current primary image:</p>
+                <div class="flex items-center gap-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                    <img src="{{ primary_image.image.url }}" alt="{{ primary_image.alt_text }}" class="h-32 w-32 object-cover rounded">
+                    <div class="flex-1">
+                        <p class="font-medium text-gray-900 mb-1">{{ primary_image.alt_text|default:"Primary Image" }}</p>
+                        <p class="text-xs text-gray-500">Uploaded: {{ primary_image.uploaded_at|date:"M d, Y" }}</p>
+                        <div class="flex gap-2 mt-3">
+                            <button type="button" class="px-3 py-1 bg-white border border-gray-300 rounded text-sm hover:bg-gray-50"
+                                onclick="editImageModal({{ primary_image.pk }})">
+                                <i data-lucide="edit-2" class="w-3 h-3 inline"></i> Edit
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div id="primaryImagePreview" class="mt-4 hidden">
+                <!-- Preview will be shown here after selection -->
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Additional Images Gallery -->
+        <div>
+            <label class="block text-sm font-medium text-gray-900 mb-2">Additional Images (Gallery)</label>
+            <p class="text-xs text-gray-500 mb-4">Drag to reorder</p>
+
+            <div class="grid grid-cols-5 gap-4 mb-4" id="galleryImagesContainer">
+                {% for image in existing_images %}
+                <div class="border border-gray-200 rounded-lg p-4 text-center bg-gray-50 image-item"
+                     id="image-card-{{ image.pk }}"
+                     data-image-id="{{ image.pk }}"
+                     draggable="true">
+                    
+                    <img src="{{ image.image.url }}"
+                         alt="{{ image.alt_text }}"
+                         class="h-32 w-full object-cover rounded mb-2 cursor-pointer"
+                         onclick="editImageModal({{ image.pk }})">
+                    
+                    <p class="text-xs text-gray-600 mb-2 truncate">Image {{ forloop.counter }}</p>
+                    
+                    <div class="flex justify-center gap-2 mt-2">
+                        <button type="button"
+                                class="text-xs text-blue-600 hover:text-blue-900 flex items-center gap-1"
+                                onclick="editImageModal({{ image.pk }})">
+                            <i data-lucide="edit-2" class="w-3 h-3"></i> Edit
+                        </button>
+                        <button type="button"
+                                class="text-xs text-red-600 hover:text-red-900 flex items-center gap-1"
+                                onclick="deleteImage({{ image.pk }})">
+                            <i data-lucide="trash-2" class="w-3 h-3"></i> Delete
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Add more slot -->
+                <div class="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-gray-400 hover:bg-gray-50 transition-all cursor-pointer">
+                    <input type="file" name="gallery_images" multiple accept="image/*" class="hidden" id="galleryImagesInput">
+                    <label for="galleryImagesInput" class="cursor-pointer">
+                        <div class="h-32 flex items-center justify-center mb-2">
+                            <i data-lucide="plus" class="w-8 h-8 text-gray-400"></i>
+                        </div>
+                        <span class="text-sm text-gray-600">Add</span>
+                        <p class="text-xs text-gray-400 mt-1">(up to 10 images)</p>
+                    </label>
+                </div>
+            </div>
+
+            <div id="galleryPreview" class="grid grid-cols-5 gap-4 mb-4">
+                <!-- New images preview before upload -->
+            </div>
+
+            <button type="button" 
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50 inline-flex items-center gap-2"
+                    onclick="document.getElementById('galleryImagesInput').click()">
+                <i data-lucide="upload" class="w-4 h-4"></i> Upload Multiple Images
+            </button>
+        </div>
+    </div>
+
+    <!-- Example: Edit Image Dialog (shown in screenshot 2) -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h4 class="text-sm font-semibold text-gray-900 mb-4">Example: Edit Image Dialog</h4>
+        
+        <div class="grid grid-cols-3 gap-6 p-4 bg-gray-50 rounded-lg">
+            <div>
+                <div class="w-full h-40 bg-gray-200 rounded flex items-center justify-center mb-2">
+                    <span class="text-xs text-gray-500">Image Preview</span>
+                </div>
+                <p class="text-xs text-gray-600">File: business-cards-2.jpg</p>
+                <p class="text-xs text-gray-600">Size: 1.2 MB</p>
+                <p class="text-xs text-gray-600">Dimensions: 1200×1200px</p>
+            </div>
+            
+            <div class="col-span-2 space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Alt Text (for SEO & accessibility)</label>
+                    <input type="text" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                           placeholder="e.g. Premium business cards with rounded corners"
+                           value="Premium business cards with rounded corners">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Caption (optional)</label>
+                    <input type="text" 
+                           class="w-full px-3 py-2 border border-gray-300 rounded text-sm"
+                           placeholder="e.g. Close-up showing matte lamination finish"
+                           value="Close-up showing matte lamination finish">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-2">Image Type</label>
+                    <div class="space-y-1">
+                        <label class="flex items-center text-sm">
+                            <input type="radio" name="example_image_type" value="product-photo" checked class="mr-2">
+                            Product Photo
+                        </label>
+                        <label class="flex items-center text-sm">
+                            <input type="radio" name="example_image_type" value="detail" class="mr-2">
+                            Detail/Close-up
+                        </label>
+                        <label class="flex items-center text-sm">
+                            <input type="radio" name="example_image_type" value="mockup" class="mr-2">
+                            Mockup/In-Use
+                        </label>
+                        <label class="flex items-center text-sm">
+                            <input type="radio" name="example_image_type" value="size-comparison" class="mr-2">
+                            Size Comparison
+                        </label>
+                        <label class="flex items-center text-sm">
+                            <input type="radio" name="example_image_type" value="sample" class="mr-2">
+                            Sample/Example
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Associated With Variable Option (optional)</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                            <option value="">Coating</option>
+                        </select>
+                        <select class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                            <option value="">Matte Lamination</option>
+                        </select>
+                    </div>
+                    <label class="flex items-center mt-2 text-xs">
+                        <input type="checkbox" class="mr-2">
+                        This image shows when customer selects this option
+                    </label>
+                </div>
+                
+                <div class="flex gap-2 pt-2">
+                    <button type="button" class="px-3 py-1 bg-black text-white text-xs rounded hover:bg-gray-800">
+                        Save
+                    </button>
+                    <button type="button" class="px-3 py-1 bg-white border text-xs rounded hover:bg-gray-50">
+                        Replace Image
+                    </button>
+                    <button type="button" class="px-3 py-1 bg-red-50 text-red-600 border border-red-200 text-xs rounded hover:bg-red-100">
+                        Delete
+                    </button>
+                    <button type="button" class="px-3 py-1 bg-gray-100 text-gray-700 text-xs rounded hover:bg-gray-200">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Videos Section -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Product Videos (Optional)</h3>
+
+        <div id="videosContainer">
+            {% for video in product.videos.all %}
+            <div class="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50" data-video-item="{{ video.pk }}">
+                <div class="flex items-start justify-between mb-4">
+                    <h4 class="text-sm font-semibold text-gray-900">Video {{ forloop.counter }}</h4>
+                    <button type="button" 
+                            onclick="this.closest('[data-video-item]').remove()" 
+                            class="p-1 hover:bg-gray-100 rounded text-red-600">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-1">Video URL</label>
+                        <input type="url" 
+                               name="video_url_{{ video.pk }}" 
+                               value="{{ video.video_url }}"
+                               placeholder="https://youtube.com/watch?v=..."
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-1">Type</label>
+                        <select name="video_type_{{ video.pk }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm">
+                            <option value="demo" {% if video.video_type == 'demo' %}selected{% endif %}>Product Demo</option>
+                            <option value="tutorial" {% if video.video_type == 'tutorial' %}selected{% endif %}>Tutorial</option>
+                            <option value="review" {% if video.video_type == 'review' %}selected{% endif %}>Customer Review</option>
+                            <option value="unboxing" {% if video.video_type == 'unboxing' %}selected{% endif %}>Unboxing</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-1">Thumbnail</label>
+                        <button type="button" 
+                                class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50 inline-flex items-center gap-2"
+                                onclick="document.getElementById('videoThumb{{ video.pk }}').click()">
+                            <i data-lucide="upload" class="w-4 h-4"></i> Upload custom thumbnail
+                        </button>
+                        <input type="file" 
+                               id="videoThumb{{ video.pk }}"
+                               name="video_thumbnail_{{ video.pk }}" 
+                               accept="image/*"
+                               class="hidden">
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-sm text-gray-500 text-center py-4">No videos added yet</p>
+            {% endfor %}
+        </div>
+
+        <button type="button" 
+                id="addVideoBtn" 
+                onclick="addVideoItem()"
+                class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50 inline-flex items-center gap-2">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add Video
+        </button>
+
+        <p class="text-xs text-gray-500 mt-2">Supported: YouTube, Vimeo, Direct MP4 links</p>
+    </div>
+
+    <!-- Downloadable Files Section -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Downloadable Files (Templates, Specs, etc.)</h3>
+
+        <div id="filesContainer">
+            {% for file in product.downloadable_files.all %}
+            <div class="border border-gray-200 rounded-lg p-4 mb-4 bg-gray-50" data-file-item="{{ file.pk }}">
+                <div class="flex items-start justify-between mb-4">
+                    <div>
+                        <h4 class="text-sm font-semibold text-gray-900">File {{ forloop.counter }}: {{ file.file_name }}</h4>
+                        <p class="text-xs text-gray-500 mt-1">File Size: {{ file.file_size|filesizeformat }}</p>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button type="button" 
+                                class="p-1 hover:bg-gray-100 rounded" 
+                                title="Download"
+                                onclick="window.open('{{ file.file.url }}', '_blank')">
+                            <i data-lucide="download" class="w-4 h-4 text-gray-600"></i>
+                        </button>
+                        <button type="button" 
+                                class="p-1 hover:bg-gray-100 rounded text-red-600" 
+                                title="Delete"
+                                onclick="this.closest('[data-file-item]').remove()">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-1">File Name</label>
+                        <input type="text" 
+                               value="{{ file.file_name }}" 
+                               name="file_name_{{ file.pk }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-900 mb-1">File Type</label>
+                        <select name="file_type_{{ file.pk }}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm">
+                            <option value="illustrator" {% if file.file_type == 'illustrator' %}selected{% endif %}>Adobe Illustrator</option>
+                            <option value="pdf" {% if file.file_type == 'pdf' %}selected{% endif %}>PDF</option>
+                            <option value="psd" {% if file.file_type == 'psd' %}selected{% endif %}>Photoshop</option>
+                            <option value="indd" {% if file.file_type == 'indd' %}selected{% endif %}>InDesign</option>
+                            <option value="zip" {% if file.file_type == 'zip' %}selected{% endif %}>ZIP Archive</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-3">
+                    <label class="block text-sm font-medium text-gray-900 mb-1">Description</label>
+                    <input type="text" 
+                           value="{{ file.description }}" 
+                           name="file_desc_{{ file.pk }}"
+                           placeholder="e.g., Editable template with bleed guides"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm">
+                </div>
+            </div>
+            {% empty %}
+            <p class="text-sm text-gray-500 text-center py-4">No downloadable files added yet</p>
+            {% endfor %}
+        </div>
+
+        <div class="flex gap-2">
+            <input type="file" 
+                   name="new_downloadable_files" 
+                   multiple 
+                   accept=".ai,.psd,.pdf,.indd,.zip" 
+                   class="hidden" 
+                   id="uploadFilesInput">
+            
+            <button type="button"
+                    onclick="document.getElementById('uploadFilesInput').click()"
+                    class="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm hover:bg-gray-50 inline-flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Upload File
+            </button>
+        </div>
+        
+        <p class="text-xs text-gray-500 mt-2">(AI, PSD, PDF, InDesign, ZIP - Max 10MB per file)</p>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-between">
+        <button type="button" 
+                class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900"
+                onclick="switchToTab('pricing')">
+            ← Back to Pricing
+        </button>
+        <div class="flex gap-3">
+            <button type="button" 
+                    onclick="submitForm('save_draft')"
+                    class="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                Save Draft
+            </button>
+            <button type="button"
+                    onclick="saveAndNext('ecommerce')"
+                    class="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 flex items-center gap-2">
+                Save & Next →
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+
+            <!-- E-commerce & SEO Tab -->
+            <div class="tab-content hidden" data-content="ecommerce">
+                <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">SEO Optimization</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                            <input type="text" name="meta_title" maxlength="60"
+                                value="Premium Business Cards - Custom Printing | Print Duka"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">Character count: 52/60</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                            <textarea name="meta_description" maxlength="160" rows="3"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500">Professional business cards on premium card stock. Fast turnaround, custom options. Order from 50 pieces. Free design review.</textarea>
+                            <p class="text-xs text-gray-500 mt-1">Character count: 145/160</p>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">URL Slug</label>
+                            <input type="text" name="slug" value="premium-business-cards"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <p class="text-xs text-gray-500 mt-1">Full URL:
+                                print-duka.com/products/premium-business-cards</p>
+                            <label class="flex items-center mt-2">
+                                <input type="checkbox" name="auto_generate_slug" checked class="mr-2">
+                                <span class="text-sm text-gray-600">Auto-generate from product name</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Analytics Tab -->
+            <div class="tab-content hidden" data-content="analytics">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="text-sm text-blue-700">
+                        <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                        <strong>Note:</strong> This tab shows data AFTER product has been published and has activity.
+                        For new products, shown "No data yet".
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <div class="text-center py-12">
+                        <i data-lucide="bar-chart-2" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No Analytics Data Yet</h3>
+                        <p class="text-gray-600">Analytics will appear here once the product is published and has
+                            activity</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Production Tab -->
+            <div class="tab-content hidden" data-content="production">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="text-sm text-blue-700">
+                        <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                        <strong>Purpose:</strong> Production-specific settings and specifications
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Production Specifications</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Production Method</label>
+                            <select name="production_method_detail"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option>Digital Offset Printing</option>
+                                <option>Offset Printing</option>
+                                <option>Screen Printing</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Machine/Equipment</label>
+                            <input type="text" name="machine_equipment" value="HP Indigo 7900"
+                                class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Production Notes & Instructions</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Pre-Production Checklist</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="checklist_artwork" checked class="mr-2">
+                                    <span class="text-sm">Client artwork approved</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="checklist_preflight" class="mr-2">
+                                    <span class="text-sm">Pre-flight check passed</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="checklist_material" class="mr-2">
+                                    <span class="text-sm">Material in stock</span>
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="checklist_proofs" class="mr-2">
+                                    <span class="text-sm">Color proofs confirmed</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- E-commerce & SEO Tab -->
+            
+            <!-- E-commerce & SEO Tab - Complete with FAQs -->
+<div class="tab-content hidden" data-content="ecommerce">
+    
+    <!-- SEO Optimization -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">SEO Optimization</h3>
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Meta Title</label>
+                <input type="text" 
+                       name="meta_title" 
+                       id="metaTitle"
+                       maxlength="60"
+                       value="{% if product and product.seo %}{{ product.seo.meta_title }}{% else %}Premium Business Cards - Custom Printing | Print Duka{% endif %}"
+                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                       oninput="updateCharCount('metaTitle', 'metaTitleCount', 60)">
+                <p class="text-xs text-gray-500 mt-1">Character count: <span id="metaTitleCount">0</span>/60</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Meta Description</label>
+                <textarea name="meta_description" 
+                          id="metaDescription"
+                          maxlength="160" 
+                          rows="3"
+                          class="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          oninput="updateCharCount('metaDescription', 'metaDescCount', 160)">{% if product and product.seo %}{{ product.seo.meta_description }}{% else %}Professional business cards on premium stock. Fast turnaround, custom options. Order from 50 pieces. Free design review.{% endif %}</textarea>
+                <p class="text-xs text-gray-500 mt-1">Character count: <span id="metaDescCount">0</span>/160</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">URL Slug</label>
+                <input type="text" 
+                       name="slug" 
+                       value="{% if product and product.seo %}{{ product.seo.slug }}{% else %}premium-business-cards{% endif %}"
+                       class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <p class="text-xs text-gray-500 mt-1">Full URL: print-duka.com/products/<span id="slugPreview">premium-business-cards</span></p>
+                <label class="flex items-center mt-2">
+                    <input type="checkbox" name="auto_generate_slug" checked class="mr-2 rounded text-blue-600">
+                    <span class="text-sm text-gray-600">Auto-generate from product name</span>
+                </label>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Focus Keyword</label>
+                    <input type="text" 
+                           name="focus_keyword" 
+                           value="{% if product and product.seo %}{{ product.seo.focus_keyword }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="business cards printing">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Additional Keywords</label>
+                    <input type="text" 
+                           name="additional_keywords" 
+                           value="{% if product and product.seo %}{{ product.seo.additional_keywords }}{% endif %}"
+                           class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                           placeholder="business-cards, corporate-cards, premium-printing">
+                </div>
+            </div>
+
+            <!-- Google Search Preview -->
+            <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h4 class="text-xs font-semibold text-gray-700 mb-3">GOOGLE SEARCH PREVIEW:</h4>
+                <div class="space-y-1">
+                    <p class="text-xs text-gray-600">Print Duka › Products</p>
+                    <p class="text-base text-blue-600 hover:underline cursor-pointer" id="previewTitle">
+                        Premium Business Cards - Custom Printing | Print Duka
+                    </p>
+                    <p class="text-xs text-green-700" id="previewUrl">
+                        https://print-duka.com/products/premium-business-cards
+                    </p>
+                    <p class="text-sm text-gray-700 mt-2" id="previewDesc">
+                        Professional business cards on premium stock. Fast turnaround, custom options. Order from 50 pieces. Free design review.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Display Settings -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Product Display Settings</h3>
+        <div class="space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <label class="block text-sm font-medium text-gray-900">Show Price on Product Page</label>
+                    <p class="text-xs text-gray-500">Display price or "Request Quote"</p>
+                </div>
+                <label class="flex items-center">
+                    <input type="checkbox" name="show_price" checked class="sr-only peer">
+                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Price Display Format</label>
+                                <select name="price_display_format" id="price_display_format" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="from" {% if product and product.seo and product.seo.price_display_format == 'from' %}selected{% elif not product %}selected{% endif %}>
+                        From KES {% if product and product.pricing %}{{ product.pricing.base_cost|floatformat:0 }}{% else %}1,000{% endif %}
+                    </option>
+                    <option value="starting" {% if product and product.seo and product.seo.price_display_format == 'starting' %}selected{% endif %}>
+                        Starting at KES {% if product and product.pricing %}{{ product.pricing.base_cost|floatformat:0 }}{% else %}1,000{% endif %}
+                    </option>
+                    <option value="plus" {% if product and product.seo and product.seo.price_display_format == 'plus' %}selected{% endif %}>
+                        KES {% if product and product.pricing %}{{ product.pricing.base_cost|floatformat:0 }}{% else %}1,000{% endif %}+
+                    </option>
+                    <option value="range" {% if product and product.seo and product.seo.price_display_format == 'range' %}selected{% endif %}>
+                        KES {% if product and product.pricing %}{{ product.pricing.base_cost|floatformat:0 }} - {{ product.pricing.base_cost|floatformat:0 }}{% else %}1,000 - 5,000{% endif %}
+                    </option>
+                </select>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Show Stock Status</label>
+                <select name="show_stock_status" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="in-stock-only" selected>Show "In Stock" only</option>
+                    <option value="always">Always show stock level</option>
+                    <option value="low-stock">Show when low stock</option>
+                    <option value="never">Never show</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Customer Reviews Settings -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Customer Reviews Settings</h3>
+        <div class="space-y-4">
+            <label class="flex items-center">
+                <input type="checkbox" name="enable_reviews" checked class="mr-3 rounded text-blue-600">
+                <span class="text-sm text-gray-900">Enable customer reviews</span>
+            </label>
+
+            <label class="flex items-center">
+                <input type="checkbox" name="require_purchase" checked class="mr-3 rounded text-blue-600">
+                <span class="text-sm text-gray-900">Require Purchase - Only verified buyers can review</span>
+            </label>
+
+            <label class="flex items-center">
+                <input type="checkbox" name="auto_approve_reviews" class="mr-3 rounded text-blue-600">
+                <span class="text-sm text-gray-900">Auto-Approve Reviews - Publish without moderation</span>
+            </label>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Review Reminder</label>
+                <select name="review_reminder" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="3">3 days after delivery</option>
+                    <option value="7" selected>7 days after delivery</option>
+                    <option value="14">14 days after delivery</option>
+                    <option value="30">30 days after delivery</option>
+                    <option value="never">Never</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Frequently Asked Questions -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Frequently Asked Questions</h3>
+            <button type="button" 
+                    onclick="addFAQ()"
+                    class="px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-gray-800 inline-flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Add FAQ
+            </button>
+        </div>
+
+        <div id="faqsContainer" class="space-y-3">
+            <!-- Existing FAQs -->
+            {% for faq in product.faqs.all %}
+            <div class="border border-gray-200 rounded-lg faq-item" data-faq-id="{{ faq.pk }}">
+                <div class="p-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between">
+                    <button type="button" 
+                            class="flex items-center gap-2 text-left w-full faq-toggle"
+                            onclick="toggleFAQ(this)">
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-600 faq-chevron"></i>
+                        <span class="text-sm font-semibold text-gray-900">{{ faq.question }}</span>
+                    </button>
+                    <button type="button" 
+                            class="p-1 hover:bg-gray-200 rounded ml-2" 
+                            onclick="this.closest('.faq-item').remove()">
+                        <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                    </button>
+                </div>
+                <div class="p-4 hidden faq-content">
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Question:</label>
+                        <input type="text" 
+                               name="faq_question[]" 
+                               value="{{ faq.question }}"
+                               class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Answer:</label>
+                        <textarea name="faq_answer[]" 
+                                  rows="3"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded text-sm">{{ faq.answer }}</textarea>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" 
+                onclick="addFAQ()"
+                class="w-full px-4 py-3 border-2 border-dashed border-gray-300 rounded-lg text-sm text-gray-600 hover:border-gray-400 hover:bg-gray-50 inline-flex items-center justify-center gap-2 mt-3">
+            <i data-lucide="plus" class="w-4 h-4"></i> Add FAQ
+        </button>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-between">
+        <button type="button" 
+                class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900"
+                onclick="switchToTab('images')">
+            ← Back to Images
+        </button>
+        <div class="flex gap-3">
+            <button type="button" 
+                    onclick="submitForm('save_draft')"
+                    class="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                Save Draft
+            </button>
+            <button type="button"
+                    onclick="saveAndNext('analytics')"
+                    class="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 flex items-center gap-2">
+                Save & Next →
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+            <!-- Analytics Tab -->
+            <div class="tab-content hidden" data-content="analytics">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="text-sm text-blue-700">
+                        <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                        <strong>Note:</strong> This tab shows data AFTER product has been published and has activity.
+                        For new products, shown "No data yet".
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <div class="text-center py-12">
+                        <i data-lucide="bar-chart-2" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No Analytics Data Yet</h3>
+                        <p class="text-gray-600">Analytics will appear here once the product is published and has
+                            activity</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Production Tab -->
+            <!-- Production Tab - Complete UI matching screenshots -->
+<div class="tab-content hidden" data-content="production">
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+        <p class="text-sm text-blue-700">
+            <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+            <strong>Purpose:</strong> Production-specific settings and specifications for manufacturing this product
+        </p>
+    </div>
+
+    <!-- Production Specifications -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-6">Production Specifications</h3>
+        
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Production Method</label>
+                <select name="production_method_detail"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="digital-offset">Digital Offset Printing</option>
+                    <option value="offset">Offset Printing</option>
+                    <option value="screen">Screen Printing</option>
+                    <option value="digital">Digital Printing</option>
+                    <option value="flexo">Flexographic Printing</option>
+                    <option value="gravure">Gravure Printing</option>
+                    <option value="letterpress">Letterpress</option>
+                    <option value="sublimation">Dye Sublimation</option>
+                </select>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Machine/Equipment</label>
+                <input type="text" name="machine_equipment" 
+                    value="{% if product and product.production %}{{ product.production.machine_equipment }}{% else %}HP Indigo 7900{% endif %}"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., HP Indigo 7900">
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-6 mt-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Print Layout</label>
+                <input type="text" name="print_layout"
+                    value="{% if product and product.production %}{{ product.production.print_layout }}{% endif %}"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., 12-up on 450×320mm sheet">
+                <button type="button" class="text-xs text-blue-600 mt-1 hover:underline">Layout configuration</button>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Color Profile</label>
+                <select name="color_profile"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="cmyk-spot">CMYK + Spot Color</option>
+                    <option value="cmyk">CMYK</option>
+                    <option value="pantone">Pantone</option>
+                    <option value="rgb">RGB (Digital)</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <label class="block text-sm font-medium text-gray-900 mb-3">Finishing Process</label>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="finishing_lamination" 
+                            {% if product and product.production and product.production.checklist_lamination %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Lamination</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="finishing_packaging"
+                            {% if product and product.production and product.production.checklist_packaging %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Packaging</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="finishing_die_cutting"
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Die-cutting</span>
+                    </label>
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="finishing_embossing"
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Embossing</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="finishing_registration"
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Registration</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="finishing_cutting_accuracy"
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Cutting accuracy</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <label class="block text-sm font-medium text-gray-900 mb-3">Quality Control Points</label>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="qc_color_match"
+                            {% if product and product.production and product.production.checklist_color_match %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Color match</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="qc_finish_quality"
+                            {% if product and product.production and product.production.checklist_finish_quality %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Finish quality</span>
+                    </label>
+                </div>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="qc_registration"
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Registration</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="qc_cutting"
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Cutting accuracy</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bill of Materials (BOM) -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-lg font-medium text-gray-900">Bill of Materials (BOM) - Base Configuration</h3>
+                <p class="text-sm text-gray-600 mt-1">For: 500 pieces, 300gsm, Matte Lamination, Standard</p>
+            </div>
+        </div>
+
+        <!-- Material 1: Paper Stock -->
+        <div class="border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">Material 1: Paper Stock</h4>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Type:</label>
+                    <input type="text" name="bom_mat1_type" value="300gsm Gloss Coated Card Stock"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Sheet Size:</label>
+                    <input type="text" name="bom_mat1_sheet_size" value="450mm × 320mm (12-up layout)"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Quantity:</label>
+                    <input type="text" name="bom_mat1_quantity" value="43 sheets (500 cards + 3% waste)"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Supplier:</label>
+                    <select name="bom_mat1_supplier"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                        <option value="vendor-a">Vendor A</option>
+                        <option value="vendor-b">Vendor B</option>
+                        <option value="vendor-c">Vendor C</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Cost/Sheet:</label>
+                    <input type="number" name="bom_mat1_cost_per" value="45" step="0.01"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Total Cost:</label>
+                    <div class="flex items-center h-full">
+                        <span class="text-sm font-semibold">KES 1,935</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Material 2: Lamination Film -->
+        <div class="border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">Material 2: Lamination Film</h4>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Type:</label>
+                    <input type="text" name="bom_mat2_type" value="Matte Lamination Film"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Width:</label>
+                    <input type="text" name="bom_mat2_width" value="500mm"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Length:</label>
+                    <input type="text" name="bom_mat2_length" value="12 linear meters"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Supplier:</label>
+                    <select name="bom_mat2_supplier"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                        <option value="vendor-a">Vendor A</option>
+                        <option value="vendor-b">Vendor B</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Cost/Meter:</label>
+                    <input type="number" name="bom_mat2_cost_per" value="120" step="0.01"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Total Cost:</label>
+                    <div class="flex items-center h-full">
+                        <span class="text-sm font-semibold">KES 1,440</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Material 3: Ink -->
+        <div class="border border-gray-200 rounded-lg p-4 mb-4">
+            <h4 class="text-sm font-semibold text-gray-900 mb-3">Material 3: Ink</h4>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Type:</label>
+                    <input type="text" name="bom_mat3_type" value="CMYK Digital Ink"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Coverage:</label>
+                    <input type="text" name="bom_mat3_coverage" value="85% average"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4 mt-3">
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Estimated:</label>
+                    <input type="text" name="bom_mat3_estimated" value="150ml total"
+                        class="w-full px-3 py-2 border border-gray-200 rounded text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 mb-1">Cost:</label>
+                    <div class="flex items-center h-full">
+                        <span class="text-sm text-gray-600">Included in machine runtime</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Total Material Cost -->
+        <div class="flex justify-end pt-4 border-t border-gray-200">
+            <div class="text-right">
+                <p class="text-sm text-gray-600 mb-1">Total Material Cost (EVP):</p>
+                <p class="text-xl font-bold text-gray-900">KES 3,375</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Production Notes & Instructions -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-4">Production Notes & Instructions</h3>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Pre-Production Checklist</label>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="checkbox" name="checklist_artwork"
+                            {% if product and product.production and product.production.checklist_artwork %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Client artwork approved</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="checklist_preflight"
+                            {% if product and product.production and product.production.checklist_preflight %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Pre-flight check passed</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="checklist_material"
+                            {% if product and product.production and product.production.checklist_material %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Material in stock</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" name="checklist_proofs"
+                            {% if product and product.production and product.production.checklist_proofs %}checked{% endif %}
+                            class="mr-2 rounded text-blue-600">
+                        <span class="text-sm text-gray-900">Color proofs confirmed</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Production Steps:</label>
+                <ol class="list-decimal list-inside space-y-1 text-sm text-gray-700 bg-gray-50 p-4 rounded">
+                    <li>Print on 450×320mm sheets (12-up layout)</li>
+                    <li>Apply lamination (matte, both sides)</li>
+                    <li>Die-cut to 85×55mm with 3mm corner radius</li>
+                    <li>Quality inspection: Check color, registration, finish</li>
+                    <li>Pack in boxes of 50 cards</li>
+                    <li>Label with client name and job number</li>
+                </ol>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Special Instructions</label>
+                <textarea name="production_special_instructions" rows="3"
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">Allow extra time for first-time clients - send proof before full production run. Match Pantone 185 C exactly.</textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Common Issues & Solutions:</label>
+                <ul class="list-disc list-inside space-y-1 text-sm text-gray-700">
+                    <li>Color mismatch: Ensure monitor calibration</li>
+                    <li>Corner radius inconsistency: Check die condition</li>
+                    <li>Lamination bubbles: Verify film tension</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vendor Capability Matrix -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h3 class="text-lg font-medium text-gray-900 mb-2">Vendor Capability Matrix</h3>
+        <p class="text-sm text-gray-600 mb-4">Which vendors can produce which configurations?</p>
+
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-gray-200">
+                        <th class="text-left py-2 px-3 text-sm font-medium text-gray-900">Configuration</th>
+                        <th class="text-center py-2 px-3 text-sm font-medium text-gray-900">Vendor A</th>
+                        <th class="text-center py-2 px-3 text-sm font-medium text-gray-900">Vendor B</th>
+                        <th class="text-center py-2 px-3 text-sm font-medium text-gray-900">Vendor C</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 text-sm">300gsm Standard</td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 text-sm">350gsm Premium</td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-times text-red-600"></i></td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 text-sm">Matte Lamination</td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 text-sm">Soft-Touch</td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-times text-red-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-times text-red-600"></i></td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 text-sm">Foil Stamping</td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-times text-red-600"></i></td>
+                    </tr>
+                    <tr class="border-b border-gray-100">
+                        <td class="py-2 px-3 text-sm">Rounded Corners</td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                    </tr>
+                    <tr>
+                        <td class="py-2 px-3 text-sm">Rush (1-2 days)</td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-times text-red-600"></i></td>
+                        <td class="text-center py-2 px-3"><i class="fas fa-check text-green-600"></i></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="mt-4 p-3 bg-blue-50 rounded">
+            <p class="text-sm font-medium text-gray-900 mb-2">Preferred Vendor Selection Logic:</p>
+            <ol class="list-decimal list-inside space-y-1 text-xs text-gray-700">
+                <li>Check configuration compatibility</li>
+                <li>Filter available vendors</li>
+                <li>Rank by UPS score (Quality + Reliability + Cost)</li>
+                <li>Select top vendor or present options to PT</li>
+            </ol>
+        </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-between">
+        <button type="button" class="inline-flex items-center gap-2 px-4 py-2 text-gray-700 hover:text-gray-900">
+            ← Back to E-commerce
+        </button>
+        <div class="flex gap-3">
+            <button type="button" onclick="submitForm('save_draft')"
+                class="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50">
+                Save Draft
+            </button>
+            <button type="button" onclick="submitForm('publish')"
+                class="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 flex items-center gap-2">
+                <i data-lucide="save" class="w-4 h-4"></i>
+                Publish Product
+            </button>
+        </div>
+    </div>
+</div>
+
+            <!-- History Tab -->
+            <div class="tab-content hidden" data-content="history">
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+                    <p class="text-sm text-blue-700">
+                        <i data-lucide="info" class="w-4 h-4 inline mr-1"></i>
+                        <strong>Purpose:</strong> Complete audit trail of all changes to this product
+                    </p>
+                </div>
+
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Product Change History</h3>
+
+                    <div class="text-center py-12">
+                        <i data-lucide="clock" class="w-16 h-16 text-gray-300 mx-auto mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No History Yet</h3>
+                        <p class="text-gray-600">Change history will appear here after the product is created</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- ========================================= -->
+<!--           EDIT IMAGE MODAL HTML           -->
+<!-- Image Edit Modal - Add this BEFORE the closing </div> of your product form -->
+<div id="imageEditModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center px-4">
+    <div class="bg-white rounded-lg w-full max-w-3xl max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+        
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-800">Edit Image</h2>
+            <button onclick="closeImageEditModal()" class="text-gray-500 hover:text-gray-700 text-xl font-bold">
+                ×
+            </button>
+        </div>
+
+        <!-- Preview + Basic Info -->
+        <div class="grid grid-cols-3 gap-6">
+            
+            <!-- LEFT: Image Preview -->
+            <div>
+                <div class="w-full h-40 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden mb-2">
+                    <img id="modalImagePreview" src="" alt="" class="object-cover w-full h-full">
+                </div>
+                <p id="modalImageName" class="text-xs text-gray-600 mb-1"></p>
+                <p id="modalImageSize" class="text-xs text-gray-600 mb-1"></p>
+                <p id="modalImageDimensions" class="text-xs text-gray-600"></p>
+            </div>
+
+            <!-- RIGHT: Form Fields -->
+            <div class="col-span-2 space-y-4">
+                
+                <!-- Hidden field for image ID -->
+                <input type="hidden" id="modalImageId">
+                
+                <!-- ALT TEXT -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Alt Text (for SEO & accessibility)
+                    </label>
+                    <input type="text" 
+                           id="modalAltText"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                           placeholder="e.g. Premium business cards with rounded corners">
+                </div>
+
+                <!-- CAPTION -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Caption (optional)
+                    </label>
+                    <input type="text" 
+                           id="modalCaption"
+                           class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                           placeholder="e.g. Close-up showing matte lamination finish">
+                </div>
+
+                <!-- IMAGE TYPE -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Image Type
+                    </label>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="radio" name="modal_image_type" value="product-photo" class="mr-2">
+                            Product Photo
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="modal_image_type" value="detail" class="mr-2">
+                            Detail / Close-up
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="modal_image_type" value="mockup" class="mr-2">
+                            Mockup / In-Use
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="modal_image_type" value="size-comparison" class="mr-2">
+                            Size Comparison
+                        </label>
+                        <label class="flex items-center">
+                            <input type="radio" name="modal_image_type" value="sample" class="mr-2">
+                            Sample / Example
+                        </label>
+                    </div>
+                </div>
+
+                <!-- VARIABLE ASSOCIATION -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-800 mb-1">
+                        Associated With Variable Option (optional)
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <select id="modalVariableSelect" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <option value="">-- Select Variable --</option>
+                            <!-- Variables will be populated dynamically -->
+                        </select>
+                        <select id="modalOptionSelect" class="w-full border border-gray-300 rounded-md px-3 py-2 text-sm">
+                            <option value="">-- Select Option --</option>
+                            <!-- Options will be populated based on variable selection -->
+                        </select>
+                    </div>
+                    <label class="flex items-center mt-2">
+                        <input type="checkbox" id="modalShowForOption" class="mr-2">
+                        <span class="text-sm">This image shows when customer selects this option</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BUTTONS -->
+        <div class="mt-6 flex gap-3">
+            <button onclick="saveImageMetadata()"
+                    class="px-4 py-2 bg-black text-white text-sm rounded hover:bg-gray-800">
+                Save
+            </button>
+            <label class="px-4 py-2 bg-white border text-sm rounded cursor-pointer hover:bg-gray-50">
+                Replace Image
+                <input type="file" id="modalReplaceImageInput" accept="image/*" class="hidden" onchange="replaceImageFile()">
+            </label>
+            <button onclick="deleteImageFromModal()"
+                    class="px-4 py-2 bg-red-50 text-red-600 border border-red-200 text-sm rounded hover:bg-red-100">
+                Delete
+            </button>
+            <button onclick="closeImageEditModal()"
+                    class="px-4 py-2 bg-gray-100 text-gray-700 text-sm rounded hover:bg-gray-200">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+</div>
+{% endblock %}
+{% block extra_js %}
+{{ block.super }}
+<script>
+// Complete Product Form JavaScript - Add to your product_create_edit.html template
+
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+    
+    // ==================== TAB SWITCHING ====================
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const tabOrder = ['general', 'pricing', 'images', 'ecommerce', 'analytics', 'production', 'history'];
+    
+    function switchToTab(tabName) {
+        tabButtons.forEach(btn => {
+            if (btn.dataset.tab === tabName) {
+                btn.classList.add('active', 'border-black', 'text-black');
+                btn.classList.remove('border-transparent', 'text-gray-600');
+            } else {
+                btn.classList.remove('active', 'border-black', 'text-black');
+                btn.classList.add('border-transparent', 'text-gray-600');
+            }
+        });
+        
+        tabContents.forEach(content => {
+            content.classList.toggle('hidden', content.dataset.content !== tabName);
+        });
+        
+        lucide.createIcons();
+        window.scrollTo(0, 0);
+    }
+    
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            switchToTab(this.dataset.tab);
+        });
+    });
+    
+    // Check URL parameter for tab on page load
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+    if (tabParam) {
+        switchToTab(tabParam);
+    }
+    
+    // ==================== SAVE & NEXT HANDLERS ====================
+    window.submitForm = function(action) {
+        const form = document.getElementById('productForm');
+        document.getElementById('form_action').value = action;
+        form.submit();
+    };
+        // ==================== SAVE & NEXT FUNCTION ====================
+    window.saveAndNext = function(nextTab) {
+        const form = document.getElementById('productForm');
+        document.getElementById('form_action').value = 'save_next';
+        
+        // Create hidden input for next_tab
+        let nextTabInput = document.querySelector('input[name="next_tab"]');
+        if (!nextTabInput) {
+            nextTabInput = document.createElement('input');
+            nextTabInput.type = 'hidden';
+            nextTabInput.name = 'next_tab';
+            form.appendChild(nextTabInput);
+        }
+        nextTabInput.value = nextTab;
+        
+        form.submit();
+    };
+    
+    // ==================== IMAGE UPLOAD HANDLERS ====================
+    // Primary Image Preview
+    const primaryImageInput = document.getElementById('primaryImageInput');
+    const primaryImagePreview = document.getElementById('primaryImagePreview');
+    const primaryImageDropzone = document.getElementById('primaryImageDropzone');
+    
+    if (primaryImageInput) {
+        primaryImageInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    // Create preview HTML
+                    const previewHtml = `
+                        <div class="flex items-center gap-4 p-4 border border-gray-200 rounded-lg bg-gray-50">
+                            <img src="${e.target.result}" alt="Preview" class="h-32 w-32 object-cover rounded">
+                            <div class="flex-1">
+                                <p class="font-medium text-gray-900 mb-1">${file.name}</p>
+                                <p class="text-xs text-gray-500">Size: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                <p class="text-xs text-green-600 mt-1">✓ Ready to upload</p>
+                                <div class="flex gap-2 mt-3">
+                                    <button type="button" class="px-3 py-1 text-xs text-red-600 hover:text-red-900" 
+                                            onclick="removePrimaryImage()">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // Show preview, hide dropzone
+                    if (primaryImagePreview) {
+                        primaryImagePreview.innerHTML = previewHtml;
+                        primaryImagePreview.classList.remove('hidden');
+                    } else {
+                        // Create preview div if it doesn't exist
+                        const newPreview = document.createElement('div');
+                        newPreview.id = 'primaryImagePreview';
+                        newPreview.className = 'mt-4';
+                        newPreview.innerHTML = previewHtml;
+                        primaryImageDropzone.parentNode.insertBefore(newPreview, primaryImageDropzone.nextSibling);
+                    }
+                    
+                    primaryImageDropzone.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+    
+    // Remove primary image
+    window.removePrimaryImage = function() {
+        if (primaryImageInput) {
+            primaryImageInput.value = '';
+        }
+        const preview = document.getElementById('primaryImagePreview');
+        if (preview) {
+            preview.classList.add('hidden');
+            preview.innerHTML = '';
+        }
+        if (primaryImageDropzone) {
+            primaryImageDropzone.classList.remove('hidden');
+        }
+    };
+    
+    // Gallery Images Preview
+    const galleryImagesInput = document.getElementById('galleryImagesInput');
+    const galleryPreview = document.getElementById('galleryPreview');
+    
+    if (galleryImagesInput) {
+        galleryImagesInput.addEventListener('change', function(e) {
+            const files = e.target.files;
+            if (files.length > 0 && galleryPreview) {
+                Array.from(files).forEach((file, index) => {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        const imageCard = document.createElement('div');
+                        imageCard.className = 'border border-gray-200 rounded-lg p-4 text-center bg-gray-50 image-preview-item';
+                        imageCard.dataset.fileName = file.name;
+                        imageCard.innerHTML = `
+                            <img src="${e.target.result}" alt="Preview" class="h-32 w-full object-cover rounded mb-2">
+                            <p class="text-xs text-gray-600 mb-1 truncate">${file.name}</p>
+                            <p class="text-xs text-gray-400">${(file.size / 1024).toFixed(1)} KB</p>
+                            <p class="text-xs text-green-600 mt-1">✓ Ready to upload</p>
+                            <button type="button" class="mt-2 text-xs text-red-600 hover:text-red-900"
+                                    onclick="removeGalleryPreview(this)">
+                                Remove
+                            </button>
+                        `;
+                        galleryPreview.appendChild(imageCard);
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        });
+    }
+    
+    // Remove gallery preview item
+    window.removeGalleryPreview = function(button) {
+        button.closest('.image-preview-item').remove();
+    };
+    
+    // ==================== IMAGE EDIT MODAL ====================
+    let currentEditingImageId = null;
+    
+    window.editImageModal = function(imageId) {
+        currentEditingImageId = imageId;
+        const modal = document.getElementById('imageEditModal');
+        
+        if (!modal) {
+            // If modal doesn't exist, create it
+            createImageEditModal();
+        }
+        
+        // Fetch image data via AJAX
+        fetch(`/ajax/product-image/${imageId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Populate modal with image data
+                    document.getElementById('modalImagePreview').src = data.image_url;
+                    document.getElementById('modalImageId').value = imageId;
+                    document.getElementById('modalImageName').textContent = `File: ${data.file_name || 'Unknown'}`;
+                    document.getElementById('modalImageSize').textContent = `Size: ${data.file_size || 'Unknown'}`;
+                    document.getElementById('modalImageDimensions').textContent = `Dimensions: ${data.dimensions || 'Unknown'}`;
+                    document.getElementById('modalAltText').value = data.alt_text || '';
+                    document.getElementById('modalCaption').value = data.caption || '';
+                    
+                    // Set image type radio
+                    if (data.image_type) {
+                        const radioBtn = document.querySelector(`input[name="modal_image_type"][value="${data.image_type}"]`);
+                        if (radioBtn) radioBtn.checked = true;
+                    }
+                    
+                    // Show modal
+                    document.getElementById('imageEditModal').classList.remove('hidden');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching image data:', error);
+                alert('Failed to load image data');
+            });
+    };
+    
+    window.closeImageEditModal = function() {
+        const modal = document.getElementById('imageEditModal');
+        if (modal) {
+            modal.classList.add('hidden');
+        }
+        currentEditingImageId = null;
+    };
+    
+    window.saveImageMetadata = function() {
+        const imageId = document.getElementById('modalImageId').value;
+        const altText = document.getElementById('modalAltText').value;
+        const caption = document.getElementById('modalCaption').value;
+        const imageType = document.querySelector('input[name="modal_image_type"]:checked')?.value;
+        
+        // Get CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/ajax/product-image/${imageId}/update/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({
+                alt_text: altText,
+                caption: caption,
+                image_type: imageType
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Image updated successfully!');
+                closeImageEditModal();
+                // Optionally refresh the page or update the image card
+            } else {
+                alert('Failed to update image: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating image:', error);
+            alert('Failed to update image');
+        });
+    };
+    
+    window.deleteImage = function(imageId) {
+        if (!confirm('Are you sure you want to delete this image?')) {
+            return;
+        }
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/ajax/product-image/${imageId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove the image card from DOM
+                const imageCard = document.getElementById(`image-card-${imageId}`);
+                if (imageCard) {
+                    imageCard.remove();
+                }
+                alert('Image deleted successfully!');
+            } else {
+                alert('Failed to delete image: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting image:', error);
+            alert('Failed to delete image');
+        });
+    };
+    
+    window.deleteImageFromModal = function() {
+        const imageId = document.getElementById('modalImageId').value;
+        closeImageEditModal();
+        deleteImage(imageId);
+    };
+    
+    window.replaceImageFile = function() {
+        const input = document.getElementById('modalReplaceImageInput');
+        const file = input.files[0];
+        
+        if (!file) return;
+        
+        const imageId = document.getElementById('modalImageId').value;
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        fetch(`/ajax/product-image/${imageId}/replace/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Update the preview in modal
+                document.getElementById('modalImagePreview').src = data.new_image_url;
+                alert('Image replaced successfully!');
+                
+                // Update the image in the gallery
+                const galleryImg = document.querySelector(`#image-card-${imageId} img`);
+                if (galleryImg) {
+                    galleryImg.src = data.new_image_url;
+                }
+            } else {
+                alert('Failed to replace image: ' + (data.error || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error('Error replacing image:', error);
+            alert('Failed to replace image');
+        });
+    };
+
+    
+    // ==================== PRODUCT VARIABLES MANAGEMENT ====================
+    let variables = [];
+    
+    // Load existing variables
+    const existingVariablesInput = document.getElementById('existing_variables_json');
+    if (existingVariablesInput && existingVariablesInput.value) {
+        try {
+            variables = JSON.parse(existingVariablesInput.value);
+            displayAllVariables();
+        } catch (e) {
+            console.error('Error parsing existing variables:', e);
+        }
+    }
+    
+    window.addVariable = function() {
+        const variableName = prompt('Enter variable name (e.g., Quantity, Paper Weight, Coating):');
+        if (!variableName || !variableName.trim()) return;
+        
+        variables.push({
+            name: variableName.trim(),
+            display_order: variables.length,
+            variable_type: 'required',
+            pricing_type: 'fixed',
+            options: [],
+            expanded: true
+        });
+        
+        displayAllVariables();
+    };
+    
+    function displayAllVariables() {
+        const container = document.getElementById('variables-container');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        variables.forEach((variable, index) => {
+            const card = createVariableCard(variable, index);
+            container.appendChild(card);
+        });
+        
+        lucide.createIcons();
+    }
+    
+    function createVariableCard(variable, index) {
+        const card = document.createElement('div');
+        card.className = 'border border-gray-200 rounded-lg mb-4 bg-white';
+        card.dataset.variableIndex = index;
+        
+        const isExpanded = variable.expanded !== false;
+        
+        card.innerHTML = `
+            <div class="p-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between">
+                <button type="button" class="flex items-center gap-2 text-left w-full variable-toggle" onclick="toggleVariable(${index})">
+                    <i data-lucide="${isExpanded ? 'chevron-down' : 'chevron-right'}" class="w-4 h-4 text-gray-600"></i>
+                    <span class="text-sm font-semibold text-gray-900">${variable.name}</span>
+                    <span class="text-xs text-gray-500">(${variable.options.length} options)</span>
+                </button>
+                <button type="button" class="p-1 hover:bg-gray-200 rounded ml-2" onclick="deleteVariable(${index})">
+                    <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                </button>
+            </div>
+            <div class="p-4 ${isExpanded ? '' : 'hidden'}" data-variable-content="${index}">
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Variable Name:</label>
+                        <input type="text" value="${variable.name}" 
+                               onchange="updateVariableName(${index}, this.value)"
+                               class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Type:</label>
+                        <select onchange="updateVariableType(${index}, this.value)"
+                                class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                            <option value="required" ${variable.variable_type === 'required' ? 'selected' : ''}>Required</option>
+                            <option value="optional" ${variable.variable_type === 'optional' ? 'selected' : ''}>Optional</option>
+                            <option value="conditional" ${variable.variable_type === 'conditional' ? 'selected' : ''}>Conditional</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="block text-xs font-medium text-gray-700 mb-2">Options:</label>
+                    <div class="space-y-2" id="options-${index}">
+                        ${variable.options.map((opt, optIndex) => createOptionHtml(index, opt, optIndex)).join('')}
+                    </div>
+                    <button type="button" onclick="addOption(${index})" 
+                            class="mt-2 px-3 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded">
+                        + Add Option
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        return card;
+    }
+    
+    function createOptionHtml(varIndex, option, optIndex) {
+        return `
+            <div class="flex gap-2 items-start bg-gray-50 p-2 rounded">
+                <div class="flex-1">
+                    <input type="text" value="${option.value}" placeholder="Option value"
+                           onchange="updateOptionValue(${varIndex}, ${optIndex}, this.value)"
+                           class="w-full px-2 py-1 border border-gray-300 rounded text-xs">
+                </div>
+                <div class="w-32">
+                    <input type="number" value="${option.price_adjustment || 0}" placeholder="Price ±" step="0.01"
+                           onchange="updateOptionPrice(${varIndex}, ${optIndex}, this.value)"
+                           class="w-full px-2 py-1 border border-gray-300 rounded text-xs">
+                </div>
+                <button type="button" onclick="deleteOption(${varIndex}, ${optIndex})"
+                        class="p-1 hover:bg-gray-200 rounded">
+                    <i data-lucide="x" class="w-3 h-3 text-red-600"></i>
+                </button>
+            </div>
+        `;
+    }
+    
+    window.toggleVariable = function(index) {
+        variables[index].expanded = !variables[index].expanded;
+        displayAllVariables();
+    };
+    
+    window.deleteVariable = function(index) {
+        if (confirm('Delete this variable?')) {
+            variables.splice(index, 1);
+            displayAllVariables();
+        }
+    };
+    
+    window.updateVariableName = function(index, value) {
+        variables[index].name = value;
+    };
+    
+    window.updateVariableType = function(index, value) {
+        variables[index].variable_type = value;
+    };
+    
+    window.addOption = function(varIndex) {
+        variables[varIndex].options.push({
+            value: '',
+            price_adjustment: 0,
+            is_default: false
+        });
+        displayAllVariables();
+    };
+    
+    window.updateOptionValue = function(varIndex, optIndex, value) {
+        variables[varIndex].options[optIndex].value = value;
+    };
+    
+    window.updateOptionPrice = function(varIndex, optIndex, value) {
+        variables[varIndex].options[optIndex].price_adjustment = parseFloat(value) || 0;
+    };
+    
+    window.deleteOption = function(varIndex, optIndex) {
+        variables[varIndex].options.splice(optIndex, 1);
+        displayAllVariables();
+    };
+
+    // ==================== RICH TEXT EDITOR FOR LONG DESCRIPTION ====================
+const longDescTextarea = document.getElementById('id_long_description');
+const editorToolbar = longDescTextarea?.closest('.border.border-gray-300')?.querySelector('.flex.gap-1');
+
+if (editorToolbar && longDescTextarea) {
+    const buttons = editorToolbar.querySelectorAll('button');
+    
+    buttons.forEach(button => {
+        const action = button.textContent.trim().toLowerCase();
+        
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const start = longDescTextarea.selectionStart;
+            const end = longDescTextarea.selectionEnd;
+            const selectedText = longDescTextarea.value.substring(start, end);
+            let replacement = '';
+            
+            switch(action) {
+                case 'bold':
+                    replacement = `**${selectedText}**`;
+                    break;
+                case 'italic':
+                    replacement = `*${selectedText}*`;
+                    break;
+                case 'list':
+                    // Split by newlines and add bullet points
+                    if (selectedText) {
+                        replacement = selectedText.split('\n').map(line => `• ${line}`).join('\n');
+                    } else {
+                        replacement = '• ';
+                    }
+                    break;
+                case 'link':
+                    const url = prompt('Enter URL:', 'https://');
+                    if (url) {
+                        replacement = selectedText ? `[${selectedText}](${url})` : `[Link Text](${url})`;
+                    } else {
+                        replacement = selectedText;
+                    }
+                    break;
+            }
+            
+            // Replace selected text with formatted text
+            longDescTextarea.value = longDescTextarea.value.substring(0, start) + replacement + longDescTextarea.value.substring(end);
+            
+            // Set cursor position after the replacement
+            const newCursorPos = start + replacement.length;
+            longDescTextarea.setSelectionRange(newCursorPos, newCursorPos);
+            longDescTextarea.focus();
+        });
+    });
+}
+    
+    // ==================== FORM SUBMISSION ====================
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+        productForm.addEventListener('submit', function(e) {
+            // Inject variables JSON
+            let variablesInput = document.getElementById('product_variables_json');
+            if (!variablesInput) {
+                variablesInput = document.createElement('input');
+                variablesInput.type = 'hidden';
+                variablesInput.name = 'product_variables_json';
+                variablesInput.id = 'product_variables_json';
+                productForm.appendChild(variablesInput);
+            }
+            variablesInput.value = JSON.stringify(variables);
+        });
+    }
+    
+    // ==================== PRICING CALCULATOR ====================
+    window.calculatePricing = function() {
+        const quantity = parseInt(document.getElementById('test_quantity')?.value || 500);
+        const basePrice = parseFloat(document.getElementById('id_base_cost')?.value || 12);
+        const margin = parseFloat(document.getElementById('id_default_margin')?.value || 30);
+        
+        const base = quantity * basePrice;
+        const paper = quantity * 4;
+        const coating = quantity * 2;
+        const lamination = quantity * 1.5;
+        const subtotal = base + paper + coating + lamination;
+        const marginAmount = subtotal * (margin / 100);
+        const total = subtotal + marginAmount;
+        const perUnit = total / quantity;
+        
+        const breakdown = document.getElementById('pricing-breakdown');
+        if (breakdown) {
+            breakdown.innerHTML = `
+                <h4 class="text-sm font-semibold text-gray-900 mb-3">CALCULATION BREAKDOWN:</h4>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-gray-700">Base (${quantity} × KES ${basePrice}):</span>
+                        <span class="font-medium text-gray-900">KES ${base.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-700">Premium Paper (× KES 4):</span>
+                        <span class="font-medium text-gray-900">KES ${paper.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-700">Coating (× KES 2):</span>
+                        <span class="font-medium text-gray-900">KES ${coating.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-700">Lamination (× KES 1.50):</span>
+                        <span class="font-medium text-gray-900">KES ${lamination.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t border-gray-300">
+                        <span class="text-gray-700">Subtotal EVP:</span>
+                        <span class="font-semibold text-gray-900">KES ${subtotal.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-gray-700">Margin (${margin}%):</span>
+                        <span class="font-semibold text-gray-900">KES ${marginAmount.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between pt-2 border-t-2 border-gray-400">
+                        <span class="text-gray-900 font-semibold">CUSTOMER PAYS:</span>
+                        <span class="font-bold text-green-600 text-lg">KES ${total.toLocaleString()}</span>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                        <span class="text-gray-600">Per Unit:</span>
+                        <span class="font-medium text-gray-900">KES ${perUnit.toFixed(2)}</span>
+                    </div>
+                </div>
+            `;
+        }
+    };
+    // ==================== TAG MANAGEMENT ====================
+const tagInput = document.getElementById('new_tag_input');
+const addTagBtn = document.getElementById('add_tag_btn');
+const tagsContainer = document.getElementById('tags-container');
+
+if (tagInput && addTagBtn && tagsContainer) {
+    // Add tag on button click
+    addTagBtn.addEventListener('click', function() {
+        addTag();
+    });
+    
+    // Add tag on Enter key
+    tagInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addTag();
+        }
+    });
+    
+    function addTag() {
+        const tagValue = tagInput.value.trim();
+        if (!tagValue) return;
+        
+        // Check for duplicate
+        const existingTags = tagsContainer.querySelectorAll('input[name="new_tag[]"]');
+        for (let input of existingTags) {
+            if (input.value.toLowerCase() === tagValue.toLowerCase()) {
+                alert('This tag already exists!');
+                return;
+            }
+        }
+        
+        // Create tag element
+        const tagSpan = document.createElement('span');
+        tagSpan.className = 'inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-700 text-sm rounded';
+        tagSpan.innerHTML = `
+            ${tagValue}
+            <button type="button" class="text-gray-500 hover:text-gray-700" onclick="this.parentElement.remove()">×</button>
+            <input type="hidden" name="new_tag[]" value="${tagValue}">
+        `;
+        
+        tagsContainer.appendChild(tagSpan);
+        tagInput.value = '';
+        tagInput.focus();
+    }
+}
+    
+    // ==================== FAQ MANAGEMENT ====================
+    let faqCounter = 0;
+    
+    window.addFAQ = function() {
+        faqCounter++;
+        const container = document.getElementById('faqsContainer');
+        const html = `
+            <div class="border border-gray-200 rounded-lg faq-item">
+                <div class="p-4 bg-gray-50 border-b border-gray-200 flex items-start justify-between">
+                    <button type="button" class="flex items-center gap-2 text-left w-full faq-toggle" onclick="toggleFAQ(this)">
+                        <i data-lucide="chevron-right" class="w-4 h-4 text-gray-600 faq-chevron"></i>
+                        <span class="text-sm font-semibold text-gray-900">New FAQ ${faqCounter}</span>
+                    </button>
+                    <button type="button" class="p-1 hover:bg-gray-200 rounded ml-2" onclick="this.closest('.faq-item').remove()">
+                        <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                    </button>
+                </div>
+                <div class="p-4 faq-content">
+                    <div class="mb-3">
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Question:</label>
+                        <input type="text" name="faq_question[]" 
+                               placeholder="e.g., What file formats do you accept?"
+                               class="w-full px-3 py-2 border border-gray-300 rounded text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-1">Answer:</label>
+                        <textarea name="faq_answer[]" rows="3" 
+                                  placeholder="e.g., We accept PDF, AI, EPS..."
+                                  class="w-full px-3 py-2 border border-gray-300 rounded text-sm"></textarea>
+                    </div>
+                </div>
+            </div>
+        `;
+        container.insertAdjacentHTML('beforeend', html);
+        lucide.createIcons();
+    };
+    
+    window.toggleFAQ = function(button) {
+        const faqItem = button.closest('.faq-item');
+        const content = faqItem.querySelector('.faq-content');
+        const chevron = button.querySelector('.faq-chevron');
+        
+        content.classList.toggle('hidden');
+        
+        if (content.classList.contains('hidden')) {
+            chevron.setAttribute('data-lucide', 'chevron-right');
+        } else {
+            chevron.setAttribute('data-lucide', 'chevron-down');
+        }
+        lucide.createIcons();
+    };
+            // ==================== ENHANCED PROCESS SELECTION HANDLER ====================
+    const processSelect = document.getElementById('id_process');
+    const baseCostInput = document.getElementById('id_base_cost');
+    const useProcessCostsCheckbox = document.getElementById('id_use_process_costs');
+    
+    if (processSelect) {
+        processSelect.addEventListener('change', function() {
+            const selectedOption = this.options[this.selectedIndex];
+            const processId = this.value;
+            const processInfoDisplay = document.getElementById('process-info-display');
+            const useProcessCostsSection = document.getElementById('use-process-costs-section');
+            const autoImportSection = document.getElementById('auto-import-section');
+            const processTiersDisplay = document.getElementById('process-tiers-display');
+            const processVariablesPreview = document.getElementById('process-variables-preview');
+            const processCostIndicator = document.getElementById('process_cost_indicator');
+            
+            if (processId) {
+                // Show process-related sections
+                processInfoDisplay.classList.remove('hidden');
+                useProcessCostsSection.classList.remove('hidden');
+                autoImportSection.classList.remove('hidden');
+                
+                // Update process info display
+                document.getElementById('process_id_display').textContent = 
+                    selectedOption.getAttribute('data-process-id') || '-';
+                    
+                const pricingType = selectedOption.getAttribute('data-pricing-type');
+                document.getElementById('process_pricing_type').textContent = 
+                    pricingType === 'tier' ? 'Tier-Based Pricing' : 'Formula-Based Pricing';
+                    
+                document.getElementById('process_lead_time').textContent = 
+                    (selectedOption.getAttribute('data-lead-time') || '-') + ' Days';
+                document.getElementById('process_category').textContent = 
+                    selectedOption.getAttribute('data-category') || '-';
+                
+                // Update view process link
+                document.getElementById('view_process_link').href = `/processes/${processId}/`;
+                
+                // Fetch process variables/tiers via AJAX
+                fetch(`/ajax/process/${processId}/variables/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.pricing_type === 'tier' && data.variables && data.variables.length > 0) {
+                                // Show tier-based pricing table
+                                processTiersDisplay.classList.remove('hidden');
+                                processVariablesPreview.classList.add('hidden');
+                                
+                                // Build the tiers table
+                                const tiersBody = document.getElementById('process-tiers-body');
+                                let tiersHtml = '';
+                                let lowestCost = Infinity;
+                                
+                                data.variables.forEach((tier, index) => {
+                                    const cost = parseFloat(tier.cost);
+                                    const price = parseFloat(tier.price);
+                                    const margin = price > 0 ? ((price - cost) / price * 100).toFixed(1) : 0;
+                                    
+                                    if (cost < lowestCost) {
+                                        lowestCost = cost;
+                                    }
+                                    
+                                    tiersHtml += `
+                                        <tr class="border-t border-gray-200 ${index === 0 ? 'bg-green-50' : ''}">
+                                            <td class="px-3 py-2 text-gray-900">Tier ${tier.tier_number}</td>
+                                            <td class="px-3 py-2 text-gray-900">${tier.quantity_from} - ${tier.quantity_to} pcs</td>
+                                            <td class="px-3 py-2 text-right font-medium text-gray-900">KES ${parseFloat(tier.cost).toLocaleString()}</td>
+                                            <td class="px-3 py-2 text-right font-medium text-green-600">KES ${parseFloat(tier.price).toLocaleString()}</td>
+                                            <td class="px-3 py-2 text-right text-gray-600">${margin}%</td>
+                                        </tr>
+                                    `;
+                                });
+                                
+                                tiersBody.innerHTML = tiersHtml;
+                                
+                                // Display lowest tier cost
+                                document.getElementById('lowest-tier-cost').textContent = 
+                                    `KES ${lowestCost.toLocaleString()}`;
+                                
+                                // Auto-fill base cost if "Use Process Costs" is checked
+                                if (useProcessCostsCheckbox && useProcessCostsCheckbox.checked) {
+                                    baseCostInput.value = lowestCost;
+                                    baseCostInput.classList.add('bg-blue-50');
+                                    processCostIndicator.classList.remove('hidden');
+                                    document.getElementById('process_cost_source').textContent = 
+                                        `Auto-filled from process (Tier 1 cost: KES ${lowestCost.toLocaleString()})`;
+                                }
+                                
+                            } else if (data.pricing_type === 'formula' && data.variables && data.variables.length > 0) {
+                                // Show formula-based variables
+                                processTiersDisplay.classList.add('hidden');
+                                processVariablesPreview.classList.remove('hidden');
+                                
+                                let variablesHtml = '<ul class="list-disc list-inside space-y-1">';
+                                data.variables.forEach(variable => {
+                                    variablesHtml += `
+                                        <li>
+                                            <strong>${variable.name}</strong> 
+                                            <span class="text-gray-600">(${variable.type || 'number'})</span>
+                                            ${variable.unit ? `<span class="text-gray-500"> - ${variable.unit}</span>` : ''}
+                                            ${variable.min_value ? `<span class="text-xs text-gray-500"> min: ${variable.min_value}</span>` : ''}
+                                            ${variable.max_value ? `<span class="text-xs text-gray-500"> max: ${variable.max_value}</span>` : ''}
+                                        </li>
+                                    `;
+                                });
+                                variablesHtml += '</ul>';
+                                
+                                document.getElementById('variables-list').innerHTML = variablesHtml;
+                                
+                                // Hide process cost indicator for formula-based
+                                processCostIndicator.classList.add('hidden');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching process variables:', error);
+                    });
+                
+                lucide.createIcons();
+            } else {
+                // Hide process-related sections
+                processInfoDisplay.classList.add('hidden');
+                useProcessCostsSection.classList.add('hidden');
+                autoImportSection.classList.add('hidden');
+                processTiersDisplay.classList.add('hidden');
+                processVariablesPreview.classList.add('hidden');
+                processCostIndicator.classList.add('hidden');
+                
+                // Remove styling from base cost
+                baseCostInput.classList.remove('bg-blue-50');
+            }
+        });
+        
+        // Handle "Use Process Costs" toggle
+        if (useProcessCostsCheckbox) {
+            useProcessCostsCheckbox.addEventListener('change', function() {
+                if (this.checked && processSelect.value) {
+                    // Re-trigger the process selection to re-fetch and apply costs
+                    processSelect.dispatchEvent(new Event('change'));
+                    baseCostInput.classList.add('bg-blue-50');
+                } else {
+                    // Allow manual editing
+                    baseCostInput.classList.remove('bg-blue-50');
+                    document.getElementById('process_cost_indicator').classList.add('hidden');
+                }
+            });
+        }
+        
+        // Trigger on page load if a process is already selected
+        if (processSelect.value) {
+            processSelect.dispatchEvent(new Event('change'));
+        }
+    
+    }
+    
+    
+    
+    // ==================== INITIALIZE ====================
+    lucide.createIcons();
+});
+</script>
+{%endblock%}

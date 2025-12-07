@@ -167,6 +167,43 @@
                 </div>
             </div>
             {% endif %}
+                        <!-- AM Actions Section - Send to Client (visible when quote is costed) -->
+            {% if first_quote.production_status == 'costed' %}
+            <div class="border-t border-gray-200 pt-6 mt-6">
+                <h3 class="text-sm font-semibold text-gray-600 mb-3">ACTIONS</h3>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <p class="text-gray-700 mb-4">
+                        <strong>✅ Quote is costed and ready!</strong> Production team has completed the costing. You can now send this quote to the client for approval.
+                    </p>
+                    
+                    <div class="flex gap-3 flex-wrap">
+                        <!-- Send to Client via Email -->
+                        <button type="button" onclick="sendQuoteToClient('email')" 
+                            class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md flex items-center gap-2">
+                            ✉️ Send to Client via Email
+                        </button>
+                        
+                        <!-- Send via WhatsApp -->
+                        <button type="button" onclick="sendQuoteToClient('whatsapp')" 
+                            class="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-md flex items-center gap-2">
+                            📱 Send via WhatsApp
+                        </button>
+                        
+                        <!-- Download PDF -->
+                        <a href="{% url 'download_quote_pdf' quote_id %}" 
+                            class="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors shadow-md flex items-center gap-2">
+                            📄 Download PDF
+                        </a>
+                    </div>
+                    
+                    <p class="text-sm text-gray-500 mt-4">
+                        <strong>Note:</strong> An email will be sent to 
+                        {% if client %}{{ client.email }}{% elif lead %}{{ lead.email }}{% endif %} 
+                        with an approval link.
+                    </p>
+                </div>
+            </div>
+            {% endif %}
 
             <!-- Notes and Terms -->
             {% if first_quote.notes %}
@@ -192,4 +229,36 @@
         </div>
     </div>
 </div>
+
+<script>
+function sendQuoteToClient(method) {
+    if (!confirm('Are you sure you want to send this quote to the client via ' + method + '?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('send_method', method);
+    
+    fetch('{% url "send_quote" quote_id=quote_id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Quote sent successfully to client!\n\n' + (data.message || ''));
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to send quote'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ An error occurred while sending the quote.');
+    });
+}
+</script>
 {% endblock %}

@@ -159,7 +159,7 @@
             <h1>Cost Quote {{ quote.quote_id }}</h1>
             <p class="page-subtitle">Adjust pricing and production details before handing back to the account manager</p>
         </div>
-        <a href="{% url 'production_quote_review' %}" class="btn btn-outline">
+        <a href="{% url 'my_quotes' %}" class="btn btn-outline">
             <i class="fas fa-arrow-left"></i>
             Back to queue
         </a>
@@ -254,7 +254,7 @@
         </div>
 
         <div class="form-actions">
-            <a href="{% url 'production_quote_review' %}" class="btn btn-outline">Cancel</a>
+            <a href="{% url 'my_quotes' %}" class="btn btn-outline">Cancel</a>
             <button type="submit" class="btn btn-primary">
                 <i class="fas fa-save"></i>
                 Save Costing

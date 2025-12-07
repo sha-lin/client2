@@ -1,0 +1,226 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-8">
+    <!-- Header -->
+    <div class="mb-6">
+        <h2 class="text-2xl font-medium text-gray-900">Local Purchase Orders (LPOs)</h2>
+        <p class="text-gray-600 mt-1">Manage and sync LPOs to QuickBooks</p>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-5 gap-4 mb-6">
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <p class="text-sm text-gray-600">Total LPOs</p>
+            <p class="text-2xl font-bold text-gray-900 mt-1">{{ status_counts.all }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <p class="text-sm text-gray-600">In Production</p>
+            <p class="text-2xl font-bold text-blue-600 mt-1">{{ status_counts.in_production }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <p class="text-sm text-gray-600">Completed</p>
+            <p class="text-2xl font-bold text-green-600 mt-1">{{ status_counts.completed }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <p class="text-sm text-gray-600">Synced to QB</p>
+            <p class="text-2xl font-bold text-purple-600 mt-1">{{ status_counts.synced }}</p>
+        </div>
+        <div class="bg-white rounded-lg border border-gray-200 p-4">
+            <p class="text-sm text-gray-600">Ready to Sync</p>
+            <p class="text-2xl font-bold text-orange-600 mt-1">{{ status_counts.not_synced }}</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <form method="get" class="flex items-center gap-4">
+            <!-- Search -->
+            <div class="flex-1">
+                <input 
+                    type="text" 
+                    name="search" 
+                    value="{{ search_query }}"
+                    placeholder="Search by LPO#, Client, or Quote#..." 
+                    class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+            </div>
+
+            <!-- Status Filter -->
+            <select 
+                name="status" 
+                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onchange="this.form.submit()"
+            >
+                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Statuses</option>
+                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                <option value="in_production" {% if status_filter == 'in_production' %}selected{% endif %}>In Production</option>
+                <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>Completed</option>
+            </select>
+
+            <!-- Sync Filter -->
+            <select 
+                name="sync" 
+                class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                onchange="this.form.submit()"
+            >
+                <option value="all" {% if sync_filter == 'all' %}selected{% endif %}>All LPOs</option>
+                <option value="synced" {% if sync_filter == 'synced' %}selected{% endif %}>Synced to QB</option>
+                <option value="not_synced" {% if sync_filter == 'not_synced' %}selected{% endif %}>Not Synced</option>
+            </select>
+
+            <button 
+                type="submit" 
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+                <i data-lucide="search" class="w-4 h-4"></i>
+            </button>
+        </form>
+    </div>
+
+    <!-- LPO Table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <table class="w-full">
+            <thead class="bg-gray-50 border-b border-gray-200">
+                <tr>
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-700">LPO Number</th>
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-700">Client</th>
+                    <th class="px-6 py-3 text-left text-sm font-medium text-gray-700">Quote</th>
+                    <th class="px-6 py-3 text-right text-sm font-medium text-gray-700">Amount</th>
+                    <th class="px-6 py-3 text-center text-sm font-medium text-gray-700">Status</th>
+                    <th class="px-6 py-3 text-center text-sm font-medium text-gray-700">QB Sync</th>
+                    <th class="px-6 py-3 text-center text-sm font-medium text-gray-700">Created</th>
+                    <th class="px-6 py-3 text-center text-sm font-medium text-gray-700">Actions</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                {% for lpo in lpos %}
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4">
+                        <a href="{% url 'lpo_detail' lpo.lpo_number %}" class="text-blue-600 hover:text-blue-700 font-medium">
+                            {{ lpo.lpo_number }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4">
+                        <div>
+                            <p class="text-gray-900 font-medium">{{ lpo.client.company|default:lpo.client.name }}</p>
+                            <p class="text-sm text-gray-600">{{ lpo.client.email }}</p>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4">
+                        <a href="{% url 'quote_detail' lpo.quote.quote_id %}" class="text-blue-600 hover:text-blue-700">
+                            {{ lpo.quote.quote_id }}
+                        </a>
+                    </td>
+                    <td class="px-6 py-4 text-right">
+                        <p class="text-gray-900 font-medium">KES {{ lpo.total_amount|floatformat:2 }}</p>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <span class="px-3 py-1 text-sm rounded-full
+                            {% if lpo.status == 'completed' %}bg-green-100 text-green-700
+                            {% elif lpo.status == 'in_production' %}bg-blue-100 text-blue-700
+                            {% elif lpo.status == 'approved' %}bg-yellow-100 text-yellow-700
+                            {% else %}bg-gray-100 text-gray-700{% endif %}">
+                            {{ lpo.get_status_display }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        {% if lpo.synced_to_quickbooks %}
+                            <div class="flex flex-col items-center">
+                                <span class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full">
+                                    ✓ Synced
+                                </span>
+                                <span class="text-xs text-gray-600 mt-1">
+                                    #{{ lpo.quickbooks_invoice_number }}
+                                </span>
+                            </div>
+                        {% else %}
+                            <span class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded-full">
+                                Not Synced
+                            </span>
+                        {% endif %}
+                    </td>
+                    <td class="px-6 py-4 text-center text-sm text-gray-600">
+                        {{ lpo.created_at|date:"M d, Y" }}
+                    </td>
+                    <td class="px-6 py-4 text-center">
+                        <div class="flex items-center justify-center gap-2">
+                            <a 
+                                href="{% url 'lpo_detail' lpo.lpo_number %}" 
+                                class="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50"
+                                title="View Details"
+                            >
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </a>
+                            {% if lpo.status == 'completed' and not lpo.synced_to_quickbooks %}
+                            <button 
+                                onclick="syncLPO('{{ lpo.lpo_number }}')" 
+                                class="px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                                title="Sync to QuickBooks"
+                            >
+                                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="px-6 py-12 text-center text-gray-500">
+                        <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-3 text-gray-400"></i>
+                        <p class="text-lg">No LPOs found</p>
+                        <p class="text-sm mt-1">LPOs will appear here when quotes are approved</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function syncLPO(lpoNumber) {
+    if (!confirm('Sync this LPO to QuickBooks and generate an invoice?')) {
+        return;
+    }
+
+    const btn = event.target.closest('button');
+    const originalHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i>';
+    lucide.createIcons();
+
+    fetch(`/lpo/${lpoNumber}/sync/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            window.location.reload();
+        } else {
+            alert('Error: ' + data.message);
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            lucide.createIcons();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+        btn.disabled = false;
+        btn.innerHTML = originalHTML;
+        lucide.createIcons();
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    lucide.createIcons();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,489 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Multi-Product Quote{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50 py-8">
+    <div class="max-w-7xl mx-auto px-4">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Create Multi-Product Quote</h1>
+            <p class="text-gray-600 mt-2">Build a comprehensive quote with multiple products</p>
+        </div>
+
+                <form method="POST" action="{% url 'quote_create' %}" id="quoteForm">
+            {% csrf_token %}
+            {% if existing_quote_obj %}
+            <input type="hidden" name="existing_quote_id" value="{{ existing_quote_obj.quote_id }}">
+            {% endif %}
+
+            <!-- Client Information Card -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Client Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- Client/Lead Dropdown -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Client/Lead Name *</label>
+                        <select name="client_name" id="client_select" required
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="">Select client or lead...</option>
+                            <optgroup label="Active Clients">
+                                {% for client in clients %}
+                                <option value="{{ client.name }}" data-email="{{ client.email }}">{{ client.name }}
+                                    (Client)</option>
+                                {% endfor %}
+                            </optgroup>
+                            <optgroup label="Active Leads">
+                                {% for lead in leads %}
+                                <option value="{{ lead.name }}" data-email="{{ lead.email }}">{{ lead.name }} (Lead)
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                        </select>
+                    </div>
+
+                    <!-- Account Manager Auto-fill -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Account Manager</label>
+                        <input type="text" name="account_manager" value="{{ request.user.get_full_name }}" readonly
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-100 cursor-not-allowed">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Valid Until *</label>
+                        <input type="date" name="valid_until" required
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Delivery Deadline</label>
+                        <input type="date" name="delivery_deadline"
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Products Section -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-900">Products</h2>
+                    <button type="button" id="addProductBtn"
+                        class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        <span>Add Product</span>
+                    </button>
+                </div>
+
+                <!-- Products List -->
+                <div id="productsList" class="space-y-4">
+                    <!-- Empty state -->
+                    <div id="emptyState" class="text-center py-12 border-2 border-dashed border-gray-300 rounded-lg">
+                        <i data-lucide="package" class="w-16 h-16 text-gray-400 mx-auto mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-900 mb-2">No products added yet</h3>
+                        <p class="text-gray-500 mb-4">Click "Add Product" to start building your quote</p>
+                        <button type="button" id="addFirstProductBtn"
+                            class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Add Your First Product
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                    <div class="flex justify-between items-center text-sm text-gray-600 mb-2">
+                        <span>Line Items:</span>
+                        <span id="summaryLineItems" class="font-semibold">0</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm text-gray-600 mb-2">
+                        <span>Days Valid:</span>
+                        <span id="summaryDaysValid" class="font-semibold">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Special Instructions -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-6">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Special Instructions</h2>
+                <textarea name="special_instructions" rows="4"
+                    placeholder="Add any special instructions or notes for this quote..."
+                    class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+            </div>
+
+            <!-- Action Buttons -->
+            <!-- Action Buttons -->
+<div class="flex justify-end gap-3 mt-6 pt-4 border-t">
+    <button type="button" onclick="window.history.back()" class="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+        Cancel
+    </button>
+    
+    <button type="submit" name="action" value="save_draft" class="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+        💾 Save Draft
+    </button>
+    
+    <button type="submit" name="action" value="save_send_pt" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+        📋 Save & Send to PT for Approval
+    </button>
+    
+    <button type="submit" name="action" value="send_to_client" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" id="sendToClientBtn" disabled title="Quote must be approved by PT first">
+        ✉️ Send to Client
+    </button>
+</div>
+
+
+        </form>
+    </div>
+</div>
+
+<!-- Add Product Modal -->
+<div id="addProductModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <h3 class="text-xl font-semibold text-gray-900">Select Product</h3>
+            <button type="button" id="closeModalBtn" class="text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <!-- Search -->
+            <div class="mb-6">
+                <input type="text" id="productSearch" placeholder="Search products..."
+                    class="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Product List -->
+            <div id="productList" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {% for product in products %}
+                <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-500 cursor-pointer transition-colors product-item"
+                    data-product-id="{{ product.id }}" data-product-name="{{ product.name }}"
+                    data-product-price="{{ product.base_price }}" data-product-sku="{{ product.sku }}">
+                    <div class="flex gap-4">
+                        <div class="w-16 h-16 bg-gray-100 rounded flex-shrink-0 flex items-center justify-center">
+                            {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}"
+                                class="w-full h-full object-cover rounded">
+                            {% else %}
+                            <i data-lucide="package" class="w-8 h-8 text-gray-400"></i>
+                            {% endif %}
+                        </div>
+                        <div class="flex-1">
+                            <h4 class="text-sm font-medium text-gray-900 mb-1">{{ product.name }}</h4>
+                            <p class="text-xs text-gray-500 mb-2">{{ product.sku }} - {{
+                                product.description|truncatewords:8 }}</p>
+                            <p class="text-sm font-semibold text-blue-600">KES {{ product.base_price|floatformat:2 }}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-2 text-center py-8 text-gray-500">
+                    <p>No products available. Please add products in the Product Catalog.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Enable "Send to Client" button only if quote is already PT-approved
+    // Enable "Send to Client" button only if quote is already PT-approved
+document.addEventListener('DOMContentLoaded', function() {
+    const sendBtn = document.getElementById('sendToClientBtn');
+    
+    {% if existing_quote_obj %}
+    // We're editing an existing quote
+    if ('{{ existing_quote_obj.production_status }}' === 'costed') {
+        sendBtn.disabled = false;
+        sendBtn.title = "Quote is approved - ready to send!";
+        sendBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+    } else {
+        sendBtn.disabled = true;
+        sendBtn.title = "Quote must be approved by PT first";
+    }
+    {% else %}
+    // New quote - definitely disabled
+    sendBtn.disabled = true;
+    sendBtn.title = "Save and send to PT for approval first";
+    {% endif %}
+});
+    document.addEventListener('DOMContentLoaded', function () {
+        lucide.createIcons();
+
+        // Modal handling
+        const modal = document.getElementById('addProductModal');
+        const addProductBtn = document.getElementById('addProductBtn');
+        const addFirstProductBtn = document.getElementById('addFirstProductBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+
+        function openModal() {
+            modal.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+
+        if (addProductBtn) {
+            addProductBtn.addEventListener('click', openModal);
+        }
+
+        if (addFirstProductBtn) {
+            addFirstProductBtn.addEventListener('click', openModal);
+        }
+
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', closeModal);
+        }
+        
+// Auto-fill price when product is selected
+document.addEventListener('DOMContentLoaded', function() {
+    const productSelects = document.querySelectorAll('select[name="product_name[]"]');
+    
+    productSelects.forEach(function(select, index) {
+        select.addEventListener('change', function() {
+            const productId = this.value;
+            
+            if (productId) {
+                // Fetch product price from server
+                fetch(`/api/product-price/${productId}/`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Auto-fill the price input for this row
+                            const priceInput = document.querySelector(`input[name="unit_price[]"]:nth-of-type(${index + 1})`);
+                            if (priceInput) {
+                                priceInput.value = data.price;
+                                priceInput.readOnly = true; // Make it read-only
+                                priceInput.classList.add('bg-gray-100');
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error fetching price:', error));
+            }
+        });
+    });
+});
+
+
+        // Close modal on outside click
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Product selection
+        let productCounter = 0;
+        const productsList = document.getElementById('productsList');
+        const emptyState = document.getElementById('emptyState');
+
+        document.querySelectorAll('.product-item').forEach(item => {
+            item.addEventListener('click', function () {
+                const productId = this.dataset.productId;
+                const productName = this.dataset.productName;
+                const productPrice = this.dataset.productPrice;
+                const productSku = this.dataset.productSku;
+
+                addProductToList(productId, productName, productPrice, productSku);
+                closeModal();
+            });
+        });
+
+        function addProductToList(id, name, price, sku) {
+            productCounter++;
+
+            // Hide empty state
+            if (emptyState) {
+                emptyState.classList.add('hidden');
+            }
+
+            const productCard = document.createElement('div');
+            productCard.className = 'border border-gray-200 rounded-lg p-4 line-item';
+            productCard.innerHTML = `
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex-1">
+                        <h4 class="font-medium text-gray-900">${name}</h4>
+                        <p class="text-sm text-gray-500">SKU: ${sku}</p>
+                    </div>
+                    <button type="button" class="remove-item text-red-600 hover:text-red-800">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">Quantity</label>
+                        <input type="number" name="quantity[]" value="1" min="1" required
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-600 mb-1">Unit Price (KES)</label>
+                        <input type="number" name="unit_price[]" value="${price}" step="0.01" min="0" required
+                            class="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                    </div>
+                </div>
+                <input type="hidden" name="product_name[]" value="${name}">
+                <input type="hidden" name="product_id[]" value="${id}">
+            `;
+
+            productsList.appendChild(productCard);
+            lucide.createIcons();
+            updateSummary();
+
+            // Add remove handler
+            productCard.querySelector('.remove-item').addEventListener('click', function () {
+                productCard.remove();
+                updateSummary();
+                checkEmptyState();
+            });
+        }
+
+        // Calculate days valid
+        function calculateDaysValid() {
+            const validUntilInput = document.querySelector('input[name="valid_until"]');
+            if (validUntilInput && validUntilInput.value) {
+                const validDate = new Date(validUntilInput.value);
+                const today = new Date();
+                const diffTime = validDate - today;
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                document.getElementById('summaryDaysValid').textContent = diffDays + ' days';
+            }
+        }
+
+        // Update summary
+        function updateSummary() {
+            const lineItems = document.querySelectorAll('.line-item');
+            document.getElementById('summaryLineItems').textContent = lineItems.length;
+        }
+
+        // Check if empty state should be shown
+        function checkEmptyState() {
+            const lineItems = document.querySelectorAll('.line-item');
+            const emptyState = document.getElementById('emptyState');
+            if (lineItems.length === 0 && emptyState) {
+                emptyState.classList.remove('hidden');
+            }
+        }
+
+        // Date change handler
+        const validUntilInput = document.querySelector('input[name="valid_until"]');
+        if (validUntilInput) {
+            validUntilInput.addEventListener('change', calculateDaysValid);
+            calculateDaysValid();
+        }
+
+        // Initial summary update
+        updateSummary();
+        
+        // Pre-fill form if editing existing quote
+        {% if existing_quote_data %}
+        const quoteData = {{ existing_quote_data|safe }};
+        
+        if (quoteData) {
+            // Pre-fill basic fields
+            setTimeout(function() {
+                const clientSelect = document.querySelector('select[name="client_name"]');
+                if (clientSelect) {
+                    clientSelect.value = quoteData.client_name || '';
+                }
+                
+                document.querySelector('input[name="valid_until"]').value = quoteData.valid_until || '';
+                document.querySelector('input[name="delivery_deadline"]').value = quoteData.delivery_deadline || '';
+                document.querySelector('textarea[name="special_instructions"]').value = quoteData.special_instructions || '';
+                
+                // Add existing line items
+                if (quoteData.line_items && quoteData.line_items.length > 0) {
+                    // Hide empty state
+                    if (emptyState) {
+                        emptyState.classList.add('hidden');
+                    }
+                    
+                    quoteData.line_items.forEach(function(item) {
+                        productCounter++;
+                        
+                        const productCard = document.createElement('div');
+                        productCard.className = 'border border-gray-200 rounded-lg p-4 line-item';
+                        productCard.innerHTML = `
+                            <div class="flex justify-between items-start mb-4">
+                                <div class="flex-1">
+                                    <h4 class="font-medium text-gray-900">${item.product_name}</h4>
+                                </div>
+                                <button type="button" class="remove-item text-red-600 hover:text-red-800">
+                                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Quantity</label>
+                                    <input type="number" name="quantity[]" value="${item.quantity}" min="1" required
+                                        class="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-600 mb-1">Unit Price (KES)</label>
+                                    <input type="number" name="unit_price[]" value="${item.unit_price}" step="0.01" min="0" required
+                                        class="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                                </div>
+                            </div>
+                            <input type="hidden" name="product_name[]" value="${item.product_name}">
+                        `;
+                        
+                        productsList.appendChild(productCard);
+                        
+                        // Add remove handler
+                        productCard.querySelector('.remove-item').addEventListener('click', function () {
+                            productCard.remove();
+                            updateSummary();
+                            checkEmptyState();
+                        });
+                    });
+                    
+                    lucide.createIcons();
+                    updateSummary();
+                }
+            }, 100);
+        }
+        {% endif %}
+
+        // Product search
+        const productSearch = document.getElementById('productSearch');
+        if (productSearch) {
+            productSearch.addEventListener('input', function () {
+                const searchTerm = this.value.toLowerCase();
+                document.querySelectorAll('.product-item').forEach(item => {
+                    const name = item.dataset.productName.toLowerCase();
+                    const sku = item.dataset.productSku.toLowerCase();
+                    if (name.includes(searchTerm) || sku.includes(searchTerm)) {
+                        item.style.display = '';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+
+        // Form submission handling
+        const quoteForm = document.getElementById('quoteForm');
+        quoteForm.addEventListener('submit', function (e) {
+            const lineItems = document.querySelectorAll('.line-item');
+            if (lineItems.length === 0) {
+                e.preventDefault();
+                alert('Please add at least one product to the quote');
+                return false;
+            }
+
+            // Show loading state on button
+            const submitButton = e.submitter;
+            if (submitButton) {
+                const originalText = submitButton.querySelector('span').textContent;
+                submitButton.querySelector('span').textContent = 'Processing...';
+                submitButton.disabled = true;
+            }
+        });
+    });
+</script>
+{% endblock %}

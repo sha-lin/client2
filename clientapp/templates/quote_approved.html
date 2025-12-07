@@ -1,0 +1,147 @@
+<!-- Create: clientapp/templates/quote_approved.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote Approved - Success</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-2xl mx-auto">
+            <!-- Success Icon -->
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center justify-center w-24 h-24 bg-green-100 rounded-full mb-4">
+                    <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </div>
+                <h1 class="text-3xl font-bold text-gray-900">Quote Approved Successfully!</h1>
+                <p class="mt-2 text-lg text-gray-600">Thank you for your approval</p>
+            </div>
+
+            <!-- Order Details Card -->
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                <div class="bg-green-600 px-6 py-4">
+                    <h2 class="text-xl font-bold text-white">What Happens Next?</h2>
+                </div>
+
+                <div class="px-6 py-6">
+                    <div class="space-y-6">
+                        <!-- Step 1 -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+                                    <span class="text-blue-600 font-bold">1</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-900">Order Confirmed</h3>
+                                <p class="text-gray-600">Your order has been received and confirmed.</p>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    Quote: <strong>{{ quote.quote_id }}</strong><br>
+                                    LPO: <strong>{{ lpo.lpo_number }}</strong><br>
+                                    Job: <strong>{{ job.job_number }}</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 2 -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-full">
+                                    <span class="text-yellow-600 font-bold">2</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-900">Production Starts</h3>
+                                <p class="text-gray-600">Our production team has been notified and will start working on your order.</p>
+                                <p class="text-sm text-gray-500 mt-1">
+                                    Expected completion: <strong>{{ job.expected_completion|date:"F d, Y" }}</strong>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Step 3 -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-full">
+                                    <span class="text-purple-600 font-bold">3</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-900">You'll Receive Updates</h3>
+                                <p class="text-gray-600">We'll keep you informed about the progress via email.</p>
+                            </div>
+                        </div>
+
+                        <!-- Step 4 -->
+                        <div class="flex items-start">
+                            <div class="flex-shrink-0">
+                                <div class="flex items-center justify-center w-10 h-10 bg-green-100 rounded-full">
+                                    <span class="text-green-600 font-bold">4</span>
+                                </div>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-lg font-semibold text-gray-900">Delivery</h3>
+                                <p class="text-gray-600">Once complete, we'll arrange delivery or notify you for pickup.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Order Summary -->
+            <div class="bg-white rounded-lg shadow overflow-hidden mb-6">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Order Summary</h3>
+                </div>
+                <div class="px-6 py-4">
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Product:</span>
+                            <span class="text-gray-900 font-medium">{{ quote.product_name }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Quantity:</span>
+                            <span class="text-gray-900 font-medium">{{ quote.quantity }}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Payment Terms:</span>
+                            <span class="text-gray-900 font-medium">{{ quote.payment_terms }}</span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold pt-3 border-t border-gray-200">
+                            <span class="text-gray-900">Total Amount:</span>
+                            <span class="text-green-600">KES {{ quote.total_amount|floatformat:2 }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Info -->
+            <div class="bg-blue-50 rounded-lg p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-2">Need Help?</h3>
+                <p class="text-gray-700 mb-3">If you have any questions, please don't hesitate to contact us:</p>
+                <div class="space-y-2 text-sm">
+                    <p class="text-gray-700">
+                        <strong>Email:</strong> support@printduka.com
+                    </p>
+                    <p class="text-gray-700">
+                        <strong>Phone:</strong> +254 XXX XXX XXX
+                    </p>
+                    <p class="text-gray-700">
+                        <strong>Reference:</strong> Quote {{ quote.quote_id }} / LPO {{ lpo.lpo_number }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-gray-600 text-sm">
+                <p>© 2025 PrintDuka. All rights reserved.</p>
+                <p class="mt-2">You can close this window now.</p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

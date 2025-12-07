@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="p-8">
+    <!-- Header -->
+    <div class="mb-6 flex items-center justify-between">
+        <div>
+            <h2 class="text-2xl font-medium text-gray-900">Local Purchase Order</h2>
+            <p class="text-gray-600 mt-1">{{ lpo.lpo_number }}</p>
+        </div>
+        <div class="flex items-center gap-3">
+            {% if lpo.synced_to_quickbooks %}
+            <span class="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full">
+                ✓ Synced to QuickBooks
+            </span>
+            <span class="text-sm text-gray-600">
+                Invoice #{{ lpo.quickbooks_invoice_number }}
+            </span>
+            {% elif can_sync %}
+            <button onclick="syncToQuickBooks()"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+                Sync with QuickBooks
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-3 gap-6">
+        <!-- Main Content -->
+        <div class="col-span-2 space-y-6">
+            <!-- LPO Details Card -->
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">LPO Details</h3>
+                    <span class="px-3 py-1 text-sm rounded-full
+                        {% if lpo.status == 'completed' %}bg-green-100 text-green-700
+                        {% elif lpo.status == 'in_production' %}bg-blue-100 text-blue-700
+                        {% elif lpo.status == 'approved' %}bg-yellow-100 text-yellow-700
+                        {% else %}bg-gray-100 text-gray-700{% endif %}">
+                        {{ lpo.get_status_display }}
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <label class="text-sm text-gray-600">Client</label>
+                        <p class="text-gray-900 font-medium">
+                            <a href="{% url 'client_profile' lpo.client.pk %}"
+                                class="text-blue-600 hover:text-blue-700">
+                                {{ lpo.client.company|default:lpo.client.name }}
+                            </a>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600">Quote Reference</label>
+                        <p class="text-gray-900 font-medium">
+                            <a href="{% url 'quote_detail' lpo.quote.quote_id %}"
+                                class="text-blue-600 hover:text-blue-700">
+                                {{ lpo.quote.quote_id }}
+                            </a>
+                        </p>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600">Payment Terms</label>
+                        <p class="text-gray-900">{{ lpo.payment_terms }}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600">Delivery Date</label>
+                        <p class="text-gray-900">{{ lpo.delivery_date|date:"F d, Y"|default:"Not set" }}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600">Created</label>
+                        <p class="text-gray-900">{{ lpo.created_at|date:"F d, Y" }}</p>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600">Created By</label>
+                        <p class="text-gray-900">{{ lpo.created_by.get_full_name|default:lpo.created_by.username }}</p>
+                    </div>
+                </div>
+
+                {% if lpo.notes %}
+                <div class="pt-4 border-t border-gray-200">
+                    <label class="text-sm text-gray-600">Notes</label>
+                    <p class="text-gray-900 mt-1">{{ lpo.notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Line Items -->
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Line Items</h3>
+
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-gray-700">Product</th>
+                            <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">Quantity</th>
+                            <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">Unit Price</th>
+                            <th class="px-4 py-3 text-right text-sm font-medium text-gray-700">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        {% for item in line_items %}
+                        <tr>
+                            <td class="px-4 py-3 text-gray-900">{{ item.product_name }}</td>
+                            <td class="px-4 py-3 text-right text-gray-900">{{ item.quantity }}</td>
+                            <td class="px-4 py-3 text-right text-gray-900">KES {{ item.unit_price|floatformat:2 }}</td>
+                            <td class="px-4 py-3 text-right text-gray-900 font-medium">KES {{
+                                item.line_total|floatformat:2 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-200">
+                        <tr>
+                            <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-700">Subtotal:</td>
+                            <td class="px-4 py-3 text-right text-gray-900">KES {{ lpo.subtotal|floatformat:2 }}</td>
+                        </tr>
+                        {% if lpo.vat_amount > 0 %}
+                        <tr>
+                            <td colspan="3" class="px-4 py-3 text-right text-sm text-gray-700">VAT (16%):</td>
+                            <td class="px-4 py-3 text-right text-gray-900">KES {{ lpo.vat_amount|floatformat:2 }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr class="font-bold">
+                            <td colspan="3" class="px-4 py-3 text-right text-gray-900">Total:</td>
+                            <td class="px-4 py-3 text-right text-gray-900 text-lg">KES {{ lpo.total_amount|floatformat:2
+                                }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <!-- Related Job -->
+            {% if job %}
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Related Production Job</h3>
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-900 font-medium">{{ job.job_number }} - {{ job.job_name }}</p>
+                        <p class="text-sm text-gray-600 mt-1">Status: {{ job.get_status_display }}</p>
+                    </div>
+                    <a href="{% url 'job_detail' job.pk %}"
+                        class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        View Job
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <!-- Status Card -->
+            <div class="bg-white rounded-lg border border-gray-200 p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">LPO Status</h3>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Created</span>
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Approved</span>
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">In Production</span>
+                        {% if lpo.status == 'in_production' or lpo.status == 'completed' %}
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                        {% else %}
+                        <i data-lucide="circle" class="w-5 h-5 text-gray-300"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Completed</span>
+                        {% if lpo.status == 'completed' %}
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                        {% else %}
+                        <i data-lucide="circle" class="w-5 h-5 text-gray-300"></i>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-gray-600">Synced to QB</span>
+                        {% if lpo.synced_to_quickbooks %}
+                        <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                        {% else %}
+                        <i data-lucide="circle" class="w-5 h-5 text-gray-300"></i>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- QuickBooks Info -->
+            {% if lpo.synced_to_quickbooks %}
+            <div class="bg-green-50 rounded-lg border border-green-200 p-6">
+                <div class="flex items-center gap-2 mb-3">
+                    <i data-lucide="check-circle" class="w-5 h-5 text-green-600"></i>
+                    <h3 class="text-lg font-medium text-green-900">QuickBooks Sync</h3>
+                </div>
+                <div class="space-y-2 text-sm">
+                    <div>
+                        <span class="text-green-700">Invoice Number:</span>
+                        <p class="text-green-900 font-medium">{{ lpo.quickbooks_invoice_number }}</p>
+                    </div>
+                    <div>
+                        <span class="text-green-700">Synced At:</span>
+                        <p class="text-green-900">{{ lpo.synced_at|date:"F d, Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Actions -->
+            <div class="bg-gray-50 rounded-lg border border-gray-200 p-6">
+                <h3 class="text-lg font-medium text-gray-900 mb-4">Actions</h3>
+                <div class="space-y-2">
+                    <a href="{% url 'quote_detail' lpo.quote.quote_id %}"
+                        class="block w-full px-4 py-2 border border-gray-300 rounded-lg text-center hover:bg-white">
+                        View Quote
+                    </a>
+                    {% if job %}
+                    <a href="{% url 'job_detail' job.pk %}"
+                        class="block w-full px-4 py-2 border border-gray-300 rounded-lg text-center hover:bg-white">
+                        View Job
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'client_profile' lpo.client.pk %}"
+                        class="block w-full px-4 py-2 border border-gray-300 rounded-lg text-center hover:bg-white">
+                        View Client
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function syncToQuickBooks() {
+        if (!confirm('Sync this LPO to QuickBooks and generate an invoice?')) {
+            return;
+        }
+
+        const btn = event.target.closest('button');
+        btn.disabled = true;
+        btn.innerHTML = '<i data-lucide="loader" class="w-4 h-4 animate-spin"></i> Syncing...';
+
+        fetch('{% url "sync_to_quickbooks" lpo.lpo_number %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Error: ' + data.message);
+                    btn.disabled = false;
+                    btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i> Sync with QuickBooks';
+                    lucide.createIcons();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                btn.disabled = false;
+                btn.innerHTML = '<i data-lucide="refresh-cw" class="w-4 h-4"></i> Sync with QuickBooks';
+                lucide.createIcons();
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

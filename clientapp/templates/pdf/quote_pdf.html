@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote {{ quote_id }}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .header {
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+
+        .company-name {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2563eb;
+            margin-bottom: 5px;
+        }
+
+        .company-details {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .quote-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin: 30px 0 20px 0;
+            color: #1f2937;
+        }
+
+        .info-section {
+            display: table;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+
+        .info-left,
+        .info-right {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #4b5563;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 14px;
+            margin-bottom: 15px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        thead {
+            background-color: #f3f4f6;
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-weight: bold;
+            color: #1f2937;
+            border-bottom: 2px solid #e5e7eb;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+            font-size: 14px;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .totals-section {
+            margin-top: 30px;
+            float: right;
+            width: 300px;
+        }
+
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 14px;
+        }
+
+        .totals-row.subtotal {
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .totals-row.total {
+            border-top: 2px solid #2563eb;
+            font-weight: bold;
+            font-size: 16px;
+            color: #2563eb;
+            padding-top: 12px;
+            margin-top: 8px;
+        }
+
+        .notes-section {
+            clear: both;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .notes-title {
+            font-weight: bold;
+            color: #4b5563;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .notes-content {
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.8;
+        }
+
+        .footer {
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 11px;
+            color: #9ca3af;
+            text-align: center;
+        }
+
+        .validity-notice {
+            background-color: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin: 20px 0;
+            font-size: 13px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header -->
+    <div class="header">
+        <div class="company-name">{{ company_name }}</div>
+        <div class="company-details">
+            Email: {{ company_email }} | Phone: {{ company_phone }}
+        </div>
+    </div>
+
+    <!-- Quote Title -->
+    <div class="quote-title">QUOTATION</div>
+
+    <!-- Info Section -->
+    <div class="info-section">
+        <div class="info-left">
+            <div class="info-label">Quote To:</div>
+            <div class="info-value">
+                <strong>{{ recipient_name }}</strong><br>
+                {% if recipient_email %}Email: {{ recipient_email }}<br>{% endif %}
+                {% if recipient_phone %}Phone: {{ recipient_phone }}{% endif %}
+            </div>
+
+            <div class="info-label">Prepared By:</div>
+            <div class="info-value">{{ created_by }}</div>
+        </div>
+
+        <div class="info-right">
+            <div class="info-label">Quote Number:</div>
+            <div class="info-value">{{ quote_id }}</div>
+
+            <div class="info-label">Quote Date:</div>
+            <div class="info-value">{{ quote_date|date:"F d, Y" }}</div>
+
+            <div class="info-label">Valid Until:</div>
+            <div class="info-value">{{ valid_until|date:"F d, Y" }}</div>
+        </div>
+    </div>
+
+    <!-- Validity Notice -->
+    <div class="validity-notice">
+        <strong>⚠ Important:</strong> This quotation is valid until {{ valid_until|date:"F d, Y" }}.
+        Prices and availability are subject to change after this date.
+    </div>
+
+    <!-- Quote Items Table -->
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 10%;">#</th>
+                <th style="width: 40%;">Product/Service</th>
+                <th style="width: 15%;" class="text-right">Quantity</th>
+                <th style="width: 17.5%;" class="text-right">Unit Price</th>
+                <th style="width: 17.5%;" class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in quote_items %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ item.product_name }}</td>
+                <td class="text-right">{{ item.quantity }}</td>
+                <td class="text-right">KES {{ item.unit_price|floatformat:2 }}</td>
+                <td class="text-right">KES {{ item.total_amount|floatformat:2 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Totals Section -->
+    <div class="totals-section">
+        <div class="totals-row subtotal">
+            <span>Subtotal:</span>
+            <span>KES {{ subtotal|floatformat:2 }}</span>
+        </div>
+
+        {% if include_vat %}
+        <div class="totals-row">
+            <span>VAT (16%):</span>
+            <span>KES {{ vat_amount|floatformat:2 }}</span>
+        </div>
+        {% endif %}
+
+        <div class="totals-row total">
+            <span>TOTAL:</span>
+            <span>KES {{ total|floatformat:2 }}</span>
+        </div>
+    </div>
+
+    <!-- Notes Section -->
+    {% if notes %}
+    <div class="notes-section">
+        <div class="notes-title">Special Instructions / Notes:</div>
+        <div class="notes-content">{{ notes|linebreaks }}</div>
+    </div>
+    {% endif %}
+
+    <!-- Footer -->
+    <div class="footer">
+        <p>Thank you for your business!</p>
+        <p>This is a computer-generated quotation. Generated on {{ generated_at|date:"F d, Y \a\t H:i" }}</p>
+    </div>
+</body>
+
+</html>

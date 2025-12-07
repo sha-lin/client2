@@ -8,7 +8,6 @@
     <title>{% block title %}Print Duka{% endblock %}</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css">
     <style>
         /* Custom styles matching the Figma design */
         :root {
@@ -355,6 +354,8 @@
             border-bottom: none;
         }
     </style>
+
+    {% block extra_css %}{% endblock %} 
 </head>
 <body class="bg-gray-50">
     <!-- Top Bar -->
@@ -367,14 +368,22 @@
             </form>
         </div>
         <div class="flex items-center gap-4">
-            <a href="{% url 'notifications' %}" class="relative hover:bg-blue-800 p-2 rounded-lg">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1"></path>
-                </svg>
-                {% if unread_notifications_count %}
-                    <span class="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                {% endif %}
-            </a>
+            <!-- Notification Bell with Live Count -->
+<div class="relative">
+    <a href="{% url 'notifications' %}" class="relative inline-flex p-2 text-gray-600 hover:text-gray-900">
+        <!-- Bell Icon SVG -->
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+        </svg>
+        
+        <!-- Red Badge with Count -->
+        {% if unread_notifications_count > 0 %}
+        <span class="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-600 rounded-full transform translate-x-1/2 -translate-y-1/2">
+            {{ unread_notifications_count }}
+        </span>
+        {% endif %}
+    </a>
+</div>
             {% if user.is_authenticated %}
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 bg-blue-700 rounded-full flex items-center justify-center font-semibold text-sm">
@@ -444,14 +453,11 @@
         <nav class="py-4">
             {% load group_tags %}
             {% if user.is_authenticated and user|has_group:"Finance" %}
-                <a href="{% url 'finance_dashboard' %}" class="sidebar-item {% if current_view == 'finance_dashboard' %}active{% endif %}">
+                <a href="{% url 'accounting_dashboard' %}" class="sidebar-item {% if current_view == 'accounting_dashboard' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 1 1 0 7H6"></path></svg>
                     <span>Financial Management</span>
                 </a>
-                <a href="{% url 'django_ledger:entity-list' %}" class="sidebar-item">
-                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                    <span>Ledger Entities</span>
-                </a>
+                
                 <a href="{% url 'notifications' %}" class="sidebar-item {% if current_view == 'notifications' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 01-3.46 0"></path></svg>
                     <span>Notifications</span>
@@ -460,26 +466,61 @@
                     {% endif %}
                 </a>
             {% elif user.is_authenticated and user|has_group:"Production Team" %}
-                <a href="{% url 'production_dashboard2' %}" class="sidebar-item {% if current_view == 'production_dashboard' %}active{% endif %}">
+                <a href="{% url 'production2_dashboard' %}" class="sidebar-item {% if current_view == 'production2_dashboard' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-                    <span>Production Dashboard</span>
-                </a>
-                <a href="{% url 'production_quote_review' %}" class="sidebar-item {% if current_view == 'production_quotes' %}active{% endif %}">
-                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M3 10l6-6 6 6v11H3z"></path><path d="M9 21V10"></path><path d="M15 21V13"></path></svg>
-                    <span>Quote Queue</span>
+                    <span>Dashboard</span>
                 </a>
                 <a href="{% url 'production_catalog' %}" class="sidebar-item {% if current_view == 'production_catalog' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path></svg>
                     <span>Product Catalog</span>
                 </a>
-                <a href="{% url 'production_jobs' %}" class="sidebar-item {% if current_view == 'production_jobs' %}active{% endif %}">
-                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path><path d="M8 11v10"></path><path d="M16 11v10"></path></svg>
-                    <span>Task Management</span>
+                
+                
+                <a href="{% url 'lpo_list' %}" class="sidebar-item {% if current_view == 'lpo_list' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>LPOs</span>
                 </a>
-                <a href="{% url 'production_analytics' %}" class="sidebar-item {% if current_view == 'production_analytics' %}active{% endif %}">
+                
+                <a href="{% url 'my_quotes' %}" class="sidebar-item {% if current_view == 'my_quotes' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>My Quotes</span>
+                </a>
+               
+                <a href="{% url 'my_jobs' %}" class="sidebar-item {% if current_view == 'my_jobs' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>My Jobs</span>
+                </a>
+                <a href="{% url 'process_list' %}" class="sidebar-item {% if current_view == 'process_list' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>Costing</span>
+                </a>
+                <a href="{% url 'vendor_list' %}" class="sidebar-item {% if current_view == 'vendor_list' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>Vendors</span>
+                </a>
+                <a href="{% url 'quality_control_list' %}" class="sidebar-item {% if current_view == 'quality_control_list' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>Quality Control</span>
+                </a>
+                <a href="{% url 'delivery_list' %}" class="sidebar-item {% if current_view == 'delivery_list' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>Delivery</span>
+                </a>
+                <a href="{% url 'my_jobs' %}" class="sidebar-item {% if current_view == 'my_jobs' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
                     <span>Analytics</span>
                 </a>
+                
+                
+                <a href="{% url 'self_quote' %}" class="sidebar-item {% if current_view == 'self_quote' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path><path d="M8 11v10"></path><path d="M16 11v10"></path></svg>
+                    <span>Self Quote</span>
+                </a>
+                <a href="{% url 'my_jobs' %}" class="sidebar-item {% if current_view == 'my_jobs' %}active{% endif %}">
+                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
+                    <span>Settings</span>
+                </a>
+                
             {% else %}
                 <a href="{% url 'dashboard' %}" class="sidebar-item {% if current_view == 'dashboard' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
@@ -497,9 +538,9 @@
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                     <span>Client List</span>
                 </a>
-                <a href="{% url 'quote_management' %}" class="sidebar-item {% if current_view == 'quote_management' %}active{% endif %}">
+                <a href="{% url 'quotes_list' %}" class="sidebar-item {% if current_view == 'quotes_list' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M3 10l6-6 6 6v11H3z"></path><path d="M9 21V10"></path><path d="M15 21V13"></path></svg>
-                    <span>Production</span>
+                    <span>Multi Product Quotes</span>
                 </a>
                 <a href="{% url 'analytics' %}" class="sidebar-item {% if current_view == 'analytics' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
@@ -511,7 +552,7 @@
                 </a>
             {% endif %}
 {% if user|has_group:"Finance" %}
-<a href="{% url 'finance_dashboard' %}" class="sidebar-item {% if current_view == 'finance_dashboard' %}active{% endif %}">
+<a href="{% url 'accounting_dashboard' %}" class="sidebar-item {% if current_view == 'accounting_dashboard' %}active{% endif %}">
     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="12" y1="1" x2="12" y2="23"></line>
         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
@@ -544,7 +585,7 @@
         
         {% block content %}{% endblock %}
     </main>
-    
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
     <script>
         // Modal functionality
         function openModal(modalId) {

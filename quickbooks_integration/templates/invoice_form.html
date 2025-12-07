@@ -1,0 +1,563 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{% if edit_mode %}Edit{% else %}Create{% endif %} Invoice{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    body {
+        background-color: #f8fafc;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .page-header {
+        background: white;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .invoice-form-container {
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-card-header {
+        border-bottom: 2px solid #e2e8f0;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .form-card-header h5 {
+        margin: 0;
+        color: #1e293b;
+        font-weight: 600;
+    }
+
+    .form-label {
+        font-weight: 500;
+        color: #475569;
+        margin-bottom: 0.5rem;
+    }
+
+    .form-control, .form-select {
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 0.625rem 0.875rem;
+    }
+
+    .form-control:focus, .form-select:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    .line-items-table {
+        width: 100%;
+        margin-top: 1rem;
+    }
+
+    .line-items-table thead th {
+        background-color: #f8fafc;
+        color: #475569;
+        font-weight: 600;
+        padding: 0.75rem;
+        border-bottom: 2px solid #e2e8f0;
+    }
+
+    .line-items-table tbody td {
+        padding: 0.75rem;
+        vertical-align: middle;
+    }
+
+    .line-item-row {
+        border-bottom: 1px solid #f1f5f9;
+    }
+
+    .line-item-row:hover {
+        background-color: #f8fafc;
+    }
+
+    .btn-add-line {
+        background: #f1f5f9;
+        color: #475569;
+        border: 1px dashed #cbd5e1;
+        padding: 0.75rem;
+        width: 100%;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn-add-line:hover {
+        background: #e2e8f0;
+        border-color: #94a3b8;
+        color: #1e293b;
+    }
+
+    .btn-remove-line {
+        color: #ef4444;
+        padding: 0.375rem 0.75rem;
+        border: 1px solid #fecaca;
+        background: white;
+        border-radius: 4px;
+        transition: all 0.2s;
+    }
+
+    .btn-remove-line:hover {
+        background: #fee2e2;
+        border-color: #ef4444;
+    }
+
+    .invoice-summary {
+        background: #f8fafc;
+        border-radius: 8px;
+        padding: 1.5rem;
+        border: 1px solid #e2e8f0;
+    }
+
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+    }
+
+    .summary-row.total {
+        border-top: 2px solid #cbd5e1;
+        margin-top: 0.5rem;
+        padding-top: 1rem;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+
+    .btn-primary-custom {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 0.75rem 2rem;
+        border-radius: 6px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-primary-custom:hover {
+        background: #1d4ed8;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e2e8f0;
+    }
+
+    .quick-customer-link {
+        font-size: 0.875rem;
+        color: #2563eb;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        margin-top: 0.5rem;
+    }
+
+    .quick-customer-link:hover {
+        text-decoration: underline;
+    }
+
+    .required-field::after {
+        content: '*';
+        color: #ef4444;
+        margin-left: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="invoice-form-container">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="{% url 'accounting_dashboard' %}">Accounting</a></li>
+                <li class="breadcrumb-item"><a href="{% url 'invoices_list' %}">Invoices</a></li>
+                <li class="breadcrumb-item active">{% if edit_mode %}Edit{% else %}Create{% endif %} Invoice</li>
+            </ol>
+        </nav>
+        <h2>
+            <i class="bi bi-file-earmark-text"></i>
+            {% if edit_mode %}Edit Invoice #{{ invoice.DocNumber }}{% else %}Create New Invoice{% endif %}
+        </h2>
+    </div>
+</div>
+
+<div class="invoice-form-container">
+    <form method="post" id="invoiceForm">
+        {% csrf_token %}
+        
+        <!-- Customer & Date Information -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h5><i class="bi bi-info-circle"></i> Invoice Details</h5>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="customer_id" class="form-label required-field">Customer</label>
+                        <select class="form-select" id="customer_id" name="customer_id" required>
+                            <option value="">Select a customer...</option>
+                            {% for customer in customers %}
+                                <option value="{{ customer.Id }}" 
+                                    {% if edit_mode and invoice.CustomerRef.value == customer.Id %}selected{% endif %}>
+                                    {{ customer.DisplayName }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <a href="{% url 'customer_create' %}" class="quick-customer-link" target="_blank">
+                            <i class="bi bi-plus-circle"></i> Create new customer
+                        </a>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="txn_date" class="form-label required-field">Invoice Date</label>
+                        <input type="date" class="form-control" id="txn_date" name="txn_date" 
+                               value="{% if edit_mode %}{{ invoice.TxnDate }}{% else %}{{ today }}{% endif %}" required>
+                    </div>
+                </div>
+
+                <div class="col-md-3">
+                    <div class="mb-3">
+                        <label for="due_date" class="form-label required-field">Due Date</label>
+                        <input type="date" class="form-control" id="due_date" name="due_date"
+                               value="{% if edit_mode %}{{ invoice.DueDate }}{% endif %}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="doc_number" class="form-label">Invoice Number</label>
+                        <input type="text" class="form-control" id="doc_number" name="doc_number" 
+                               placeholder="Auto-generated if left blank"
+                               value="{% if edit_mode %}{{ invoice.DocNumber }}{% endif %}">
+                    </div>
+                </div>
+
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="customer_memo" class="form-label">Customer Message</label>
+                        <input type="text" class="form-control" id="customer_memo" name="customer_memo"
+                               placeholder="Optional message to customer"
+                               value="{% if edit_mode %}{{ invoice.CustomerMemo.value }}{% endif %}">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Items -->
+        <div class="form-card">
+            <div class="form-card-header">
+                <h5><i class="bi bi-list-ul"></i> Items & Services</h5>
+            </div>
+
+            <div class="table-responsive">
+                <table class="line-items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 5%">#</th>
+                            <th style="width: 30%">Product/Service</th>
+                            <th style="width: 30%">Description</th>
+                            <th style="width: 10%">Qty</th>
+                            <th style="width: 12%">Rate</th>
+                            <th style="width: 12%">Amount</th>
+                            <th style="width: 5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineItemsContainer">
+                        <!-- Line items will be added here dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <button type="button" class="btn-add-line mt-3" onclick="addLineItem()">
+                <i class="bi bi-plus-circle"></i> Add Line Item
+            </button>
+        </div>
+
+        <!-- Summary & Actions -->
+        <div class="row">
+            <div class="col-md-7">
+                <div class="form-card">
+                    <div class="mb-3">
+                        <label for="private_note" class="form-label">Private Note (Internal Only)</label>
+                        <textarea class="form-control" id="private_note" name="private_note" rows="4"
+                                  placeholder="Notes for internal use only...">{% if edit_mode %}{{ invoice.PrivateNote }}{% endif %}</textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-5">
+                <div class="invoice-summary">
+                    <h6 class="mb-3">Invoice Summary</h6>
+                    
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <strong id="subtotal">$0.00</strong>
+                    </div>
+                    
+                    <div class="summary-row">
+                        <span>Tax:</span>
+                        <strong id="tax">$0.00</strong>
+                    </div>
+                    
+                    <div class="summary-row total">
+                        <span>Total:</span>
+                        <strong id="total">$0.00</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" id="line_count" name="line_count" value="0">
+
+        <div class="action-buttons">
+            <a href="{% url 'invoices_list' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-x-circle"></i> Cancel
+            </a>
+            <button type="button" class="btn btn-outline-primary" onclick="saveAsDraft()">
+                <i class="bi bi-file-earmark"></i> Save as Draft
+            </button>
+            <button type="submit" class="btn-primary-custom">
+                <i class="bi bi-check-circle"></i> 
+                {% if edit_mode %}Update Invoice{% else %}Create Invoice{% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    let lineItemCount = 0;
+    const items = {{ items|safe }};
+
+    // Initialize Select2 for better dropdowns
+    $(document).ready(function() {
+        $('#customer_id').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Select a customer...',
+            allowClear: true
+        });
+
+        // Set today's date as default
+        {% if not edit_mode %}
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('txn_date').value = today;
+        
+        // Set due date to 30 days from today
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+        document.getElementById('due_date').value = dueDate.toISOString().split('T')[0];
+        {% endif %}
+
+        // Add first line item
+        addLineItem();
+
+        {% if edit_mode %}
+        // Load existing line items
+        loadExistingLineItems();
+        {% endif %}
+    });
+
+    function addLineItem() {
+        lineItemCount++;
+        const container = document.getElementById('lineItemsContainer');
+        
+        const row = document.createElement('tr');
+        row.className = 'line-item-row';
+        row.id = `line_${lineItemCount}`;
+        
+        row.innerHTML = `
+            <td class="text-center">${lineItemCount}</td>
+            <td>
+                <select class="form-select form-select-sm item-select" 
+                        name="line_${lineItemCount}_item_id" 
+                        onchange="updateLineItem(${lineItemCount})" required>
+                    <option value="">Select item...</option>
+                    ${items.map(item => `
+                        <option value="${item.Id}" 
+                                data-rate="${item.UnitPrice || 0}" 
+                                data-description="${item.Description || ''}">
+                            ${item.Name}
+                        </option>
+                    `).join('')}
+                </select>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm" 
+                       name="line_${lineItemCount}_description" 
+                       id="line_${lineItemCount}_description"
+                       placeholder="Description...">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm text-end" 
+                       name="line_${lineItemCount}_qty" 
+                       id="line_${lineItemCount}_qty"
+                       value="1" min="0" step="0.01" 
+                       onchange="calculateLineTotal(${lineItemCount})" required>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm text-end" 
+                       name="line_${lineItemCount}_rate" 
+                       id="line_${lineItemCount}_rate"
+                       value="0.00" min="0" step="0.01" 
+                       onchange="calculateLineTotal(${lineItemCount})" required>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm text-end" 
+                       name="line_${lineItemCount}_amount" 
+                       id="line_${lineItemCount}_amount"
+                       value="0.00" readonly>
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn-remove-line btn-sm" 
+                        onclick="removeLineItem(${lineItemCount})"
+                        title="Remove line">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </td>
+        `;
+        
+        container.appendChild(row);
+        updateLineCount();
+    }
+
+    function removeLineItem(lineNumber) {
+        if (lineItemCount <= 1) {
+            alert('You must have at least one line item');
+            return;
+        }
+        
+        const row = document.getElementById(`line_${lineNumber}`);
+        if (row) {
+            row.remove();
+            calculateInvoiceTotal();
+            updateLineCount();
+        }
+    }
+
+    function updateLineItem(lineNumber) {
+        const select = document.querySelector(`select[name="line_${lineNumber}_item_id"]`);
+        const selectedOption = select.options[select.selectedIndex];
+        
+        if (selectedOption.value) {
+            const rate = selectedOption.getAttribute('data-rate');
+            const description = selectedOption.getAttribute('data-description');
+            
+            document.getElementById(`line_${lineNumber}_rate`).value = parseFloat(rate).toFixed(2);
+            document.getElementById(`line_${lineNumber}_description`).value = description;
+            
+            calculateLineTotal(lineNumber);
+        }
+    }
+
+    function calculateLineTotal(lineNumber) {
+        const qty = parseFloat(document.getElementById(`line_${lineNumber}_qty`).value) || 0;
+        const rate = parseFloat(document.getElementById(`line_${lineNumber}_rate`).value) || 0;
+        const amount = qty * rate;
+        
+        document.getElementById(`line_${lineNumber}_amount`).value = amount.toFixed(2);
+        
+        calculateInvoiceTotal();
+    }
+
+    function calculateInvoiceTotal() {
+        let subtotal = 0;
+        
+        document.querySelectorAll('input[name*="_amount"]').forEach(input => {
+            subtotal += parseFloat(input.value) || 0;
+        });
+        
+        const tax = 0; // Implement tax calculation if needed
+        const total = subtotal + tax;
+        
+        document.getElementById('subtotal').textContent = formatCurrency(subtotal);
+        document.getElementById('tax').textContent = formatCurrency(tax);
+        document.getElementById('total').textContent = formatCurrency(total);
+    }
+
+    function updateLineCount() {
+        const activeLines = document.querySelectorAll('.line-item-row').length;
+        document.getElementById('line_count').value = activeLines;
+    }
+
+    function formatCurrency(amount) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD'
+        }).format(amount);
+    }
+
+    function saveAsDraft() {
+        // Add a hidden field to indicate draft status
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'save_as_draft';
+        input.value = 'true';
+        document.getElementById('invoiceForm').appendChild(input);
+        document.getElementById('invoiceForm').submit();
+    }
+
+    function loadExistingLineItems() {
+        // Load existing line items if in edit mode
+        {% if edit_mode and invoice.Line %}
+        const lines = {{ invoice.Line|safe }};
+        lines.forEach((line, index) => {
+            if (line.DetailType === 'SalesItemLineDetail') {
+                addLineItem();
+                // Populate with existing data
+                // This would need to be implemented based on your data structure
+            }
+        });
+        {% endif %}
+    }
+
+    // Form validation
+    document.getElementById('invoiceForm').addEventListener('submit', function(e) {
+        if (lineItemCount === 0) {
+            e.preventDefault();
+            alert('Please add at least one line item');
+            return false;
+        }
+        
+        const total = parseFloat(document.getElementById('total').textContent.replace(/[^0-9.-]+/g, ''));
+        if (total <= 0) {
+            e.preventDefault();
+            alert('Invoice total must be greater than zero');
+            return false;
+        }
+    });
+</script>
+{% endblock %}

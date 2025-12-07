@@ -1,8 +1,16 @@
 from django.contrib import admin
+from django.utils.html import format_html
 from .models import (
     Lead, Client, ClientContact, BrandAsset, ComplianceDocument,
-    Product, Quote, ActivityLog, ProductionUpdate, Notification,
-    Job, JobProduct, JobAttachment
+    Quote, ActivityLog, ProductionUpdate, Notification,
+    Job, JobProduct, JobAttachment, Product,
+    ProductImage, PropertyType, PropertyValue,
+    ProductProperty, QuantityPricing, ProductTemplate,
+    TurnAroundTime, ProductCategory, ProductSubCategory, ProductFamily, Vendor,
+    ProductTag, ProductPricing, ProductVariable, ProductVariableOption,
+    ProductVideo, ProductDownloadableFile, ProductSEO,
+    ProductReviewSettings, ProductFAQ, ProductShipping, ProductLegal,
+    ProductProduction, ProductChangeHistory
 )
 
 # ---------------------- LEAD ----------------------
@@ -112,30 +120,13 @@ class QuoteAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-@admin.register(Product)
-class ProductAdmin(admin.ModelAdmin):
-    list_display = ['sku', 'name', 'category', 'product_type', 'base_price', 'availability', 'stock_quantity', 'is_active']
-    list_filter = ['category', 'product_type', 'availability', 'is_active']
-    search_fields = ['sku', 'name', 'description']
-    ordering = ['category', 'name']
-    
-    fieldsets = (
-        ('Basic Information', {
-            'fields': ('category', 'name', 'description')
-        }),
-        ('Pricing', {
-            'fields': ('base_price',)
-        }),
-        ('Product Details', {
-            'fields': ('product_type', 'availability', 'stock_quantity', 'lead_time')
-        }),
-        ('Management', {
-            'fields': ('is_active', 'created_by', 'updated_by'),
-            'classes': ('collapse',)
-        }),
-    )
-    
-    readonly_fields = ['sku', 'created_by', 'updated_by', 'created_at', 'updated_at']
+@admin.register(TurnAroundTime)
+class TurnAroundTimeAdmin(admin.ModelAdmin):
+    list_display = ('product', 'name', 'business_days', 'price_modifier', 'is_default', 'is_available', 'display_order')
+    list_editable = ('is_default', 'is_available', 'display_order')
+    search_fields = ('product__name', 'name')
+    list_filter = ('is_default', 'is_available')
+    ordering = ('product', 'display_order', 'business_days')
 
 
 @admin.register(ProductionUpdate)
@@ -155,6 +146,7 @@ class NotificationAdmin(admin.ModelAdmin):
     search_fields = ('title', 'message', 'recipient__username')
     list_filter = ('is_read', 'created_at')
     ordering = ('-created_at',)
+
 
 # ---------------------- ACTIVITY LOG ----------------------
 @admin.register(ActivityLog)
@@ -211,3 +203,728 @@ class JobAttachmentAdmin(admin.ModelAdmin):
     search_fields = ('job__job_number', 'file_name')
     ordering = ('-uploaded_at',)
     autocomplete_fields = ['job']
+
+
+# ==================== PRODUCT CATALOG SECTION ====================
+
+@admin.register(ProductCategory)
+class ProductCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'subcategory_count']
+    search_fields = ['name']
+    prepopulated_fields = {'slug': ('name',)}
+    
+    def subcategory_count(self, obj):
+        return obj.subcategories.count()
+    subcategory_count.short_description = 'Sub-Categories'
+
+
+@admin.register(ProductSubCategory)
+class ProductSubCategoryAdmin(admin.ModelAdmin):
+    list_display = ['name', 'category', 'slug', 'product_count']
+    list_filter = ['category']
+    search_fields = ['name', 'category__name']
+    prepopulated_fields = {'slug': ('name',)}
+    
+    def product_count(self, obj):
+        return obj.products.count()
+    product_count.short_description = 'Products'
+
+
+@admin.register(ProductFamily)
+class ProductFamilyAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'product_count']
+    search_fields = ['name']
+    prepopulated_fields = {'slug': ('name',)}
+    
+    def product_count(self, obj):
+        return obj.products.count()
+    product_count.short_description = 'Products'
+
+
+@admin.register(Vendor)
+class VendorAdmin(admin.ModelAdmin):
+    list_display = ['name', 'email', 'phone', 'vps_score', 'rating', 'active']
+    list_filter = ['active', 'vps_score', 'recommended']
+    search_fields = ['name', 'email', 'phone']
+
+
+@admin.register(ProductTag)
+class ProductTagAdmin(admin.ModelAdmin):
+    list_display = ['name', 'slug', 'product_count']
+    search_fields = ['name']
+    prepopulated_fields = {'slug': ('name',)}
+    
+    def product_count(self, obj):
+        return obj.products.count()
+    product_count.short_description = 'Products'
+
+
+# ==================== INLINE ADMINS - MUST BE DEFINED BEFORE USE ====================
+
+# Inline admins for related models
+class ProductPricingInline(admin.StackedInline):
+    model = ProductPricing
+    extra = 0
+    fieldsets = (
+        ('Base Pricing', {
+            'fields': (
+                'pricing_model', 'base_cost', 'price_display',
+                'default_margin', 'minimum_margin', 'minimum_order_value'
+            )
+        }),
+        ('Production & Vendor', {
+            'fields': (
+                'lead_time_value', 'lead_time_unit', 'production_method',
+                'primary_vendor', 'alternative_vendors', 'minimum_quantity'
+            )
+        }),
+        ('Rush Production', {
+            'fields': (
+                'rush_available', 'rush_lead_time_value',
+                'rush_lead_time_unit', 'rush_upcharge'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Advanced', {
+            'fields': ('enable_conditional_logic', 'enable_conflict_detection'),
+            'classes': ('collapse',)
+        }),
+    )
+    filter_horizontal = ['alternative_vendors']
+
+
+# IMPORTANT: Define ProductVariableOptionInline BEFORE ProductVariableInline
+class ProductVariableOptionInline(admin.TabularInline):
+    model = ProductVariableOption
+    extra = 1
+    fields = ['name', 'display_order', 'is_default', 'price_modifier', 'is_active']
+    ordering = ['display_order']
+
+
+class ProductVariableInline(admin.TabularInline):
+    model = ProductVariable
+    extra = 0
+    fields = ['name', 'display_order', 'variable_type', 'pricing_type', 'is_active']
+    ordering = ['display_order']
+
+
+class ProductImageInline(admin.TabularInline):
+    model = ProductImage
+    extra = 1
+    fields = ['image', 'alt_text', 'is_primary', 'display_order']
+    ordering = ['display_order']
+
+
+class ProductVideoInline(admin.TabularInline):
+    model = ProductVideo
+    extra = 0
+    fields = ['video_url', 'video_type', 'thumbnail', 'display_order']
+    ordering = ['display_order']
+
+
+class ProductDownloadableFileInline(admin.TabularInline):
+    model = ProductDownloadableFile
+    extra = 0
+    fields = ['file_name', 'file', 'file_type', 'description', 'display_order']
+    ordering = ['display_order']
+
+
+class ProductSEOInline(admin.StackedInline):
+    model = ProductSEO
+    extra = 0
+    fieldsets = (
+        ('SEO Basics', {
+            'fields': (
+                'meta_title', 'meta_description', 'slug', 'auto_generate_slug',
+                'focus_keyword', 'additional_keywords'
+            )
+        }),
+        ('Display Settings', {
+            'fields': (
+                'show_price', 'price_display_format', 'show_stock_status'
+            )
+        }),
+        ('Related Products', {
+            'fields': (
+                'related_products', 'upsell_products', 'frequently_bought_together'
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    filter_horizontal = ['related_products', 'upsell_products', 'frequently_bought_together']
+    prepopulated_fields = {'slug': ('meta_title',)}
+
+
+class ProductReviewSettingsInline(admin.StackedInline):
+    model = ProductReviewSettings
+    extra = 0
+
+
+class ProductFAQInline(admin.TabularInline):
+    model = ProductFAQ
+    extra = 1
+    fields = ['question', 'answer', 'display_order', 'is_active']
+    ordering = ['display_order']
+
+
+class ProductShippingInline(admin.StackedInline):
+    model = ProductShipping
+    extra = 0
+    fieldsets = (
+        ('Shipping Details', {
+            'fields': (
+                ('shipping_weight', 'shipping_weight_unit'),
+                'shipping_class',
+            )
+        }),
+        ('Package Dimensions', {
+            'fields': (
+                ('package_length', 'package_width', 'package_height'),
+                'package_dimension_unit'
+            )
+        }),
+        ('Free Shipping', {
+            'fields': ('free_shipping', 'free_shipping_threshold')
+        }),
+        ('Restrictions', {
+            'fields': ('nairobi_only', 'kenya_only', 'no_international')
+        }),
+        ('Handling', {
+            'fields': (
+                ('handling_time', 'handling_time_unit'),
+                'pickup_available', 'pickup_location'
+            )
+        }),
+    )
+
+
+class ProductLegalInline(admin.StackedInline):
+    model = ProductLegal
+    extra = 0
+    fieldsets = (
+        ('Terms & Policies', {
+            'fields': ('product_terms', 'return_policy', 'age_restriction')
+        }),
+        ('Certifications', {
+            'fields': ('cert_fsc', 'cert_eco', 'cert_food_safe')
+        }),
+        ('Copyright', {
+            'fields': ('copyright_notice',)
+        }),
+    )
+
+
+class ProductProductionInline(admin.StackedInline):
+    model = ProductProduction
+    extra = 0
+    fieldsets = (
+        ('Production Details', {
+            'fields': ('production_method_detail', 'machine_equipment')
+        }),
+        ('Pre-Production Checklist', {
+            'fields': (
+                'checklist_artwork', 'checklist_preflight',
+                'checklist_material', 'checklist_proofs'
+            )
+        }),
+        ('Notes', {
+            'fields': ('production_notes',)
+        }),
+    )
+
+
+class ProductChangeHistoryInline(admin.TabularInline):
+    model = ProductChangeHistory
+    extra = 0
+    fields = ['changed_at', 'changed_by', 'change_type', 'field_changed']
+    readonly_fields = ['changed_at', 'changed_by', 'change_type', 'field_changed', 'old_value', 'new_value']
+    can_delete = False
+    max_num = 0
+    ordering = ['-changed_at']
+
+
+# ==================== MAIN PRODUCT ADMIN ====================
+
+@admin.register(Product)
+class ProductAdmin(admin.ModelAdmin):
+    list_display = [
+        'internal_code', 'name', 'status_badge', 'primary_category',
+        'sub_category', 'product_type', 'is_visible', 'created_at'
+    ]
+    list_filter = [
+        'status', 'is_visible', 'product_type', 'primary_category',
+        'feature_product', 'bestseller_badge', 'new_arrival'
+    ]
+    search_fields = ['name', 'internal_code', 'short_description']
+    filter_horizontal = ['tags']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'updated_by']
+    date_hierarchy = 'created_at'
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': (
+                'name', 'internal_code',
+                'short_description', 'long_description', 'technical_specs'
+            )
+        }),
+        ('Classification', {
+            'fields': (
+                ('primary_category', 'sub_category'),
+                'product_type', 'product_family', 'tags'
+            )
+        }),
+        ('Status & Visibility', {
+            'fields': (
+                'status', 'is_visible', 'visibility',
+                ('feature_product', 'bestseller_badge'),
+                ('new_arrival', 'new_arrival_expires'),
+                'on_sale_badge'
+            )
+        }),
+        ('Product Attributes', {
+            'fields': (
+                'unit_of_measure',
+                ('weight', 'weight_unit'),
+                ('length', 'width', 'height', 'dimension_unit'),
+                'warranty', 'country_of_origin'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Notes & Comments', {
+            'fields': ('internal_notes', 'client_notes'),
+            'classes': ('collapse',)
+        }),
+        ('System Information', {
+            'fields': (
+                ('created_at', 'updated_at'),
+                ('created_by', 'updated_by')
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    inlines = [
+        ProductPricingInline,
+        ProductVariableInline,
+        ProductImageInline,
+        ProductVideoInline,
+        ProductDownloadableFileInline,
+        ProductSEOInline,
+        ProductReviewSettingsInline,
+        ProductFAQInline,
+        ProductShippingInline,
+        ProductLegalInline,
+        ProductProductionInline,
+        ProductChangeHistoryInline,
+    ]
+    
+    def status_badge(self, obj):
+        colors = {
+            'draft': 'gray',
+            'published': 'green',
+            'archived': 'red'
+        }
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px;">{}</span>',
+            colors.get(obj.status, 'gray'),
+            obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user
+        obj.updated_by = request.user
+        super().save_model(request, obj, form, change)
+        
+        # Create change history
+        ProductChangeHistory.objects.create(
+            product=obj,
+            changed_by=request.user,
+            change_type='created' if not change else 'updated',
+            notes=f"Product {'created' if not change else 'updated'} via admin"
+        )
+
+
+# ==================== PRODUCT VARIABLE ADMIN ====================
+
+@admin.register(ProductVariable)
+class ProductVariableAdmin(admin.ModelAdmin):
+    list_display = ['name', 'product', 'display_order', 'variable_type', 'pricing_type', 'is_active']
+    list_filter = ['variable_type', 'pricing_type', 'is_active', 'product__primary_category']
+    search_fields = ['name', 'product__name', 'product__internal_code']
+    list_editable = ['display_order', 'is_active']
+    ordering = ['product', 'display_order']
+    
+    fieldsets = (
+        (None, {
+            'fields': ('product', 'name', 'display_order', 'variable_type', 'pricing_type', 'is_active')
+        }),
+        ('Conditional Logic', {
+            'fields': ('show_when_variable', 'show_when_option'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    inlines = [ProductVariableOptionInline]
+
+
+@admin.register(ProductVariableOption)
+class ProductVariableOptionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'variable', 'product_name', 'display_order', 'is_default', 'price_modifier', 'is_active']
+    list_filter = ['is_default', 'is_active', 'variable__product__primary_category']
+    search_fields = ['name', 'variable__name', 'variable__product__name']
+    list_editable = ['display_order', 'is_default', 'is_active']
+    ordering = ['variable', 'display_order']
+    
+    def product_name(self, obj):
+        return obj.variable.product.name
+    product_name.short_description = 'Product'
+
+
+@admin.register(ProductImage)
+class ProductImageAdmin(admin.ModelAdmin):
+    list_display = ['thumbnail_preview', 'product', 'is_primary', 'display_order']
+    list_filter = ['is_primary', 'product__primary_category']
+    search_fields = ['product__name', 'alt_text']
+    list_editable = ['display_order']
+    ordering = ['product', 'display_order']
+    
+    def thumbnail_preview(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" width="50" height="50" style="object-fit: cover;" />', obj.image.url)
+        return '-'
+    thumbnail_preview.short_description = 'Preview'
+
+
+@admin.register(ProductVideo)
+class ProductVideoAdmin(admin.ModelAdmin):
+    list_display = ['product', 'video_type', 'video_url', 'display_order', 'created_at']
+    list_filter = ['video_type', 'product__primary_category']
+    search_fields = ['product__name', 'video_url']
+    ordering = ['product', 'display_order']
+
+
+@admin.register(ProductDownloadableFile)
+class ProductDownloadableFileAdmin(admin.ModelAdmin):
+    list_display = ['file_name', 'product', 'file_type', 'file_size_display', 'display_order', 'uploaded_at']
+    list_filter = ['file_type', 'product__primary_category']
+    search_fields = ['file_name', 'product__name', 'description']
+    ordering = ['product', 'display_order']
+    
+    def file_size_display(self, obj):
+        size = obj.file_size
+        for unit in ['B', 'KB', 'MB', 'GB']:
+            if size < 1024.0:
+                return f"{size:.2f} {unit}"
+            size /= 1024.0
+        return f"{size:.2f} TB"
+    file_size_display.short_description = 'File Size'
+
+
+@admin.register(ProductFAQ)
+class ProductFAQAdmin(admin.ModelAdmin):
+    list_display = ['question_preview', 'product', 'display_order', 'is_active', 'created_at']
+    list_filter = ['is_active', 'product__primary_category']
+    search_fields = ['question', 'answer', 'product__name']
+    list_editable = ['display_order', 'is_active']
+    ordering = ['product', 'display_order']
+    
+    def question_preview(self, obj):
+        return obj.question[:100] + '...' if len(obj.question) > 100 else obj.question
+    question_preview.short_description = 'Question'
+
+
+@admin.register(ProductChangeHistory)
+class ProductChangeHistoryAdmin(admin.ModelAdmin):
+    list_display = ['product', 'change_type', 'changed_by', 'changed_at', 'field_changed']
+    list_filter = ['change_type', 'changed_at', 'product__primary_category']
+    search_fields = ['product__name', 'product__internal_code', 'field_changed', 'notes']
+    readonly_fields = ['product', 'changed_by', 'changed_at', 'change_type', 'field_changed', 'old_value', 'new_value', 'notes']
+    date_hierarchy = 'changed_at'
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+# ==================== LPO (ORDER MANAGEMENT) ADMIN ====================
+
+from .models import LPO
+
+@admin.register(LPO)
+class LPOAdmin(admin.ModelAdmin):
+    """Admin for Order Management (LPO)"""
+    list_display = [
+        'lpo_number', 'client', 'total_amount', 'status_badge',
+        'payment_terms', 'delivery_date', 'quickbooks_sync_status',
+        'created_at', 'created_by'
+    ]
+    list_filter = ['status', 'synced_to_quickbooks', 'payment_terms', 'created_at']
+    search_fields = ['lpo_number', 'client__name', 'notes']
+    readonly_fields = [
+        'lpo_number', 'created_at', 'approved_at', 'synced_at',
+        'quickbooks_invoice_id', 'quickbooks_invoice_number'
+    ]
+    date_hierarchy = 'created_at'
+    list_per_page = 25
+    
+    fieldsets = (
+        ('Order Information', {
+            'fields': ('lpo_number', 'client', 'quote', 'status')
+        }),
+        ('Financial Details', {
+            'fields': ('subtotal', 'vat_amount', 'total_amount', 'payment_terms')
+        }),
+        ('Delivery & Notes', {
+            'fields': ('delivery_date', 'notes', 'terms_and_conditions')
+        }),
+        ('QuickBooks Integration', {
+            'fields': (
+                'synced_to_quickbooks', 'quickbooks_invoice_id',
+                'quickbooks_invoice_number', 'synced_at'
+            ),
+            'classes': ('collapse',)
+        }),
+        ('Tracking', {
+            'fields': (
+                'created_by', 'created_at',
+                'approved_by', 'approved_at'
+            ),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['sync_to_quickbooks_action', 'mark_as_approved', 'export_orders']
+    
+    def status_badge(self, obj):
+        colors = {
+            'pending': '#FFA500',
+            'approved': '#0066CC',
+            'in_production': '#FFD700',
+            'completed': '#28A745',
+            'cancelled': '#DC3545'
+        }
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px; font-weight: bold;">{}</span>',
+            colors.get(obj.status, '#6C757D'),
+            obj.get_status_display()
+        )
+    status_badge.short_description = 'Status'
+    
+    def quickbooks_sync_status(self, obj):
+        if obj.synced_to_quickbooks:
+            return format_html(
+                '<span style="color: green;">✓ Synced</span>'
+            )
+        return format_html(
+            '<span style="color: gray;">○ Not Synced</span>'
+        )
+    quickbooks_sync_status.short_description = 'QB Status'
+    
+    def sync_to_quickbooks_action(self, request, queryset):
+        """Bulk action to sync orders to QuickBooks"""
+        synced_count = 0
+        for lpo in queryset:
+            try:
+                lpo.sync_to_quickbooks(user=request.user)
+                synced_count += 1
+            except Exception as e:
+                self.message_user(
+                    request,
+                    f"Error syncing {lpo.lpo_number}: {str(e)}",
+                    level='error'
+                )
+        
+        self.message_user(
+            request,
+            f"Successfully synced {synced_count} order(s) to QuickBooks.",
+            level='success'
+        )
+    sync_to_quickbooks_action.short_description = "Sync selected to QuickBooks"
+    
+    def mark_as_approved(self, request, queryset):
+        updated = queryset.update(status='approved')
+        self.message_user(request, f"{updated} order(s) marked as approved.")
+    mark_as_approved.short_description = "Mark as Approved"
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.created_by:
+            obj.created_by = request.user
+        if obj.status == 'approved' and not obj.approved_by:
+            obj.approved_by = request.user
+            obj.approved_at = timezone.now()
+        super().save_model(request, obj, form, change)
+
+
+# ==================== PRODUCT TEMPLATE ADMIN ====================
+
+from .models import ProductTemplate
+
+@admin.register(ProductTemplate)
+class ProductTemplateAdmin(admin.ModelAdmin):
+    """Admin for Product Template Management"""
+    list_display = [
+        'template_thumbnail', 'name', 'product', 'is_premium',
+        'is_active', 'usage_count', 'created_at'
+    ]
+    list_filter = ['is_premium', 'is_active', 'product__primary_category', 'created_at']
+    search_fields = ['name', 'product__name', 'description', 'category_tags']
+    list_editable = ['is_active']
+    readonly_fields = ['created_at', 'template_thumbnail_large']
+    
+    fieldsets = (
+        ('Template Information', {
+            'fields': ('product', 'name', 'description')
+        }),
+        ('Files', {
+            'fields': ('template_file', 'thumbnail', 'template_thumbnail_large')
+        }),
+        ('Settings', {
+            'fields': ('category_tags', 'is_premium', 'is_active')
+        }),
+        ('Metadata', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def template_thumbnail(self, obj):
+        if obj.thumbnail:
+            return format_html(
+                '<img src="{}" width="60" height="60" style="object-fit: cover; border-radius: 4px;" />',
+                obj.thumbnail.url
+            )
+        return '-'
+    template_thumbnail.short_description = 'Preview'
+    
+    def template_thumbnail_large(self, obj):
+        if obj.thumbnail:
+            return format_html(
+                '<img src="{}" width="300" style="border-radius: 8px;" />',
+                obj.thumbnail.url
+            )
+        return 'No thumbnail available'
+    template_thumbnail_large.short_description = 'Template Preview'
+    
+    def usage_count(self, obj):
+        # You can track usage if you have a relationship
+        # For now, return a placeholder
+        return f"-"
+    usage_count.short_description = 'Uses'
+
+# ==================== CONFIGURE CUSTOM ADMIN SITE ====================
+from .admin_site import configure_admin_site
+configure_admin_site()
+
+
+# ==================== SYSTEM ALERTS ADMIN ====================
+from .models import SystemAlert
+
+@admin.register(SystemAlert)
+class SystemAlertAdmin(admin.ModelAdmin):
+    """Admin for System Alerts"""
+    list_display = [
+        'title', 'alert_type', 'severity_badge', 'is_active',
+        'is_dismissed', 'created_at', 'created_by'
+    ]
+    list_filter = ['alert_type', 'severity', 'is_active', 'is_dismissed', 'created_at']
+    search_fields = ['title', 'message']
+    readonly_fields = ['created_at', 'dismissed_at', 'dismissed_by']
+    
+    fieldsets = (
+        ('Alert Information', {
+            'fields': ('alert_type', 'severity', 'title', 'message', 'link')
+        }),
+        ('Visibility', {
+            'fields': ('visible_to_admins', 'visible_to_production')
+        }),
+        ('Status', {
+            'fields': ('is_active', 'is_dismissed', 'dismissed_by', 'dismissed_at')
+        }),
+        ('Related Objects', {
+            'fields': ('related_client', 'related_quote', 'related_lpo'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def severity_badge(self, obj):
+        colors = {
+            'low': '#28a745',
+            'medium': '#0dcaf0',
+            'high': '#ffc107',
+            'critical': '#dc3545'
+        }
+        return format_html(
+            '<span style="background-color: {}; color: white; padding: 3px 10px; '
+            'border-radius: 3px; font-size: 11px; font-weight: bold;">{}</span>',
+            colors.get(obj.severity, '#6c757d'),
+            obj.get_severity_display()
+        )
+    severity_badge.short_description = 'Severity'
+
+
+# ==================== PAYMENT TRACKING ADMIN ====================
+from .models import Payment
+
+@admin.register(Payment)
+class PaymentAdmin(admin.ModelAdmin):
+    """Admin for Payment tracking"""
+    list_display = [
+        'reference_number', 'lpo', 'amount', 'payment_method',
+        'payment_date', 'status', 'recorded_by'
+    ]
+    list_filter = ['status', 'payment_method', 'payment_date']
+    search_fields = ['reference_number', 'lpo__lpo_number', 'notes']
+    readonly_fields = ['created_at']
+    date_hierarchy = 'payment_date'
+    
+    fieldsets = (
+        ('Payment Information', {
+            'fields': ('lpo', 'amount', 'payment_date', 'payment_method', 'status')
+        }),
+        ('Reference', {
+            'fields': ('reference_number', 'notes')
+        }),
+        ('Tracking', {
+            'fields': ('recorded_by', 'created_at')
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not obj.recorded_by:
+            obj.recorded_by = request.user
+        super().save_model(request, obj, form, change)
+
+
+
+# ============================================
+# ADD TO clientapp/admin.py
+# ============================================
+
+from django.contrib import admin
+from .models import Process, ProcessTier, ProcessVariable, ProcessVendor
+
+@admin.register(Process)
+class ProcessAdmin(admin.ModelAdmin):
+    list_display = ['process_id', 'process_name', 'pricing_type', 'category', 'status', 'created_at']
+    list_filter = ['pricing_type', 'category', 'status']
+    search_fields = ['process_id', 'process_name']
+
+@admin.register(ProcessTier)
+class ProcessTierAdmin(admin.ModelAdmin):
+    list_display = ['process', 'tier_number', 'quantity_from', 'quantity_to', 'price', 'margin_percentage']
+
+@admin.register(ProcessVariable)
+class ProcessVariableAdmin(admin.ModelAdmin):
+    list_display = ['process', 'variable_name', 'variable_type', 'unit']
+
+@admin.register(ProcessVendor)
+class ProcessVendorAdmin(admin.ModelAdmin):
+    list_display = ['process', 'vendor_name', 'vps_score', 'priority', 'standard_lead_time']
+
+

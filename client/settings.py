@@ -12,6 +12,8 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 
 from pathlib import Path
 import os
+from dotenv import load_dotenv
+
 
 
 from pathlib import Path
@@ -35,6 +37,7 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default=[], cast=Csv())
 # Application definition
 
 INSTALLED_APPS = [
+    'jazzmin',  # Must be before django.contrib.admin
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -43,7 +46,9 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'clientapp',
     'django.contrib.humanize',
-    'django_ledger',
+    'quickbooks_integration',
+    
+    
     
 ]
 
@@ -63,7 +68,7 @@ ROOT_URLCONF = 'client.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'clientapp' / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -71,7 +76,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'django_ledger.context.django_ledger_context',
+                'clientapp.views.notification_count_processor',  # ← ADD THIS LINE
             ],
         },
     },
@@ -128,7 +133,12 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else []
+
+# Static files directories
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+    BASE_DIR / 'clientapp' / 'static',
+]
 
 
 # Add after STATIC_URL:
@@ -137,15 +147,18 @@ STATICFILES_DIRS = [BASE_DIR / 'static'] if (BASE_DIR / 'static').exists() else 
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
-# Add Django Ledger settings:
-DJANGO_LEDGER_LOGIN_URL = 'login'
-DJANGO_LEDGER_LOGOUT_URL = 'logout'
-X_FRAME_OPTIONS = 'SAMEORIGIN'
+
 # Login settings
 LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'login_redirect'
 LOGOUT_REDIRECT_URL = 'login'
 
+# QuickBooks Integration
+load_dotenv()
+QB_CLIENT_ID = os.getenv("QB_CLIENT_ID")
+QB_CLIENT_SECRET = os.getenv("QB_CLIENT_SECRET")
+QB_REDIRECT_URI = os.getenv("QB_REDIRECT_URI")
+QB_ENVIRONMENT = os.getenv("QB_ENVIRONMENT", "sandbox")
 
 
 # Messages framework (for success/error notifications)
@@ -173,14 +186,17 @@ if not DEBUG:
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-# Email settings (for sending quotes) - Configure based on your email provider
+    
+# Email settings (for sending quotes)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'  # Change based on your provider
+EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'your-email@example.com'  # Change this
-EMAIL_HOST_PASSWORD = 'your-password'  # Change this
-DEFAULT_FROM_EMAIL = 'your-email@example.com'  
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'your-email@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_APP_PASSWORD', 'your-app-password')
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'PrintDuka <noreply@printduka.com>')
+
+
 
 
 # Static files (CSS, JavaScript, Images)
@@ -191,3 +207,79 @@ DEFAULT_FROM_EMAIL = 'your-email@example.com'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# ==================== JAZZMIN ADMIN CUSTOMIZATION ====================
+
+JAZZMIN_SETTINGS = {
+    "site_title": "PrintDuka Admin",
+    "site_header": "PrintDuka",
+    "site_brand": "PrintDuka Management System",
+    "welcome_sign": "Welcome to PrintDuka Admin Portal",
+    "copyright": "PrintDuka Ltd @ 2025",
+    "search_model": ["clientapp.Client", "clientapp.Lead", "clientapp.Quote", "clientapp.Product"],
+    "topmenu_links": [
+        {"name": "Dashboard", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {"name": "View Site", "url": "/", "new_window": True},
+        {"model": "auth.User"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "clientapp.Client": "fas fa-user-tie",
+        "clientapp.Lead": "fas fa-user-plus",
+        "clientapp.Quote": "fas fa-file-invoice-dollar",
+        "clientapp.LPO": "fas fa-file-invoice",
+        "clientapp.Job": "fas fa-briefcase",
+        "clientapp.Product": "fas fa-box",
+        "clientapp.ProductTemplate": "fas fa-file-image",
+        "clientapp.ProductCategory": "fas fa-folder",
+        "clientapp.Vendor": "fas fa-truck",
+        "clientapp.ActivityLog": "fas fa-history",
+        "clientapp.Notification": "fas fa-bell",
+    },
+    "custom_css": "admin/css/dashboard_theme.css",
+    
+    # Theme colors
+    "theme": {
+        "primary": "#667eea",
+        "secondary": "#34495e",
+        "accent": "#764ba2",
+        "dark": "#2c3e50",
+        "light": "#ecf0f1",
+        "info": "#3498db",
+        "warning": "#f39c12",
+        "danger": "#e74c3c",
+        "success": "#27ae60",
+    },
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": False,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": False,
+    "brand_colour": "navbar-dark",
+    "accent": "accent-primary",
+    "navbar": "navbar-dark",
+    "no_navbar_border": True,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+    "sidebar_nav_small_text": False,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_fixed": True,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-primary",
+}

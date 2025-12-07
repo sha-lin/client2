@@ -1,0 +1,406 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vendor Comparison - {{ job.job_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .job-header {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .job-info {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 14px;
+        color: #666;
+    }
+
+    .estimated-total {
+        font-size: 24px;
+        font-weight: 600;
+        color: #333;
+        text-align: right;
+    }
+
+    .filters-section {
+        background: white;
+        padding: 15px 20px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .filters-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr auto;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+    .filter-group label {
+        font-size: 12px;
+        color: #666;
+        font-weight: 500;
+    }
+
+    .vendor-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+        margin-bottom: 20px;
+    }
+
+    .vendor-card {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        border: 2px solid transparent;
+        transition: all 0.3s;
+        position: relative;
+    }
+
+    .vendor-card.recommended {
+        border-color: #10b981;
+    }
+
+    .vps-badge {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        background: #10b981;
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .vps-badge.low {
+        background: #ef4444;
+    }
+
+    .vendor-name {
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 20px;
+        color: #1f2937;
+    }
+
+    .vendor-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .detail-label {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+
+    .detail-value {
+        font-size: 14px;
+        color: #1f2937;
+        font-weight: 600;
+    }
+
+    .star-rating {
+        color: #fbbf24;
+        font-size: 16px;
+    }
+
+    .specialties {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+    }
+
+    .specialty-tag {
+        background: #f3f4f6;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        color: #4b5563;
+    }
+
+    .notice-tag {
+        background: #fef3c7;
+        color: #92400e;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        margin-bottom: 20px;
+        display: inline-block;
+    }
+
+    .vendor-actions {
+        display: flex;
+        gap: 10px;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #4b5563;
+        border: 1px solid #d1d5db;
+    }
+
+    .btn-secondary:hover {
+        background: #f9fafb;
+    }
+
+    .bottom-actions {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .vendor-count {
+        color: #6b7280;
+        font-size: 14px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+    }
+
+    .form-select {
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Job Header -->
+    <div class="job-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div class="job-info">
+                <h5 class="mb-2">{{ job.job_number }} | {{ job.title }}</h5>
+                <div>• Product: {{ job.product }}</div>
+                <div>• Quantity: {{ job.quantity|floatformat:0 }} pieces</div>
+                <div>• Client Deadline: {{ job.deadline|date:"M d, Y" }}</div>
+                <div>• Status: Ready for Vendor Selection</div>
+            </div>
+            <div class="estimated-total">
+                {{ job.estimated_total|floatformat:3 }} KES
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="filters-section">
+        <form method="GET" id="filterForm">
+            <div class="filters-grid">
+                <div class="filter-group">
+                    <label>Search Vendors</label>
+                    <input type="text" class="form-control form-control-sm" placeholder="Search by name..."
+                        name="search">
+                </div>
+
+                <div class="filter-group">
+                    <label>VPS Score</label>
+                    <select class="form-select form-select-sm" name="vps_score">
+                        <option value="all">All Vendors</option>
+                        <option value="A">A Vendors</option>
+                        <option value="B">B Vendors</option>
+                        <option value="C">C Vendors</option>
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>Lead Time</label>
+                    <select class="form-select form-select-sm" name="lead_time">
+                        <option value="all">All Lead Times</option>
+                        <option value="1">1 day</option>
+                        <option value="2">2 days</option>
+                        <option value="3">3 days</option>
+                        <option value="4">4 days</option>
+                        <option value="5">5+ days</option>
+                    </select>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-outline-secondary">
+                    ⚙ More Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <h6 class="mb-3">Vendor Comparison (filtered by specs)</h6>
+
+    <!-- Vendor Cards Grid -->
+    <div class="vendor-grid">
+        {% for quote in vendor_quotes %}
+        <div class="vendor-card {% if quote.vendor.recommended %}recommended{% endif %}">
+            <span class="vps-badge {% if quote.vendor.vps_score == 'C' %}low{% endif %}">
+                VPS: {{ quote.vendor.vps_score }}
+            </span>
+
+            <div class="vendor-name">{{ quote.vendor.name }}</div>
+
+            <div class="vendor-details">
+                <div class="detail-item">
+                    <span class="detail-label">Lead Time:</span>
+                    <span class="detail-value">{{ quote.lead_time }} days</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Cost:</span>
+                    <span class="detail-value">{{ quote.total_cost|floatformat:2 }} KES</span>
+                </div>
+            </div>
+
+            <div class="star-rating mb-2">
+                {% for i in "12345"|make_list %}
+                {% if forloop.counter <= quote.vendor.rating %} ★ {% else %} ☆ {% endif %} {% endfor %} <span
+                    style="color: #6b7280; font-size: 14px;">({{ quote.vendor.rating|floatformat:1 }})</span>
+            </div>
+
+            <div class="specialties">
+                {% for specialty in quote.vendor.specialties.all %}
+                <span class="specialty-tag">{{ specialty.name }}</span>
+                {% endfor %}
+            </div>
+
+            {% if quote.notice %}
+            <div class="notice-tag">
+                ⚠ {{ quote.notice }}
+            </div>
+            {% endif %}
+
+            <div class="vendor-actions">
+                <button class="btn btn-secondary" onclick="viewVendorProfile({{ quote.vendor.id }})">
+                    👤 Contact
+                </button>
+                <button class="btn btn-secondary" onclick="viewVendorProfile({{ quote.vendor.id }})">
+                    📄 Profile
+                </button>
+                <button class="btn btn-primary" onclick="selectVendor({{ quote.id }})">
+                    ✓ Select
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Bottom Actions -->
+    <div class="bottom-actions">
+        <div class="vendor-count">
+            Showing {{ vendor_quotes.count }} vendors
+        </div>
+        <div class="action-buttons">
+            <button class="btn btn-secondary" onclick="window.history.back()">
+                Cancel
+            </button>
+            <button class="btn btn-secondary">
+                Show All Vendors ({{ total_vendors }})
+            </button>
+            <button class="btn btn-primary" onclick="continueToPO()">
+                Continue to PO Creation →
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function selectVendor(quoteId) {
+        if (!confirm('Are you sure you want to select this vendor?')) {
+            return;
+        }
+
+        fetch('{% url "select_vendor" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                vendor_quote_id: quoteId
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while selecting the vendor');
+            });
+    }
+
+    function viewVendorProfile(vendorId) {
+        window.location.href = `/vendors/${vendorId}/`;
+    }
+
+    function continueToPO() {
+    alert('Purchase Order creation coming soon!');
+    // Or redirect to LPO list:
+    // window.location.href = '{% url "lpo_list" %}';
+}
+</script>
+{% endblock %}

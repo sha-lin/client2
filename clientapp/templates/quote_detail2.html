@@ -1,0 +1,1026 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}Quote Details - {{ quote_id }}{% endblock %}
+
+{% block content %}
+<div class="quote-detail-container">
+    <!-- Back Button -->
+    <div class="back-nav">
+        <a href="{% url 'my_quotes' %}" class="back-link">
+            <span class="back-arrow">←</span> Back to My Quotes
+        </a>
+    </div>
+
+    <!-- Quote Header -->
+    <div class="quote-detail-header">
+        <div class="header-left">
+            <div class="quote-title-section">
+                {% if first_quote.production_status == 'pending' %}
+                <span class="quote-badge urgent">URGENT</span>
+                {% elif first_quote.status == 'Approved' %}
+                <span class="quote-badge" style="background: #d1fae5; color: #059669;">APPROVED</span>
+                {% elif first_quote.status == 'Draft' %}
+                <span class="quote-badge" style="background: #e5e7eb; color: #6b7280;">DRAFT</span>
+                {% endif %}
+                <h1 class="quote-id">{{ quote_id }}</h1>
+            </div>
+        </div>
+        <div class="header-right">
+            {% if request.user.groups.all.0.name == 'Production Team' %}
+            <div class="relative">
+                <button onclick="toggleActionsMenu()" class="actions-dropdown">
+                    Actions ▼
+                </button>
+                
+                <!-- Dropdown Menu -->
+                <div id="actionsMenu" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-50 border border-gray-200">
+                    <div class="py-1">
+                        {% if first_quote.production_status == 'pending' %}
+                        <button onclick="submitAction('approve')" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                            <span class="text-green-600">✓</span> Approve Quote
+                        </button>
+                        <button onclick="openRejectModal()" class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2">
+                            <span class="text-red-600">✗</span> Reject Quote
+                        </button>
+                        <hr class="my-1">
+                        {% endif %}
+                        <a href="{% url 'download_quote_pdf' quote_id %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            📄 Download PDF
+                        </a>
+                        <a href="{% url 'my_quotes' %}" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                            ← Back to Quotes
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- PT Approval Alert (if pending) -->
+    {% if request.user.groups.all.0.name == 'Production Team' and first_quote.production_status == 'pending' %}
+    <div class="bg-yellow-50 border-l-4 border-yellow-400 p-6 mb-6 rounded-lg shadow-sm" style="grid-column: 1 / -1;">
+        <div class="flex items-start">
+            <div class="flex-shrink-0">
+                <svg class="h-6 w-6 text-yellow-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+            </div>
+            <div class="ml-4 flex-1">
+                <h3 class="text-lg font-semibold text-yellow-800 mb-2">⚠️ Awaiting Your Approval</h3>
+                <p class="text-gray-700 mb-4">This quote needs Production Team review before it can be sent to the client.</p>
+                
+                <div class="flex gap-3">
+                    <button onclick="submitAction('approve')" class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md">
+                        ✅ Approve Quote
+                    </button>
+                    <button onclick="openRejectModal()" class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors shadow-md">
+                        ❌ Reject Quote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Reject Modal -->
+    <div id="rejectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
+            <div class="flex items-center justify-between mb-6">
+                <h3 class="text-xl font-bold text-gray-900">Reject Quote</h3>
+                <button type="button" onclick="closeRejectModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <form method="POST" action="{% url 'quote_action' quote_id=quote_id %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="reject">
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-semibold text-gray-700 mb-2">
+                        Reason for rejection: <span class="text-red-500">*</span>
+                    </label>
+                    <textarea name="reason" rows="5" class="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-red-500 focus:border-red-500" placeholder="Please explain why this quote is being rejected..." required></textarea>
+                </div>
+                
+                <div class="flex gap-3 justify-end">
+                    <button type="button" onclick="closeRejectModal()" class="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-5 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium shadow-md">
+                        Confirm Rejection
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Quote Info Card -->
+    <div class="quote-info-card">
+        <h2 class="client-name">{{ client_name|upper }}</h2>
+        <div class="quote-meta">
+            <p class="quote-value">{{ quote_items.count }} line item{{ quote_items.count|pluralize }} | KES {{ total_amount|floatformat:2|intcomma }} (Incl VAT)</p>
+        </div>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <span class="info-icon">⏰</span>
+                <div class="info-content">
+                    <div class="info-label">Deadline:</div>
+                    <div class="info-value">{{ first_quote.valid_until|date:"M d, Y" }} ({{ days_remaining }} days remaining)</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <span class="info-icon">📅</span>
+                <div class="info-content">
+                    <div class="info-label">Created:</div>
+                    <div class="info-value">{{ first_quote.created_at|date:"M d, Y" }} by {{ account_manager.get_full_name|default:account_manager.username }} (AM)</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <span class="info-icon">👤</span>
+                <div class="info-content">
+                    <div class="info-label">Status:</div>
+                    <div class="info-value">{{ first_quote.status }}</div>
+                </div>
+            </div>
+            <div class="info-item">
+                <span class="info-icon">📧</span>
+                <div class="info-content">
+                    <div class="info-label">Client Contact:</div>
+                    <div class="info-value">{{ client_email }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="overall-progress-section">
+            <div class="progress-header">
+                <span class="progress-label">Overall Progress:</span>
+                <span class="progress-percentage">{{ progress_percentage }}%</span>
+            </div>
+            <div class="progress-bar-large">
+                <div class="progress-fill-large" style="width: {{ progress_percentage }}%"></div>
+            </div>
+            <div class="progress-status">
+                <span>Status: {{ completed_items }} item{{ completed_items|pluralize }} complete, {{ in_progress_items }} in production, {{ pending_items }} pending</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="tabs-nav">
+        <button class="tab-btn active">Overview</button>
+        <button class="tab-btn">Line Items</button>
+        <button class="tab-btn">Costing</button>
+        <button class="tab-btn">Production</button>
+        <button class="tab-btn">History</button>
+    </div>
+
+    <!-- Line Items Section -->
+    <div class="line-items-section">
+        <div class="section-header-with-icon">
+            <span class="section-icon">📋</span>
+            <h3>LINE ITEMS ({{ quote_items.count }})</h3>
+        </div>
+
+        <div class="line-items-table-wrapper">
+            <table class="line-items-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Item & Description</th>
+                        <th>Qty</th>
+                        <th>Rate</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for quote in quote_items %}
+                    <tr class="item-row {% if quote.production_status == 'completed' %}completed{% elif quote.production_status == 'in_progress' %}in-progress{% else %}pending{% endif %}">
+                        <td>{{ forloop.counter }}</td>
+                        <td>
+                            <div class="item-name">{{ quote.product_name }}</div>
+                            <div class="item-desc">{{ quote.notes|default:"No description" }}</div>
+                        </td>
+                        <td>{{ quote.quantity }}</td>
+                        <td>{{ quote.unit_price|floatformat:2|intcomma }}</td>
+                        <td>{{ quote.total_amount|floatformat:2|intcomma }}</td>
+                        <td>
+                            {% if quote.production_status == 'completed' %}
+                            <span class="status-indicator completed">
+                                <span class="status-icon">✓</span> 100%
+                            </span>
+                            {% elif quote.production_status == 'in_progress' %}
+                            <span class="status-indicator in-progress">
+                                <span class="status-icon">◐</span> 50%
+                            </span>
+                            {% else %}
+                            <span class="status-indicator pending">
+                                <span class="status-icon">○</span> 0%
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-gray-500 py-4">No line items found</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="4"></td>
+                        <td colspan="2">
+                            <div class="totals-section">
+                                <div class="total-row">
+                                    <span>Sub Total:</span>
+                                    <span>{{ subtotal|floatformat:2|intcomma }}</span>
+                                </div>
+                                <div class="total-row">
+                                    <span>VAT (16%):</span>
+                                    <span>{{ vat_amount|floatformat:2|intcomma }}</span>
+                                </div>
+                                <div class="total-row final">
+                                    <span>TOTAL:</span>
+                                    <span>{{ total_amount|floatformat:2|intcomma }} ✓</span>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- Costing Section (opens full costing view) -->
+    {% if request.user.is_authenticated and request.user.groups.all.0.name == 'Production Team' %}
+    <div class="line-items-section" style="margin-top: 20px;">
+        <div class="section-header-with-icon">
+            <span class="section-icon">💰</span>
+            <h3>COSTING</h3>
+        </div>
+        <p class="text-sm text-gray-600 mb-4">
+            Review and update unit price, production cost and notes for this quote, then hand back to the Account
+            Manager to send to the client.
+        </p>
+        <a href="{% url 'production_quote_costing' quote_id=quote_id %}"
+           class="action-link"
+           style="display:inline-flex;align-items:center;gap:6px;">
+            Open Costing Workspace →
+        </a>
+    </div>
+    {% endif %}
+        <!-- AM Actions Section (visible to Account Managers when quote is costed) -->
+    {% if request.user.groups.all.0.name == 'Account Manager' and first_quote.production_status == 'costed' %}
+    <div class="line-items-section" style="margin-top: 20px; grid-column: 1 / -1;">
+        <div class="section-header-with-icon">
+            <span class="section-icon">✉️</span>
+            <h3>SEND TO CLIENT</h3>
+        </div>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+            <p class="text-gray-700 mb-4">
+                <strong>Quote is costed and ready!</strong> Production team has completed the costing. You can now send this quote to the client for approval.
+            </p>
+            
+            <div class="flex gap-3 flex-wrap">
+                <!-- Send to Client via Email -->
+                <button type="button" onclick="sendQuoteToClient('email')" 
+                    class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md flex items-center gap-2">
+                    ✉️ Send to Client via Email
+                </button>
+                
+                <!-- Send via WhatsApp -->
+                <button type="button" onclick="sendQuoteToClient('whatsapp')" 
+                    class="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-md flex items-center gap-2">
+                    📱 Send via WhatsApp
+                </button>
+                
+                <!-- Download PDF -->
+                <a href="{% url 'download_quote_pdf' quote_id %}" 
+                    class="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors shadow-md flex items-center gap-2">
+                    📄 Download PDF
+                </a>
+            </div>
+            
+            <p class="text-sm text-gray-500 mt-4">
+                <strong>Note:</strong> An email will be sent to {{ client_email }} with an approval link.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Sidebar Panels -->
+    <div class="sidebar-panels">
+        <!-- Team Panel -->
+        <div class="side-panel team-panel">
+            <div class="panel-header">
+                <span class="panel-icon">👥</span>
+                <h4>TEAM</h4>
+            </div>
+            <div class="panel-body">
+                <div class="team-member">
+                    <div class="member-label">Account Manager:</div>
+                    <div class="member-name">{{ account_manager.get_full_name|default:account_manager.username }}</div>
+                </div>
+                <div class="team-member">
+                    <div class="member-label">Client Contact:</div>
+                    <div class="member-name">{{ client_name }}</div>
+                    <div class="member-contact">{{ client_email }}</div>
+                    <div class="member-contact">{{ client_phone }}</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Timeline Panel -->
+        <div class="side-panel timeline-panel">
+            <div class="panel-header">
+                <span class="panel-icon">⏱️</span>
+                <h4>TIMELINE</h4>
+            </div>
+            <div class="panel-body">
+                <div class="timeline">
+                    {% for event in timeline_events %}
+                    <div class="timeline-item {{ event.completed|yesno:'completed,pending' }}">
+                        <div class="timeline-dot"></div>
+                        <div class="timeline-content">
+                            <div class="timeline-title">{{ event.title }}</div>
+                            <div class="timeline-date">{{ event.date|date:"M d, Y" }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function sendQuoteToClient(method) {
+    if (!confirm('Are you sure you want to send this quote to the client via ' + method + '?')) {
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('send_method', method);
+    
+    fetch('{% url "send_quote" quote_id=quote_id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('✅ Quote sent successfully to client!\n\n' + (data.message || ''));
+            location.reload();
+        } else {
+            alert('❌ Error: ' + (data.message || 'Failed to send quote'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('❌ An error occurred while sending the quote.');
+    });
+}
+function toggleActionsMenu() {
+    document.getElementById('actionsMenu')?.classList.toggle('hidden');
+}
+
+function openRejectModal() {
+    document.getElementById('rejectModal').classList.remove('hidden');
+    toggleActionsMenu();
+}
+
+function closeRejectModal() {
+    document.getElementById('rejectModal').classList.add('hidden');
+}
+
+function submitAction(action) {
+    if (action === 'approve') {
+        if (!confirm('Are you sure you want to approve this quote?')) {
+            return;
+        }
+    }
+    
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '{% url "quote_action" quote_id=quote_id %}';
+    
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = '{{ csrf_token }}';
+    form.appendChild(csrfInput);
+    
+    const actionInput = document.createElement('input');
+    actionInput.type = 'hidden';
+    actionInput.name = 'action';
+    actionInput.value = action;
+    form.appendChild(actionInput);
+    
+    document.body.appendChild(form);
+    form.submit();
+}
+
+// Close menu when clicking outside
+document.addEventListener('click', function(event) {
+    const menu = document.getElementById('actionsMenu');
+    const button = event.target.closest('.actions-dropdown');
+    
+    if (menu && !button && !menu.contains(event.target)) {
+        menu.classList.add('hidden');
+    }
+});
+</script>
+
+<!-- KEEP ALL YOUR EXISTING STYLES -->
+<style>
+.quote-detail-container {
+    padding: 30px;
+    background-color: #f9fafb;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr 350px;
+    gap: 25px;
+    grid-template-areas:
+        "back back"
+        "header header"
+        "info info"
+        "tabs tabs"
+        "items sidebar";
+}
+
+/* ALL YOUR OTHER STYLES - KEEP THEM EXACTLY AS THEY ARE */
+.back-nav {
+    grid-area: back;
+    margin-bottom: 15px;
+}
+
+.back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    color: #3b82f6;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.back-link:hover {
+    color: #2563eb;
+}
+
+.back-arrow {
+    font-size: 18px;
+}
+
+.quote-detail-header {
+    grid-area: header;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.quote-title-section {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.quote-id {
+    font-size: 32px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+.quote-badge {
+    padding: 6px 16px;
+    border-radius: 16px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.quote-badge.urgent {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.actions-dropdown {
+    padding: 12px 24px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #4b5563;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.actions-dropdown:hover {
+    background: #f9fafb;
+}
+
+.quote-info-card {
+    grid-area: info;
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+}
+
+.client-name {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin-bottom: 8px;
+}
+
+.quote-meta {
+    margin-bottom: 25px;
+}
+
+.quote-value {
+    font-size: 15px;
+    color: #6b7280;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.info-icon {
+    font-size: 20px;
+    margin-top: 2px;
+}
+
+.info-content {
+    flex: 1;
+}
+
+.info-label {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.info-value {
+    font-size: 14px;
+    color: #1f2937;
+    font-weight: 500;
+}
+
+.overall-progress-section {
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 8px;
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.progress-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #4b5563;
+}
+
+.progress-percentage {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.progress-bar-large {
+    height: 16px;
+    background: #e5e7eb;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill-large {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #2563eb);
+    border-radius: 8px;
+    transition: width 0.3s ease;
+}
+
+.progress-status {
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.tabs-nav {
+    grid-area: tabs;
+    display: flex;
+    gap: 8px;
+    background: white;
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+    overflow-x: auto;
+}
+
+.tab-btn {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    font-size: 14px;
+    font-weight: 600;
+    color: #6b7280;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.tab-btn:hover {
+    background: #f9fafb;
+}
+
+.tab-btn.active {
+    background: #3b82f6;
+    color: white;
+}
+
+.line-items-section {
+    grid-area: items;
+    background: white;
+    border-radius: 12px;
+    padding: 30px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+.section-header-with-icon {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.section-icon {
+    font-size: 24px;
+}
+
+.section-header-with-icon h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0;
+}
+
+.line-items-table-wrapper {
+    overflow-x: auto;
+}
+
+.line-items-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.line-items-table thead {
+    background: #f9fafb;
+}
+
+.line-items-table th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #4b5563;
+    font-size: 13px;
+    border-bottom: 2px solid #e5e7eb;
+}
+
+.line-items-table td {
+    padding: 16px 12px;
+    border-bottom: 1px solid #f3f4f6;
+    color: #1f2937;
+    font-size: 14px;
+}
+
+.item-name {
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.item-desc {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.status-indicator.completed {
+    background: #d1fae5;
+    color: #059669;
+}
+
+.status-indicator.in-progress {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.status-indicator.pending {
+    background: #f3f4f6;
+    color: #9ca3af;
+}
+
+.status-icon {
+    font-size: 14px;
+}
+
+.action-link {
+    color: #3b82f6;
+    font-weight: 600;
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.action-link:hover {
+    text-decoration: underline;
+}
+
+.totals-section {
+    padding: 15px;
+    background: #f9fafb;
+    border-radius: 8px;
+}
+
+.total-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    font-size: 14px;
+}
+
+.total-row.final {
+    border-top: 2px solid #e5e7eb;
+    margin-top: 8px;
+    padding-top: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1f2937;
+}
+
+.sidebar-panels {
+    grid-area: sidebar;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.side-panel {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 20px;
+    background: #f9fafb;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.panel-icon {
+    font-size: 20px;
+}
+
+.panel-header h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0;
+    letter-spacing: 0.5px;
+}
+
+.panel-body {
+    padding: 20px;
+}
+
+.team-member {
+    margin-bottom: 20px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.team-member:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.member-label {
+    font-size: 12px;
+    color: #9ca3af;
+    font-weight: 600;
+    margin-bottom: 6px;
+}
+
+.member-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 10px;
+}
+
+.member-contact {
+    font-size: 13px;
+    color: #6b7280;
+    margin-bottom: 4px;
+}
+
+.member-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.contact-btn {
+    padding: 8px 12px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.contact-btn:hover {
+    background: #f9fafb;
+}
+
+.contact-btn-full {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border: 1px solid #e5e7eb;
+    background: white;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.contact-btn-full:hover {
+    background: #f9fafb;
+}
+
+.contact-btn-full.call {
+    background: #3b82f6;
+    color: white;
+    border-color: #3b82f6;
+}
+
+.contact-btn-full.call:hover {
+    background: #2563eb;
+}
+
+.timeline {
+    position: relative;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 30px;
+    padding-bottom: 20px;
+}
+
+.timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+.timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 20px;
+    bottom: 0;
+    width: 2px;
+    background: #e5e7eb;
+}
+
+.timeline-item:last-child::before {
+    display: none;
+}
+
+.timeline-dot {
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 3px solid #e5e7eb;
+    background: white;
+}
+
+.timeline-item.completed .timeline-dot {
+    background: #10b981;
+    border-color: #10b981;
+}
+
+.timeline-item.current .timeline-dot {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.timeline-item.pending .timeline-dot {
+    background: white;
+    border-color: #e5e7eb;
+}
+
+.timeline-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 4px;
+}
+
+.timeline-date {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.timeline-progress {
+    font-size: 12px;
+    color: #3b82f6;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+@media (max-width: 1200px) {
+    .quote-detail-container {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "back"
+            "header"
+            "info"
+            "tabs"
+            "items"
+            "sidebar";
+    }
+    
+    .info-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 768px) {
+    .quote-detail-container {
+        padding: 15px;
+    }
+    
+    .quote-id {
+        font-size: 24px;
+    }
+    
+    .tabs-nav {
+        overflow-x: scroll;
+    }
+}
+</style>
+{% endblock %}

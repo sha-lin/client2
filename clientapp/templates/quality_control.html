@@ -1,0 +1,1298 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}QC Inspection - {{ inspection.reference_number }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .qc-header {
+        background: white;
+        padding: 20px;
+        margin-bottom: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .back-link {
+        color: #3b82f6;
+        text-decoration: none;
+        font-size: 14px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin-bottom: 15px;
+    }
+
+    .back-link:hover {
+        color: #2563eb;
+    }
+
+    .qc-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 5px;
+    }
+
+    .qc-subtitle {
+        font-size: 14px;
+        color: #6b7280;
+    }
+
+    .qc-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 15px;
+        font-size: 14px;
+        color: #6b7280;
+    }
+
+    .qc-container {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 20px;
+    }
+
+    .qc-main {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .qc-section {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid #f3f4f6;
+    }
+
+    .section-icon {
+        font-size: 18px;
+    }
+
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1f2937;
+        flex: 1;
+    }
+
+    .checklist-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .checklist-item:last-child {
+        border-bottom: none;
+    }
+
+    .checklist-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+    }
+
+    .checklist-item input[type="checkbox"]:checked {
+        accent-color: #10b981;
+    }
+
+    .checklist-label {
+        font-size: 14px;
+        color: #4b5563;
+    }
+
+    .delivery-notes {
+        width: 100%;
+        min-height: 80px;
+        padding: 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        resize: vertical;
+    }
+
+    .delivery-notes:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .quality-item {
+        margin-bottom: 24px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .quality-item:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .quality-label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 12px;
+    }
+
+    .rating-buttons {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    .rating-btn {
+        width: 40px;
+        height: 40px;
+        border: 2px solid #d1d5db;
+        background: white;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        color: #6b7280;
+        transition: all 0.2s;
+    }
+
+    .rating-btn:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+
+    .rating-btn.active {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+
+    .rating-stars {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 8px;
+    }
+
+    .rating-stars span {
+        color: #d1d5db;
+        font-size: 20px;
+        cursor: pointer;
+    }
+
+    .rating-stars span.active {
+        color: #fbbf24;
+    }
+
+    .rating-note {
+        font-size: 12px;
+        color: #6b7280;
+        font-style: italic;
+        margin-top: 8px;
+    }
+
+    .quality-notes {
+        width: 100%;
+        min-height: 60px;
+        padding: 10px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 13px;
+        resize: vertical;
+    }
+
+    .photo-upload-section {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 40px;
+        text-align: center;
+        background: #f9fafb;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .photo-upload-section:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .upload-icon {
+        font-size: 32px;
+        color: #9ca3af;
+        margin-bottom: 10px;
+    }
+
+    .upload-text {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+
+    .upload-link {
+        color: #3b82f6;
+        font-size: 14px;
+    }
+
+    .photo-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .photo-slot {
+        aspect-ratio: 1;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f9fafb;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .photo-slot img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .photo-slot .placeholder {
+        color: #9ca3af;
+        font-size: 12px;
+    }
+
+    .photo-slot .remove-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 24px;
+        height: 24px;
+        background: #ef4444;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 12px;
+    }
+
+    .upload-tips {
+        margin-top: 15px;
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 6px;
+    }
+
+    .upload-tips-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 8px;
+    }
+
+    .upload-tips ul {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .qc-score {
+        background: #f0fdf4;
+        border: 2px solid #10b981;
+        border-radius: 8px;
+        padding: 20px;
+        text-align: center;
+    }
+
+    .score-label {
+        font-size: 12px;
+        color: #6b7280;
+        margin-bottom: 8px;
+    }
+
+    .score-value {
+        font-size: 48px;
+        font-weight: 700;
+        color: #10b981;
+        margin-bottom: 8px;
+    }
+
+    .score-bar {
+        width: 100%;
+        height: 8px;
+        background: #d1fae5;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 8px;
+    }
+
+    .score-bar-fill {
+        height: 100%;
+        background: linear-gradient(to right, #10b981, #059669);
+        transition: width 0.3s;
+    }
+
+    .score-calculation {
+        font-size: 11px;
+        color: #6b7280;
+        margin-top: 10px;
+    }
+
+    .grade-scale {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .grade-scale-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: #374151;
+        margin-bottom: 10px;
+    }
+
+    .grade-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        font-size: 12px;
+    }
+
+    .grade-item .grade {
+        font-weight: 600;
+    }
+
+    .grade-item.excellent .grade {
+        color: #10b981;
+    }
+
+    .grade-item.good .grade {
+        color: #3b82f6;
+    }
+
+    .grade-item.acceptable .grade {
+        color: #f59e0b;
+    }
+
+    .grade-item.below .grade {
+        color: #ef4444;
+    }
+
+    .decision-section {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .decision-options {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .decision-option {
+        padding: 16px;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: start;
+        gap: 12px;
+    }
+
+    .decision-option:hover {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .decision-option.selected {
+        border-color: #10b981;
+        background: #f0fdf4;
+    }
+
+    .decision-option.selected.pass {
+        border-color: #10b981;
+    }
+
+    .decision-option.selected.conditions {
+        border-color: #f59e0b;
+        background: #fffbeb;
+    }
+
+    .decision-option.selected.fail {
+        border-color: #ef4444;
+        background: #fef2f2;
+    }
+
+    .decision-radio {
+        margin-top: 2px;
+    }
+
+    .decision-content {
+        flex: 1;
+    }
+
+    .decision-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .decision-desc {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .decision-bullets {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .sidebar-section {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .sidebar-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 13px;
+    }
+
+    .info-row:last-child {
+        border-bottom: none;
+    }
+
+    .info-label {
+        color: #6b7280;
+    }
+
+    .info-value {
+        font-weight: 600;
+        color: #1f2937;
+    }
+
+    .sampling-reqs {
+        font-size: 13px;
+        color: #4b5563;
+        line-height: 1.6;
+    }
+
+    .sampling-reqs li {
+        margin-bottom: 6px;
+    }
+
+    .inspection-status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .qc-history-item {
+        padding: 12px;
+        background: #f9fafb;
+        border-radius: 6px;
+        margin-bottom: 10px;
+    }
+
+    .history-vendor {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+
+    .history-details {
+        font-size: 12px;
+        color: #6b7280;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .history-score {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        font-weight: 600;
+    }
+
+    .history-score.high {
+        color: #10b981;
+    }
+
+    .history-score.medium {
+        color: #f59e0b;
+    }
+
+    .delivery-prep {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+    }
+
+    .prep-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-label {
+        font-size: 13px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 8px;
+        display: block;
+    }
+
+    .form-select,
+    .form-input {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+    }
+
+    .notify-group {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #4b5563;
+        cursor: pointer;
+    }
+
+    .bottom-actions {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #4b5563;
+        border: 1px solid #d1d5db;
+    }
+
+    .btn-secondary:hover {
+        background: #f9fafb;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+
+    .btn-primary:disabled {
+        background: #9ca3af;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid px-4 py-4">
+    <!-- Header -->
+    <div class="qc-header">
+        
+
+        <div class="qc-title">QC INSPECTION</div>
+        <div class="qc-subtitle">{{ inspection.reference_number }} | {{ job.title }}</div>
+
+        <div class="qc-meta">
+            <div>
+                <strong>Vendor:</strong> {{ vendor.name }}<br>
+                <strong>Delivered:</strong> {{ inspection.delivered_date|date:"M d, Y, g:i A" }}<br>
+            </div>
+            <div style="text-align: right;">
+                <strong>Warehouse Location:</strong> {{ inspection.warehouse_location }}<br>
+                <span class="inspection-status">You Inspected: {{ inspection.inspected_quantity }} pcs</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="qc-container">
+        <!-- Main Content -->
+        <div class="qc-main">
+            <!-- Delivery Checklist -->
+            <div class="qc-section">
+                <div class="section-header">
+                    <span class="section-icon">📦</span>
+                    <h3 class="section-title">DELIVERY CHECKLIST</h3>
+                </div>
+
+                <div class="checklist-item">
+                    <input type="checkbox" id="check1" checked>
+                    <label for="check1" class="checklist-label">Packaging intact (no damage)</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="check2" checked>
+                    <label for="check2" class="checklist-label">Correct quantity (50 of 50 pcs)</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="check3" checked>
+                    <label for="check3" class="checklist-label">Anonymous Job ID label present</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="check4" checked>
+                    <label for="check4" class="checklist-label">Sealed boxes/packaging</label>
+                </div>
+                <div class="checklist-item">
+                    <input type="checkbox" id="check5" checked>
+                    <label for="check5" class="checklist-label">No visible damage to contents</label>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label class="form-label">Delivery Notes:</label>
+                    <textarea class="delivery-notes" id="deliveryNotes"
+                        placeholder="All items delivered in excellent condition. Packaging secure. No issues noted.">All items delivered in excellent condition. Packaging secure. No issues noted.</textarea>
+                </div>
+            </div>
+
+            <!-- Quality Inspection -->
+            <div class="qc-section">
+                <div class="section-header">
+                    <span class="section-icon">⭐</span>
+                    <h3 class="section-title">QUALITY INSPECTION (Rate 1-5)</h3>
+                </div>
+
+                <!-- Print Quality -->
+                <div class="quality-item">
+                    <div class="quality-label">1. Print Quality</div>
+                    <div class="rating-buttons" data-rating-group="print-quality">
+                        <button class="rating-btn" data-value="1">1</button>
+                        <button class="rating-btn" data-value="2">2</button>
+                        <button class="rating-btn" data-value="3">3</button>
+                        <button class="rating-btn" data-value="4">4</button>
+                        <button class="rating-btn active" data-value="5">5</button>
+                    </div>
+                    <div class="rating-stars" data-stars-group="print-quality">
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                    </div>
+                    <div class="rating-note">Selected: 5/5 ★★★★★ ★</div>
+                    <textarea class="quality-notes"
+                        placeholder="Notes on print quality...">Excellent print clarity and color.</textarea>
+                </div>
+
+                <!-- Color Accuracy -->
+                <div class="quality-item">
+                    <div class="quality-label">2. Color Accuracy</div>
+                    <div class="rating-buttons" data-rating-group="color-accuracy">
+                        <button class="rating-btn" data-value="1">1</button>
+                        <button class="rating-btn" data-value="2">2</button>
+                        <button class="rating-btn" data-value="3">3</button>
+                        <button class="rating-btn" data-value="4">4</button>
+                        <button class="rating-btn active" data-value="5">5</button>
+                    </div>
+                    <div class="rating-stars" data-stars-group="color-accuracy">
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                    </div>
+                    <div class="rating-note">Selected: 5/5 ★★★★★</div>
+                    <textarea class="quality-notes"
+                        placeholder="Notes on color accuracy...">Perfect Pantone match.</textarea>
+                </div>
+
+                <!-- Material Quality -->
+                <div class="quality-item">
+                    <div class="quality-label">3. Material Quality</div>
+                    <div class="rating-buttons" data-rating-group="material-quality">
+                        <button class="rating-btn" data-value="1">1</button>
+                        <button class="rating-btn" data-value="2">2</button>
+                        <button class="rating-btn" data-value="3">3</button>
+                        <button class="rating-btn active" data-value="4">4</button>
+                        <button class="rating-btn" data-value="5">5</button>
+                    </div>
+                    <div class="rating-stars" data-stars-group="material-quality">
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span>★</span>
+                    </div>
+                    <div class="rating-note">Selected: 4/5 ★★★★☆</div>
+                    <textarea class="quality-notes"
+                        placeholder="Notes on material quality...">Good fabric, slight variation in 2 pieces but acceptable.</textarea>
+                </div>
+
+                <!-- Finishing Quality -->
+                <div class="quality-item">
+                    <div class="quality-label">4. Finishing Quality</div>
+                    <div class="rating-buttons" data-rating-group="finishing-quality">
+                        <button class="rating-btn" data-value="1">1</button>
+                        <button class="rating-btn" data-value="2">2</button>
+                        <button class="rating-btn" data-value="3">3</button>
+                        <button class="rating-btn" data-value="4">4</button>
+                        <button class="rating-btn active" data-value="5">5</button>
+                    </div>
+                    <div class="rating-stars" data-stars-group="finishing-quality">
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                    </div>
+                    <div class="rating-note">Selected: 5/5 ★★★★★</div>
+                    <textarea class="quality-notes"
+                        placeholder="Notes on finishing quality...">Clean edges, professional finish.</textarea>
+                </div>
+
+                <!-- Overall Quality -->
+                <div class="quality-item">
+                    <div class="quality-label">5. Overall Quality</div>
+                    <div class="rating-buttons" data-rating-group="overall-quality">
+                        <button class="rating-btn" data-value="1">1</button>
+                        <button class="rating-btn" data-value="2">2</button>
+                        <button class="rating-btn" data-value="3">3</button>
+                        <button class="rating-btn" data-value="4">4</button>
+                        <button class="rating-btn active" data-value="5">5</button>
+                    </div>
+                    <div class="rating-stars" data-stars-group="overall-quality">
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                        <span class="active">★</span>
+                    </div>
+                    <div class="rating-note">Selected: 5/5 ★★★★★</div>
+                    <textarea class="quality-notes"
+                        placeholder="Notes on overall quality...">Exceeds expectations. Highly satisfied.</textarea>
+                </div>
+            </div>
+
+            <!-- Inspection Photos -->
+            <div class="qc-section">
+                <div class="section-header">
+                    <span class="section-icon">📷</span>
+                    <h3 class="section-title">INSPECTION PHOTOS (Min 2, Max 10)</h3>
+                </div>
+
+                <div class="photo-upload-section" onclick="document.getElementById('photoInput').click()">
+                    <div class="upload-icon">📁</div>
+                    <div class="upload-text">Drag & Drop Zone</div>
+                    <div class="upload-link">or 📎 Upload Photos</div>
+                </div>
+                <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
+
+                <div class="photo-grid">
+                    <div class="photo-slot">
+                        <span class="placeholder">Photo 1</span>
+                    </div>
+                    <div class="photo-slot">
+                        <span class="placeholder">Photo 2</span>
+                    </div>
+                    <div class="photo-slot">
+                        <span class="placeholder">Photo 3</span>
+                    </div>
+                    <div class="photo-slot">
+                        <span class="placeholder">Photo 4</span>
+                    </div>
+                    <div class="photo-slot">
+                        <span class="placeholder">Photo 5</span>
+                    </div>
+                    <div class="photo-slot">
+                        <span class="placeholder">Photo 6</span>
+                    </div>
+                </div>
+
+                <div class="upload-tips">
+                    <div class="upload-tips-title">Tips:</div>
+                    <ul>
+                        <li>Capture overall product view</li>
+                        <li>Close-ups of print quality</li>
+                        <li>Any defects or issues</li>
+                        <li>Packaging condition</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- QC Decision -->
+            <div class="decision-section">
+                <div class="section-header">
+                    <span class="section-icon">✓</span>
+                    <h3 class="section-title">QC DECISION</h3>
+                </div>
+
+                <div class="decision-options">
+                    <div class="decision-option selected pass" data-decision="pass">
+                        <input type="radio" name="qc-decision" value="pass" class="decision-radio" checked>
+                        <div class="decision-content">
+                            <div class="decision-title" style="color: #10b981;">★ PASS - Approve for delivery</div>
+                            <div class="decision-desc">Quality meets/exceeds standards</div>
+                            <ul class="decision-bullets">
+                                <li>Vendor VPS > 1.0 point</li>
+                                <li>Ready for client delivery</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="decision-option" data-decision="conditions">
+                        <input type="radio" name="qc-decision" value="conditions" class="decision-radio">
+                        <div class="decision-content">
+                            <div class="decision-title" style="color: #f59e0b;">⚠ PASS WITH CONDITIONS</div>
+                            <div class="decision-desc">Minor issues, requires AM approval</div>
+                            <ul class="decision-bullets">
+                                <li>May need client notification</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="decision-option" data-decision="fail">
+                        <input type="radio" name="qc-decision" value="fail" class="decision-radio">
+                        <div class="decision-content">
+                            <div class="decision-title" style="color: #ef4444;">✗ FAIL - Reject & Request Rework</div>
+                            <div class="decision-desc">Quality below standards</div>
+                            <ul class="decision-bullets">
+                                <li>Vendor VPS - 2.0 points</li>
+                                <li>Vendor VPS < 2.0 points</li>
+                                <li>Rework workflow triggered</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Delivery Preparation -->
+            <div class="delivery-prep">
+                <div class="section-header">
+                    <span class="section-icon">📦</span>
+                    <h3 class="section-title">DELIVERY PREPARATION</h3>
+                </div>
+
+                <div class="prep-grid">
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">Shelf Location:</label>
+                            <select class="form-select" id="shelfLocation">
+                                <option value="A-15">A-15</option>
+                                <option value="A-16">A-16</option>
+                                <option value="B-10">B-10</option>
+                                <option value="B-11">B-11</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Packaging Verification:</label>
+                            <div class="checklist-item">
+                                <input type="checkbox" id="pack1" checked>
+                                <label for="pack1" class="checklist-label">All items properly packed</label>
+                            </div>
+                            <div class="checklist-item">
+                                <input type="checkbox" id="pack2" checked>
+                                <label for="pack2" class="checklist-label">Anonymous Job ID label applied</label>
+                            </div>
+                            <div class="checklist-item">
+                                <input type="checkbox" id="pack3" checked>
+                                <label for="pack3" class="checklist-label">Quantity marked on boxes</label>
+                            </div>
+                            <div class="checklist-item">
+                                <input type="checkbox" id="pack4" checked>
+                                <label for="pack4" class="checklist-label">Fragile stickers (if needed)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <div class="form-group">
+                            <label class="form-label">Box Count:</label>
+                            <input type="number" class="form-input" value="1" min="1">
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Notes to AM:</label>
+                            <textarea class="delivery-notes" style="min-height: 120px;"
+                                id="notesToAM">All 50 t-shirts inspected. Quality excellent. Ready for immediate delivery.</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label class="form-label">Notify:</label>
+                    <div class="notify-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked>
+                            Account Manager (Sarah Mwanji)
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox" checked>
+                            Send email notification
+                        </label>
+                        <label class="checkbox-label">
+                            <input type="checkbox">
+                            Mark as urgent
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <!-- QC Score -->
+            <div class="qc-score">
+                <div class="score-label">QC SCORE (Auto-calculated)</div>
+                <div class="score-value" id="totalScore">96%</div>
+                <div class="score-bar">
+                    <div class="score-bar-fill" id="scoreBar" style="width: 96%"></div>
+                </div>
+                <div class="score-calculation">
+                    Calculation:<br>
+                    (5/5 + 5/5 + 4/5 + 5/5 + 5/5) ÷ 5 = 100 ÷ 25 = 96%
+                </div>
+
+                <div class="grade-scale">
+                    <div class="grade-scale-title">Grade Scale:</div>
+                    <div class="grade-item excellent">
+                        <span>• A (90-100%):</span>
+                        <span class="grade">😊 Excellent</span>
+                    </div>
+                    <div class="grade-item good">
+                        <span>• B (80-89%):</span>
+                        <span class="grade">Good</span>
+                    </div>
+                    <div class="grade-item acceptable">
+                        <span>• C (70-79%):</span>
+                        <span class="grade">Acceptable</span>
+                    </div>
+                    <div class="grade-item below">
+                        <span>• D (60-69%):</span>
+                        <span class="grade">Below Standard</span>
+                    </div>
+                    <div class="grade-item below">
+                        <span>• F (Below 60%):</span>
+                        <span class="grade">Failed</span>
+                    </div>
+                </div>
+
+                <div
+                    style="margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; text-align: center;">
+                    <div style="font-size: 12px; color: #065f46; font-weight: 600;">
+                        ✓ Consistent high quality
+                    </div>
+                </div>
+            </div>
+
+            <!-- Item Summary -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">📋 ITEM SUMMARY</div>
+                <div class="info-row">
+                    <span class="info-label">Quote #:</span>
+                    <span class="info-value">EST-060180-01</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Client:</span>
+                    <span class="info-value">Artisan Makers</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Product:</span>
+                    <span class="info-value">Custom T-shirts</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Quantity:</span>
+                    <span class="info-value">50 pcs</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Vendor:</span>
+                    <span class="info-value">Elite Print House</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Cost:</span>
+                    <span class="info-value">70,000 KES</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Charged:</span>
+                    <span class="info-value">49,000 KES</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Margin:</span>
+                    <span class="info-value" style="color: #10b981;">+3,000 KES (27%)</span>
+                </div>
+            </div>
+
+            <!-- Sampling Requirements -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">🔍 SAMPLING REQUIREMENTS</div>
+                <div style="margin-bottom: 12px;">
+                    <div class="info-label">Total Quantity: 50 pcs</div>
+                    <div class="info-value">Required Sample: 10 pcs (20%)</div>
+                </div>
+
+                <div class="sampling-reqs">
+                    <strong>Sampling Standard:</strong>
+                    <ul style="margin-top: 8px; padding-left: 20px;">
+                        <li>• Under 100 pcs: 20% sample</li>
+                        <li>• 100-1000: 10% sample</li>
+                        <li>• 1000-5000: 10% sample</li>
+                        <li>• Over 5000: 5% sample min 250</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Vendor QC History -->
+            <div class="sidebar-section">
+                <div class="sidebar-title">📊 VENDOR QC HISTORY</div>
+
+                <div class="qc-history-item">
+                    <div class="history-vendor">Elite Print House</div>
+                    <div class="history-details">
+                        <div>Last 3 QC Scores:</div>
+                        <div>• Nov 14: 95% (A) ⭐⭐⭐⭐⭐ - T-shirts</div>
+                        <div>• Nov 10: 92% (A) ⭐⭐⭐⭐⭐ - Hoodies</div>
+                        <div>• Oct 28: 98% (A) ⭐⭐⭐⭐⭐ - Cards</div>
+                        <div style="margin-top: 8px;">
+                            <strong>Average: 92% (A)</strong>
+                            <span class="history-score high">★★★★★</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Actions -->
+    <div class="bottom-actions">
+        <button class="btn btn-secondary" onclick="saveDraft()">
+            Save Draft
+        </button>
+        <div>
+            <button class="btn btn-primary" onclick="submitQC()" id="submitBtn">
+                Submit QC & Handoff to AM →
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Rating button functionality
+    document.querySelectorAll('.rating-buttons').forEach(group => {
+        const buttons = group.querySelectorAll('.rating-btn');
+        const groupName = group.dataset.ratingGroup;
+        const starsGroup = document.querySelector(`[data-stars-group="${groupName}"]`);
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                // Remove active from all buttons in this group
+                buttons.forEach(b => b.classList.remove('active'));
+                // Add active to clicked button
+                this.classList.add('active');
+
+                // Update stars
+                const value = parseInt(this.dataset.value);
+                if (starsGroup) {
+                    const stars = starsGroup.querySelectorAll('span');
+                    stars.forEach((star, index) => {
+                        if (index < value) {
+                            star.classList.add('active');
+                        } else {
+                            star.classList.remove('active');
+                        }
+                    });
+                }
+
+                // Update rating note
+                const note = this.closest('.quality-item').querySelector('.rating-note');
+                const starText = '★'.repeat(value) + '☆'.repeat(5 - value);
+                note.textContent = `Selected: ${value}/5 ${starText}`;
+
+                // Recalculate score
+                calculateScore();
+            });
+        });
+    });
+
+    // Calculate QC Score
+    function calculateScore() {
+        const ratings = [];
+        document.querySelectorAll('.rating-buttons').forEach(group => {
+            const activeBtn = group.querySelector('.rating-btn.active');
+            if (activeBtn) {
+                ratings.push(parseInt(activeBtn.dataset.value));
+            }
+        });
+
+        if (ratings.length > 0) {
+            const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+            const percentage = (average / 5) * 100;
+
+            document.getElementById('totalScore').textContent = percentage.toFixed(0) + '%';
+            document.getElementById('scoreBar').style.width = percentage + '%';
+        }
+    }
+
+    // Decision option selection
+    document.querySelectorAll('.decision-option').forEach(option => {
+        option.addEventListener('click', function () {
+            document.querySelectorAll('.decision-option').forEach(opt => {
+                opt.classList.remove('selected', 'pass', 'conditions', 'fail');
+            });
+
+            const decision = this.dataset.decision;
+            this.classList.add('selected', decision);
+            this.querySelector('input[type="radio"]').checked = true;
+        });
+    });
+
+    // Photo upload handling
+    document.getElementById('photoInput').addEventListener('change', function (e) {
+        const files = e.target.files;
+        const photoSlots = document.querySelectorAll('.photo-slot');
+
+        Array.from(files).forEach((file, index) => {
+            if (index < photoSlots.length) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    photoSlots[index].innerHTML = `
+                    <img src="${e.target.result}" alt="Photo ${index + 1}">
+                    <button class="remove-btn" onclick="removePhoto(${index})">×</button>
+                `;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    });
+
+    function removePhoto(index) {
+        const photoSlots = document.querySelectorAll('.photo-slot');
+        photoSlots[index].innerHTML = `<span class="placeholder">Photo ${index + 1}</span>`;
+    }
+
+    function saveDraft() {
+        alert('QC inspection draft saved successfully!');
+    }
+
+    function submitQC() {
+        // Gather all form data
+        const formData = {
+            inspection_id: {{ inspection.id }
+    },
+    print_quality: parseInt(document.querySelector('[data-rating-group="print-quality"] .rating-btn.active').dataset.value),
+        color_accuracy: parseInt(document.querySelector('[data-rating-group="color-accuracy"] .rating-btn.active').dataset.value),
+            material_quality: parseInt(document.querySelector('[data-rating-group="material-quality"] .rating-btn.active').dataset.value),
+                finishing_quality: parseInt(document.querySelector('[data-rating-group="finishing-quality"] .rating-btn.active').dataset.value),
+                    overall_quality: parseInt(document.querySelector('[data-rating-group="overall-quality"] .rating-btn.active').dataset.value),
+                        print_quality_notes: document.querySelector('[data-rating-group="print-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
+                            color_accuracy_notes: document.querySelector('[data-rating-group="color-accuracy"]').closest('.quality-item').querySelector('.quality-notes').value,
+                                material_quality_notes: document.querySelector('[data-rating-group="material-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
+                                    finishing_quality_notes: document.querySelector('[data-rating-group="finishing-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
+                                        overall_quality_notes: document.querySelector('[data-rating-group="overall-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
+                                            delivery_notes: document.getElementById('deliveryNotes').value,
+                                                notes_to_am: document.getElementById('notesToAM').value,
+                                                    decision: document.querySelector('input[name="qc-decision"]:checked').value
+    };
+
+    // Disable submit button
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    // Submit via AJAX
+    fetch('{% url "submit_qc" %}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: JSON.stringify(formData)
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('QC inspection submitted successfully!');
+                window.location.href = '{% url "production2_dashboard" %}';
+            } else {
+                alert('Error: ' + data.message);
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit QC & Handoff to AM →';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while submitting the QC inspection');
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit QC & Handoff to AM →';
+        });
+}
+
+    // Initialize score on page load
+    calculateScore();
+</script>
+{% endblock %}

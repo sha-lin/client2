@@ -1,0 +1,57 @@
+{% load custom_filters %}
+{% load i18n jazzmin %}
+
+{% if fieldset.name %}
+<div class="card card-outline {% if 'collapse' in fieldset.classes %}collapsed-card{% endif %}">
+    <div class="card-header">
+        <h3 class="card-title">
+            {{ fieldset.name }}
+        </h3>
+        <div class="card-tools">
+            <button type="button" class="btn btn-tool" data-card-widget="collapse" aria-label="Minimise section">
+                <i class="fas fa-{% if 'collapse' in fieldset.classes %}plus{% else %}minus{% endif %}"></i>
+            </button>
+        </div>
+    </div>
+    {%if fieldset.description %}
+    <div class="card-footer">
+        <div class="card-title">
+            {{ fieldset.description }}
+        </div>
+    </div>
+    {%endif%}
+
+    <div class="p-5{% if fieldset.name %} card-body{% endif %}">
+        {% endif %}
+
+        {% for line in fieldset %}
+        <div
+            class="form-group{% if line.fields|length_is:'1' and line.errors %} errors{% endif %}{% if not line.has_visible_field %} hidden{% endif %}{% for field in line %}{% if field.field.name %} field-{{ field.field.name }}{% endif %}{% endfor %}">
+            <div class="row">
+                {% for field in line %}
+                <label
+                    class="{% if not line.fields|length_is:'1' and forloop.counter != 1 %}col-auto {% else %}col-sm-3 {% endif %}text-left"
+                    for="id_{{ field.field.name }}">
+                    {{ field.field.label|capfirst }}
+                    {% if field.field.field.required %}
+                    <span class="text-red">* </span>
+                    {% endif %}
+                </label>
+                <div class="{% if not line.fields|length_is:'1' %} col-auto  fieldBox {% else %} col-sm-7 {% endif %}
+                             {% if field.field.name %} field-{{ field.field.name }}{% endif %}
+                             {% if field.field.field.required %} required{% endif %}">
+                    {{ field.errors.as_ul }}
+                    {{ field }}
+                    {% if field.field.help_text %}
+                    <div class="help small text-muted">{{ field.field.help_text|safe }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if fieldset.name %}
+    </div>
+</div>
+{% endif %}

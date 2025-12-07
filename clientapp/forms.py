@@ -1,21 +1,19 @@
 from django import forms
-from .models import Lead, Client, Job, Product, Quote, ProductionUpdate
+from django.forms import inlineformset_factory
+from django.core.exceptions import ValidationError
+from .models import (
+    Lead, Client, Job, Product, Quote, ProductionUpdate,
+    ProductVariable, ProductVariableOption, ProductImage, ProductTag
+)
 
 class LeadForm(forms.ModelForm):
-    PRODUCT_CHOICES = [
-        ('', 'Select product'),
-        ('Business Cards', 'Business Cards'),
-        ('Brochures', 'Brochures'),
-        ('Banners & Signage', 'Banners & Signage'),
-        ('Packaging', 'Packaging'),
-        ('Corporate Stationery', 'Corporate Stationery'),
-        ('Labels', 'Labels'),
-    ]
-   
-    product_interest = forms.ChoiceField(
-        choices=PRODUCT_CHOICES,
-        required=False,
-        widget=forms.Select(attrs={'class': 'form-select'})
+    # Product interest will be populated from Product model dynamically
+    product_interest = forms.ModelChoiceField(
+        queryset=Product.objects.filter(is_visible=True, status='published').order_by('name'),
+        required=True,
+        empty_label='Select a product',
+        widget=forms.Select(attrs={'class': 'form-select w-full', 'id': 'id_product_interest'}),
+        to_field_name='name'
     )
    
     class Meta:
@@ -26,32 +24,44 @@ class LeadForm(forms.ModelForm):
             'name': forms.TextInput(attrs={
                 'class': 'form-input w-full',
                 'placeholder': 'Enter name or company',
-                'id': 'id_name'
+                'id': 'id_name',
+                'required': 'required'
             }),
             'email': forms.EmailInput(attrs={
                 'class': 'form-input w-full',
                 'placeholder': 'email@example.com',
-                'id': 'id_email'
+                'id': 'id_email',
+                'required': 'required'
             }),
             'phone': forms.TextInput(attrs={
                 'class': 'form-input w-full',
                 'placeholder': '+1234567890',
-                'id': 'id_phone'
+                'id': 'id_phone',
+                'required': 'required'
             }),
             'source': forms.Select(attrs={
                 'class': 'form-select w-full',
-                'id': 'id_source'
+                'id': 'id_source',
+                'required': 'required'
             }),
             'preferred_contact': forms.Select(attrs={
                 'class': 'form-select w-full',
-                'id': 'id_preferred_contact'
+                'id': 'id_preferred_contact',
+                'required': 'required'
             }),
             'follow_up_date': forms.DateInput(attrs={
                 'class': 'form-input w-full',
                 'type': 'date',
-                'id': 'id_follow_up_date'
+                'id': 'id_follow_up_date',
+                'required': 'required'
             }),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Make all fields required
+        for field_name in self.fields:
+            self.fields[field_name].required = True
 
 
 class ClientForm(forms.ModelForm):
@@ -76,7 +86,8 @@ class ClientForm(forms.ModelForm):
         model = Client
         fields = ['client_type', 'name', 'company', 'email', 'phone',
                   'preferred_channel', 'lead_source', 'vat_tax_id',
-                  'payment_terms', 'credit_limit', 'risk_rating', 'is_reseller']
+                  'payment_terms', 'credit_limit', 'risk_rating', 'is_reseller',
+                  'delivery_address', 'delivery_instructions']
         widgets = {
             'client_type': forms.RadioSelect(attrs={
                 'class': 'form-radio'
@@ -128,6 +139,18 @@ class ClientForm(forms.ModelForm):
                 'class': 'w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 relative',
                 'id': 'id_is_reseller'
             }),
+            'delivery_address': forms.Textarea(attrs={
+                'class': 'form-textarea w-full',
+                'rows': 3,
+                'placeholder': 'Enter default delivery address',
+                'id': 'id_delivery_address'
+            }),
+            'delivery_instructions': forms.Textarea(attrs={
+                'class': 'form-textarea w-full',
+                'rows': 3,
+                'placeholder': 'Enter specific delivery instructions',
+                'id': 'id_delivery_instructions'
+            }),
         }
 
 
@@ -152,26 +175,6 @@ class JobForm(forms.ModelForm):
             'status': forms.Select(attrs={
                 'class': 'form-select border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-black focus:border-black w-full'
             }),
-        }
-
-
-class ProductForm(forms.ModelForm):
-    class Meta:
-        model = Product
-        fields = [
-            'category', 'name', 'product_type', 'base_price', 'availability',
-            'stock_quantity', 'lead_time', 'description', 'is_active'
-        ]
-        widgets = {
-            'category': forms.Select(attrs={'class': 'form-select'}),
-            'name': forms.TextInput(attrs={'class': 'form-input'}),
-            'product_type': forms.Select(attrs={'class': 'form-select'}),
-            'base_price': forms.NumberInput(attrs={'class': 'form-input', 'step': '0.01'}),
-            'availability': forms.Select(attrs={'class': 'form-select'}),
-            'stock_quantity': forms.NumberInput(attrs={'class': 'form-input', 'min': '0'}),
-            'lead_time': forms.TextInput(attrs={'class': 'form-input'}),
-            'description': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
-            'is_active': forms.CheckboxInput(attrs={'class': 'h-4 w-4'}),
         }
 
 
@@ -202,3 +205,5 @@ class ProductionUpdateForm(forms.ModelForm):
             'progress': forms.NumberInput(attrs={'class': 'form-input', 'min': '0', 'max': '100'}),
             'notes': forms.Textarea(attrs={'class': 'form-textarea', 'rows': 3}),
         }
+
+

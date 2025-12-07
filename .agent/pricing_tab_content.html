@@ -1,0 +1,479 @@
+\u003c!-- Pricing \u0026 Variables Tab --\u003e
+\u003cdiv class="tab-content hidden" data-content="pricing"\u003e
+\u003c!-- Base Pricing Information --\u003e
+\u003cdiv class="bg-white rounded-lg border border-gray-200 p-6 mb-6"\u003e
+\u003ch3 class="text-base font-semibold text-gray-900 mb-4"\u003eBase Pricing Information\u003c/h3\u003e
+\u003cdiv class="space-y-4"\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-2"\u003e
+Pricing Model \u003cspan class="text-red-500"\u003e*\u003c/span\u003e
+\u003c/label\u003e
+\u003cdiv class="space-y-2"\u003e
+\u003clabel class="flex items-center"\u003e
+\u003cinput type="radio" name="pricing_model" value="variable" checked class="mr-2 text-blue-600"\u003e
+\u003cspan class="text-sm text-gray-900"\u003e● Variable Pricing (customer selects options)\u003c/span\u003e
+\u003c/label\u003e
+\u003clabel class="flex items-center"\u003e
+\u003cinput type="radio" name="pricing_model" value="simple" class="mr-2 text-blue-600"\u003e
+\u003cspan class="text-sm text-gray-700"\u003eSimple/Fixed Pricing (one price)\u003c/span\u003e
+\u003c/label\u003e
+\u003clabel class="flex items-center"\u003e
+\u003cinput type="radio" name="pricing_model" value="quote" class="mr-2 text-blue-600"\u003e
+\u003cspan class="text-sm text-gray-700"\u003eQuote Based (PT must cost)\u003c/span\u003e
+\u003c/label\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003cdiv class="grid grid-cols-2 gap-4"\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003e
+Base Cost (EVP) \u003cspan class="text-red-500"\u003e*\u003c/span\u003e
+\u003c/label\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cspan class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm
+text-gray-700"\u003eKES\u003c/span\u003e
+\u003cinput type="number" name="base_cost" value="15" step="0.01" required
+class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003c/div\u003e
+\u003cp class="text-xs text-gray-500 mt-1"\u003eLowest possible vendor cost per piece\u003c/p\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003e
+Price Display \u003cspan class="text-red-500"\u003e*\u003c/span\u003e
+\u003c/label\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cspan class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700"\u003eFrom
+KES\u003c/span\u003e
+\u003cinput type="text" name="price_display" value="X" placeholder="X"
+class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003cdiv class="grid grid-cols-3 gap-4"\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003e
+Default Margin % \u003cspan class="text-red-500"\u003e*\u003c/span\u003e
+\u003c/label\u003e
+\u003cinput type="number" name="default_margin" value="30" step="1" required
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003e
+Minimum Margin % \u003cspan class="text-red-500"\u003e*\u003c/span\u003e
+\u003c/label\u003e
+\u003cinput type="number" name="minimum_margin" value="15" step="1" required
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003cp class="text-xs text-gray-500 mt-1"\u003eBelow this triggers approval\u003c/p\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003eMinimum Order Value\u003c/label\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cspan class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm
+text-gray-700"\u003eKES\u003c/span\u003e
+\u003cinput type="number" name="minimum_order_value" value="2500" step="1"
+class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Production \u0026 Vendor Information --\u003e
+\u003cdiv class="bg-white rounded-lg border border-gray-200 p-6 mb-6"\u003e
+\u003ch3 class="text-base font-semibold text-gray-900 mb-4"\u003eProduction \u0026 Vendor Information\u003c/h3\u003e
+\u003cdiv class="space-y-4"\u003e
+\u003cdiv class="grid grid-cols-3 gap-4"\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003e
+Standard Lead Time \u003cspan class="text-red-500"\u003e*\u003c/span\u003e
+\u003c/label\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cinput type="number" name="standard_lead_time" value="3" step="1" required
+class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003cselect name="lead_time_unit"
+class="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003coption value="days" selected\u003eDays\u003c/option\u003e
+\u003coption value="hours"\u003eHours\u003c/option\u003e
+\u003coption value="weeks"\u003eWeeks\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003eProduction Method\u003c/label\u003e
+\u003cselect name="production_method"
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003coption value="digital_offset" selected\u003eDigital Offset Printing\u003c/option\u003e
+\u003coption value="offset"\u003eOffset Printing\u003c/option\u003e
+\u003coption value="screen"\u003eScreen Printing\u003c/option\u003e
+\u003coption value="digital"\u003eDigital Printing\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003e
+Primary Vendor \u003cspan class="text-red-500"\u003e*\u003c/span\u003e
+\u003c/label\u003e
+\u003cselect name="primary_vendor" required
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003coption value="vendor_a" selected\u003eVendor A - Premium Printers\u003c/option\u003e
+\u003coption value="vendor_b"\u003eVendor B\u003c/option\u003e
+\u003coption value="vendor_c"\u003eVendor C\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003cdiv class="grid grid-cols-2 gap-4"\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003eAlternative Vendors\u003c/label\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cspan class="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded"\u003eVendor B\u003c/span\u003e
+\u003cspan class="px-2 py-1 bg-blue-100 text-blue-700 text-sm rounded"\u003eVendor D\u003c/span\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-900 mb-1"\u003eMinimum Quantity\u003c/label\u003e
+\u003cinput type="number" name="minimum_quantity" value="50" step="1"
+class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003cdiv\u003e
+\u003clabel class="flex items-center"\u003e
+\u003cinput type="checkbox" name="rush_production_available" checked class="mr-2 rounded text-blue-600"\u003e
+\u003cspan class="text-sm font-medium text-gray-900"\u003e☑ Rush production available\u003c/span\u003e
+\u003c/label\u003e
+\u003cdiv class="ml-6 mt-2 grid grid-cols-2 gap-4"\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-xs font-medium text-gray-700 mb-1"\u003eRush Lead Time\u003c/label\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cinput type="number" name="rush_lead_time" value="1" step="1"
+class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003cselect name="rush_lead_time_unit"
+class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003coption value="days" selected\u003eDays\u003c/option\u003e
+\u003coption value="hours"\u003eHours\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-xs font-medium text-gray-700 mb-1"\u003eRush Upcharge\u003c/label\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cinput type="number" name="rush_upcharge" value="50" step="1"
+class="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500
+focus:border-transparent"\u003e
+\u003cspan class="px-3 py-2 bg-gray-100 border border-gray-300 rounded-md text-sm text-gray-700"\u003e%\u003c/span\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Product Variables --\u003e
+\u003cdiv class="bg-white rounded-lg border border-gray-200 p-6 mb-6"\u003e
+\u003cdiv class="flex items-center justify-between mb-4"\u003e
+\u003ch3 class="text-base font-semibold text-gray-900"\u003eProduct Variables\u003c/h3\u003e
+\u003cbutton type="button"
+class="px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-gray-800 flex items-center gap-2"\u003e
+\u003ci data-lucide="plus" class="w-4 h-4"\u003e\u003c/i\u003e
+Add Variable
+\u003c/button\u003e
+\u003c/div\u003e
+
+\u003cdiv class="space-y-3"\u003e
+\u003c!-- Variable 1: Quantity Options --\u003e
+\u003cdiv class="border border-gray-200 rounded-lg"\u003e
+\u003cdiv class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"\u003e
+\u003cdiv class="flex items-center gap-3 flex-1"\u003e
+\u003ci data-lucide="chevron-down" class="w-4 h-4 text-gray-400"\u003e\u003c/i\u003e
+\u003cdiv\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cspan class="font-medium text-gray-900"\u003eVariable 1: Quantity Options\u003c/span\u003e
+\u003cspan class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium"\u003eRequired\u003c/span\u003e
+\u003c/div\u003e
+\u003cp class="text-sm text-gray-500 mt-0.5"\u003eDisplay Order: 1 | Options: 100pcs, 250pcs, 500pcs,
+1000pcs\u003c/p\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="edit-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="trash-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-up" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-down" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv class="border-t border-gray-200 p-4 bg-blue-50"\u003e
+\u003cp class="text-sm font-medium text-gray-900 mb-3"\u003ePricing: Fixed per tier\u003c/p\u003e
+\u003cdiv class="grid grid-cols-4 gap-3"\u003e
+\u003cdiv class="bg-white p-3 rounded border border-gray-200"\u003e
+\u003cp class="text-sm font-medium text-gray-900"\u003e100pcs\u003c/p\u003e
+\u003cp class="text-xs text-gray-600 mt-1"\u003eKES 26.00/pc\u003c/p\u003e
+\u003c/div\u003e
+\u003cdiv class="bg-blue-100 p-3 rounded border border-blue-300"\u003e
+\u003cp class="text-sm font-medium text-gray-900"\u003e250pcs (Default)\u003c/p\u003e
+\u003cp class="text-xs text-blue-700 mt-1"\u003eKES 19.50/pc\u003c/p\u003e
+\u003c/div\u003e
+\u003cdiv class="bg-white p-3 rounded border border-gray-200"\u003e
+\u003cp class="text-sm font-medium text-gray-900"\u003e500pcs\u003c/p\u003e
+\u003cp class="text-xs text-gray-600 mt-1"\u003eKES 15.60/pc\u003c/p\u003e
+\u003c/div\u003e
+\u003cdiv class="bg-white p-3 rounded border border-gray-200"\u003e
+\u003cp class="text-sm font-medium text-gray-900"\u003e1000pcs\u003c/p\u003e
+\u003cp class="text-xs text-gray-600 mt-1"\u003eKES 12.48/pc\u003c/p\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Variable 2: Paper Weight --\u003e
+\u003cdiv class="border border-gray-200 rounded-lg"\u003e
+\u003cdiv class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"\u003e
+\u003cdiv class="flex items-center gap-3 flex-1"\u003e
+\u003ci data-lucide="chevron-right" class="w-4 h-4 text-gray-400"\u003e\u003c/i\u003e
+\u003cdiv\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cspan class="font-medium text-gray-900"\u003eVariable 2: Paper Weight\u003c/span\u003e
+\u003cspan class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium"\u003eRequired\u003c/span\u003e
+\u003c/div\u003e
+\u003cp class="text-sm text-gray-500 mt-0.5"\u003eDisplay Order: 2 | Pricing: + KES 0, +2, +4, +7 per
+piece\u003c/p\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="edit-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="trash-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-up" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-down" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Variable 3: Coating --\u003e
+\u003cdiv class="border border-gray-200 rounded-lg"\u003e
+\u003cdiv class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"\u003e
+\u003cdiv class="flex items-center gap-3 flex-1"\u003e
+\u003ci data-lucide="chevron-right" class="w-4 h-4 text-gray-400"\u003e\u003c/i\u003e
+\u003cdiv\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cspan class="font-medium text-gray-900"\u003eVariable 3: Coating\u003c/span\u003e
+\u003cspan class="px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded font-medium"\u003eRequired\u003c/span\u003e
+\u003c/div\u003e
+\u003cp class="text-sm text-gray-500 mt-0.5"\u003eDisplay Order: 3 | Conditional: Shows "Sides" if not
+"None"\u003c/p\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="edit-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="trash-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-up" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-down" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Variable 4: Lamination Sides --\u003e
+\u003cdiv class="border border-gray-200 rounded-lg"\u003e
+\u003cdiv class="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50"\u003e
+\u003cdiv class="flex items-center gap-3 flex-1"\u003e
+\u003ci data-lucide="chevron-right" class="w-4 h-4 text-gray-400"\u003e\u003c/i\u003e
+\u003cdiv\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cspan class="font-medium text-gray-900"\u003eVariable 4: Lamination Sides\u003c/span\u003e
+\u003cspan class="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs rounded font-medium"\u003eConditional\u003c/span\u003e
+\u003c/div\u003e
+\u003cp class="text-sm text-gray-500 mt-0.5"\u003eDisplay Order: 4 | Show When: Coating ≠ None\u003c/p\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003cdiv class="flex items-center gap-2"\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="edit-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="trash-2" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-up" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003cbutton type="button" class="p-1 hover:bg-gray-100 rounded"\u003e
+\u003ci data-lucide="arrow-down" class="w-4 h-4 text-gray-600"\u003e\u003c/i\u003e
+\u003c/button\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Conditional Logic --\u003e
+\u003cdiv class="bg-white rounded-lg border border-gray-200 p-6 mb-6"\u003e
+\u003cdiv class="flex items-center justify-between"\u003e
+\u003ch3 class="text-base font-semibold text-gray-900"\u003eConditional Logic (Advanced)\u003c/h3\u003e
+\u003clabel class="flex items-center gap-2"\u003e
+\u003cinput type="checkbox" name="enable_conditional_logic" class="rounded text-blue-600"\u003e
+\u003cspan class="text-sm text-gray-700"\u003eEnable Conditional Display Rules\u003c/span\u003e
+\u003c/label\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Conflict Detection --\u003e
+\u003cdiv class="bg-white rounded-lg border border-gray-200 p-6 mb-6"\u003e
+\u003cdiv class="flex items-center justify-between"\u003e
+\u003ch3 class="text-base font-semibold text-gray-900"\u003eConflict Detection (Advanced)\u003c/h3\u003e
+\u003clabel class="flex items-center gap-2"\u003e
+\u003cinput type="checkbox" name="enable_conflict_detection" class="rounded text-blue-600"\u003e
+\u003cspan class="text-sm text-gray-700"\u003eEnable Conflict Detection\u003c/span\u003e
+\u003c/label\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Test Your Pricing --\u003e
+\u003cdiv class="bg-white rounded-lg border border-gray-200 p-6 mb-6"\u003e
+\u003ch3 class="text-base font-semibold text-gray-900 mb-4"\u003eTest Your Pricing\u003c/h3\u003e
+\u003cdiv class="grid grid-cols-2 gap-4 mb-4"\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-700 mb-1"\u003eQuantity\u003c/label\u003e
+\u003cselect name="test_quantity"
+class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2
+focus:ring-blue-500"\u003e
+\u003coption value="500"\u003e500 pieces\u003c/option\u003e
+\u003coption value="100"\u003e100 pieces\u003c/option\u003e
+\u003coption value="250"\u003e250 pieces\u003c/option\u003e
+\u003coption value="1000"\u003e1000 pieces\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-700 mb-1"\u003ePaper Weight\u003c/label\u003e
+\u003cselect name="test_paper_weight"
+class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2
+focus:ring-blue-500"\u003e
+\u003coption value="350"\u003e350gsm\u003c/option\u003e
+\u003coption value="250"\u003e250gsm\u003c/option\u003e
+\u003coption value="300"\u003e300gsm\u003c/option\u003e
+\u003coption value="400"\u003e400gsm\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-700 mb-1"\u003eCoating\u003c/label\u003e
+\u003cselect name="test_coating"
+class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2
+focus:ring-blue-500"\u003e
+\u003coption value="matte"\u003eMatte\u003c/option\u003e
+\u003coption value="none"\u003eNone\u003c/option\u003e
+\u003coption value="gloss"\u003eGloss\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003cdiv\u003e
+\u003clabel class="block text-sm font-medium text-gray-700 mb-1"\u003eLamination Sides\u003c/label\u003e
+\u003cselect name="test_lamination"
+class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:outline-none focus:ring-2
+focus:ring-blue-500"\u003e
+\u003coption value="both"\u003eBoth Sides\u003c/option\u003e
+\u003coption value="one"\u003eOne Side\u003c/option\u003e
+\u003c/select\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003cdiv class="bg-gray-50 rounded-lg p-4 mb-4"\u003e
+\u003cp class="text-sm font-semibold text-gray-900 mb-3"\u003eCALCULATION BREAKDOWN:\u003c/p\u003e
+\u003cdiv class="space-y-1 text-sm"\u003e
+\u003cdiv class="flex justify-between"\u003e
+\u003cspan class="text-gray-700"\u003eBase (500 × KES 12):\u003c/span\u003e
+\u003cspan class="font-medium text-gray-900"\u003eKES 6,000\u003c/span\u003e
+\u003c/div\u003e
+\u003cdiv class="flex justify-between"\u003e
+\u003cspan class="text-gray-700"\u003ePremium Paper (+ KES 4):\u003c/span\u003e
+\u003cspan class="font-medium text-gray-900"\u003eKES 2,000\u003c/span\u003e
+\u003c/div\u003e
+\u003cdiv class="flex justify-between"\u003e
+\u003cspan class="text-gray-700"\u003eMatte Coating (× KES 2):\u003c/span\u003e
+\u003cspan class="font-medium text-gray-900"\u003eKES 1,000\u003c/span\u003e
+\u003c/div\u003e
+\u003cdiv class="flex justify-between"\u003e
+\u003cspan class="text-gray-700"\u003eBoth Sides (× KES 1.50):\u003c/span\u003e
+\u003cspan class="font-medium text-gray-900"\u003eKES 750\u003c/span\u003e
+\u003c/div\u003e
+\u003cdiv class="flex justify-between pt-2 border-t border-gray-300"\u003e
+\u003cspan class="text-gray-700 font-semibold"\u003eSubtotal EVP:\u003c/span\u003e
+\u003cspan class="font-semibold text-gray-900"\u003eKES 9,750\u003c/span\u003e
+\u003c/div\u003e
+\u003cdiv class="flex justify-between"\u003e
+\u003cspan class="text-gray-700"\u003eMargin (30%):\u003c/span\u003e
+\u003cspan class="font-medium text-gray-900"\u003eKES 2,925\u003c/span\u003e
+\u003c/div\u003e
+\u003cdiv class="flex justify-between pt-2 border-t border-gray-300"\u003e
+\u003cspan class="text-blue-700 font-bold"\u003eCUSTOMER PAYS:\u003c/span\u003e
+\u003cspan class="font-bold text-blue-700"\u003eKES 12,675\u003c/span\u003e
+\u003c/div\u003e
+\u003cdiv class="flex justify-between"\u003e
+\u003cspan class="text-blue-700"\u003ePer Unit:\u003c/span\u003e
+\u003cspan class="text-blue-700"\u003eKES 25.35\u003c/span\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003cdiv class="flex gap-2"\u003e
+\u003cbutton type="button"
+class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"\u003e
+Test Another Combination
+\u003c/button\u003e
+\u003cbutton type="button"
+class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm"\u003e
+Reset
+\u003c/button\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+
+\u003c!-- Action Buttons --\u003e
+\u003cdiv class="flex items-center justify-between"\u003e
+\u003cbutton type="button"
+class="px-4 py-2 text-gray-700 hover:text-gray-900 flex items-center gap-2"\u003e
+\u003ci data-lucide="arrow-left" class="w-4 h-4"\u003e\u003c/i\u003e
+← Back to General Info
+\u003c/button\u003e
+\u003cdiv class="flex gap-2"\u003e
+\u003cbutton type="button"
+class="px-4 py-2 border border-gray-300 rounded-md text-sm hover:bg-gray-50"\u003e
+Save Draft
+\u003c/button\u003e
+\u003cbutton type="button"
+class="px-6 py-2 bg-black text-white rounded-md hover:bg-gray-800 flex items-center gap-2"\u003e
+Save \u0026 Next →
+\u003c/button\u003e
+\u003c/div\u003e
+\u003c/div\u003e
+\u003c/div\u003e

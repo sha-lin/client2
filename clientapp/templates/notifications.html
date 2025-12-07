@@ -1,122 +1,80 @@
 {% extends 'base.html' %}
 
+{% block title %}Notifications{% endblock %}
+
 {% block content %}
-<style>
-    .notifications-container {
-        max-width: 900px;
-        margin: 0 auto;
-        padding: 2rem;
-    }
-
-    .notifications-container h1 {
-        font-size: 1.6rem;
-        font-weight: 600;
-        color: #111827;
-        margin-bottom: 1.5rem;
-    }
-
-    .notification-list {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
-    .notification-card {
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        padding: 1.25rem;
-        box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-        display: flex;
-        gap: 1rem;
-    }
-
-    .notification-icon {
-        width: 42px;
-        height: 42px;
-        border-radius: 12px;
-        background: #f3f4f6;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: #111827;
-        font-size: 1.1rem;
-    }
-
-    .notification-content h3 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-        color: #111827;
-    }
-
-    .notification-content p {
-        margin: 0.25rem 0 0;
-        font-size: 0.9rem;
-        color: #4b5563;
-    }
-
-    .notification-time {
-        font-size: 0.8rem;
-        color: #9ca3af;
-        margin-top: 0.5rem;
-    }
-
-    .notification-actions {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-        margin-left: auto;
-    }
-
-    .btn-link {
-        background: none;
-        border: none;
-        color: #2563eb;
-        font-weight: 500;
-        cursor: pointer;
-    }
-
-    .empty-state {
-        text-align: center;
-        padding: 2rem;
-        background: #fff;
-        border: 1px solid #e5e7eb;
-        border-radius: 12px;
-        color: #6b7280;
-    }
-</style>
-
-<div class="notifications-container">
-    <div class="flex justify-between items-center mb-4">
-        <h1>Notifications</h1>
-        {% if notifications %}
-        <form method="post">
+<div class="max-w-4xl mx-auto p-6">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold text-gray-900">Notifications</h1>
+        <form method="post" class="inline">
             {% csrf_token %}
-            <button type="submit" class="btn-secondary">Mark all as read</button>
+            <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">
+                Mark All as Read
+            </button>
         </form>
-        {% endif %}
     </div>
 
-    <div class="notification-list">
-        {% for notification in notifications %}
-        <div class="notification-card {% if not notification.is_read %}border-blue-200{% endif %}">
-            <div class="notification-icon">
-                <i class="fas fa-bell"></i>
-            </div>
-            <div class="notification-content">
-                <h3>{{ notification.title }}</h3>
-                <p>{{ notification.message }}</p>
-                <div class="notification-time">{{ notification.created_at|timesince }} ago</div>
-                {% if notification.link %}
-                    <a href="{{ notification.link }}" class="btn-link">View details</a>
-                {% endif %}
+    <div class="space-y-3">
+        {% for notif in notifications %}
+        <div class="bg-white rounded-lg shadow-sm border {% if not notif.is_read %}border-blue-500 border-l-4{% else %}border-gray-200{% endif %} p-4 hover:shadow-md transition">
+            <div class="flex items-start gap-4">
+                <!-- Icon based on type -->
+                <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl
+                    {% if notif.notification_type == 'quote_approved' %}bg-green-100 text-green-600
+                    {% elif notif.notification_type == 'quote_reminder' %}bg-yellow-100 text-yellow-600
+                    {% elif notif.notification_type == 'convert_lead' %}bg-purple-100 text-purple-600
+                    {% elif notif.notification_type == 'delivery_ready' %}bg-blue-100 text-blue-600
+                    {% else %}bg-gray-100 text-gray-600{% endif %}">
+                    {% if notif.notification_type == 'quote_approved' %}✓
+                    {% elif notif.notification_type == 'quote_reminder' %}📝
+                    {% elif notif.notification_type == 'convert_lead' %}🔄
+                    {% elif notif.notification_type == 'delivery_ready' %}🚚
+                    {% else %}🔔{% endif %}
+                </div>
+
+                <div class="flex-1">
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <h3 class="font-semibold text-gray-900 {% if not notif.is_read %}font-bold{% endif %}">
+                                {{ notif.title }}
+                            </h3>
+                            <p class="text-sm text-gray-600 mt-1">{{ notif.message }}</p>
+                            <p class="text-xs text-gray-500 mt-2">{{ notif.created_at|timesince }} ago</p>
+                        </div>
+                        {% if not notif.is_read %}
+                        <span class="px-2 py-1 bg-blue-500 text-white text-xs rounded-full">New</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="mt-3 flex gap-2">
+                        {% if notif.action_url %}
+                        <a href="{{ notif.action_url }}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium">
+                            {{ notif.action_label|default:"View" }}
+                        </a>
+                        {% elif notif.link %}
+                        <a href="{{ notif.link }}" class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 text-sm font-medium">
+                            View Details
+                        </a>
+                        {% endif %}
+
+                        {% if not notif.is_read %}
+                        <form method="post" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="mark_read" value="{{ notif.id }}">
+                            <button type="submit" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 text-sm">
+                                Mark as Read
+                            </button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
             </div>
         </div>
         {% empty %}
-        <div class="empty-state">
-            <i class="fas fa-bell-slash text-2xl mb-2"></i>
-            <p>You’re all caught up! No notifications to display.</p>
+        <div class="text-center py-12">
+            <div class="text-6xl mb-4">🔔</div>
+            <p class="text-gray-500 text-lg">No notifications yet</p>
         </div>
         {% endfor %}
     </div>

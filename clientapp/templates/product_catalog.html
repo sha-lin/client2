@@ -9,6 +9,9 @@
     }
 
     .page-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
         margin-bottom: 2rem;
     }
 
@@ -26,6 +29,25 @@
         color: #6b7280;
         font-size: 0.95rem;
         margin: 0;
+    }
+
+    .add-product-btn {
+        padding: 0.75rem 1.5rem;
+        background: #000;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        text-decoration: none;
+    }
+
+    .add-product-btn:hover {
+        background: #333;
     }
 
     .search-filter-bar {
@@ -75,11 +97,6 @@
         font-size: 0.95rem;
         background: #fafafa;
         cursor: pointer;
-        appearance: none;
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
-        background-repeat: no-repeat;
-        background-position: right 1rem center;
-        padding-right: 2.5rem;
     }
 
     .filter-dropdown select:focus {
@@ -138,7 +155,7 @@
         color: #1a1a1a;
     }
 
-    .type-badge {
+    .status-badge {
         display: inline-block;
         padding: 0.35rem 0.75rem;
         border-radius: 6px;
@@ -147,14 +164,19 @@
         white-space: nowrap;
     }
 
-    .type-non-custom {
-        background: #f3f4f6;
-        color: #374151;
+    .status-published {
+        background: #d1fae5;
+        color: #065f46;
     }
 
-    .type-semi-custom {
+    .status-draft {
         background: #fef3c7;
         color: #92400e;
+    }
+
+    .status-archived {
+        background: #f3f4f6;
+        color: #6b7280;
     }
 
     .price {
@@ -162,54 +184,66 @@
         color: #1a1a1a;
     }
 
-    .availability-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4rem;
-        padding: 0.35rem 0.85rem;
-        border-radius: 6px;
-        font-size: 0.85rem;
-        font-weight: 500;
-        white-space: nowrap;
-    }
-
-    .availability-always {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .availability-in-stock {
-        background: #d1fae5;
-        color: #065f46;
-    }
-
-    .availability-low {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .availability-out {
-        background: #fee2e2;
-        color: #991b1b;
-    }
-
-    .availability-lead {
-        background: #fef3c7;
-        color: #92400e;
-    }
-
-    .availability-badge i {
-        font-size: 1rem;
-    }
-
-    .stock-info {
-        color: #6b7280;
-        font-size: 0.9rem;
-    }
-
     .last-updated {
         color: #9ca3af;
         font-size: 0.85rem;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .btn-view {
+        padding: 0.5rem 1rem;
+        background: #fff;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        color: #374151;
+        font-size: 0.85rem;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-view:hover {
+        background: #f9fafb;
+    }
+
+    .btn-edit {
+        padding: 0.5rem 1rem;
+        background: #000;
+        border: none;
+        border-radius: 6px;
+        color: #fff;
+        font-size: 0.85rem;
+        cursor: pointer;
+        text-decoration: none;
+    }
+
+    .btn-edit:hover {
+        background: #333;
+    }
+
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #9ca3af;
+    }
+
+    .empty-state i {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #d1d5db;
+    }
+
+    .empty-state h3 {
+        font-size: 1.25rem;
+        margin-bottom: 0.5rem;
+        color: #6b7280;
+    }
+
+    .empty-state p {
+        margin-bottom: 1.5rem;
     }
 </style>
 
@@ -220,90 +254,107 @@
                 <i class="fas fa-box"></i>
                 Product Catalog
             </h1>
-            <p>Real-time inventory and availability tracking</p>
+            <p>Manage production products and inventory</p>
         </div>
+        <a href="{% url 'product_create' %}" class="add-product-btn">
+            <i class="fas fa-plus"></i>
+            Add New Product
+        </a>
     </div>
 
     <form method="get" class="search-filter-bar">
         <div class="search-box">
             <i class="fas fa-search"></i>
-            <input type="text" name="search" value="{{ search }}" placeholder="Search by product name or SKU..." class="search-input">
+            <input type="text" name="search" value="{{ search }}" placeholder="Search by product name or internal code...">
         </div>
         <div class="filter-dropdown">
-            <select name="product_type" class="filter-select">
-                <option value="all" {% if product_type == 'all' %}selected{% endif %}>All Products</option>
-                <option value="non_custom" {% if product_type == 'non_custom' %}selected{% endif %}>Non-Custom</option>
-                <option value="semi_custom" {% if product_type == 'semi_custom' %}selected{% endif %}>Semi-Custom</option>
-                <option value="custom" {% if product_type == 'custom' %}selected{% endif %}>Custom</option>
+            <select name="category">
+                <option value="all" {% if selected_category == 'all' %}selected{% endif %}>All Categories</option>
+                {% for cat in categories %}
+                <option value="{{ cat.slug }}" {% if selected_category == cat.slug %}selected{% endif %}>
+                    {{ cat.name }}
+                </option>
+                {% endfor %}
             </select>
         </div>
         <div class="filter-dropdown">
-            <select name="availability" class="filter-select">
-                <option value="all" {% if availability == 'all' %}selected{% endif %}>All Availability</option>
-                <option value="always" {% if availability == 'always' %}selected{% endif %}>Always Available</option>
-                <option value="in_stock" {% if availability == 'in_stock' %}selected{% endif %}>In Stock</option>
-                <option value="low_stock" {% if availability == 'low_stock' %}selected{% endif %}>Low Stock</option>
-                <option value="out_of_stock" {% if availability == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
-                <option value="lead_time" {% if availability == 'lead_time' %}selected{% endif %}>Lead Time</option>
+            <select name="status">
+                <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Status</option>
+                <option value="published" {% if selected_status == 'published' %}selected{% endif %}>Published</option>
+                <option value="draft" {% if selected_status == 'draft' %}selected{% endif %}>Draft</option>
+                <option value="archived" {% if selected_status == 'archived' %}selected{% endif %}>Archived</option>
             </select>
         </div>
         <button type="submit" class="add-product-btn">
             <i class="fas fa-filter"></i>
-            Apply Filters
+            Apply
         </button>
     </form>
 
     <table class="products-table">
         <thead>
             <tr>
-                <th>SKU</th>
+                <th>Internal Code</th>
                 <th>Product Name</th>
-                <th>Type</th>
+                <th>Category</th>
+                <th>Product Type</th>
                 <th>Base Price (EVP)</th>
-                <th>Availability</th>
-                <th>Stock/Lead Time</th>
+                <th>Status</th>
                 <th>Last Updated</th>
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for product in products %}
             <tr>
-                <td class="sku-cell">{{ product.sku }}</td>
+                <td class="sku-cell">{{ product.internal_code }}</td>
                 <td class="product-name">{{ product.name }}</td>
-                <td>
-                    {% if product.product_type == 'non_custom' %}
-                        <span class="type-badge type-non-custom">{{ product.get_product_type_display }}</span>
+                <td>{{ product.primary_category|default:"—" }}</td>
+                <td>{{ product.get_product_type_display }}</td>
+                <td class="price">
+                    {% if product.pricing %}
+                        KES {{ product.pricing.base_cost|floatformat:2 }}
                     {% else %}
-                        <span class="type-badge type-semi-custom">{{ product.get_product_type_display }}</span>
+                        —
                     {% endif %}
                 </td>
-                <td class="price">KES {{ product.base_price|floatformat:2 }}</td>
                 <td>
-                    {% if product.availability == 'always' %}
-                        <span class="availability-badge availability-always"><i class="fas fa-check-circle"></i> Always Available</span>
-                    {% elif product.availability == 'in_stock' %}
-                        <span class="availability-badge availability-in-stock"><i class="fas fa-check-circle"></i> In Stock</span>
-                    {% elif product.availability == 'low_stock' %}
-                        <span class="availability-badge availability-low"><i class="fas fa-exclamation-circle"></i> Low Stock</span>
-                    {% elif product.availability == 'out_of_stock' %}
-                        <span class="availability-badge availability-out"><i class="fas fa-times-circle"></i> Out of Stock</span>
+                    {% if product.status == 'published' %}
+                        <span class="status-badge status-published">
+                            <i class="fas fa-check-circle"></i> Published
+                        </span>
+                    {% elif product.status == 'draft' %}
+                        <span class="status-badge status-draft">
+                            <i class="fas fa-edit"></i> Draft
+                        </span>
                     {% else %}
-                        <span class="availability-badge availability-lead"><i class="fas fa-clock"></i> Lead Time</span>
-                    {% endif %}
-                </td>
-                <td class="stock-info">
-                    {% if product.availability == 'always' or product.availability == 'in_stock' or product.availability == 'low_stock' or product.availability == 'out_of_stock' %}
-
-                        {{ product.stock_quantity }} units
-                    {% else %}
-                        {{ product.lead_time|default:'—' }}
+                        <span class="status-badge status-archived">
+                            <i class="fas fa-archive"></i> Archived
+                        </span>
                     {% endif %}
                 </td>
                 <td class="last-updated">{{ product.updated_at|date:"M d, Y" }}</td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="{% url 'product_edit' product.pk %}" class="btn-edit">
+                            <i class="fas fa-edit"></i> Edit
+                        </a>
+                    </div>
+                </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="7" class="text-center py-6 text-gray-500">No products match your filters.</td>
+                <td colspan="8">
+                    <div class="empty-state">
+                        <i class="fas fa-box-open"></i>
+                        <h3>No Products Found</h3>
+                        <p>No products match your current filters. Try adjusting your search or filters.</p>
+                        <a href="{% url 'product_create' %}" class="add-product-btn" style="display: inline-flex;">
+                            <i class="fas fa-plus"></i>
+                            Create Your First Product
+                        </a>
+                    </div>
+                </td>
             </tr>
             {% endfor %}
         </tbody>

@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block title %}Production Settings{% endblock %}
+
+{% block content %}
+<div class="p-8">
+    <div class="mb-6">
+        <h1 class="text-2xl font-semibold text-gray-900">Production Settings</h1>
+        <p class="text-sm text-gray-600 mt-1">Manage production workflow and system preferences</p>
+    </div>
+
+    <div class="bg-white rounded-lg shadow overflow-hidden max-w-4xl">
+        <div class="p-6 border-b border-gray-200">
+            <h2 class="text-lg font-medium text-gray-900">General Preferences</h2>
+        </div>
+        <div class="p-6 space-y-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-medium text-gray-900">Default Lead Time</h3>
+                    <p class="text-sm text-gray-500">Standard production time for new jobs</p>
+                </div>
+                <select
+                    class="mt-1 block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <option>3 Days</option>
+                    <option selected>5 Days</option>
+                    <option>7 Days</option>
+                    <option>10 Days</option>
+                </select>
+            </div>
+
+            <hr class="border-gray-200">
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-medium text-gray-900">Rush Order Threshold</h3>
+                    <p class="text-sm text-gray-500">Days remaining to mark job as urgent</p>
+                </div>
+                <select
+                    class="mt-1 block w-48 pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md">
+                    <option>1 Day</option>
+                    <option selected>2 Days</option>
+                    <option>3 Days</option>
+                </select>
+            </div>
+
+            <hr class="border-gray-200">
+
+            <div class="flex items-center justify-between">
+                <div>
+                    <h3 class="text-sm font-medium text-gray-900">Notifications</h3>
+                    <p class="text-sm text-gray-500">Receive email alerts for new jobs</p>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" checked
+                        class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                    <span class="ml-2 text-sm text-gray-900">Enable email notifications</span>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end">
+            <button type="button"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                Save Changes
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
