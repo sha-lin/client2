@@ -100,8 +100,8 @@ def group_required(group_name, allow_superuser=False):
                 return redirect(reverse('dashboard'))
             else:
                 # User has no recognized group → send to login
-                messages.error(request, "Access denied. Please contact administrator.")
-                return redirect(reverse('login'))
+                from django.http import HttpResponseForbidden
+                return HttpResponseForbidden("Access denied. Please contact administrator.")
 
         return _wrapped
     return decorator
