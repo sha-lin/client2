@@ -149,8 +149,9 @@ STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # Login settings
+# Login settings
 LOGIN_URL = 'login'
-LOGIN_REDIRECT_URL = 'login_redirect'
+LOGIN_REDIRECT_URL = 'login_redirect'  # Goes to custom redirect logic
 LOGOUT_REDIRECT_URL = 'login'
 
 # QuickBooks Integration

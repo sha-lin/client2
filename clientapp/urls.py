@@ -6,14 +6,19 @@ from django.shortcuts import redirect
 from django.urls import include
 
 urlpatterns = [
-    # Dashboard
-    path('', views.dashboard, name='dashboard'),
+    # ===== AUTHENTICATION & REDIRECTS (MUST BE FIRST) =====
+    path('login-redirect/', views.login_redirect, name='login_redirect'),
     
+    # ===== DASHBOARD - EXPLICIT MAPPING =====
+    path('', views.dashboard, name='dashboard'),  # Account Manager dashboard
+    
+    # ===== REST OF YOUR URLS =====
     # Leads
     path('leads/', views.lead_intake, name='lead_intake'),
     path('leads/qualify/<str:lead_id>/', views.qualify_lead, name='qualify_lead'),
     path('leads/convert/<str:lead_id>/', views.convert_lead, name='convert_lead'),
     path('leads/check-duplicate/', views.check_duplicate_lead, name='check_duplicate_lead'),
+    
     
     # Clients
     path('clients/', views.client_list, name='client_list'),

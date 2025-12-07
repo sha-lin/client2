@@ -2965,25 +2965,30 @@ def permission_denied_view(request, *args, **kwargs):
 def login_redirect(request):
     """
     Custom login redirect view that sends users to appropriate dashboard based on their group
+    IMPORTANT: This should NOT create a redirect loop
     """
-    if request.user.is_authenticated:
-        # Check if user is superuser/admin
-        if request.user.is_superuser or request.user.is_staff:
-            return redirect('/admin/')  # ← Admins go to admin panel
-        
-        # Check Production Team
-        elif request.user.groups.filter(name='Production Team').exists():
-            return redirect('production2_dashboard')
-        
-        # Check Account Manager
-        elif request.user.groups.filter(name='Account Manager').exists():
-            return redirect('dashboard')
-        
-        # Fallback for users without groups → send to login with error
-        else:
-            messages.error(request, "Your account is not assigned to any group. Please contact admin.")
-            return redirect('login')
+    if not request.user.is_authenticated:
+        return redirect('login')
+    
+    user = request.user
+    
+    # Check if user is superuser/admin
+    if user.is_superuser or user.is_staff:
+        return redirect('/admin/')  # Admins go to admin panel
+    
+    # Check Production Team
+    elif user.groups.filter(name='Production Team').exists():
+        return redirect('production2_dashboard')
+    
+    # Check Account Manager
+    elif user.groups.filter(name='Account Manager').exists():
+        return redirect('dashboard')
+    
+    # Fallback for users without groups → send to login with error
     else:
+        from django.contrib.auth import logout
+        logout(request)
+        messages.error(request, "Your account is not assigned to any group. Please contact administrator.")
         return redirect('login')
 
 from django.http import JsonResponse
