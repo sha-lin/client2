@@ -143,7 +143,7 @@ class Client(models.Model):
     is_reseller = models.BooleanField(default=False)
 
     # Delivery Details
-    delivery_address = models.TextField(blank=True, help_text="Default delivery address")
+    delivery_address = models.CharField(max_length=200, blank=True, null=True)
     delivery_instructions = models.TextField(blank=True, help_text="Specific delivery instructions (e.g., gate codes, contact person)")
     
     # Communication
