@@ -4,10 +4,12 @@ from . import views
 from django.urls import reverse
 from django.shortcuts import redirect
 from django.urls import include
+from django.contrib.auth.decorators import login_required
 
 urlpatterns = [
+    path('', views.login_redirect, name='login_redirect'),
     # Dashboard
-    path('', views.dashboard, name='dashboard'),
+    path('dashboard/', views.dashboard, name='dashboard'),
     
     # Leads
     path('leads/', views.lead_intake, name='lead_intake'),
