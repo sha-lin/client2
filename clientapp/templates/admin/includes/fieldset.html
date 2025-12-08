@@ -41,7 +41,7 @@
                              {% if field.field.name %} field-{{ field.field.name }}{% endif %}
                              {% if field.field.field.required %} required{% endif %}">
                     {{ field.errors.as_ul }}
-                    {{ field }}
+                    {{ field.field }}
                     {% if field.field.help_text %}
                     <div class="help small text-muted">{{ field.field.help_text|safe }}</div>
                     {% endif %}

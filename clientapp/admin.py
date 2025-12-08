@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.utils.html import format_html
+from django.utils import timezone
 from .models import (
     Lead, Client, ClientContact, BrandAsset, ComplianceDocument,
     Quote, ActivityLog, ProductionUpdate, Notification,
@@ -818,9 +819,6 @@ class ProductTemplateAdmin(admin.ModelAdmin):
     usage_count.short_description = 'Uses'
 
 # ==================== CONFIGURE CUSTOM ADMIN SITE ====================
-from .admin_site import configure_admin_site
-configure_admin_site()
-
 
 # ==================== SYSTEM ALERTS ADMIN ====================
 from .models import SystemAlert

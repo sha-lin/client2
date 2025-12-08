@@ -12,6 +12,9 @@ class PrintDukaAdminSite(AdminSite):
     site_title = "PrintDuka Admin"
     index_title = "Dashboard Overview"
     
+    # Use separate dashboard template
+    index_template = "admin/dashboard.html"
+    
     def index(self, request, extra_context=None):
         """
         Custom admin index page with dashboard widgets
@@ -31,31 +34,30 @@ class PrintDukaAdminSite(AdminSite):
             get_staff_performance,
             get_time_based_insights
         )
-        
-        # Build custom context
+
         extra_context = extra_context or {}
-        
+
         try:
-            # Get dashboard statistics
+            # Dashboard metrics
             dashboard_stats = get_dashboard_stats()
             order_distribution = get_order_status_distribution()
             sales_trend = get_sales_performance_trend(months=6)
             recent_orders = get_recent_orders(limit=5)
-            
-            # Get alerts and activity
+
+            # Alerts & activity
             active_alerts = get_active_alerts(limit=5)
             recent_activity = get_user_activity_logs(limit=10)
             top_products = get_top_selling_products(limit=5)
             profit_margins = get_profit_margin_data()
-            
-            # NEW FEATURES: Financial, Staff, Time
+
+            # Financial, Staff & Time-based insights
             receivables = get_outstanding_receivables()
             recent_payments = get_recent_payments(limit=5)
             collection_rate = get_payment_collection_rate()
             staff_performance = get_staff_performance()
             time_insights = get_time_based_insights()
-            
-            # Add to context
+
+            # Add data to context
             extra_context.update({
                 'dashboard_stats': dashboard_stats,
                 'order_distribution': json.dumps(order_distribution),
@@ -71,11 +73,13 @@ class PrintDukaAdminSite(AdminSite):
                 'staff_performance': staff_performance,
                 'time_insights': time_insights,
             })
+
         except Exception as e:
-            # If there's an error, log it but don't break the admin
+            # Do not break admin if dashboard fails
             print(f"Dashboard error: {e}")
             import traceback
             traceback.print_exc()
+
             extra_context.update({
                 'dashboard_stats': {},
                 'order_distribution': json.dumps([]),
@@ -91,17 +95,5 @@ class PrintDukaAdminSite(AdminSite):
                 'staff_performance': {},
                 'time_insights': {},
             })
-        
+
         return super().index(request, extra_context)
-
-
-def configure_admin_site():
-    """
-    Configure the default admin site with custom dashboard
-    """
-    from django.contrib import admin
-    
-    admin.site.__class__ = PrintDukaAdminSite
-    admin.site.site_header = "PrintDuka Administration"
-    admin.site.site_title = "PrintDuka Admin"
-    admin.site.index_title = "Dashboard Overview"

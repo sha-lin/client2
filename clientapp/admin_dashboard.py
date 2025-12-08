@@ -491,31 +491,33 @@ def get_staff_performance():
     Calculate staff performance metrics
     """
     from .models import Quote, LPO, User
-    from django.db.models import Sum, Count, Avg
+    from django.db.models import Sum, Count, Avg, Q
     from datetime import date, timedelta
     
     thirty_days_ago = date.today() - timedelta(days=30)
     
     # Sales Rep Performance (Account Managers)
     sales_reps = User.objects.filter(
-    groups__name='Account Manager'
-).annotate(
-    quotes_count=Count('quotes_created', filter=Q(        # ✅ Renamed to quotes_count
-        quotes_created__created_at__gte=thirty_days_ago
-    )),
-    quotes_won=Count('quotes_created', filter=Q(
-        quotes_created__status='approved',
-        quotes_created__created_at__gte=thirty_days_ago
-    )),
-    total_revenue=Sum('quotes_created__total_amount', filter=Q(
-        quotes_created__status='approved',
-        quotes_created__created_at__gte=thirty_days_ago
-    ))
-).order_by('-total_revenue')[:5]
+        groups__name='Account Manager'
+    ).annotate(
+        # ✅ FIX: Change from 'quotes_count' to 'total_quotes'
+        total_quotes=Count('quotes_created', filter=Q(
+            quotes_created__created_at__gte=thirty_days_ago
+        )),
+        quotes_won=Count('quotes_created', filter=Q(
+            quotes_created__status='Approved',
+            quotes_created__created_at__gte=thirty_days_ago
+        )),
+        total_revenue=Sum('quotes_created__total_amount', filter=Q(
+            quotes_created__status='Approved',
+            quotes_created__created_at__gte=thirty_days_ago
+        ))
+    ).order_by('-total_revenue')[:5]
     
     sales_leaderboard = []
     for rep in sales_reps:
-        win_rate = (rep.quotes_won / rep.quotes_count * 100) if rep.quotes_count > 0 else 0
+        # ✅ FIX: Use total_quotes instead of quotes_count
+        win_rate = (rep.quotes_won / rep.total_quotes * 100) if rep.total_quotes > 0 else 0
         avg_deal = (rep.total_revenue / rep.quotes_won) if rep.quotes_won and rep.quotes_won > 0 else 0
         
         sales_leaderboard.append({
@@ -526,7 +528,7 @@ def get_staff_performance():
             'avg_deal_size': avg_deal,
         })
     
-    # Production Team Performance
+    # Production Team Performance (unchanged)
     production_staff = User.objects.filter(
         groups__name='Production Team'
     ).annotate(
