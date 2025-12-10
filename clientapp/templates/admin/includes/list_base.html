@@ -1,0 +1,483 @@
+{% load humanize %}
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #f8f9fa;
+            color: #212529;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background: #1a1d29;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .logo {
+            width: 40px;
+            height: 40px;
+            background: #3b82f6;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .logo-text h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .logo-text p {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-section {
+            margin-bottom: 24px;
+        }
+
+        .nav-section-title {
+            padding: 0 20px;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 20px;
+            color: #cbd5e1;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .nav-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .nav-item.active {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border-right: 3px solid #3b82f6;
+        }
+
+        .nav-item-icon {
+            margin-right: 12px;
+            font-size: 18px;
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        .header {
+            background: #fff;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-left h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 32px;
+            flex: 1;
+        }
+
+        /* List Controls */
+        .list-controls {
+            background: #fff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .search-box {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .filter-select {
+            padding: 10px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+            background: #fff;
+        }
+
+        .filter-select:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+
+        .btn-create {
+            background: #3b82f6;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .btn-create:hover {
+            background: #2563eb;
+        }
+
+        /* Table Styles */
+        .data-table {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        th {
+            padding: 12px 16px;
+            text-align: left;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #64748b;
+        }
+
+        td {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 14px;
+        }
+
+        tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        /* Status Badge */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #7f1d1d;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #0c4a6e;
+        }
+
+        /* Row Actions */
+        .row-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            background: none;
+            border: none;
+            padding: 4px 8px;
+            cursor: pointer;
+            font-size: 14px;
+            color: #3b82f6;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            color: #2563eb;
+        }
+
+        .action-btn.danger {
+            color: #ef4444;
+        }
+
+        .action-btn.danger:hover {
+            color: #dc2626;
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            gap: 8px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+
+        .pagination a,
+        .pagination span {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            color: #1e293b;
+        }
+
+        .pagination a:hover {
+            border-color: #3b82f6;
+            color: #3b82f6;
+        }
+
+        .pagination span.current {
+            background: #3b82f6;
+            color: #fff;
+            border-color: #3b82f6;
+        }
+
+        .pagination span.disabled {
+            color: #cbd5e1;
+            cursor: not-allowed;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 18px;
+            margin-bottom: 8px;
+            color: #1e293b;
+        }
+
+        .empty-state p {
+            color: #64748b;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        {% include 'admin/includes/sidebar_header.html' %}
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <div class="header-left">
+                    <h1>{{ title }}</h1>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content">
+                <!-- List Controls -->
+                <div class="list-controls">
+                    <div class="search-box">
+                        <form method="get" style="display: flex; gap: 12px; width: 100%;">
+                            <input type="text" name="q" placeholder="Search..." value="{{ search }}">
+                            {% block filter_controls %}{% endblock %}
+                            <button type="submit" style="padding: 10px 16px; background: #3b82f6; color: #fff; border: none; border-radius: 8px; cursor: pointer;">Search</button>
+                        </form>
+                    </div>
+                    <button class="btn-create" onclick="openCreateModal()">+ Add {{ title }}</button>
+                </div>
+
+                <!-- Data Table -->
+                {% if page_obj.object_list %}
+                    <div class="data-table">
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    {% block table_header %}{% endblock %}
+                                </thead>
+                                <tbody>
+                                    {% block table_body %}{% endblock %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if page_obj.has_other_pages %}
+                        <div class="pagination">
+                            {% if page_obj.has_previous %}
+                                <a href="?page=1&q={{ search }}">« First</a>
+                                <a href="?page={{ page_obj.previous_page_number }}&q={{ search }}">‹ Previous</a>
+                            {% else %}
+                                <span class="disabled">« First</span>
+                                <span class="disabled">‹ Previous</span>
+                            {% endif %}
+
+                            <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+
+                            {% if page_obj.has_next %}
+                                <a href="?page={{ page_obj.next_page_number }}&q={{ search }}">Next ›</a>
+                                <a href="?page={{ page_obj.paginator.num_pages }}&q={{ search }}">Last »</a>
+                            {% else %}
+                                <span class="disabled">Next ›</span>
+                                <span class="disabled">Last »</span>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                {% else %}
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <h3>No {{ title|lower }} found</h3>
+                        <p>Get started by creating your first {{ title|lower }}</p>
+                        <button class="btn-create" onclick="openCreateModal()">+ Add {{ title }}</button>
+                    </div>
+                {% endif %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal -->
+    {% include 'admin/includes/crud_modal.html' %}
+
+    <script>
+        // Modal functions - to be implemented by child templates
+        function openCreateModal() {
+            alert('Create modal not implemented for this view');
+        }
+
+        function openEditModal(id) {
+            alert('Edit modal not implemented for this view');
+        }
+
+        function deleteItem(id) {
+            if (confirm('Are you sure you want to delete this item?')) {
+                alert('Delete not implemented for this view');
+            }
+        }
+
+        function submitForm() {
+            const btn = document.getElementById('submit-btn');
+            const text = btn.querySelector('.btn-text');
+            btn.classList.add('loading');
+            text.innerHTML = '<span class="spinner"></span> Saving...';
+            
+            // Call child template's form submission
+            if (window.submitFormData) {
+                window.submitFormData();
+            }
+        }
+    </script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

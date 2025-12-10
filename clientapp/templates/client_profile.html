@@ -72,7 +72,15 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-600">Address</p>
-                        <p class="font-medium">{{ client.billing_address|default:"-" }}</p>
+                        <p class="font-medium">{{ client.address|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Delivery Address</p>
+                        <p class="font-medium">{{ client.delivery_address|default:"-" }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Delivery Instructions</p>
+                        <p class="font-medium text-sm whitespace-pre-wrap">{{ client.delivery_instructions|default:"-" }}</p>
                     </div>
                 </div>
             </div>

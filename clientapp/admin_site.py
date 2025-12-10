@@ -12,8 +12,8 @@ class PrintDukaAdminSite(AdminSite):
     site_title = "PrintDuka Admin"
     index_title = "Dashboard Overview"
     
-    # Use separate dashboard template
-    index_template = "admin/dashboard.html"
+    # Use custom dashboard template
+    index_template = "admin/index.html"
     
     def index(self, request, extra_context=None):
         """

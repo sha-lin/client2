@@ -1,0 +1,299 @@
+{% load static %}
+
+<!-- Modal CSS -->
+<style>
+    /* Modal Styles */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 2000;
+        animation: fadeIn 0.2s ease-out;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-dialog {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        animation: slideIn 0.3s ease-out;
+    }
+
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid #e2e8f0;
+    }
+
+    .modal-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1e293b;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #64748b;
+        transition: all 0.2s;
+    }
+
+    .modal-close:hover {
+        color: #1e293b;
+    }
+
+    .modal-body {
+        padding: 24px;
+    }
+
+    .modal-footer {
+        padding: 16px 24px;
+        border-top: 1px solid #e2e8f0;
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+    }
+
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #1e293b;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group textarea,
+    .form-group select {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: all 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group textarea:focus,
+    .form-group select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 100px;
+    }
+
+    /* Buttons */
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: #fff;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+
+    .btn-secondary {
+        background: #f1f5f9;
+        color: #1e293b;
+    }
+
+    .btn-secondary:hover {
+        background: #e2e8f0;
+    }
+
+    .btn-danger {
+        background: #ef4444;
+        color: #fff;
+    }
+
+    .btn-danger:hover {
+        background: #dc2626;
+    }
+
+    /* Alert Messages */
+    .alert {
+        padding: 12px 16px;
+        border-radius: 8px;
+        margin-bottom: 16px;
+        display: none;
+    }
+
+    .alert.show {
+        display: block;
+    }
+
+    .alert-success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 1px solid #6ee7b7;
+    }
+
+    .alert-error {
+        background: #fee2e2;
+        color: #7f1d1d;
+        border: 1px solid #fca5a5;
+    }
+
+    /* Loading State */
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #f3f4f6;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    @keyframes slideIn {
+        from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+</style>
+
+<!-- Modal HTML Template -->
+<div id="crud-modal" class="modal-overlay">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modal-title">Modal Title</h2>
+            <button type="button" class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        
+        <div class="modal-body">
+            <div id="modal-alert" class="alert"></div>
+            <form id="crud-form">
+                <div id="form-container"></div>
+            </form>
+        </div>
+        
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+            <button type="button" class="btn btn-primary" id="submit-btn" onclick="submitForm()">
+                <span class="btn-text">Save</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Modal Management
+    function openModal(title, fields, onSubmit) {
+        document.getElementById('modal-title').textContent = title;
+        renderFormFields(fields);
+        document.getElementById('crud-form').onsubmit = (e) => {
+            e.preventDefault();
+            onSubmit(getFormData());
+        };
+        document.getElementById('crud-modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('crud-modal').classList.remove('active');
+        document.getElementById('crud-form').reset();
+        document.getElementById('form-container').innerHTML = '';
+    }
+
+    function renderFormFields(fields) {
+        const container = document.getElementById('form-container');
+        container.innerHTML = fields.map(field => `
+            <div class="form-group">
+                <label for="field-${field.name}">${field.label}</label>
+                ${field.type === 'textarea' ? 
+                    `<textarea id="field-${field.name}" name="${field.name}" ${field.required ? 'required' : ''}></textarea>` :
+                    `<input type="${field.type}" id="field-${field.name}" name="${field.name}" ${field.required ? 'required' : ''} />`
+                }
+            </div>
+        `).join('');
+    }
+
+    function getFormData() {
+        const formData = new FormData(document.getElementById('crud-form'));
+        return Object.fromEntries(formData);
+    }
+
+    function showAlert(message, type = 'success') {
+        const alertEl = document.getElementById('modal-alert');
+        alertEl.className = `alert alert-${type} show`;
+        alertEl.textContent = message;
+        setTimeout(() => alertEl.classList.remove('show'), 3000);
+    }
+
+    function setLoading(isLoading) {
+        const btn = document.getElementById('submit-btn');
+        const text = btn.querySelector('.btn-text');
+        if (isLoading) {
+            btn.classList.add('loading');
+            text.innerHTML = '<span class="spinner"></span> Saving...';
+        } else {
+            btn.classList.remove('loading');
+            text.innerHTML = 'Save';
+        }
+    }
+
+    // Close modal on overlay click
+    document.getElementById('crud-modal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('crud-modal')) {
+            closeModal();
+        }
+    });
+</script>

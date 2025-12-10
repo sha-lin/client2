@@ -26,6 +26,16 @@
         <div>{{ form.risk_rating.label_tag }} {{ form.risk_rating }}</div>
         <div class="col-span-2 flex items-center gap-2">{{ form.is_reseller }} <span>Is Reseller</span></div>
       </div>
+
+      <!-- Delivery Details Section -->
+      <div class="border-t pt-4 mt-4">
+        <h3 class="text-lg font-semibold mb-4">Delivery Details</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div class="col-span-2">{{ form.delivery_address.label_tag }} {{ form.delivery_address }}</div>
+          <div class="col-span-2">{{ form.delivery_instructions.label_tag }} {{ form.delivery_instructions }}</div>
+        </div>
+      </div>
+
       <div class="flex justify-end gap-3 pt-2">
         <a href="{% url 'client_profile' client.pk %}" class="btn btn-secondary">Cancel</a>
         <button type="submit" class="btn btn-primary">Save Changes</button>

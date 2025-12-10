@@ -1,0 +1,53 @@
+{% extends 'admin/generic_list.html' %}
+{% load humanize %}
+
+{% block filter_controls %}
+<select name="status" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Status</option>
+    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+    <option value="in_progress" {% if status == 'in_progress' %}selected{% endif %}>In Progress</option>
+    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+    <option value="on_hold" {% if status == 'on_hold' %}selected{% endif %}>On Hold</option>
+</select>
+{% endblock %}
+
+{% block table_header %}
+<tr>
+    <th>Job Number</th>
+    <th>Quote</th>
+    <th>Description</th>
+    <th>Status</th>
+    <th>Expected Completion</th>
+    <th>Created</th>
+    <th>Actions</th>
+</tr>
+{% endblock %}
+
+{% block table_body %}
+{% for job in page_obj %}
+<tr>
+    <td><strong>{{ job.job_number }}</strong></td>
+    <td>{{ job.quote.quote_id|default:"-" }}</td>
+    <td>{{ job.description|truncatewords:5|default:"-" }}</td>
+    <td>
+        <span class="badge 
+            {% if job.job_status == 'completed' %}badge-success
+            {% elif job.job_status == 'in_progress' %}badge-info
+            {% elif job.job_status == 'pending' %}badge-warning
+            {% else %}badge-danger
+            {% endif %}">
+            {{ job.job_status|default:"Pending" }}
+        </span>
+    </td>
+    <td>{{ job.expected_completion|date:"M d, Y"|default:"-" }}</td>
+    <td>{{ job.created_at|date:"M d, Y" }}</td>
+    <td>
+        
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="7" style="text-align:center; padding:20px;">No jobs found</td>
+</tr>
+{% endfor %}
+{% endblock %}

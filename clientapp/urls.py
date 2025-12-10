@@ -1,10 +1,12 @@
 # clients/urls.py
 from django.urls import path
 from . import views
+from . import admin_crud_operations
 from django.urls import reverse
 from django.shortcuts import redirect
 from django.urls import include
 from django.contrib.auth.decorators import login_required
+from . import admin_views, admin_api
 
 urlpatterns = [
     path('', views.login_redirect, name='login_redirect'),
@@ -64,6 +66,7 @@ urlpatterns = [
     path('production/catalog/', views.production_catalog, name='production_catalog'),
     # path('production/catalog/', views.product_detail, name='product_detail'),
     path('production/dashboard/', views.production2_dashboard, name='production2_dashboard'),
+    path('production/analytics/', views.production_analytics, name='production_analytics'),
     path('notifications/', views.notifications, name='notifications'),
     
     path('base2/', views.base_view, name='base_view'),
@@ -133,6 +136,7 @@ path('ajax/product-image/<int:image_id>/replace/', views.ajax_replace_product_im
 
     path('vendor-comparison/<int:job_id>/', views.vendor_comparison, name='vendor_comparison'),
     path('ajax/create-vendor/', views.ajax_create_vendor, name='ajax_create_vendor'),
+    path('vendors/<int:vendor_id>/', views.vendor_profile, name='vendor_profile'),
     # Quality control inspection page
     path('qc-inspection/<int:inspection_id>/', views.qc_inspection, name='qc_inspection'),
     path('vendors/', views.vendor_list, name='vendor_list'),
@@ -175,4 +179,186 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     path('deliveries/', views.delivery_list, name='delivery_list'),
     path('job/<int:pk>/mark-completed/', views.complete_job, name='mark_job_completed'),
     path('production/settings/', views.production_settings, name='production_settings'),
+    path('admin-dashboard/', views.admin_dashboard_index, name='admin_dashboard_index'),
+    # OLD ROUTES - now using admin_crud_operations below
+    # path('admin-dashboard/clients/', views.admin_clients_list, name='admin_clients_list'),
+    # path('admin-dashboard/quotes/', views.admin_quotes_list, name='admin_quotes_list'),
+    # path('admin-dashboard/jobs/', views.admin_jobs_list, name='admin_jobs_list'),
+    # path('admin-dashboard/products/', views.admin_products_list, name='admin_products_list'),
+    # path('admin-dashboard/vendors/', views.admin_vendors_list, name='admin_vendors_list'),
+    # path('admin-dashboard/leads/', views.admin_leads_list, name='admin_leads_list'),
+    # path('admin-dashboard/processes/', views.admin_processes_list, name='admin_processes_list'),
+    # path('admin-dashboard/qc/', views.admin_qc_list, name='admin_qc_list'),
+    # path('admin-dashboard/deliveries/', views.admin_deliveries_list, name='admin_deliveries_list'),
+    # path('admin-dashboard/lpos/', views.admin_lpos_list, name='admin_lpos_list'),
+    # path('admin-dashboard/payments/', views.admin_payments_list, name='admin_payments_list'),
+    path('admin-dashboard/analytics/', views.admin_analytics, name='admin_analytics'),
+    path('admin-dashboard/users/', views.admin_users_list, name='admin_users_list'),
+    path('admin-dashboard/settings/', views.admin_settings, name='admin_settings'),
+    path('admin-dashboard/alerts/', views.admin_alerts_list, name='admin_alerts_list'),
+    
+    # ===== ADMIN DASHBOARD CRUD ROUTES (Django Admin Style) =====
+    # Clients CRUD
+    path('admin-dashboard/clients/', admin_crud_operations.admin_clients_list, name='admin_clients_list'),
+    path('admin-dashboard/clients/add/', admin_crud_operations.admin_client_add, name='admin_client_add'),
+    path('admin-dashboard/clients/<int:pk>/', admin_crud_operations.admin_client_detail, name='admin_client_detail'),
+    path('admin-dashboard/clients/<int:pk>/delete/', admin_crud_operations.admin_client_delete, name='admin_client_delete'),
+    
+    # Leads CRUD
+    path('admin-dashboard/leads/', admin_crud_operations.admin_leads_list, name='admin_leads_list'),
+    path('admin-dashboard/leads/add/', admin_crud_operations.admin_lead_add, name='admin_lead_add'),
+    path('admin-dashboard/leads/<int:pk>/', admin_crud_operations.admin_lead_detail, name='admin_lead_detail'),
+    path('admin-dashboard/leads/<int:pk>/delete/', admin_crud_operations.admin_lead_delete, name='admin_lead_delete'),
+    
+    # Quotes CRUD
+    path('admin-dashboard/quotes/', admin_crud_operations.admin_quotes_list, name='admin_quotes_list'),
+    path('admin-dashboard/quotes/add/', admin_crud_operations.admin_quote_add, name='admin_quote_add'),
+    path('admin-dashboard/quotes/<int:pk>/', admin_crud_operations.admin_quote_detail, name='admin_quote_detail'),
+    path('admin-dashboard/quotes/<int:pk>/delete/', admin_crud_operations.admin_quote_delete, name='admin_quote_delete'),
+    
+    # Products CRUD
+    path('admin-dashboard/products/', admin_crud_operations.admin_products_list, name='admin_products_list'),
+    path('admin-dashboard/products/add/', admin_crud_operations.admin_product_add, name='admin_product_add'),
+    path('admin-dashboard/products/<int:pk>/', admin_crud_operations.admin_product_detail, name='admin_product_detail'),
+    path('admin-dashboard/products/<int:pk>/delete/', admin_crud_operations.admin_product_delete, name='admin_product_delete'),
+    
+    # Jobs CRUD (list only, forms not available)
+    path('admin-dashboard/jobs/', admin_crud_operations.admin_jobs_list, name='admin_jobs_list'),
+    # path('admin-dashboard/jobs/add/', admin_crud_operations.admin_job_add, name='admin_job_add'),
+    # path('admin-dashboard/jobs/<int:pk>/', admin_crud_operations.admin_job_detail, name='admin_job_detail'),
+    # path('admin-dashboard/jobs/<int:pk>/delete/', admin_crud_operations.admin_job_delete, name='admin_job_delete'),
+    
+    # Vendors CRUD (list only, forms not available)
+    path('admin-dashboard/vendors/', admin_crud_operations.admin_vendors_list, name='admin_vendors_list'),
+    # path('admin-dashboard/vendors/add/', admin_crud_operations.admin_vendor_add, name='admin_vendor_add'),
+    # path('admin-dashboard/vendors/<int:pk>/', admin_crud_operations.admin_vendor_detail, name='admin_vendor_detail'),
+    # path('admin-dashboard/vendors/<int:pk>/delete/', admin_crud_operations.admin_vendor_delete, name='admin_vendor_delete'),
+    
+    # Processes CRUD (list only, forms not available)
+    path('admin-dashboard/processes/', admin_crud_operations.admin_processes_list, name='admin_processes_list'),
+    # path('admin-dashboard/processes/add/', admin_crud_operations.admin_process_add, name='admin_process_add'),
+    # path('admin-dashboard/processes/<int:pk>/', admin_crud_operations.admin_process_detail, name='admin_process_detail'),
+    # path('admin-dashboard/processes/<int:pk>/delete/', admin_crud_operations.admin_process_delete, name='admin_process_delete'),
+    
+    # LPOs CRUD
+    path('admin-dashboard/lpos/', admin_crud_operations.admin_lpos_list, name='admin_lpos_list'),
+    path('admin-dashboard/lpos/add/', admin_crud_operations.admin_lpo_add, name='admin_lpo_add'),
+    path('admin-dashboard/lpos/<int:pk>/', admin_crud_operations.admin_lpo_detail, name='admin_lpo_detail'),
+    path('admin-dashboard/lpos/<int:pk>/delete/', admin_crud_operations.admin_lpo_delete, name='admin_lpo_delete'),
+    
+    # Payments CRUD
+    path('admin-dashboard/payments/', admin_crud_operations.admin_payments_list, name='admin_payments_list'),
+    path('admin-dashboard/payments/add/', admin_crud_operations.admin_payment_add, name='admin_payment_add'),
+    path('admin-dashboard/payments/<int:pk>/', admin_crud_operations.admin_payment_detail, name='admin_payment_detail'),
+    path('admin-dashboard/payments/<int:pk>/delete/', admin_crud_operations.admin_payment_delete, name='admin_payment_delete'),
+    
+    # Users CRUD
+    path('admin-dashboard/users/', admin_crud_operations.admin_users_list, name='admin_users_list'),
+    path('admin-dashboard/users/add/', admin_crud_operations.admin_user_add, name='admin_user_add'),
+    path('admin-dashboard/users/<int:pk>/', admin_crud_operations.admin_user_detail, name='admin_user_detail'),
+    path('admin-dashboard/users/<int:pk>/delete/', admin_crud_operations.admin_user_delete, name='admin_user_delete'),
+    
+    # View-Only Lists
+    path('admin-dashboard/qc/', admin_crud_operations.admin_qc_list, name='admin_qc_list'),
+    path('admin-dashboard/deliveries/', admin_crud_operations.admin_deliveries_list, name='admin_deliveries_list'),
+    path('admin-dashboard/alerts/', admin_crud_operations.admin_alerts_list, name='admin_alerts_list'),
+    
+    # OLD ROUTES BELOW (DISABLED - using admin_crud_operations instead)
+    # ===== ADMIN DASHBOARD ROUTES (Django Admin Style) =====
+    # Main dashboard
+    # path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+    
+    # Business section
+    # path('admin-dashboard/clients/', views.clients_list, name='admin_clients_list'),
+    # path('admin-dashboard/leads/', views.leads_list, name='admin_leads_list'),
+    # path('admin-dashboard/quotes/', views.quotes_list, name='admin_quotes_list'),
+    # path('admin-dashboard/products/', views.products_list, name='admin_products_list'),
+    
+    # Operations section
+    # path('admin-dashboard/jobs/', views.jobs_list, name='admin_jobs_list'),
+    # path('admin-dashboard/vendors/', views.vendors_list, name='admin_vendors_list'),
+    # path('admin-dashboard/processes/', views.processes_list, name='admin_processes_list'),
+    # path('admin-dashboard/qc/', views.qc_list, name='admin_qc_list'),
+    # path('admin-dashboard/deliveries/', views.deliveries_list, name='admin_deliveries_list'),
+    
+    # Financial section
+    # path('admin-dashboard/lpos/', views.lpos_list, name='admin_lpos_list'),
+    # path('admin-dashboard/payments/', views.payments_list, name='admin_payments_list'),
+    # path('admin-dashboard/analytics/', views.analytics_view, name='admin_analytics'),
+    
+    # System section
+    # path('admin-dashboard/users/', views.users_list, name='admin_users_list'),
+    
+    # AJAX CRUD endpoints (DISABLED - using admin_crud_operations instead)
+    # path('api/admin/detail/<str:model_name>/<int:object_id>/', views.get_object_detail, name='api_admin_detail'),
+    # path('api/admin/create/<str:model_name>/', views.create_object, name='api_admin_create'),
+    # path('api/admin/update/<str:model_name>/<int:object_id>/', views.update_object, name='api_admin_update'),
+    # path('api/admin/delete/<str:model_name>/<int:object_id>/', views.delete_object, name='api_admin_delete'),
+    
+    # Legacy API routes (DISABLED)
+    # path('api/admin/clients/create/', views.api_admin_create_client, name='api_admin_create_client'),
+    # path('api/admin/clients/<int:client_id>/get/', views.api_admin_get_client, name='api_admin_get_client'),
+    # path('api/admin/clients/<int:client_id>/update/', views.api_admin_update_client, name='api_admin_update_client'),
+    path('api/admin/clients/<int:client_id>/delete/', views.api_admin_delete_client, name='api_admin_delete_client'),
+    
+    # Leads CRUD APIs - SPECIFIC FIRST
+    path('api/admin/leads/create/', views.api_admin_create_lead, name='api_admin_create_lead'),
+    path('api/admin/leads/<int:lead_id>/get/', views.api_admin_get_lead, name='api_admin_get_lead'),
+    path('api/admin/leads/<int:lead_id>/update/', views.api_admin_update_lead, name='api_admin_update_lead'),
+    path('api/admin/leads/<int:lead_id>/delete/', views.api_admin_delete_lead, name='api_admin_delete_lead'),
+    
+    # Quotes CRUD APIs - SPECIFIC FIRST
+    path('api/admin/quotes/create/', views.api_admin_create_quote, name='api_admin_create_quote'),
+    path('api/admin/quotes/<int:quote_id>/get/', views.api_admin_get_quote, name='api_admin_get_quote'),
+    path('api/admin/quotes/<int:quote_id>/update/', views.api_admin_update_quote, name='api_admin_update_quote'),
+    path('api/admin/quotes/<int:quote_id>/delete/', views.api_admin_delete_quote, name='api_admin_delete_quote'),
+    
+    # Products CRUD APIs - SPECIFIC FIRST (BEFORE generic /api/admin/products/)
+    path('api/admin/products/create/', views.api_admin_create_product, name='api_admin_create_product'),
+    path('api/admin/products/<int:product_id>/get/', views.api_admin_get_product, name='api_admin_get_product'),
+    path('api/admin/products/<int:product_id>/update/', views.api_admin_update_product, name='api_admin_update_product'),
+    path('api/admin/products/<int:product_id>/delete/', views.api_admin_delete_product, name='api_admin_delete_product'),
+    
+    # Generic list endpoints - AFTER specific routes
+    path('api/admin/leads/', views.api_admin_leads, name='api_admin_leads'),
+    path('api/admin/leads/<int:lead_id>/', views.api_admin_lead_detail, name='api_admin_lead_detail'),
+    path('api/admin/products/', views.api_admin_products, name='api_admin_products'),
+    path('api/admin/products/<int:product_id>/', views.api_admin_product_detail, name='api_admin_product_detail'),
+    
+    # ==================== PAYMENTS ====================
+    # path('payments/', admin_views.admin_payments_list, name='admin_payments_list'),
+    # path('payments/add/', admin_views.admin_payment_add, name='admin_payment_add'),
+    # path('payments/<int:pk>/', admin_views.admin_payment_detail, name='admin_payment_detail'),
+    # path('payments/<int:pk>/delete/', admin_views.admin_payment_delete, name='admin_payment_delete'),
+    
+    # Payment API endpoints
+    path('api/payments/', admin_api.api_admin_payments, name='api_admin_payments'),
+    
+    # ==================== QC INSPECTIONS ====================
+    # path('qc/', admin_views.admin_qc_list, name='admin_qc_list'),
+    
+    # QC API endpoints
+    path('api/qc/', admin_api.api_admin_qc_inspections, name='api_admin_qc_inspections'),
+    
+    # ==================== DELIVERIES ====================
+    # path('deliveries/', admin_views.admin_deliveries_list, name='admin_deliveries_list'),
+    
+    # Delivery API endpoints
+    # path('api/deliveries/', admin_api.api_admin_deliveries, name='api_admin_deliveries'),
+    
+    # ==================== USERS ====================
+    # path('users/', admin_views.admin_users_list, name='admin_users_list'),
+    # path('users/add/', admin_views.admin_user_add, name='admin_user_add'),
+    # path('users/<int:pk>/', admin_views.admin_user_detail, name='admin_user_detail'),
+    # path('users/<int:pk>/delete/', admin_views.admin_user_delete, name='admin_user_delete'),
+    
+    # User API endpoints
+    path('api/users/create/', admin_api.api_admin_create_user, name='api_admin_create_user'),
+    path('api/users/<int:user_id>/', admin_api.api_admin_get_user, name='api_admin_get_user'),
+    path('api/users/<int:user_id>/update/', admin_api.api_admin_update_user, name='api_admin_update_user'),
+    path('api/users/<int:user_id>/delete/', admin_api.api_admin_delete_user, name='api_admin_delete_user'),
+    
+    # ==================== ALERTS ====================
+    # path('alerts/', admin_views.admin_alerts_list, name='admin_alerts_list'),
+
 ]

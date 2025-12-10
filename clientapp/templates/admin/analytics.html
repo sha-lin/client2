@@ -1,0 +1,22 @@
+{% load humanize %}
+{% load static %}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Analytics - Admin</title>
+</head>
+<body>
+    {% include 'admin/includes/sidebar_header.html' %}
+    <main style="margin-left:240px;padding:32px;">
+        <h1>Analytics</h1>
+        <p>High level charts and KPIs (placeholders)</p>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0">KPI 1</div>
+            <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0">KPI 2</div>
+            <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0">KPI 3</div>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
 from django.utils import timezone
+from .admin_site import PrintDukaAdminSite
 from .models import (
     Lead, Client, ClientContact, BrandAsset, ComplianceDocument,
     Quote, ActivityLog, ProductionUpdate, Notification,
@@ -13,6 +14,9 @@ from .models import (
     ProductReviewSettings, ProductFAQ, ProductShipping, ProductLegal,
     ProductProduction, ProductChangeHistory
 )
+
+# Register the custom admin site
+admin.site = PrintDukaAdminSite()
 
 # ---------------------- LEAD ----------------------
 @admin.register(Lead)

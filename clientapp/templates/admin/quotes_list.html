@@ -1,0 +1,43 @@
+﻿{% extends "admin/generic_list.html" %}
+{% load humanize %}
+
+{% block filter_controls %}
+    <select name="status" class="filter-select" onchange="this.form.submit()">
+        <option value="">All Status</option>
+        <option value="Draft" {% if status == 'Draft' %}selected{% endif %}>Draft</option>
+        <option value="Sent" {% if status == 'Sent' %}selected{% endif %}>Sent</option>
+        <option value="Approved" {% if status == 'Approved' %}selected{% endif %}>Approved</option>
+        <option value="Rejected" {% if status == 'Rejected' %}selected{% endif %}>Rejected</option>
+    </select>
+{% endblock %}
+
+{% block table_header %}
+    <tr>
+        <th>Quote ID</th>
+        <th>Product</th>
+        <th>Client</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Date</th>
+        <th>Actions</th>
+    </tr>
+{% endblock %}
+
+{% block table_body %}
+    {% for quote in page_obj %}
+        <tr>
+            <td><a href="{% url 'admin_quote_detail' quote.pk %}" style="color: #3b82f6; text-decoration: none;">{{ quote.quote_id }}</a></td>
+            <td>{{ quote.product_name }}</td>
+            <td>{{ quote.client.name }}</td>
+            <td>{{ quote.total_amount|floatformat:2 }}</td>
+            <td><span class="badge badge-warning">{{ quote.status }}</span></td>
+            <td>{{ quote.quote_date|date:"M d, Y" }}</td>
+            <td>
+                <div class="row-actions">
+                    <a href="{% url 'admin_quote_detail' quote.pk %}" class="action-btn">Edit</a>
+                    <a href="{% url 'admin_quote_delete' quote.pk %}" class="action-btn danger">Delete</a>
+                </div>
+            </td>
+        </tr>
+    {% endfor %}
+{% endblock %}

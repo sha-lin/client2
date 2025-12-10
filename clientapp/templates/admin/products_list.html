@@ -1,0 +1,43 @@
+﻿{% extends 'admin/generic_list.html' %}
+{% load humanize %}
+
+{% block filter_controls %}
+    <select name="category" class="filter-select" onchange="this.form.submit()">
+        <option value="">All Categories</option>
+        <option value="embroidery" {% if category == 'embroidery' %}selected{% endif %}>Embroidery</option>
+        <option value="screen_printing" {% if category == 'screen_printing' %}selected{% endif %}>Screen Printing</option>
+        <option value="dtf" {% if category == 'dtf' %}selected{% endif %}>DTF Printing</option>
+        <option value="signage" {% if category == 'signage' %}selected{% endif %}>Signage</option>
+    </select>
+{% endblock %}
+
+{% block table_header %}
+    <tr>
+        <th>Product ID</th>
+        <th>Name</th>
+        <th>Description</th>
+        <th>Price</th>
+        <th>Category</th>
+        <th>Created</th>
+        <th>Actions</th>
+    </tr>
+{% endblock %}
+
+{% block table_body %}
+    {% for product in page_obj %}
+        <tr>
+            <td><a href="{% url 'admin_product_detail' product.pk %}" style="color: #3b82f6; text-decoration: none;">{{ product.product_id }}</a></td>
+            <td><a href="{% url 'admin_product_detail' product.pk %}" style="color: #3b82f6; text-decoration: none;">{{ product.name }}</a></td>
+            <td>{{ product.description|truncatewords:5 }}</td>
+            <td>{{ product.base_price|floatformat:2 }}</td>
+            <td>{{ product.product_category|default:'-' }}</td>
+            <td>{{ product.created_at|date:'M d, Y' }}</td>
+            <td>
+                <div class="row-actions">
+                    <a href="{% url 'admin_product_detail' product.pk %}" class="action-btn">Edit</a>
+                    <a href="{% url 'admin_product_delete' product.pk %}" class="action-btn danger">Delete</a>
+                </div>
+            </td>
+        </tr>
+    {% endfor %}
+{% endblock %}

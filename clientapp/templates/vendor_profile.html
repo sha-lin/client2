@@ -1,0 +1,624 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ vendor.name }} - Vendor Profile{% endblock %}
+
+{% block extra_css %}
+<style>
+    .vendor-header {
+        background: #667eea;
+        color: white;
+        padding: 30px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+    
+    .vendor-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 20px;
+    }
+    
+    .vendor-name-info h1 {
+        font-size: 28px;
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+    
+    .vendor-badges {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+    }
+    
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(10px);
+    }
+    
+    .badge.active {
+        background: #10b981;
+    }
+    
+    .badge.primary {
+        background: #3b82f6;
+    }
+    
+    .edit-btn {
+        background: white;
+        color: #667eea;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s;
+    }
+    
+    .edit-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    
+    .performance-score {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        text-align: center;
+    }
+    
+    .score-large {
+        font-size: 48px;
+        font-weight: 700;
+        color: #667eea;
+        margin: 10px 0;
+    }
+    
+    .score-grade {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 20px;
+    }
+    
+    .score-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 15px;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .metric-item {
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+    
+    .metric-label {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+    }
+    
+    .metric-bar {
+        background: #e5e7eb;
+        height: 6px;
+        border-radius: 3px;
+        margin-top: 8px;
+        overflow: hidden;
+    }
+    
+    .metric-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        transition: width 0.3s;
+    }
+    
+    .two-column {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 24px;
+    }
+    
+    .card {
+        background: white;
+        padding: 24px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .card h2 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .card h2 i {
+        color: #667eea;
+    }
+    
+    .info-group {
+        margin-bottom: 16px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .info-group:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .info-label {
+        font-size: 12px;
+        color: #6b7280;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+    }
+    
+    .info-value {
+        font-size: 14px;
+        color: #1f2937;
+        font-weight: 600;
+    }
+    
+    .info-subtext {
+        font-size: 13px;
+        color: #6b7280;
+        margin-top: 2px;
+    }
+    
+    .services-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .service-tag {
+        background: #f0f4ff;
+        color: #667eea;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    
+    .statistics {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    
+    .stat-item {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 16px;
+        border-radius: 8px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+        opacity: 0.9;
+    }
+    
+    .quick-actions {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+    }
+    
+    .action-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 12px;
+        background: #f3f4f6;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        text-decoration: none;
+        color: #1f2937;
+        font-size: 12px;
+        font-weight: 500;
+        transition: all 0.3s;
+    }
+    
+    .action-btn:hover {
+        background: #e5e7eb;
+        transform: translateY(-2px);
+    }
+    
+    .action-btn i {
+        font-size: 20px;
+        color: #667eea;
+    }
+    
+    .internal-notes {
+        background: #fef3c7;
+        border-left: 4px solid #f59e0b;
+        padding: 16px;
+        border-radius: 4px;
+        margin-top: 20px;
+    }
+    
+    .internal-notes-title {
+        font-weight: 600;
+        color: #92400e;
+        font-size: 13px;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .internal-notes-content {
+        font-size: 13px;
+        color: #78350f;
+        line-height: 1.5;
+    }
+    
+    .internal-notes-meta {
+        font-size: 11px;
+        color: #a16207;
+        margin-top: 8px;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #667eea;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 20px;
+        transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+        gap: 10px;
+    }
+    
+    .star {
+        color: #fbbf24;
+        font-size: 16px;
+    }
+    
+    @media (max-width: 768px) {
+        .two-column {
+            grid-template-columns: 1fr;
+        }
+        
+        .score-metrics {
+            grid-template-columns: 1fr;
+        }
+        
+        .statistics {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        
+        .quick-actions {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="p-8 max-w-6xl mx-auto">
+    <!-- Back Link -->
+    <a href="{% url 'vendor_list' %}" class="back-link">
+        <i class="fas fa-arrow-left"></i> Back to Vendors
+    </a>
+    
+    <!-- Vendor Header -->
+    <div class="vendor-header">
+        <div class="vendor-title">
+            <div class="vendor-name-info">
+                <h1>{{ vendor.name }}</h1>
+                <div class="vendor-badges">
+                    {% if vendor.active %}
+                    <span class="badge active">
+                        <i class="fas fa-check-circle"></i> Active
+                    </span>
+                    {% endif %}
+                    {% if vendor.recommended %}
+                    <span class="badge primary">
+                        <i class="fas fa-star"></i> Primary Vendor
+                    </span>
+                    {% endif %}
+                    <span class="badge">
+                        VPS Score: {{ vendor.vps_score }}
+                    </span>
+                </div>
+                <div style="font-size: 14px; opacity: 0.9;">
+                    Last Updated: {{ vendor.updated_at|date:"M d, Y \a\t H:i" }}
+                </div>
+            </div>
+            <a href="{% url 'vendor_profile' vendor.id %}" class="edit-btn" style="text-decoration: none; display: inline-block;">
+                <i class="fas fa-edit" style="margin-right: 6px;"></i> Edit Profile
+            </a>
+        </div>
+    </div>
+    
+    <!-- Performance Score -->
+    <div class="performance-score">
+        <div style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">
+            <i class="fas fa-award" style="color: #f59e0b; margin-right: 6px;"></i> Performance Score
+        </div>
+        <div class="score-large">{{ vendor.vps_score_value|floatformat:1 }}/10</div>
+        <div class="score-grade">Grade: <strong>{{ vendor.get_vps_score_display }}</strong></div>
+        
+        <div class="score-metrics">
+            <div class="metric-item">
+                <div class="metric-value">{{ vendor.rating|floatformat:1 }}</div>
+                <div class="metric-label">Overall Rating</div>
+                <div style="margin-top: 8px;">
+                    <span class="star">★★★★★</span>
+                </div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-value" style="color: #10b981;">95%</div>
+                <div class="metric-label">On-Time Delivery</div>
+                <div class="metric-bar">
+                    <div class="metric-bar-fill" style="width: 95%;"></div>
+                </div>
+            </div>
+            <div class="metric-item">
+                <div class="metric-value" style="color: #3b82f6;">92%</div>
+                <div class="metric-label">Quality Score</div>
+                <div class="metric-bar">
+                    <div class="metric-bar-fill" style="width: 92%;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Two Column Layout -->
+    <div class="two-column">
+        <!-- Contact Information -->
+        <div class="card">
+            <h2>
+                <i class="fas fa-phone-alt"></i> Contact Information
+            </h2>
+            
+            <div class="info-group">
+                <div class="info-label">Contact Person</div>
+                <div class="info-value">{{ vendor.contact_person|default:"Not set" }}</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Email Address</div>
+                <div class="info-value">
+                    <a href="mailto:{{ vendor.email }}" style="color: #667eea; text-decoration: none;">
+                        {{ vendor.email }}
+                    </a>
+                </div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Phone Number</div>
+                <div class="info-value">
+                    <a href="tel:{{ vendor.phone }}" style="color: #667eea; text-decoration: none;">
+                        {{ vendor.phone }}
+                    </a>
+                </div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Business Address</div>
+                <div class="info-value">
+                    {{ vendor.business_address|default:"Not provided" }}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Business Details -->
+        <div class="card">
+            <h2>
+                <i class="fas fa-briefcase"></i> Business Details
+            </h2>
+            
+            <div class="info-group">
+                <div class="info-label">Tax PIN</div>
+                <div class="info-value">{{ vendor.tax_pin|default:"Not provided" }}</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Payment Terms</div>
+                <div class="info-value">{{ vendor.get_payment_terms_display|default:"Not set" }}</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Payment Method</div>
+                <div class="info-value">{{ vendor.get_payment_method_display|default:"Not set" }}</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Rush Capable</div>
+                <div class="info-value">
+                    {% if vendor.rush_capable %}
+                    <span style="color: #10b981; font-weight: 700;">✓ Yes</span>
+                    {% else %}
+                    <span style="color: #ef4444; font-weight: 700;">✗ No</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Services Offered -->
+    <div class="card" style="margin-bottom: 24px;">
+        <h2>
+            <i class="fas fa-cogs"></i> Services Offered
+        </h2>
+        
+        {% if vendor.services %}
+        <div class="services-list">
+            {% for service in vendor.services %}
+            <span class="service-tag">{{ service }}</span>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div style="color: #6b7280; font-size: 14px;">
+            No services specified yet.
+        </div>
+        {% endif %}
+        
+        {% if vendor.specialization %}
+        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid #f3f4f6;">
+            <div class="info-label" style="margin-bottom: 8px;">Specialization</div>
+            <div class="info-value" style="color: #4b5563; font-weight: 400;">
+                {{ vendor.specialization }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Capacity -->
+    <div class="two-column">
+        <div class="card">
+            <h2>
+                <i class="fas fa-box"></i> Capacity
+            </h2>
+            
+            <div class="info-group">
+                <div class="info-label">Minimum Order Value</div>
+                <div class="info-value">KES {{ vendor.minimum_order|default:0|floatformat:2 }}</div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Standard Lead Time</div>
+                <div class="info-value">{{ vendor.lead_time|default:"Not specified" }}</div>
+            </div>
+        </div>
+        
+        <!-- Initial Rating -->
+        <div class="card">
+            <h2>
+                <i class="fas fa-star"></i> Initial Rating
+            </h2>
+            
+            <div class="info-group">
+                <div class="info-label">Overall Quality</div>
+                <div class="info-value">
+                    <select style="padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 4px; font-weight: 600;">
+                        <option {% if vendor.quality_rating == 'Excellent' %}selected{% endif %}>Excellent</option>
+                        <option {% if vendor.quality_rating == 'Very Good' %}selected{% endif %}>Very Good</option>
+                        <option {% if vendor.quality_rating == 'Good' %}selected{% endif %}>Good</option>
+                        <option {% if vendor.quality_rating == 'Fair' %}selected{% endif %}>Fair</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="info-group">
+                <div class="info-label">Reliability</div>
+                <div class="info-value">
+                    <select style="padding: 6px 8px; border: 1px solid #e5e7eb; border-radius: 4px; font-weight: 600;">
+                        <option {% if vendor.reliability_rating == 'Excellent' %}selected{% endif %}>Excellent</option>
+                        <option {% if vendor.reliability_rating == 'Very Good' %}selected{% endif %}>Very Good</option>
+                        <option {% if vendor.reliability_rating == 'Good' %}selected{% endif %}>Good</option>
+                        <option {% if vendor.reliability_rating == 'Fair' %}selected{% endif %}>Fair</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="card" style="margin-bottom: 24px;">
+        <h2>
+            <i class="fas fa-chart-bar"></i> Statistics
+        </h2>
+        <div class="statistics">
+            <div class="stat-item">
+                <div class="stat-value">47</div>
+                <div class="stat-label">Total Jobs</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">This Month</div>
+                <div class="stat-label">—</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">Total Spend</div>
+                <div class="stat-label">285,000 KES</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">Nov 25</div>
+                <div class="stat-label">Last Order</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Actions -->
+    <div class="card" style="margin-bottom: 24px;">
+        <h2>
+            <i class="fas fa-bolt"></i> Quick Actions
+        </h2>
+        <div class="quick-actions">
+            <a href="#" class="action-btn">
+                <i class="fas fa-pencil-alt"></i> Edit Profile
+            </a>
+            <a href="#" class="action-btn">
+                <i class="fas fa-plus-circle"></i> Create Order
+            </a>
+            <a href="#" class="action-btn">
+                <i class="fas fa-chart-line"></i> View Reports
+            </a>
+            <a href="#" class="action-btn">
+                <i class="fas fa-envelope"></i> Send Message
+            </a>
+        </div>
+    </div>
+    
+    <!-- Internal Notes -->
+    {% if vendor.internal_notes %}
+    <div class="internal-notes">
+        <div class="internal-notes-title">
+            <i class="fas fa-lock"></i> Internal Notes
+            <span style="font-size: 11px; font-weight: 400; margin-left: auto;">(Not visible to vendor)</span>
+        </div>
+        <div class="internal-notes-content">
+            {{ vendor.internal_notes }}
+        </div>
+        <div class="internal-notes-meta">
+            Last updated: {{ vendor.internal_notes_updated|date:"M d, Y \a\t H:i" }}
+        </div>
+    </div>
+    {% endif %}
+    
+</div>
+{% endblock %}

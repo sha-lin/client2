@@ -2927,6 +2927,48 @@ if (editorToolbar && longDescTextarea) {
             `;
         }
     };
+    
+    // Setup event listeners for test inputs
+    const testQuantity = document.getElementById('test_quantity');
+    const testPaperWeight = document.getElementById('test_paper_weight');
+    const testCoating = document.getElementById('test_coating');
+    const testLamination = document.getElementById('test_lamination');
+    const testAnotherBtn = document.getElementById('test-another-btn');
+    const resetTestBtn = document.getElementById('reset-test-btn');
+    
+    if (testQuantity) {
+        testQuantity.addEventListener('change', calculatePricing);
+    }
+    if (testPaperWeight) {
+        testPaperWeight.addEventListener('change', calculatePricing);
+    }
+    if (testCoating) {
+        testCoating.addEventListener('change', calculatePricing);
+    }
+    if (testLamination) {
+        testLamination.addEventListener('change', calculatePricing);
+    }
+    
+    if (testAnotherBtn) {
+        testAnotherBtn.addEventListener('click', function() {
+            // Trigger calculation again
+            calculatePricing();
+        });
+    }
+    
+    if (resetTestBtn) {
+        resetTestBtn.addEventListener('click', function() {
+            // Reset to default values
+            if (testQuantity) testQuantity.value = '500';
+            if (testPaperWeight) testPaperWeight.value = '350';
+            if (testCoating) testCoating.value = 'matte';
+            if (testLamination) testLamination.value = 'both';
+            calculatePricing();
+        });
+    }
+    
+    // Calculate pricing on page load
+    calculatePricing();
     // ==================== TAG MANAGEMENT ====================
 const tagInput = document.getElementById('new_tag_input');
 const addTagBtn = document.getElementById('add_tag_btn');

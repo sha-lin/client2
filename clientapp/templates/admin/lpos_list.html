@@ -1,0 +1,35 @@
+{% extends 'admin/generic_list.html' %}
+{% load humanize %}
+
+{% block filter_controls %}
+    <select name="status" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+        <option value="">All Status</option>
+        <option value="pending">Pending</option>
+        <option value="approved">Approved</option>
+        <option value="completed">Completed</option>
+    </select>
+{% endblock %}
+
+{% block table_header %}
+    <tr>
+        <th>LPO Number</th>
+        <th>Client</th>
+        <th>Amount</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Actions</th>
+    </tr>
+{% endblock %}
+
+{% block table_body %}
+    {% for lpo in page_obj %}
+        <tr>
+            <td><a href="{% url 'admin_lpo_detail' lpo.pk %}" style="color: #3b82f6;">{{ lpo.lpo_number }}</a></td>
+            <td>{{ lpo.client.name }}</td>
+            <td>{{ lpo.total_amount|floatformat:2 }}</td>
+            <td><span class="badge badge-warning">{{ lpo.status }}</span></td>
+            <td>{{ lpo.created_at|date:"M d, Y" }}</td>
+            <td><a href="{% url 'admin_lpo_detail' lpo.pk %}" class="action-btn">Edit</a> | <a href="{% url 'admin_lpo_delete' lpo.pk %}" class="action-btn danger">Delete</a></td>
+        </tr>
+    {% endfor %}
+{% endblock %}

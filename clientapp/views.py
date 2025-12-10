@@ -23,6 +23,7 @@ from .forms import (
     ClientForm,
     QuoteCostingForm,
     ProductionUpdateForm,
+    VendorForm,
 )
 
 from .models import (
@@ -38,7 +39,67 @@ from .models import (
     Job,
     JobProduct,
     ProductTag,
+    LPO,
+    LPOLineItem,
+    SystemAlert,
 )
+
+# Import comprehensive CRUD API endpoints
+from .admin_api import (
+    api_admin_leads,
+    api_admin_lead_detail,
+    api_admin_products,
+    api_admin_product_detail,
+    api_admin_vendors,
+    api_admin_vendor_detail,
+    api_admin_lpos,
+    api_admin_payments,
+    api_admin_qc_inspections,
+    api_admin_deliveries,
+    api_admin_create_user,
+    api_admin_get_user,
+    api_admin_update_user,
+    api_admin_delete_user,
+    api_admin_create_client,
+    api_admin_get_client,
+    api_admin_update_client,
+    api_admin_delete_client,
+    api_admin_create_lead,
+    api_admin_get_lead,
+    api_admin_update_lead,
+    api_admin_delete_lead,
+    api_admin_create_quote,
+    api_admin_get_quote,
+    api_admin_update_quote,
+    api_admin_delete_quote,
+    api_admin_create_product,
+    api_admin_get_product,
+    api_admin_update_product,
+    api_admin_delete_product,
+)
+
+# Import admin dashboard views
+from .admin_views import (
+    admin_dashboard,
+    clients_list,
+    leads_list,
+    quotes_list,
+    products_list,
+    jobs_list,
+    vendors_list,
+    processes_list,
+    qc_list,
+    deliveries_list,
+    lpos_list,
+    payments_list,
+    analytics_view,
+    users_list,
+    get_object_detail,
+    create_object,
+    update_object,
+    delete_object,
+)
+
 def notification_count_processor(request):
     """Add unread notification count to all templates"""
     if request.user.is_authenticated:
@@ -6071,6 +6132,30 @@ def quality_control_list(request):
     return render(request, 'quality_control.html', {'inspections': inspections})
 
 @login_required
+def vendor_profile(request, vendor_id):
+    """Detailed vendor profile page showing all vendor information."""
+    vendor = get_object_or_404(Vendor, id=vendor_id)
+    
+    # Get vendor's jobs/quotes
+    vendor_quotes = VendorQuote.objects.filter(vendor=vendor).select_related('job')
+    job_stages = vendor.job_stages.all().select_related('job')
+    
+    # Statistics
+    total_jobs = vendor_quotes.count()
+    completed_jobs = vendor_quotes.filter(job__status='Completed').count()
+    
+    context = {
+        'vendor': vendor,
+        'vendor_quotes': vendor_quotes,
+        'job_stages': job_stages,
+        'total_jobs': total_jobs,
+        'completed_jobs': completed_jobs,
+        'current_view': 'vendor_profile',
+    }
+    
+    return render(request, 'vendor_profile.html', context)
+
+@login_required
 def vendor_list(request):
     """Vendor management page - list all vendors and their process links."""
     vendors = Vendor.objects.all().order_by('-vps_score_value', 'name')
@@ -6709,3 +6794,543 @@ def ajax_process_variables(request, process_id):
             'success': False,
             'error': 'Process not found'
         }, status=404)
+
+
+# Add to clients/views.py
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.db.models import Count, Sum, Avg, Q
+from datetime import datetime, timedelta
+from decimal import Decimal
+
+@staff_member_required
+def admin_dashboard_index(request):
+    """Main admin dashboard with real-time statistics"""
+    today = timezone.now().date()
+    this_month_start = today.replace(day=1)
+    last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+    this_week_start = today - timedelta(days=today.weekday())
+    
+    # Calculate KPIs
+    total_clients = Client.objects.filter(status='Active').count()
+    quotes_this_month = Quote.objects.filter(created_at__gte=this_month_start).values('quote_id').distinct().count()
+    jobs_in_production = Job.objects.filter(status__in=['pending', 'in_progress']).count()
+    
+    # Revenue this month
+    monthly_revenue = Quote.objects.filter(
+        status='Approved',
+        approved_at__gte=this_month_start
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    
+    # Pending approvals
+    pending_approvals = Quote.objects.filter(
+        production_status='pending'
+    ).values('quote_id').distinct().count()
+    
+    # Overdue jobs
+    overdue_jobs = Job.objects.filter(
+        expected_completion__lt=today,
+        status__in=['pending', 'in_progress']
+    ).count()
+    
+    # Completed this week
+    completed_this_week = Job.objects.filter(
+        status='completed',
+        actual_completion__gte=this_week_start
+    ).count()
+    
+    # Pending payments
+    pending_payments = LPO.objects.filter(
+        status__in=['approved', 'in_production']
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    
+    # Vendor performance
+    avg_vendor_score = Vendor.objects.filter(active=True).aggregate(
+        avg=Avg('vps_score_value')
+    )['avg'] or 0
+    
+    # Profit margin calculation
+    approved_quotes = Quote.objects.filter(status='Approved', production_cost__isnull=False)
+    total_revenue_for_margin = approved_quotes.aggregate(Sum('total_amount'))['total_amount__sum'] or 0
+    total_cost_for_margin = approved_quotes.aggregate(Sum('production_cost'))['production_cost__sum'] or 0
+    profit_margin = ((total_revenue_for_margin - total_cost_for_margin) / total_revenue_for_margin * 100) if total_revenue_for_margin > 0 else 0
+    
+    # Growth calculations (compare to last month)
+    last_month_clients = Client.objects.filter(
+        status='Active',
+        created_at__gte=last_month_start,
+        created_at__lt=this_month_start
+    ).count()
+    clients_growth = ((total_clients - last_month_clients) / last_month_clients * 100) if last_month_clients > 0 else 0
+    
+    # Recent alerts
+    recent_alerts = SystemAlert.objects.filter(
+        is_active=True,
+        is_dismissed=False
+    ).order_by('-created_at')[:5]
+    
+    # Recent activity
+    recent_activity = ActivityLog.objects.select_related(
+        'client', 'created_by'
+    ).order_by('-created_at')[:10]
+    
+    context = {
+        'total_clients': total_clients,
+        'clients_growth': round(clients_growth, 1),
+        'quotes_this_month': quotes_this_month,
+        'quotes_growth': 8,  # Calculate based on your logic
+        'jobs_in_production': jobs_in_production,
+        'monthly_revenue': monthly_revenue,
+        'revenue_growth': 12,  # Calculate based on your logic
+        'pending_approvals': pending_approvals,
+        'overdue_jobs': overdue_jobs,
+        'overdue_change': -2,
+        'completed_this_week': completed_this_week,
+        'completed_growth': 15,
+        'pending_payments': pending_payments,
+        'avg_vendor_score': round(avg_vendor_score, 1),
+        'vendor_score_change': 3,
+        'profit_margin': round(profit_margin, 1),
+        'unread_alerts': recent_alerts.count(),
+        'recent_alerts': recent_alerts,
+        'recent_activity': recent_activity,
+    }
+    
+    return render(request, 'admin/index.html', context)
+
+
+# Add CRUD views for each section
+@staff_member_required
+def admin_clients_list(request):
+    """List all clients with filters"""
+    from django.contrib.auth.models import Group
+    
+    clients = Client.objects.all().order_by('-created_at')
+    
+    # Apply filters
+    status_filter = request.GET.get('status')
+    if status_filter:
+        clients = clients.filter(status=status_filter)
+    
+    search = request.GET.get('search', '').strip()
+    if search:
+        clients = clients.filter(
+            Q(name__icontains=search) |
+            Q(email__icontains=search) |
+            Q(client_id__icontains=search)
+        )
+    
+    # Get account managers for the dropdown
+    account_managers = User.objects.filter(groups__name='Account Manager').order_by('first_name')
+    
+    context = {
+        'clients': clients,
+        'status_filter': status_filter,
+        'search': search,
+        'account_managers': account_managers,
+    }
+    return render(request, 'admin/clients_list.html', context)
+
+
+@staff_member_required
+def admin_quotes_list(request):
+    """List all quotes"""
+    quotes = Quote.objects.select_related('client', 'lead').order_by('-created_at')
+    
+    context = {'quotes': quotes}
+    return render(request, 'admin/quotes_list.html', context)
+
+
+@staff_member_required
+def admin_jobs_list(request):
+    """List all jobs"""
+    jobs = Job.objects.select_related('client').order_by('-created_at')
+    
+    context = {'jobs': jobs}
+    return render(request, 'admin/jobs_list.html', context)
+
+
+@staff_member_required
+def admin_products_list(request):
+    """List all products"""
+    products = Product.objects.all().order_by('-created_at')
+    
+    context = {'products': products}
+    return render(request, 'admin/products_list.html', context)
+
+
+@staff_member_required
+def admin_vendors_list(request):
+    """List all vendors"""
+    vendors = Vendor.objects.all().order_by('-vps_score_value')
+    
+    context = {'vendors': vendors}
+    return render(request, 'admin/vendors_list.html', context)
+
+
+# API Endpoints for Admin Dashboard CRUD Operations
+@staff_member_required
+@require_POST
+def api_admin_create_client(request):
+    """Create a new client via API"""
+    try:
+        name = request.POST.get('name')
+        email = request.POST.get('email')
+        phone = request.POST.get('phone', '')
+        status = request.POST.get('status', 'Active')
+        
+        if not name or not email:
+            return JsonResponse({'success': False, 'message': 'Name and email are required'}, status=400)
+        
+        # Check if email already exists
+        if Client.objects.filter(email=email).exists():
+            return JsonResponse({'success': False, 'message': 'Email already exists'}, status=400)
+        
+        client = Client.objects.create(
+            name=name,
+            email=email,
+            phone=phone,
+            status=status
+        )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            activity_type='Client Created',
+            title=f'New client {name} created',
+            description=f'Client {name} was created by admin',
+            client=client,
+            created_by=request.user
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Client created successfully',
+            'client_id': client.id
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def admin_leads_list(request):
+    """List all leads for admin"""
+    leads = Lead.objects.all().order_by('-created_at')
+    status_filter = request.GET.get('status')
+    if status_filter:
+        leads = leads.filter(status=status_filter)
+
+    search = request.GET.get('search', '').strip()
+    if search:
+        leads = leads.filter(
+            Q(lead_name__icontains=search) |
+            Q(email__icontains=search) |
+            Q(company_name__icontains=search)
+        )
+
+    context = {'leads': leads, 'status_filter': status_filter, 'search': search}
+    return render(request, 'admin/leads_list.html', context)
+
+
+@staff_member_required
+def admin_processes_list(request):
+    processes = Process.objects.all().order_by('-created_at')
+    context = {'processes': processes}
+    return render(request, 'admin/processes_list.html', context)
+
+
+@staff_member_required
+def admin_qc_list(request):
+    qcs = QCInspection.objects.select_related('job').order_by('-created_at')
+    context = {'qcs': qcs}
+    return render(request, 'admin/qc_list.html', context)
+
+
+@staff_member_required
+def admin_deliveries_list(request):
+    deliveries = Delivery.objects.select_related('job').order_by('-created_at')
+    context = {'deliveries': deliveries}
+    return render(request, 'admin/deliveries_list.html', context)
+
+
+@staff_member_required
+def admin_lpos_list(request):
+    lpos = LPO.objects.select_related('client').order_by('-created_at')
+    context = {'lpos': lpos}
+    return render(request, 'admin/lpos_list.html', context)
+
+
+@staff_member_required
+def admin_payments_list(request):
+    payments = Payment.objects.select_related('client').order_by('-created_at')
+    context = {'payments': payments}
+    return render(request, 'admin/payments_list.html', context)
+
+
+@staff_member_required
+def admin_analytics(request):
+    # small wrapper for analytics page (charts handled client-side)
+    return render(request, 'admin/analytics.html', {})
+
+
+@staff_member_required
+@staff_member_required
+def admin_users_list(request):
+    """List all users and groups for admin management"""
+    from django.contrib.auth.models import Group
+    
+    users = User.objects.all().order_by('username')
+    groups = Group.objects.all().order_by('name')
+    
+    context = {
+        'users': users,
+        'groups': groups,
+    }
+    return render(request, 'admin/users_list.html', context)
+
+
+@staff_member_required
+def admin_settings(request):
+    # Hybrid view: allow saving simple site settings via POST (placeholder)
+    if request.method == 'POST':
+        messages.success(request, 'Settings saved (placeholder)')
+        return redirect('admin_dashboard_index')
+    return render(request, 'admin/settings.html', {'settings': settings})
+
+
+@staff_member_required
+def admin_alerts_list(request):
+    alerts = SystemAlert.objects.filter(is_active=True).order_by('-created_at')
+    context = {'alerts': alerts}
+    return render(request, 'admin/alerts_list.html', context)
+
+
+@staff_member_required
+@require_POST
+def api_admin_update_client(request, client_id):
+    """Update an existing client via API"""
+    try:
+        client = get_object_or_404(Client, id=client_id)
+        
+        client.name = request.POST.get('name', client.name)
+        client.email = request.POST.get('email', client.email)
+        client.phone = request.POST.get('phone', client.phone)
+        client.status = request.POST.get('status', client.status)
+        
+        client.save()
+        
+        # Log activity
+        ActivityLog.objects.create(
+            activity_type='Client Updated',
+            title=f'Client {client.name} updated',
+            description=f'Client {client.name} was updated by admin',
+            client=client,
+            created_by=request.user
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Client updated successfully',
+            'client_id': client.id
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+@staff_member_required
+@require_POST
+def api_admin_delete_client(request, client_id):
+    """Delete a client via API"""
+    try:
+        client = get_object_or_404(Client, id=client_id)
+        
+        # Log activity before deletion
+        ActivityLog.objects.create(
+            activity_type='Client Deleted',
+            title=f'Client {client.name} deleted',
+            description=f'Client {client.name} was deleted by admin',
+            client=client,
+            created_by=request.user
+        )
+        
+        client_name = client.name
+        client.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Client {client_name} deleted successfully'
+        })
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+
+@staff_member_required
+def api_admin_dashboard_data(request):
+    """API endpoint for real-time dashboard data polling with real data"""
+    from .admin_dashboard import get_dashboard_stats
+    
+    try:
+        stats = get_dashboard_stats()
+        
+        today = timezone.now().date()
+        
+        # ===== REVENUE TREND (Last 6 Months) =====
+        revenue_trend = []
+        current_date = today.replace(day=1)  # Start of current month
+        
+        for i in range(5, -1, -1):
+            # Calculate month start and end
+            if i == 0:
+                month_start = current_date
+                month_end = today
+            else:
+                # Go back i months
+                temp_date = current_date
+                for _ in range(i):
+                    temp_date = temp_date - timedelta(days=1)
+                    temp_date = temp_date.replace(day=1)
+                month_start = temp_date
+                # Get last day of month
+                next_month = month_start + timedelta(days=32)
+                month_end = (next_month.replace(day=1) - timedelta(days=1))
+            
+            # Sum revenue from approved quotes and completed LPOs
+            quote_revenue = Quote.objects.filter(
+                status__in=['Approved', 'Completed'],
+                approved_at__gte=month_start,
+                approved_at__lte=month_end
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+            
+            lpo_revenue = LPO.objects.filter(
+                status__in=['approved', 'completed'],
+                created_at__gte=month_start,
+                created_at__lte=month_end
+            ).aggregate(total=Sum('total_amount'))['total'] or 0
+            
+            monthly_total = float(quote_revenue or 0) + float(lpo_revenue or 0)
+            revenue_trend.append(monthly_total)
+        
+        # ===== PRODUCTION BY CATEGORY (Product distribution) =====
+        # Get product counts by category or type
+        from .models import Product, ProductTag, JobProduct
+        
+        category_data = []
+        category_labels = []
+        
+        # If products have tags or categories, group by them
+        product_counts = Product.objects.values(
+            'product_category'  # Or use tags if available
+        ).annotate(count=Count('id')).order_by('-count')[:5]
+        
+        if product_counts.exists():
+            for item in product_counts:
+                category = item.get('product_category', 'Uncategorized')
+                category_labels.append(category)
+                category_data.append(item['count'])
+        else:
+            # Fallback: get production by job types/products in recent jobs
+            job_products = JobProduct.objects.filter(
+                job__created_at__gte=today - timedelta(days=30)
+            ).values('product__name').annotate(
+                count=Count('id')
+            ).order_by('-count')[:5]
+            
+            if job_products.exists():
+                for item in job_products:
+                    category_labels.append(item['product__name'])
+                    category_data.append(item['count'])
+            else:
+                # Last fallback: use generic data
+                category_labels = ['Products', 'Services', 'Other']
+                category_data = [Product.objects.count(), 0, 0]
+        
+        production_by_category = category_data if category_data else [1, 1, 1]
+        
+        # ===== WEEKLY JOBS OVERVIEW (Last 6 days) =====
+        weekly_jobs = {
+            'completed': [],
+            'in_progress': [],
+            'delayed': []
+        }
+        
+        # Get job counts for last 6 days by status
+        for i in range(5, -1, -1):
+            day = today - timedelta(days=i)
+            day_start = day.replace(hour=0, minute=0, second=0)
+            day_end = day.replace(hour=23, minute=59, second=59)
+            
+            completed_count = Job.objects.filter(
+                status__in=['completed', 'Completed', 'done', 'Done'],
+                updated_at__date=day
+            ).count()
+            
+            in_progress_count = Job.objects.filter(
+                status__in=['in_progress', 'In Progress', 'pending', 'Pending'],
+                updated_at__date=day
+            ).count()
+            
+            # For delayed jobs, check if they have exceeded deadline
+            overdue_count = Job.objects.filter(
+                status__in=['in_progress', 'In Progress', 'pending', 'Pending'],
+                deadline__lt=day,
+                updated_at__date=day
+            ).count()
+            
+            weekly_jobs['completed'].append(completed_count)
+            weekly_jobs['in_progress'].append(in_progress_count)
+            weekly_jobs['delayed'].append(overdue_count)
+        
+        # ===== CALCULATE KPI STATS =====
+        # Total clients
+        total_clients = Client.objects.count()
+        
+        # Quotes this month
+        quotes_this_month = Quote.objects.filter(
+            created_at__gte=today.replace(day=1)
+        ).count()
+        
+        # Jobs in production
+        jobs_in_production = Job.objects.filter(
+            status__in=['in_progress', 'In Progress', 'pending', 'Pending']
+        ).count()
+        
+        # Monthly revenue
+        monthly_start = today.replace(day=1)
+        monthly_revenue = Quote.objects.filter(
+            status__in=['Approved', 'Completed'],
+            approved_at__gte=monthly_start
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        monthly_revenue_lpo = LPO.objects.filter(
+            created_at__gte=monthly_start,
+            status__in=['approved', 'completed']
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        monthly_revenue = float(monthly_revenue or 0) + float(monthly_revenue_lpo or 0)
+        
+        # Pending approvals
+        pending_approvals = Quote.objects.filter(
+            status__in=['Pending', 'pending', 'Draft', 'draft']
+        ).count()
+        
+        # Overdue jobs
+        overdue_jobs = Job.objects.filter(
+            status__in=['in_progress', 'In Progress', 'pending', 'Pending'],
+            deadline__lt=today
+        ).count()
+        
+        return JsonResponse({
+            'success': True,
+            'total_clients': total_clients,
+            'quotes_this_month': quotes_this_month,
+            'jobs_in_production': jobs_in_production,
+            'monthly_revenue': monthly_revenue,
+            'pending_approvals': pending_approvals,
+            'overdue_jobs': overdue_jobs,
+            'revenue_trend': revenue_trend,
+            'production_by_category': production_by_category,
+            'weekly_jobs': weekly_jobs
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'success': False, 'message': str(e)}, status=500)

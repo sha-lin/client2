@@ -1991,10 +1991,52 @@ class Vendor(models.Model):
         ('C', 'C - Acceptable'),
     ]
     
+    RATING_CHOICES = [
+        ('Excellent', 'Excellent'),
+        ('Very Good', 'Very Good'),
+        ('Good', 'Good'),
+        ('Fair', 'Fair'),
+    ]
+    
+    PAYMENT_TERMS_CHOICES = [
+        ('Net 7', 'Net 7 Days'),
+        ('Net 14', 'Net 14 Days'),
+        ('Net 30', 'Net 30 Days'),
+        ('Prepaid', 'Prepaid'),
+        ('Cash on Delivery', 'Cash on Delivery'),
+    ]
+    
+    PAYMENT_METHOD_CHOICES = [
+        ('Bank Transfer', 'Bank Transfer'),
+        ('Mobile Money', 'Mobile Money'),
+        ('Cash', 'Cash'),
+        ('Check', 'Check'),
+    ]
+    
+    # Basic Information
     name = models.CharField(max_length=200)
+    contact_person = models.CharField(max_length=200, blank=True, null=True)
     email = models.EmailField()
     phone = models.CharField(max_length=20)
-    address = models.TextField(blank=True)
+    business_address = models.TextField(blank=True, null=True)
+    
+    # Business Details
+    tax_pin = models.CharField(max_length=50, blank=True, null=True)
+    payment_terms = models.CharField(max_length=50, choices=PAYMENT_TERMS_CHOICES, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
+    
+    # Services & Specialization
+    services = models.TextField(blank=True, null=True)  # Comma-separated list
+    specialization = models.TextField(blank=True, null=True)
+    
+    # Capacity
+    minimum_order = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    lead_time = models.CharField(max_length=100, blank=True, null=True)  # e.g., "5 days"
+    rush_capable = models.BooleanField(default=False)
+    
+    # Ratings
+    quality_rating = models.CharField(max_length=50, choices=RATING_CHOICES, blank=True, null=True)
+    reliability_rating = models.CharField(max_length=50, choices=RATING_CHOICES, blank=True, null=True)
     
     # Vendor Performance Score
     vps_score = models.CharField(max_length=1, choices=VPS_CHOICES, default='B')
@@ -2004,8 +2046,13 @@ class Vendor(models.Model):
     rating = models.DecimalField(max_digits=3, decimal_places=1, default=4.0)
     
     # Additional info
+    internal_notes = models.TextField(blank=True, null=True)
+    internal_notes_updated = models.DateTimeField(blank=True, null=True)
     recommended = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
+    
+    # Legacy field for backward compatibility
+    address = models.TextField(blank=True, null=True)
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
