@@ -2,34 +2,37 @@
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="status" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-        <option value="">All Status</option>
-        <option value="passed">Passed</option>
-        <option value="failed">Failed</option>
-        <option value="pending">Pending</option>
-    </select>
+<select name="status" onchange="this.form.submit()"
+    style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+    <option value="">All Status</option>
+    <option value="passed">Passed</option>
+    <option value="failed">Failed</option>
+    <option value="pending">Pending</option>
+</select>
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>QC ID</th>
-        <th>Job</th>
-        <th>Status</th>
-        <th>Inspected By</th>
-        <th>Date</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>QC ID</th>
+    <th>Job</th>
+    <th>Status</th>
+    <th>Inspected By</th>
+    <th>Date</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for qc in page_obj %}
-        <tr>
-            <td><a href="#" style="color: #3b82f6;">#{{ qc.id }}</a></td>
-            <td>{{ qc.job.job_number }}</td>
-            <td><span class="badge {% if qc.status == 'passed' %}badge-success{% else %}badge-danger{% endif %}">{{ qc.status }}</span></td>
-            <td>{{ qc.inspected_by.get_full_name|default:'-' }}</td>
-            <td>{{ qc.inspection_date|date:"M d, Y" }}</td>
-            <td><a href="#" class="action-btn">View</a></td>
-        </tr>
-    {% endfor %}
+{% for qc in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ qc.pk }}" class="row-checkbox"></td>
+    <td><a href="#" style="color: #3b82f6;">#{{ qc.id }}</a></td>
+    <td>{{ qc.job.job_number }}</td>
+        <td><span class="badge {% if qc.status == 'passed' %}badge-success{% else %}badge-danger{% endif %}">{{ qc.status }}</span></td>
+    <td>{{ qc.inspected_by.get_full_name|default:'-' }}</td>
+    <td>{{ qc.inspection_date|date:"M d, Y" }}</td>
+    <td><a href="#" class="action-btn">View</a></td>
+</tr>
+{% endfor %}
 {% endblock %}

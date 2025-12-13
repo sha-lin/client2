@@ -2,34 +2,37 @@
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="severity" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-        <option value="">All Severity</option>
-        <option value="error">Error</option>
-        <option value="warning">Warning</option>
-        <option value="info">Info</option>
-    </select>
+<select name="severity" onchange="this.form.submit()"
+    style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+    <option value="">All Severity</option>
+    <option value="error">Error</option>
+    <option value="warning">Warning</option>
+    <option value="info">Info</option>
+</select>
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>Alert ID</th>
-        <th>Title</th>
-        <th>Message</th>
-        <th>Severity</th>
-        <th>Created</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Alert ID</th>
+    <th>Title</th>
+    <th>Message</th>
+    <th>Severity</th>
+    <th>Created</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for alert in page_obj %}
-        <tr>
-            <td>#{{ alert.id }}</td>
-            <td>{{ alert.title }}</td>
-            <td>{{ alert.message|truncatewords:10 }}</td>
-            <td><span class="badge {% if alert.severity == 'error' %}badge-danger{% elif alert.severity == 'warning' %}badge-warning{% else %}badge-info{% endif %}">{{ alert.severity }}</span></td>
-            <td>{{ alert.created_at|date:"M d, Y" }}</td>
-            <td><a href="#" class="action-btn">Dismiss</a></td>
-        </tr>
-    {% endfor %}
+{% for alert in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ alert.pk }}" class="row-checkbox"></td>
+    <td>#{{ alert.id }}</td>
+    <td>{{ alert.title }}</td>
+    <td>{{ alert.message|truncatewords:10 }}</td>
+    <td><span class="badge {% if alert.severity == 'error' %}badge-danger{% elif alert.severity == 'warning' %}badge-warning{% else %}badge-info{% endif %}">{{ alert.severity }}</span></td>
+    <td>{{ alert.created_at|date:"M d, Y" }}</td>
+    <td><a href="#" class="action-btn">Dismiss</a></td>
+</tr>
+{% endfor %}
 {% endblock %}

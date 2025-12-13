@@ -2,34 +2,37 @@
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="status" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-        <option value="">All Status</option>
-        <option value="pending">Pending</option>
-        <option value="delivered">Delivered</option>
-        <option value="failed">Failed</option>
-    </select>
+<select name="status" onchange="this.form.submit()"
+    style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+    <option value="">All Status</option>
+    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+    <option value="delivered" {% if status == 'delivered' %}selected{% endif %}>Delivered</option>
+    <option value="failed" {% if status == 'failed' %}selected{% endif %}>Failed</option>
+</select>
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>Delivery ID</th>
-        <th>Job</th>
-        <th>Client</th>
-        <th>Status</th>
-        <th>Date</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Delivery ID</th>
+    <th>Job</th>
+    <th>Client</th>
+    <th>Status</th>
+    <th>Date</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for delivery in page_obj %}
-        <tr>
-            <td><a href="#" style="color: #3b82f6;">#{{ delivery.id }}</a></td>
-            <td>{{ delivery.job.job_number }}</td>
-            <td>{{ delivery.job.quote.client.name }}</td>
-            <td><span class="badge badge-info">{{ delivery.status }}</span></td>
-            <td>{{ delivery.delivery_date|date:"M d, Y"|default:'-' }}</td>
-            <td><a href="#" class="action-btn">View</a></td>
-        </tr>
-    {% endfor %}
+{% for delivery in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ delivery.pk }}" class="row-checkbox"></td>
+    <td><a href="#" style="color: #3b82f6;">#{{ delivery.id }}</a></td>
+    <td>{{ delivery.job.job_number }}</td>
+    <td>{{ delivery.job.quote.client.name }}</td>
+    <td><span class="badge badge-info">{{ delivery.status }}</span></td>
+    <td>{{ delivery.delivery_date|date:"M d, Y"|default:'-' }}</td>
+    <td><a href="#" class="action-btn">View</a></td>
+</tr>
+{% endfor %}
 {% endblock %}

@@ -1,55 +1,57 @@
-﻿{% extends 'admin/generic_list.html' %}
+{% extends 'admin/generic_list.html' %}
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="status" class="filter-select" onchange="this.form.submit()">
-        <option value="">All Status</option>
-        <option value="New" {% if status == 'New' %}selected{% endif %}>New</option>
-        <option value="Contacted" {% if status == 'Contacted' %}selected{% endif %}>Contacted</option>
-        <option value="Qualified" {% if status == 'Qualified' %}selected{% endif %}>Qualified</option>
-        <option value="Converted" {% if status == 'Converted' %}selected{% endif %}>Converted</option>
-        <option value="Lost" {% if status == 'Lost' %}selected{% endif %}>Lost</option>
-    </select>
-    <select name="source" class="filter-select" onchange="this.form.submit()">
-        <option value="">All Sources</option>
-        <option value="Website" {% if source == 'Website' %}selected{% endif %}>Website</option>
-        <option value="Referral" {% if source == 'Referral' %}selected{% endif %}>Referral</option>
-        <option value="Cold Call" {% if source == 'Cold Call' %}selected{% endif %}>Cold Call</option>
-        <option value="Social Media" {% if source == 'Social Media' %}selected{% endif %}>Social Media</option>
-        <option value="Event" {% if source == 'Event' %}selected{% endif %}>Event</option>
-        <option value="Other" {% if source == 'Other' %}selected{% endif %}>Other</option>
-    </select>
+<select name="status" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Status</option>
+    <option value="New" {% if status == 'New' %}selected{% endif %}>New</option>
+    <option value="Contacted" {% if status == 'Contacted' %}selected{% endif %}>Contacted</option>
+    <option value="Qualified" {% if status == 'Qualified' %}selected{% endif %}>Qualified</option>
+    <option value="Converted" {% if status == 'Converted' %}selected{% endif %}>Converted</option>
+    <option value="Lost" {% if status == 'Lost' %}selected{% endif %}>Lost</option>
+</select>
+<select name="source" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Sources</option>
+    <option value="Website" {% if source == 'Website' %}selected{% endif %}>Website</option>
+    <option value="Referral" {% if source == 'Referral' %}selected{% endif %}>Referral</option>
+    <option value="Cold Call" {% if source == 'Cold Call' %}selected{% endif %}>Cold Call</option>
+    <option value="Social Media" {% if source == 'Social Media' %}selected{% endif %}>Social Media</option>
+    <option value="Event" {% if source == 'Event' %}selected{% endif %}>Event</option>
+    <option value="Other" {% if source == 'Other' %}selected{% endif %}>Other</option>
+</select>
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>Lead ID</th>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Phone</th>
-        <th>Source</th>
-        <th>Status</th>
-        <th>Created</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Lead ID</th>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Phone</th>
+    <th>Source</th>
+    <th>Status</th>
+    <th>Created</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for lead in page_obj %}
-        <tr>
-            <td><a href="{% url 'admin_lead_detail' lead.pk %}" style="color: #3b82f6; text-decoration: none;">{{ lead.lead_id }}</a></td>
-            <td><a href="{% url 'admin_lead_detail' lead.pk %}" style="color: #3b82f6; text-decoration: none;">{{ lead.name }}</a></td>
-            <td>{{ lead.email }}</td>
-            <td>{{ lead.phone }}</td>
-            <td>{{ lead.source|default:'-' }}</td>
-            <td><span class="badge badge-info">{{ lead.status }}</span></td>
-            <td>{{ lead.created_at|date:'M d, Y' }}</td>
-            <td>
-                <div class="row-actions">
-                    <a href="{% url 'admin_lead_detail' lead.pk %}" class="action-btn">Edit</a>
-                    <a href="{% url 'admin_lead_delete' lead.pk %}" class="action-btn danger">Delete</a>
-                </div>
-            </td>
-        </tr>
-    {% endfor %}
+{% for lead in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ lead.pk }}" class="row-checkbox"></td>
+    <td><a href="{% url 'admin_lead_detail' lead.pk %}" style="color: #3b82f6; text-decoration: none;">{{ lead.lead_id }}</a></td>
+    <td><a href="{% url 'admin_lead_detail' lead.pk %}" style="color: #3b82f6; text-decoration: none;">{{ lead.name }}</a></td>
+    <td>{{ lead.email }}</td>
+    <td>{{ lead.phone }}</td>
+    <td>{{ lead.source|default:'-' }}</td>
+    <td><span class="badge badge-info">{{ lead.status }}</span></td>
+    <td>{{ lead.created_at|date:'M d, Y' }}</td>
+    <td>
+        <div class="row-actions">
+            <a href="{% url 'admin_lead_detail' lead.pk %}" class="action-btn">Edit</a>
+            <a href="{% url 'admin_lead_delete' lead.pk %}" class="action-btn danger">Delete</a>
+        </div>
+    </td>
+</tr>
+{% endfor %}
 {% endblock %}

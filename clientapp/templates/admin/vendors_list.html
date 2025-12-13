@@ -2,35 +2,39 @@
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="status" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-        <option value="">All Status</option>
-        <option value="active">Active</option>
-        <option value="inactive">Inactive</option>
-    </select>
+<select name="status" onchange="this.form.submit()"
+    style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+    <option value="">All Status</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+</select>
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>Vendor ID</th>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Phone</th>
-        <th>Status</th>
-        <th>Created</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Vendor ID</th>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Phone</th>
+    <th>Status</th>
+    <th>Created</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for vendor in page_obj %}
-        <tr>
-            <td><a href="{% url 'admin_vendor_detail' vendor.pk %}" style="color: #3b82f6;">{{ vendor.vendor_id }}</a></td>
-            <td>{{ vendor.name }}</td>
-            <td>{{ vendor.email }}</td>
-            <td>{{ vendor.phone }}</td>
-            <td><span class="badge badge-success">{{ vendor.status }}</span></td>
-            <td>{{ vendor.created_at|date:"M d, Y" }}</td>
-            <td><a href="{% url 'admin_vendor_detail' vendor.pk %}" class="action-btn">Edit</a> | <a href="{% url 'admin_vendor_delete' vendor.pk %}" class="action-btn danger">Delete</a></td>
-        </tr>
-    {% endfor %}
+{% for vendor in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ vendor.pk }}" class="row-checkbox"></td>
+    <td><a href="{% url 'admin_vendor_detail' vendor.pk %}" style="color: #3b82f6;">#{{ vendor.id }}</a></td>
+    <td>{{ vendor.name }}</td>
+    <td>{{ vendor.email }}</td>
+    <td>{{ vendor.phone }}</td>
+    <td><span class="badge {% if vendor.active %}badge-success{% else %}badge-danger{% endif %}">{% if vendor.active %}Active{% else %}Inactive{% endif %}</span></td>
+    <td>{{ vendor.created_at|date:"M d, Y" }}</td>
+    <td><a href="{% url 'admin_vendor_detail' vendor.pk %}" class="action-btn">Edit</a> | <a
+            href="{% url 'admin_vendor_delete' vendor.pk %}" class="action-btn danger">Delete</a></td>
+</tr>
+{% endfor %}
 {% endblock %}

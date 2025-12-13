@@ -2540,7 +2540,6 @@ class Notification(models.Model):
         return f"{self.title} - {self.recipient.username}"
 
 
-
 class Delivery(models.Model):
     """Delivery tracking for completed jobs"""
     STAGING_LOCATION_CHOICES = [
@@ -2598,3 +2597,36 @@ class Delivery(models.Model):
     
     def get_staging_location_display(self):
         return dict(self.STAGING_LOCATION_CHOICES).get(self.staging_location, self.staging_location)
+
+
+class AuditLog(models.Model):
+    """Audit log for tracking admin actions"""
+    ACTION_CHOICES = [
+        ('CREATE', 'Create'),
+        ('UPDATE', 'Update'),
+        ('DELETE', 'Delete'),
+        ('LOGIN', 'Login'),
+        ('LOGOUT', 'Logout'),
+        ('OTHER', 'Other'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='audit_logs')
+    action = models.CharField(max_length=20, choices=ACTION_CHOICES)
+    model_name = models.CharField(max_length=100)
+    object_id = models.CharField(max_length=100, null=True, blank=True)
+    object_repr = models.CharField(max_length=200, null=True, blank=True)
+    details = models.TextField(blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['user']),
+            models.Index(fields=['action']),
+            models.Index(fields=['model_name']),
+            models.Index(fields=['timestamp']),
+        ]
+        
+    def __str__(self):
+        return f"{self.user} - {self.action} {self.model_name} - {self.timestamp}"

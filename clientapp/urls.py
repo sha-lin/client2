@@ -193,11 +193,12 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     # path('admin-dashboard/lpos/', views.admin_lpos_list, name='admin_lpos_list'),
     # path('admin-dashboard/payments/', views.admin_payments_list, name='admin_payments_list'),
     path('admin-dashboard/analytics/', views.admin_analytics, name='admin_analytics'),
-    path('admin-dashboard/users/', views.admin_users_list, name='admin_users_list'),
+    # path('admin-dashboard/users/', views.admin_users_list, name='admin_users_list'),  # Disabled - using admin_crud_operations version
     path('admin-dashboard/settings/', views.admin_settings, name='admin_settings'),
     path('admin-dashboard/alerts/', views.admin_alerts_list, name='admin_alerts_list'),
     
     # ===== ADMIN DASHBOARD CRUD ROUTES (Django Admin Style) =====
+    path('admin-dashboard/bulk-action/', admin_crud_operations.admin_bulk_action, name='admin_bulk_action'),
     # Clients CRUD
     path('admin-dashboard/clients/', admin_crud_operations.admin_clients_list, name='admin_clients_list'),
     path('admin-dashboard/clients/add/', admin_crud_operations.admin_client_add, name='admin_client_add'),
@@ -222,23 +223,23 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     path('admin-dashboard/products/<int:pk>/', admin_crud_operations.admin_product_detail, name='admin_product_detail'),
     path('admin-dashboard/products/<int:pk>/delete/', admin_crud_operations.admin_product_delete, name='admin_product_delete'),
     
-    # Jobs CRUD (list only, forms not available)
+    # Jobs CRUD
     path('admin-dashboard/jobs/', admin_crud_operations.admin_jobs_list, name='admin_jobs_list'),
-    # path('admin-dashboard/jobs/add/', admin_crud_operations.admin_job_add, name='admin_job_add'),
-    # path('admin-dashboard/jobs/<int:pk>/', admin_crud_operations.admin_job_detail, name='admin_job_detail'),
-    # path('admin-dashboard/jobs/<int:pk>/delete/', admin_crud_operations.admin_job_delete, name='admin_job_delete'),
+    path('admin-dashboard/jobs/add/', admin_crud_operations.admin_job_add, name='admin_job_add'),
+    path('admin-dashboard/jobs/<int:pk>/', admin_crud_operations.admin_job_detail, name='admin_job_detail'),
+    path('admin-dashboard/jobs/<int:pk>/delete/', admin_crud_operations.admin_job_delete, name='admin_job_delete'),
     
-    # Vendors CRUD (list only, forms not available)
+    # Vendors CRUD
     path('admin-dashboard/vendors/', admin_crud_operations.admin_vendors_list, name='admin_vendors_list'),
-    # path('admin-dashboard/vendors/add/', admin_crud_operations.admin_vendor_add, name='admin_vendor_add'),
-    # path('admin-dashboard/vendors/<int:pk>/', admin_crud_operations.admin_vendor_detail, name='admin_vendor_detail'),
-    # path('admin-dashboard/vendors/<int:pk>/delete/', admin_crud_operations.admin_vendor_delete, name='admin_vendor_delete'),
+    path('admin-dashboard/vendors/add/', admin_crud_operations.admin_vendor_add, name='admin_vendor_add'),
+    path('admin-dashboard/vendors/<int:pk>/', admin_crud_operations.admin_vendor_detail, name='admin_vendor_detail'),
+    path('admin-dashboard/vendors/<int:pk>/delete/', admin_crud_operations.admin_vendor_delete, name='admin_vendor_delete'),
     
-    # Processes CRUD (list only, forms not available)
+    # Processes CRUD
     path('admin-dashboard/processes/', admin_crud_operations.admin_processes_list, name='admin_processes_list'),
-    # path('admin-dashboard/processes/add/', admin_crud_operations.admin_process_add, name='admin_process_add'),
-    # path('admin-dashboard/processes/<int:pk>/', admin_crud_operations.admin_process_detail, name='admin_process_detail'),
-    # path('admin-dashboard/processes/<int:pk>/delete/', admin_crud_operations.admin_process_delete, name='admin_process_delete'),
+    path('admin-dashboard/processes/add/', admin_crud_operations.admin_process_add, name='admin_process_add'),
+    path('admin-dashboard/processes/<int:pk>/', admin_crud_operations.admin_process_detail, name='admin_process_detail'),
+    path('admin-dashboard/processes/<int:pk>/delete/', admin_crud_operations.admin_process_delete, name='admin_process_delete'),
     
     # LPOs CRUD
     path('admin-dashboard/lpos/', admin_crud_operations.admin_lpos_list, name='admin_lpos_list'),
@@ -258,10 +259,17 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     path('admin-dashboard/users/<int:pk>/', admin_crud_operations.admin_user_detail, name='admin_user_detail'),
     path('admin-dashboard/users/<int:pk>/delete/', admin_crud_operations.admin_user_delete, name='admin_user_delete'),
     
+    # Groups CRUD (Roles)
+    path('admin-dashboard/groups/', admin_crud_operations.admin_groups_list, name='admin_groups_list'),
+    path('admin-dashboard/groups/add/', admin_crud_operations.admin_group_add, name='admin_group_add'),
+    path('admin-dashboard/groups/<int:pk>/', admin_crud_operations.admin_group_detail, name='admin_group_detail'),
+    path('admin-dashboard/groups/<int:pk>/delete/', admin_crud_operations.admin_group_delete, name='admin_group_delete'),
+    
     # View-Only Lists
     path('admin-dashboard/qc/', admin_crud_operations.admin_qc_list, name='admin_qc_list'),
     path('admin-dashboard/deliveries/', admin_crud_operations.admin_deliveries_list, name='admin_deliveries_list'),
     path('admin-dashboard/alerts/', admin_crud_operations.admin_alerts_list, name='admin_alerts_list'),
+    path('admin-dashboard/audit-logs/', admin_crud_operations.admin_audit_logs, name='admin_audit_logs'),
     
     # OLD ROUTES BELOW (DISABLED - using admin_crud_operations instead)
     # ===== ADMIN DASHBOARD ROUTES (Django Admin Style) =====

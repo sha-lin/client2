@@ -13,6 +13,7 @@
 
 {% block table_header %}
 <tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
     <th>Job Number</th>
     <th>Quote</th>
     <th>Description</th>
@@ -26,28 +27,32 @@
 {% block table_body %}
 {% for job in page_obj %}
 <tr>
-    <td><strong>{{ job.job_number }}</strong></td>
+    <td><input type="checkbox" name="selected_ids" value="{{ job.pk }}" class="row-checkbox"></td>
+    <td><a href="{% url 'admin_job_detail' job.pk %}" style="color: #3b82f6; text-decoration: none; font-weight: bold;">{{ job.job_number }}</a></td>
     <td>{{ job.quote.quote_id|default:"-" }}</td>
-    <td>{{ job.description|truncatewords:5|default:"-" }}</td>
+    <td>{{ job.job_name|truncatewords:5|default:"-" }}</td>
     <td>
         <span class="badge 
-            {% if job.job_status == 'completed' %}badge-success
-            {% elif job.job_status == 'in_progress' %}badge-info
-            {% elif job.job_status == 'pending' %}badge-warning
+            {% if job.status == 'completed' %}badge-success
+            {% elif job.status == 'in_progress' %}badge-info
+            {% elif job.status == 'pending' %}badge-warning
             {% else %}badge-danger
             {% endif %}">
-            {{ job.job_status|default:"Pending" }}
+            {{ job.status|title|default:"Pending" }}
         </span>
     </td>
     <td>{{ job.expected_completion|date:"M d, Y"|default:"-" }}</td>
     <td>{{ job.created_at|date:"M d, Y" }}</td>
     <td>
-        
+        <div class="row-actions">
+            <a href="{% url 'admin_job_detail' job.pk %}" class="action-btn">Edit</a>
+            <a href="{% url 'admin_job_delete' job.pk %}" class="action-btn danger">Delete</a>
+        </div>
     </td>
 </tr>
 {% empty %}
 <tr>
-    <td colspan="7" style="text-align:center; padding:20px;">No jobs found</td>
+    <td colspan="8" style="text-align:center; padding:20px;">No jobs found</td>
 </tr>
 {% endfor %}
 {% endblock %}

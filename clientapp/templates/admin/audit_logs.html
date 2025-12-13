@@ -1,0 +1,61 @@
+{% extends 'admin/generic_list.html' %}
+{% load humanize %}
+
+{% block filter_controls %}
+<select name="action" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Actions</option>
+    <option value="CREATE" {% if action == 'CREATE' %}selected{% endif %}>Create</option>
+    <option value="UPDATE" {% if action == 'UPDATE' %}selected{% endif %}>Update</option>
+    <option value="DELETE" {% if action == 'DELETE' %}selected{% endif %}>Delete</option>
+    <option value="LOGIN" {% if action == 'LOGIN' %}selected{% endif %}>Login</option>
+    <option value="LOGOUT" {% if action == 'LOGOUT' %}selected{% endif %}>Logout</option>
+    <option value="OTHER" {% if action == 'OTHER' %}selected{% endif %}>Other</option>
+</select>
+
+<select name="model" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Models</option>
+    {% for m in model_names %}
+    <option value="{{ m }}" {% if model == m %}selected{% endif %}>{{ m|title }}</option>
+    {% endfor %}
+</select>
+{% endblock %}
+
+{% block table_header %}
+<tr>
+    <th>User</th>
+    <th>Action</th>
+    <th>Model</th>
+    <th>Object</th>
+    <th>Details</th>
+    <th>IP Address</th>
+    <th>Timestamp</th>
+</tr>
+{% endblock %}
+
+{% block table_body %}
+{% for log in page_obj %}
+<tr>
+    <td>
+        {% if log.user %}
+        <a href="{% url 'admin_user_detail' log.user.pk %}" style="color: #3b82f6;">{{ log.user.username }}</a>
+        {% else %}
+        System
+        {% endif %}
+    </td>
+    <td>
+        <span
+            class="badge {% if log.action == 'CREATE' %}badge-success{% elif log.action == 'DELETE' %}badge-danger{% elif log.action == 'UPDATE' %}badge-warning{% else %}badge-info{% endif %}">{{
+            log.action }}</span>
+    </td>
+    <td>{{ log.model_name|title }}</td>
+    <td>{{ log.object_repr }}</td>
+    <td>{{ log.details }}</td>
+    <td>{{ log.ip_address }}</td>
+    <td>{{ log.timestamp|date:'M d, Y H:i:s' }}</td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="7" style="text-align: center; padding: 20px;">No audit logs found.</td>
+</tr>
+{% endfor %}
+{% endblock %}

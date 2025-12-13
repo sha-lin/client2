@@ -2,23 +2,27 @@
 {% load humanize %}
 
 {% block table_header %}
-    <tr>
-        <th>Process Code</th>
-        <th>Name</th>
-        <th>Description</th>
-        <th>Created</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Process Code</th>
+    <th>Name</th>
+    <th>Description</th>
+    <th>Created</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for process in page_obj %}
-        <tr>
-            <td><a href="{% url 'admin_process_detail' process.pk %}" style="color: #3b82f6;">{{ process.process_code }}</a></td>
-            <td>{{ process.process_name }}</td>
-            <td>{{ process.description|truncatewords:10 }}</td>
-            <td>{{ process.created_at|date:"M d, Y" }}</td>
-            <td><a href="{% url 'admin_process_detail' process.pk %}" class="action-btn">Edit</a> | <a href="{% url 'admin_process_delete' process.pk %}" class="action-btn danger">Delete</a></td>
-        </tr>
-    {% endfor %}
+{% for process in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ process.pk }}" class="row-checkbox"></td>
+    <td><a href="{% url 'admin_process_detail' process.pk %}" style="color: #3b82f6;">{{ process.process_id }}</a>
+    </td>
+    <td>{{ process.process_name }}</td>
+    <td>{{ process.description|truncatewords:10 }}</td>
+    <td>{{ process.created_at|date:"M d, Y" }}</td>
+    <td><a href="{% url 'admin_process_detail' process.pk %}" class="action-btn">Edit</a> | <a
+            href="{% url 'admin_process_delete' process.pk %}" class="action-btn danger">Delete</a></td>
+</tr>
+{% endfor %}
 {% endblock %}

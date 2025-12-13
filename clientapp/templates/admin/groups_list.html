@@ -1,0 +1,50 @@
+{% extends 'admin/generic_list.html' %}
+{% load humanize %}
+
+{% block extra_buttons %}
+<a href="{% url 'admin_users_list' %}" class="btn"
+    style="background: #6b7280; color: white; display: flex; align-items: center; gap: 8px;">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+    </svg>
+    Back to Users
+</a>
+{% endblock %}
+
+{% block table_header %}
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Group Name</th>
+    <th>Users</th>
+    <th>Permissions</th>
+    <th>Actions</th>
+</tr>
+{% endblock %}
+
+{% block table_body %}
+{% for grp in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ grp.pk }}" class="row-checkbox"></td>
+    <td>
+        <a href="{% url 'admin_group_detail' grp.pk %}" style="color: #3b82f6; font-weight: 500;">{{ grp.name }}</a>
+    </td>
+    <td>
+        <span class="badge badge-info">{{ grp.user_count }} user{{ grp.user_count|pluralize }}</span>
+    </td>
+    <td>
+        <span class="badge badge-secondary">{{ grp.permissions.count }} permission{{ grp.permissions.count|pluralize
+            }}</span>
+    </td>
+    <td>
+        <a href="{% url 'admin_group_detail' grp.pk %}" class="action-btn">Edit</a> |
+        <a href="{% url 'admin_group_delete' grp.pk %}" class="action-btn danger">Delete</a>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="5" style="text-align: center; padding: 40px; color: #6b7280;">
+        No groups found. <a href="{{ add_url }}" style="color: #3b82f6;">Create a group</a>
+    </td>
+</tr>
+{% endfor %}
+{% endblock %}

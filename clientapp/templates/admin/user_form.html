@@ -1,0 +1,376 @@
+{% load humanize static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #f8f9fa;
+            color: #212529;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .main-content {
+            flex: 1;
+            margin-left: 240px;
+        }
+
+        .header {
+            background: #fff;
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .header-left h1 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .breadcrumb {
+            display: flex;
+            gap: 8px;
+            font-size: 13px;
+            color: #64748b;
+            margin-top: 4px;
+        }
+
+        .breadcrumb a {
+            color: #3b82f6;
+            text-decoration: none;
+        }
+
+        .content {
+            padding: 32px;
+        }
+
+        .form-card {
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            max-width: 900px;
+            margin-bottom: 24px;
+        }
+
+        .form-header {
+            padding: 20px 24px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        }
+
+        .form-header.green {
+            background: linear-gradient(135deg, #059669, #10b981);
+        }
+
+        .form-header.purple {
+            background: linear-gradient(135deg, #7c3aed, #9333ea);
+        }
+
+        .form-header.gray {
+            background: linear-gradient(135deg, #4b5563, #6b7280);
+        }
+
+        .form-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .form-body {
+            padding: 24px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .checkbox-item input {
+            width: 16px;
+            height: 16px;
+        }
+
+        .label-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #374151;
+        }
+
+        .help-text {
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .group-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .group-item:hover {
+            background: #f0fdf4;
+            border-color: #22c55e;
+        }
+
+        .group-item input {
+            width: 16px;
+            height: 16px;
+        }
+
+        .group-item span {
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .info-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .info-item {
+            font-size: 14px;
+        }
+
+        .info-item strong {
+            color: #6b7280;
+        }
+
+        .info-item span {
+            color: #1e293b;
+            margin-left: 8px;
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            margin-top: 24px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: #fff;
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #475569;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: #fff;
+        }
+
+        .messages {
+            margin-bottom: 20px;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .message.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .message.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        {% include 'admin/includes/sidebar_header.html' %}
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <h1>{{ title }}</h1>
+                    <div class="breadcrumb">
+                        <a href="{% url 'admin_dashboard_index' %}">Dashboard</a><span>›</span><a
+                            href="{% url 'admin_users_list' %}">Users</a><span>›</span><span>{% if is_add %}Add{% else
+                            %}Edit{% endif %}</span>
+                    </div>
+                </div>
+                {% if delete_url %}<a href="{{ delete_url }}" class="btn btn-danger">Delete User</a>{% endif %}
+            </header>
+            <div class="content">
+                {% if messages %}<div class="messages">{% for message in messages %}<div
+                        class="message {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-card">
+                        <div class="form-header">
+                            <h2 class="form-title">Basic Information</h2>
+                        </div>
+                        <div class="form-body">
+                            <div class="form-row">
+                                <div class="form-group"><label for="username">Username *</label><input type="text"
+                                        name="username" id="username" required
+                                        value="{{ user_obj.username|default:'' }}"></div>
+                                <div class="form-group"><label for="email">Email</label><input type="email" name="email"
+                                        id="email" value="{{ user_obj.email|default:'' }}"></div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group"><label for="first_name">First Name</label><input type="text"
+                                        name="first_name" id="first_name" value="{{ user_obj.first_name|default:'' }}">
+                                </div>
+                                <div class="form-group"><label for="last_name">Last Name</label><input type="text"
+                                        name="last_name" id="last_name" value="{{ user_obj.last_name|default:'' }}">
+                                </div>
+                            </div>
+                            <div class="form-group"><label for="password">Password</label><input type="password"
+                                    name="password" id="password" {% if is_add %}required{% endif %}></div>
+                        </div>
+                    </div>
+                    <div class="form-card">
+                        <div class="form-header purple">
+                            <h2 class="form-title">Permissions</h2>
+                        </div>
+                        <div class="form-body">
+                            <div class="checkbox-row">
+                                <label class="checkbox-item"><input type="checkbox" name="is_active" {{
+                                        is_active_checked }}>
+                                    <div>
+                                        <div class="label-text">Active</div>
+                                        <div class="help-text">Can log in</div>
+                                    </div>
+                                </label>
+                                <label class="checkbox-item"><input type="checkbox" name="is_staff" {{ is_staff_checked
+                                        }}>
+                                    <div>
+                                        <div class="label-text">Staff</div>
+                                        <div class="help-text">Can access admin</div>
+                                    </div>
+                                </label>
+                                <label class="checkbox-item"><input type="checkbox" name="is_superuser" {{
+                                        is_superuser_checked }}>
+                                    <div>
+                                        <div class="label-text">Superuser</div>
+                                        <div class="help-text">Full permissions</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-card">
+                        <div class="form-header green">
+                            <h2 class="form-title">Groups / Roles</h2>
+                        </div>
+                        <div class="form-body">
+                            <p style="margin-bottom: 16px; color: #6b7280;">Assign this user to groups to grant them
+                                permissions.</p>
+                            {% if all_groups %}<div class="groups-grid">{% for grp in all_groups %}<label
+                                    class="group-item"><input type="checkbox" name="groups" value="{{ grp.id }}" {{
+                                        grp.checked }}><span>{{ grp.name }}</span></label>{% endfor %}</div>{% else %}<p
+                                style="color: #6b7280; text-align: center;">No groups available.</p>{% endif %}
+                        </div>
+                    </div>
+                    {% if user_obj %}<div class="form-card">
+                        <div class="form-header gray">
+                            <h2 class="form-title">User Information</h2>
+                        </div>
+                        <div class="form-body">
+                            <div class="info-row">
+                                <div class="info-item"><strong>Date Joined:</strong><span>{{
+                                        user_obj.date_joined|date:"M d, Y" }}</span></div>
+                                <div class="info-item"><strong>Last Login:</strong><span>{{ user_obj.last_login|date:"M
+                                        d, Y"|default:"Never" }}</span></div>
+                            </div>
+                        </div>
+                    </div>{% endif %}
+                    {% if user_obj %}
+                    <div class="form-actions"><a href="{% url 'admin_users_list' %}"
+                            class="btn btn-secondary">Cancel</a><button type="submit" class="btn btn-primary">{% if
+                            is_add %}Create User{% else %}Save Changes{% endif %}</button></div>
+                </form>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>

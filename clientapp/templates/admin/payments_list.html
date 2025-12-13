@@ -2,35 +2,39 @@
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="status" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-        <option value="">All Status</option>
-        <option value="pending">Pending</option>
-        <option value="completed">Completed</option>
-    </select>
+<select name="status" onchange="this.form.submit()"
+    style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
+    <option value="">All Status</option>
+    <option value="pending" {% if status == 'pending' %}selected{% endif %}>Pending</option>
+    <option value="completed" {% if status == 'completed' %}selected{% endif %}>Completed</option>
+</select>
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>Payment ID</th>
-        <th>Client</th>
-        <th>Amount</th>
-        <th>Method</th>
-        <th>Status</th>
-        <th>Date</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Payment ID</th>
+    <th>Client</th>
+    <th>Amount</th>
+    <th>Method</th>
+    <th>Status</th>
+    <th>Date</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for payment in page_obj %}
-        <tr>
-            <td><a href="{% url 'admin_payment_detail' payment.pk %}" style="color: #3b82f6;">{{ payment.payment_id }}</a></td>
-            <td>{{ payment.client.name }}</td>
-            <td>{{ payment.amount|floatformat:2 }}</td>
-            <td>{{ payment.payment_method }}</td>
-            <td><span class="badge badge-success">{{ payment.status }}</span></td>
-            <td>{{ payment.payment_date|date:"M d, Y" }}</td>
-            <td><a href="{% url 'admin_payment_detail' payment.pk %}" class="action-btn">Edit</a> | <a href="{% url 'admin_payment_delete' payment.pk %}" class="action-btn danger">Delete</a></td>
-        </tr>
-    {% endfor %}
+{% for payment in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ payment.pk }}" class="row-checkbox"></td>
+    <td><a href="{% url 'admin_payment_detail' payment.pk %}" style="color: #3b82f6;">{{ payment.payment_id }}</a></td>
+    <td>{{ payment.client.name }}</td>
+    <td>{{ payment.amount|floatformat:2 }}</td>
+    <td>{{ payment.payment_method }}</td>
+    <td><span class="badge badge-success">{{ payment.status }}</span></td>
+    <td>{{ payment.payment_date|date:"M d, Y" }}</td>
+    <td><a href="{% url 'admin_payment_detail' payment.pk %}" class="action-btn">Edit</a> | <a
+            href="{% url 'admin_payment_delete' payment.pk %}" class="action-btn danger">Delete</a></td>
+</tr>
+{% endfor %}
 {% endblock %}

@@ -1,41 +1,43 @@
-﻿{% extends 'admin/generic_list.html' %}
+{% extends 'admin/generic_list.html' %}
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="status" class="filter-select" onchange="this.form.submit()">
-        <option value="">All Status</option>
-        <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
-        <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
-    </select>
+<select name="status" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Status</option>
+    <option value="active" {% if status == 'active' %}selected{% endif %}>Active</option>
+    <option value="inactive" {% if status == 'inactive' %}selected{% endif %}>Inactive</option>
+</select>
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>Client ID</th>
-        <th>Name</th>
-        <th>Email</th>
-        <th>Phone</th>
-        <th>Status</th>
-        <th>Created</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>Client ID</th>
+    <th>Name</th>
+    <th>Email</th>
+    <th>Phone</th>
+    <th>Status</th>
+    <th>Created</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for client in page_obj %}
-        <tr>
-            <td><a href="{% url 'admin_client_detail' client.pk %}" style="color: #3b82f6; text-decoration: none;">{{ client.client_id }}</a></td>
-            <td><a href="{% url 'admin_client_detail' client.pk %}" style="color: #3b82f6; text-decoration: none;">{{ client.name }}</a></td>
-            <td>{{ client.email }}</td>
-            <td>{{ client.phone }}</td>
-            <td><span class="badge badge-success">{{ client.status }}</span></td>
-            <td>{{ client.created_at|date:'M d, Y' }}</td>
-            <td>
-                <div class="row-actions">
-                    <a href="{% url 'admin_client_detail' client.pk %}" class="action-btn">Edit</a>
-                    <a href="{% url 'admin_client_delete' client.pk %}" class="action-btn danger">Delete</a>
-                </div>
-            </td>
-        </tr>
-    {% endfor %}
+{% for client in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ client.pk }}" class="row-checkbox"></td>
+    <td><a href="{% url 'admin_client_detail' client.pk %}" style="color: #3b82f6; text-decoration: none;">{{ client.client_id }}</a></td>
+    <td><a href="{% url 'admin_client_detail' client.pk %}" style="color: #3b82f6; text-decoration: none;">{{ client.name }}</a></td>
+    <td>{{ client.email }}</td>
+    <td>{{ client.phone }}</td>
+    <td><span class="badge badge-success">{{ client.status }}</span></td>
+    <td>{{ client.created_at|date:'M d, Y' }}</td>
+    <td>
+        <div class="row-actions">
+            <a href="{% url 'admin_client_detail' client.pk %}" class="action-btn">Edit</a>
+            <a href="{% url 'admin_client_delete' client.pk %}" class="action-btn danger">Delete</a>
+        </div>
+    </td>
+</tr>
+{% endfor %}
 {% endblock %}

@@ -2,33 +2,82 @@
 {% load humanize %}
 
 {% block filter_controls %}
-    <select name="is_staff" onchange="this.form.submit()" style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;">
-        <option value="">All Users</option>
-        <option value="true">Staff Only</option>
-        <option value="false">Regular Only</option>
-    </select>
+<select name="is_staff" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Users</option>
+    <option value="true" {{ is_staff_true_selected }}>Staff Only</option>
+    <option value="false" {{ is_staff_false_selected }}>Regular Only</option>
+</select>
+<select name="group" class="filter-select" onchange="this.form.submit()">
+    <option value="">All Groups</option>
+    {% for grp in all_groups %}
+    <option value="{{ grp.id }}">{{ grp.name }}</option>
+    {% endfor %}
+</select>
+{% endblock %}
+
+{% block extra_buttons %}
+{% if groups_url %}
+<a href="{{ groups_url }}" class="btn" style="background: #7c3aed; color: white;">👥 Manage Groups</a>
+{% endif %}
 {% endblock %}
 
 {% block table_header %}
-    <tr>
-        <th>Username</th>
-        <th>Email</th>
-        <th>Full Name</th>
-        <th>Staff</th>
-        <th>Joined</th>
-        <th>Actions</th>
-    </tr>
+<tr>
+    <th width="40"><input type="checkbox" id="select-all"></th>
+    <th>User</th>
+    <th>Email</th>
+    <th>Groups</th>
+    <th>Status</th>
+    <th>Joined</th>
+    <th>Actions</th>
+</tr>
 {% endblock %}
 
 {% block table_body %}
-    {% for user in page_obj %}
-        <tr>
-            <td><a href="{% url 'admin_user_detail' user.pk %}" style="color: #3b82f6;">{{ user.username }}</a></td>
-            <td>{{ user.email }}</td>
-            <td>{{ user.get_full_name|default:'-' }}</td>
-            <td><span class="badge {% if user.is_staff %}badge-success{% else %}badge-warning{% endif %}">{% if user.is_staff %}Yes{% else %}No{% endif %}</span></td>
-            <td>{{ user.date_joined|date:"M d, Y" }}</td>
-            <td><a href="{% url 'admin_user_detail' user.pk %}" class="action-btn">Edit</a> | <a href="{% url 'admin_user_delete' user.pk %}" class="action-btn danger">Delete</a></td>
-        </tr>
-    {% endfor %}
+{% for u in page_obj %}
+<tr>
+    <td><input type="checkbox" name="selected_ids" value="{{ u.pk }}" class="row-checkbox"></td>
+    <td>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <div
+                style="width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px;">
+                {{ u.username|slice:":1"|upper }}
+            </div>
+            <div>
+                <a href="{% url 'admin_user_detail' u.pk %}"
+                    style="color: #3b82f6; text-decoration: none; font-weight: 500;">{{ u.username }}</a>
+                <div style="font-size: 12px; color: #6b7280;">{{ u.get_full_name|default:'-' }}</div>
+            </div>
+        </div>
+    </td>
+    <td>{{ u.email|default:'-' }}</td>
+    <td>
+        {% for grp in u.groups.all %}
+        <span class="badge" style="background: #f3e8ff; color: #7c3aed;">{{ grp.name }}</span>
+        {% empty %}
+        <span style="color: #9ca3af; font-size: 12px;">No groups</span>
+        {% endfor %}
+    </td>
+    <td>
+        {% if u.is_superuser %}
+        <span class="badge badge-danger">Superuser</span>
+        {% endif %}
+        {% if u.is_staff %}
+        <span class="badge badge-info">Staff</span>
+        {% endif %}
+        {% if u.is_active %}
+        <span class="badge badge-success">Active</span>
+        {% else %}
+        <span class="badge badge-warning">Inactive</span>
+        {% endif %}
+    </td>
+    <td>{{ u.date_joined|date:"M d, Y" }}</td>
+    <td>
+        <div class="row-actions">
+            <a href="{% url 'admin_user_detail' u.pk %}" class="action-btn">Edit</a>
+            <a href="{% url 'admin_user_delete' u.pk %}" class="action-btn danger">Delete</a>
+        </div>
+    </td>
+</tr>
+{% endfor %}
 {% endblock %}
