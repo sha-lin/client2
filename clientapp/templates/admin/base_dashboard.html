@@ -1,0 +1,158 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Admin Dashboard - Print Duka{% endblock %}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f8f9fa; color: #212529; }
+        .app-container { display: flex; min-height: 100vh; }
+        
+        /* Sidebar */
+        .sidebar { width: 240px; background: #1a1d29; color: #fff; display: flex; flex-direction: column; position: fixed; height: 100vh; overflow-y: auto; z-index: 1000; }
+        .sidebar-header { padding: 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+        .logo { width: 40px; height: 40px; background: #3b82f6; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 18px; }
+        .logo-text h3 { font-size: 16px; font-weight: 600; }
+        .logo-text p { font-size: 12px; color: #94a3b8; }
+        
+        .sidebar-nav { flex: 1; padding: 20px 0; }
+        .nav-section { margin-bottom: 24px; }
+        .nav-section-title { padding: 0 20px; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .nav-item { display: flex; align-items: center; padding: 10px 20px; color: #cbd5e1; text-decoration: none; font-size: 14px; transition: all 0.2s; cursor: pointer; }
+        .nav-item:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .nav-item.active { background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-right: 3px solid #3b82f6; }
+        .nav-item-icon { margin-right: 12px; font-size: 18px; }
+        
+        .sidebar-footer { padding: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; align-items: center; gap: 12px; }
+        .user-avatar { width: 40px; height: 40px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; }
+        
+        /* Main Content */
+        .main-content { flex: 1; margin-left: 240px; display: flex; flex-direction: column; }
+        .header { background: #fff; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+        .header-left h1 { font-size: 20px; font-weight: 600; color: #1e293b; }
+        .content { padding: 32px; flex: 1; }
+        
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); }
+            .main-content { margin-left: 0; }
+        }
+    </style>
+    {% block extrahead %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">PD</div>
+                <div class="logo-text">
+                    <h3>PRINT DUKA</h3>
+                    <p>Admin MIS</p>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <a href="/admin-dashboard/" class="nav-item {% if request.path == '/admin-dashboard/' %}active{% endif %}">
+                        <span class="nav-item-icon">📊</span> Dashboard
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">BUSINESS</div>
+                    <a href="/admin-dashboard/clients/" class="nav-item {% if '/clients/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">👥</span> Clients
+                    </a>
+                    <a href="/admin-dashboard/leads/" class="nav-item {% if '/leads/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">🎯</span> Leads
+                    </a>
+                    <a href="/admin-dashboard/quotes/" class="nav-item {% if '/quotes/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">📄</span> Quotes
+                    </a>
+                    <a href="/admin-dashboard/products/" class="nav-item {% if '/products/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">📦</span> Products
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">OPERATIONS</div>
+                    <a href="/admin-dashboard/jobs/" class="nav-item {% if '/jobs/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">🏭</span> Jobs
+                    </a>
+                    <a href="/admin-dashboard/vendors/" class="nav-item {% if '/vendors/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">🏢</span> Vendors
+                    </a>
+                    <a href="/admin-dashboard/processes/" class="nav-item {% if '/processes/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">⚙️</span> Processes
+                    </a>
+                    <a href="/admin-dashboard/qc/" class="nav-item {% if '/qc/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">✓</span> Quality Control
+                    </a>
+                    <a href="/admin-dashboard/deliveries/" class="nav-item {% if '/deliveries/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">🚚</span> Deliveries
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">FINANCIAL</div>
+                    <a href="/admin-dashboard/lpos/" class="nav-item {% if '/lpos/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">📋</span> LPOs
+                    </a>
+                    <a href="/admin-dashboard/payments/" class="nav-item {% if '/payments/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">💰</span> Payments
+                    </a>
+                    <a href="/admin-dashboard/analytics/" class="nav-item {% if '/analytics/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">📊</span> Analytics
+                    </a>
+                </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">SYSTEM</div>
+                    <a href="/admin-dashboard/users/" class="nav-item {% if '/users/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">👤</span> Users
+                    </a>
+                    <a href="/admin-dashboard/alerts/" class="nav-item {% if '/alerts/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">🔔</span> System Alerts
+                    </a>
+                    <a href="/admin-dashboard/settings/" class="nav-item {% if '/settings/' in request.path %}active{% endif %}">
+                        <span class="nav-item-icon">⚙️</span> Settings
+                    </a>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-avatar">{{ request.user.first_name.0|default:'A' }}{{ request.user.last_name.0|default:'D' }}</div>
+                <div class="user-info">
+                    <h4>{{ request.user.get_full_name|default:request.user.username }}</h4>
+                    <p>System Administrator</p>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+                        <header class="header">
+                <div class="header-left">
+                    <h1>{% block header_title %}Dashboard{% endblock %}</h1>
+                    {% block header_subtitle %}{% endblock %}
+                </div>
+                <div class="header-right">
+                    {% block header_actions %}
+                    <!-- Default actions can go here -->
+                    {% endblock %}
+                </div>
+            </header>
+
+            <div class="content">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -16,6 +16,8 @@ from django.utils import timezone
 from functools import wraps
 from django.contrib.auth.models import User
 from .models import BrandAsset
+from django.core.paginator import Paginator
+
 
 
 from .forms import (
@@ -3035,7 +3037,7 @@ def login_redirect(request):
     
     # Superusers go to admin
     if user.is_superuser or user.is_staff:
-        return redirect('/admin/')
+        return redirect('admin_dashboard_index')
     
     # Check groups and redirect accordingly
     if user.groups.filter(name='Production Team').exists():
@@ -6873,6 +6875,67 @@ def admin_dashboard_index(request):
     recent_activity = ActivityLog.objects.select_related(
         'client', 'created_by'
     ).order_by('-created_at')[:10]
+
+     # 1. Revenue Trend (Last 6 Months)
+    revenue_trend_data = []
+    revenue_labels = []
+    for i in range(5, -1, -1):
+        month_date = today.replace(day=1) - timedelta(days=i*30)
+        # Adjust to first day of that month
+        m_start = month_date.replace(day=1)
+        # End of that month
+        if m_start.month == 12:
+            m_end = m_start.replace(year=m_start.year+1, month=1, day=1) - timedelta(days=1)
+        else:
+            m_end = m_start.replace(month=m_start.month+1, day=1) - timedelta(days=1)
+            
+        rev = Quote.objects.filter(
+            status='Approved',
+            approved_at__gte=m_start,
+            approved_at__lte=m_end
+        ).aggregate(total=Sum('total_amount'))['total'] or 0
+        
+        revenue_trend_data.append(float(rev))
+        revenue_labels.append(m_start.strftime('%b'))
+
+    # 2. Production by Category (Job Types)
+    job_types = Job.objects.values('job_type').annotate(count=Count('id')).order_by('-count')
+    category_labels = [item['job_type'].replace('_', ' ').title() for item in job_types]
+    category_data = [item['count'] for item in job_types]
+    if not category_data: # Fallback if no data
+        category_labels = ['No Data']
+        category_data = [0]
+
+    # 3. Weekly Jobs Overview (Last 7 Days)
+    weekly_labels = []
+    completed_data = []
+    in_progress_data = []
+    delayed_data = []
+    
+    for i in range(6, -1, -1):
+        day = today - timedelta(days=i)
+        weekly_labels.append(day.strftime('%a'))
+        
+        # Completed on this day
+        completed = Job.objects.filter(
+            status='completed',
+            actual_completion=day
+        ).count()
+        completed_data.append(completed)
+        
+        # In Progress (Active on this day)
+        in_progress = Job.objects.filter(
+            status__in=['in_progress', 'pending'],
+            created_at__date__lte=day
+        ).count()
+        in_progress_data.append(in_progress)
+        
+        # Delayed (Overdue as of this day)
+        delayed = Job.objects.filter(
+            status__in=['in_progress', 'pending'],
+            expected_completion__lt=day
+        ).count()
+        delayed_data.append(delayed)
     
     context = {
         'total_clients': total_clients,
@@ -6894,7 +6957,18 @@ def admin_dashboard_index(request):
         'unread_alerts': recent_alerts.count(),
         'recent_alerts': recent_alerts,
         'recent_activity': recent_activity,
+
+        # Chart Data (JSON)
+        'revenue_labels': json.dumps(revenue_labels),
+        'revenue_data': json.dumps(revenue_trend_data),
+        'category_labels': json.dumps(category_labels),
+        'category_data': json.dumps(category_data),
+        'weekly_labels': json.dumps(weekly_labels),
+        'weekly_completed': json.dumps(completed_data),
+        'weekly_in_progress': json.dumps(in_progress_data),
+        'weekly_delayed': json.dumps(delayed_data),
     }
+    
     
     return render(request, 'admin/index.html', context)
 
@@ -7068,11 +7142,113 @@ def admin_payments_list(request):
 
 @staff_member_required
 def admin_analytics(request):
-    # small wrapper for analytics page (charts handled client-side)
-    return render(request, 'admin/analytics.html', {})
+    """
+    Enhanced Analytics View
+    Aggregates data from various helper functions in admin_dashboard.py
+    """
+    from .admin_dashboard import (
+        get_dashboard_stats, 
+        get_sales_performance_trend,
+        get_profit_margin_data, 
+        get_outstanding_receivables,
+        get_payment_collection_rate, 
+        get_staff_performance,
+        get_time_based_insights, 
+        get_top_products,
+        get_order_status_distribution
+    )
+    import json
+    
+    # Fetch all analytics data
+    context = {
+        'title': 'Analytics Overview',
+        'dashboard_stats': get_dashboard_stats(),
+        'sales_trend': json.dumps(get_sales_performance_trend(months=12), default=str),
+        'order_distribution': json.dumps(get_order_status_distribution()),
+        'profit_margins': get_profit_margin_data(),
+        'receivables': get_outstanding_receivables(),
+        'collection_rate': get_payment_collection_rate(),
+        'staff_performance': get_staff_performance(),
+        'time_insights': get_time_based_insights(),
+        'top_products': get_top_products(limit=10),
+    }
+    return render(request, 'admin/analytics.html', context)
 
+
+# Add this import at the top with other models
+from .models import SystemSetting
 
 @staff_member_required
+def admin_settings(request):
+    """
+    System Settings View with Persistence
+    """
+    # Define default settings
+    default_settings = {
+        'site_title': 'Print Duka MIS',
+        'support_email': 'support@printduka.com',
+        'currency': 'KES',
+        'timezone': 'Africa/Nairobi',
+        'maintenance_mode': 'False',
+        'allow_registration': 'True',
+        'email_on_order': 'True',
+        'email_on_quote': 'True',
+        'daily_digest': 'False',
+    }
+
+    if request.method == 'POST':
+        try:
+            # Iterate through POST data and update settings
+            for key, value in request.POST.items():
+                if key in default_settings:
+                    SystemSetting.objects.update_or_create(
+                        key=key,
+                        defaults={'value': value}
+                    )
+            
+            # Handle checkboxes (unchecked checkboxes don't send POST data)
+            checkbox_settings = ['maintenance_mode', 'allow_registration', 'email_on_order', 'email_on_quote', 'daily_digest']
+            for key in checkbox_settings:
+                if key not in request.POST:
+                    SystemSetting.objects.update_or_create(
+                        key=key,
+                        defaults={'value': 'False'}
+                    )
+            
+            messages.success(request, 'System settings updated successfully.')
+        except Exception as e:
+            messages.error(request, f'Error saving settings: {str(e)}')
+            
+        return redirect('admin_settings')
+        
+    # Load current settings from DB, falling back to defaults
+    current_settings = default_settings.copy()
+    db_settings = SystemSetting.objects.filter(key__in=default_settings.keys())
+    for setting in db_settings:
+        current_settings[setting.key] = setting.value
+
+    # Convert boolean strings to actual booleans for the template
+    def to_bool(val):
+        return str(val).lower() == 'true'
+
+    context = {
+        'title': 'System Settings',
+        'system_settings': {
+            'site_title': current_settings['site_title'],
+            'support_email': current_settings['support_email'],
+            'currency': current_settings['currency'],
+            'timezone': current_settings['timezone'],
+            'maintenance_mode': to_bool(current_settings['maintenance_mode']),
+            'allow_registration': to_bool(current_settings['allow_registration']),
+        },
+        'notification_settings': {
+            'email_on_order': to_bool(current_settings['email_on_order']),
+            'email_on_quote': to_bool(current_settings['email_on_quote']),
+            'daily_digest': to_bool(current_settings['daily_digest']),
+        }
+    }
+    return render(request, 'admin/settings.html', context)
+
 @staff_member_required
 def admin_users_list(request):
     """List all users and groups for admin management"""
@@ -7088,13 +7264,6 @@ def admin_users_list(request):
     return render(request, 'admin/users_list.html', context)
 
 
-@staff_member_required
-def admin_settings(request):
-    # Hybrid view: allow saving simple site settings via POST (placeholder)
-    if request.method == 'POST':
-        messages.success(request, 'Settings saved (placeholder)')
-        return redirect('admin_dashboard_index')
-    return render(request, 'admin/settings.html', {'settings': settings})
 
 
 @staff_member_required
@@ -7334,3 +7503,35 @@ def api_admin_dashboard_data(request):
         import traceback
         traceback.print_exc()
         return JsonResponse({'success': False, 'message': str(e)}, status=500)
+
+# Add this import at the top if not present
+from .models import ActivityLog
+
+@staff_member_required
+def admin_activity_list(request):
+    """List all activity logs"""
+    activities = ActivityLog.objects.select_related('client', 'created_by').order_by('-created_at')
+    
+    # Optional: Add filtering
+    activity_type = request.GET.get('type')
+    if activity_type:
+        activities = activities.filter(activity_type=activity_type)
+        
+    search = request.GET.get('search')
+    if search:
+        activities = activities.filter(
+            Q(title__icontains=search) | 
+            Q(description__icontains=search) |
+            Q(client__name__icontains=search)
+        )
+        
+    paginator = Paginator(activities, 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    context = {
+        'page_obj': page_obj,
+        'activity_type': activity_type,
+        'search': search
+    }
+    return render(request, 'admin/activity_list.html', context)

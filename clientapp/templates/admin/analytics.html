@@ -1,22 +1,263 @@
-{% load humanize %}
+{% extends "admin/base_dashboard.html" %}
 {% load static %}
+{% load humanize %}
 
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset="utf-8">
-    <title>Analytics - Admin</title>
-</head>
-<body>
-    {% include 'admin/includes/sidebar_header.html' %}
-    <main style="margin-left:240px;padding:32px;">
-        <h1>Analytics</h1>
-        <p>High level charts and KPIs (placeholders)</p>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
-            <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0">KPI 1</div>
-            <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0">KPI 2</div>
-            <div style="background:#fff;padding:16px;border-radius:8px;border:1px solid #e2e8f0">KPI 3</div>
+{% block header_title %}Analytics Overview{% endblock %}
+
+{% block extrahead %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+    /* Force Grid Layout */
+    .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+        width: 100%;
+    }
+    
+    .charts-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr); /* Force 2 columns */
+        gap: 20px;
+        margin-bottom: 30px;
+        width: 100%;
+    }
+    
+    @media (max-width: 1100px) {
+        .charts-grid { grid-template-columns: 1fr; } /* Stack on smaller screens */
+    }
+    
+    .kpi-card, .chart-card, .table-card {
+        background: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        border: 1px solid #e2e8f0;
+    }
+    
+    .kpi-title { font-size: 0.85rem; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-value { font-size: 1.8rem; font-weight: 700; color: #1e293b; margin: 10px 0; }
+    .kpi-trend { font-size: 0.85rem; display: flex; align-items: center; gap: 5px; }
+    .text-green { color: #10b981; }
+    .text-red { color: #ef4444; }
+    
+    .chart-header, .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .chart-title, .table-title { font-size: 1.1rem; font-weight: 600; color: #1e293b; }
+    
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; padding: 12px 16px; background: #f8fafc; font-size: 0.85rem; color: #64748b; font-weight: 600; }
+    td { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; color: #334155; font-size: 0.9rem; }
+    tr:last-child td { border-bottom: none; }
+    
+    .progress-bar { height: 6px; background: #f1f5f9; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+    .progress-fill { height: 100%; background: #3b82f6; border-radius: 3px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Financial KPIs -->
+<div class="kpi-grid">
+    <div class="kpi-card">
+        <div class="kpi-title">Total Revenue (YTD)</div>
+        <div class="kpi-value">KES {{ dashboard_stats.total_revenue|floatformat:0|intcomma }}</div>
+        <div class="kpi-trend text-green">
+            <i class="fas fa-arrow-up"></i> +{{ dashboard_stats.revenue_trend|floatformat:0|intcomma }} this month
         </div>
-    </main>
-</body>
-</html>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Outstanding Receivables</div>
+        <div class="kpi-value">KES {{ receivables.total_receivables|floatformat:0|intcomma }}</div>
+        <div class="kpi-trend {% if receivables.overdue_percentage > 20 %}text-red{% else %}text-green{% endif %}">
+            {{ receivables.overdue_percentage }}% Overdue
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Avg. Deal Size</div>
+        <div class="kpi-value">KES {{ staff_performance.sales_leaderboard.0.avg_deal_size|floatformat:0|intcomma|default:"0" }}</div>
+        <div class="kpi-trend text-green">
+            <i class="fas fa-check-circle"></i> Based on closed deals
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-title">Collection Rate</div>
+        <div class="kpi-value">{{ collection_rate.collection_rate }}%</div>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: {{ collection_rate.collection_rate }}%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Main Charts -->
+<div class="charts-grid">
+    <!-- Sales Trend -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <div class="chart-title">Revenue Trend (Last 12 Months)</div>
+        </div>
+        <div style="height: 300px;">
+            <canvas id="revenueChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Profit Margins -->
+    <div class="chart-card">
+        <div class="chart-header">
+            <div class="chart-title">Profit Margin Analysis</div>
+        </div>
+        <div style="height: 300px; position: relative;">
+            <canvas id="marginChart"></canvas>
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                <div style="font-size: 2rem; font-weight: 700; color: #1e293b;">{{ profit_margins.overall_margin|floatformat:1 }}%</div>
+                <div style="font-size: 0.8rem; color: #64748b;">Net Margin</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Secondary Charts & Tables -->
+<div class="charts-grid">
+    <!-- Top Products -->
+    <div class="table-card">
+        <div class="table-header">
+            <div class="table-title">Top Selling Products</div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Orders</th>
+                    <th>Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in top_products %}
+                <tr>
+                    <td>
+                        <div style="font-weight: 500;">{{ product.product_name }}</div>
+                    </td>
+                    <td>{{ product.order_count }}</td>
+                    <td>KES {{ product.total_revenue|floatformat:0|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3">No data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Staff Performance -->
+    <div class="table-card">
+        <div class="table-header">
+            <div class="table-title">Top Sales Representatives</div>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Deals</th>
+                    <th>Win Rate</th>
+                    <th>Revenue</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rep in staff_performance.sales_leaderboard %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div style="width: 30px; height: 30px; background: #e2e8f0; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 600;">
+                                {{ rep.name|slice:":1" }}
+                            </div>
+                            {{ rep.name }}
+                        </div>
+                    </td>
+                    <td>{{ rep.deals_closed }}</td>
+                    <td>
+                        <span style="padding: 2px 8px; border-radius: 10px; background: #dcfce7; color: #166534; font-size: 0.8rem; font-weight: 600;">
+                            {{ rep.win_rate }}%
+                        </span>
+                    </td>
+                    <td>KES {{ rep.revenue|floatformat:0|intcomma }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4">No performance data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // Revenue Chart
+    const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+    const salesData = {{ sales_trend|safe }};
+    
+    new Chart(revenueCtx, {
+        type: 'line',
+        data: {
+            labels: salesData.map(d => {
+                const date = new Date(d.month);
+                return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            }),
+            datasets: [{
+                label: 'Revenue',
+                data: salesData.map(d => d.revenue),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: { borderDash: [2, 2] },
+                    ticks: {
+                        callback: function(value) {
+                            return 'KES ' + value.toLocaleString();
+                        }
+                    }
+                },
+                x: {
+                    grid: { display: false }
+                }
+            }
+        }
+    });
+
+    // Margin Chart
+    const marginCtx = document.getElementById('marginChart').getContext('2d');
+    const marginData = {
+        revenue: {{ profit_margins.total_revenue|default:0 }},
+        cost: {{ profit_margins.total_cost|default:0 }}
+    };
+    const profit = marginData.revenue - marginData.cost;
+
+    new Chart(marginCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Profit', 'Cost'],
+            datasets: [{
+                data: [profit, marginData.cost],
+                backgroundColor: ['#10b981', '#f1f5f9'],
+                borderWidth: 0,
+                cutout: '75%'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+</script>
+{% endblock %}

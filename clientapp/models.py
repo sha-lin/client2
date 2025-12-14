@@ -376,8 +376,18 @@ class ProductCategory(models.Model):
     
     def __str__(self):
         return self.name
-
-
+from django import forms
+class ProductCategoryForm(forms.ModelForm):
+    """Form for creating/editing product categories"""
+    
+    class Meta:
+        model = ProductCategory
+        fields = ['name', 'slug', 'description']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'Category Name'}),
+            'slug': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'slug-name'}),
+            'description': forms.Textarea(attrs={'class': 'form-textarea w-full', 'rows': 3}),
+        }
 class ProductSubCategory(models.Model):
     """Sub-categories under primary categories"""
     category = models.ForeignKey(ProductCategory, on_delete=models.CASCADE, related_name='subcategories')
@@ -2630,3 +2640,17 @@ class AuditLog(models.Model):
         
     def __str__(self):
         return f"{self.user} - {self.action} {self.model_name} - {self.timestamp}"
+
+
+class SystemSetting(models.Model):
+    """System-wide settings"""
+    key = models.CharField(max_length=50, unique=True)
+    value = models.TextField(blank=True)
+    description = models.CharField(max_length=200, blank=True)
+    is_public = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['key']
+    
+    def __str__(self):
+        return f"{self.key}: {self.value}"

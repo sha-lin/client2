@@ -6,7 +6,7 @@ from .models import (
     ProductVariable, ProductVariableOption, ProductImage, ProductTag, Vendor, Process, LPO, Payment,
 )
 from django.contrib.auth.models import User
-
+from .models import (ProductCategory, SystemSetting)
 
 class LeadForm(forms.ModelForm):
     account_manager = forms.ModelChoiceField(

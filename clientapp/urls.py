@@ -365,6 +365,7 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     path('api/users/<int:user_id>/', admin_api.api_admin_get_user, name='api_admin_get_user'),
     path('api/users/<int:user_id>/update/', admin_api.api_admin_update_user, name='api_admin_update_user'),
     path('api/users/<int:user_id>/delete/', admin_api.api_admin_delete_user, name='api_admin_delete_user'),
+     path('admin-dashboard/activity/', views.admin_activity_list, name='admin_activity_list'),
     
     # ==================== ALERTS ====================
     # path('alerts/', admin_views.admin_alerts_list, name='admin_alerts_list'),

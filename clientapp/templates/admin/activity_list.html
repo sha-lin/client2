@@ -1,0 +1,92 @@
+{% extends "admin/base_dashboard.html" %}
+
+{% block title %}Activity Logs - Print Duka Admin{% endblock %}
+
+{% block header_title %}Activity Logs{% endblock %}
+{% block header_subtitle %}System-wide user activity history{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <form method="get" class="search-form">
+            <input type="text" name="search" placeholder="Search activities..." value="{{ search|default:'' }}" class="form-control">
+            <select name="type" class="form-control" onchange="this.form.submit()">
+                <option value="">All Types</option>
+                <option value="Client Created" {% if activity_type == 'Client Created' %}selected{% endif %}>Client Created</option>
+                <option value="Quote Created" {% if activity_type == 'Quote Created' %}selected{% endif %}>Quote Created</option>
+                <option value="Job Created" {% if activity_type == 'Job Created' %}selected{% endif %}>Job Created</option>
+                <option value="Status Update" {% if activity_type == 'Status Update' %}selected{% endif %}>Status Update</option>
+            </select>
+            <button type="submit" class="btn btn-primary">Search</button>
+        </form>
+    </div>
+    
+    <div class="table-responsive">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>User</th>
+                    <th>Activity</th>
+                    <th>Description</th>
+                    <th>Related Client</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for activity in page_obj %}
+                <tr>
+                    <td>{{ activity.created_at|date:"M d, Y H:i" }}</td>
+                    <td>{{ activity.created_by.get_full_name|default:activity.created_by.username }}</td>
+                    <td><span class="badge badge-info">{{ activity.activity_type }}</span></td>
+                    <td>{{ activity.title }}</td>
+                    <td>
+                        {% if activity.client %}
+                        <a href="{% url 'admin_client_detail' activity.client.id %}">{{ activity.client.name }}</a>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No activity logs found.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <div class="pagination-container">
+        <div class="pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if activity_type %}&type={{ activity_type }}{% endif %}">&laquo; Previous</a>
+            {% endif %}
+            
+            <span class="current">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if activity_type %}&type={{ activity_type }}{% endif %}">Next &raquo;</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<style>
+    .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); overflow: hidden; }
+    .card-header { padding: 20px; border-bottom: 1px solid #eee; }
+    .search-form { display: flex; gap: 10px; max-width: 600px; }
+    .form-control { padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; }
+    .table { width: 100%; border-collapse: collapse; }
+    .table th, .table td { padding: 12px 20px; text-align: left; border-bottom: 1px solid #eee; }
+    .table th { background: #f8f9fa; font-weight: 600; color: #555; }
+    .badge { padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: 500; }
+    .badge-info { background: #e3f2fd; color: #1976d2; }
+    .pagination-container { padding: 20px; display: flex; justify-content: center; }
+    .pagination { display: flex; gap: 10px; align-items: center; }
+    .pagination a { padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; text-decoration: none; color: #333; }
+    .pagination a:hover { background: #f5f5f5; }
+</style>
+{% endblock %}
