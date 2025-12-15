@@ -333,3 +333,21 @@ class UserForm(forms.ModelForm):
         if commit:
             user.save()
         return user
+
+
+# ==================== ADMIN FORMS ====================
+
+class AdminClientForm(ClientForm):
+    """Extended form for Admins with ALL fields"""
+    class Meta(ClientForm.Meta):
+        fields = '__all__'
+
+class AdminProductForm(ProductForm):
+    """Extended form for Admins with ALL fields"""
+    class Meta(ProductForm.Meta):
+        fields = '__all__'
+
+class AdminProcessForm(ProcessForm):
+    """Extended form for Admins with ALL fields"""
+    class Meta(ProcessForm.Meta):
+        fields = '__all__'

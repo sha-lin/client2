@@ -11,7 +11,7 @@
             <h1>{{ title }}</h1>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard' %}">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'admin_dashboard_index' %}">Dashboard</a></li>
                     <li class="breadcrumb-item"><a href="{% url 'admin_'|add:model_name|add:'s_list' %}">{{ model_name|title }}s</a></li>
                     <li class="breadcrumb-item active">{{ title }}</li>
                 </ol>

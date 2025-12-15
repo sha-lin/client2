@@ -269,13 +269,15 @@
         <main class="main-content">
             <header class="header">
                 <div class="header-left">
-                    <h1>{{ title }}</h1>
-                    <div class="breadcrumb">
-                        <a href="{% url 'admin_dashboard_index' %}">Dashboard</a><span>›</span><a
-                            href="{% url 'admin_users_list' %}">Users</a><span>›</span><span>{% if is_add %}Add{% else
-                            %}Edit{% endif %}</span>
-                    </div>
-                </div>
+    <h1>{{ title }}</h1>
+    <div class="breadcrumb">
+        <a href="{% url 'admin_dashboard_index' %}">Dashboard</a>
+        <span>›</span>
+        <a href="{% url 'admin_users_list' %}">Users</a>
+        <span>›</span>
+        <span>{% if is_add %}Add{% else %}Edit{% endif %}</span>
+    </div>
+</div>
                 {% if delete_url %}<a href="{{ delete_url }}" class="btn btn-danger">Delete User</a>{% endif %}
             </header>
             <div class="content">
@@ -313,28 +315,28 @@
                         </div>
                         <div class="form-body">
                             <div class="checkbox-row">
-                                <label class="checkbox-item"><input type="checkbox" name="is_active" {{
-                                        is_active_checked }}>
-                                    <div>
-                                        <div class="label-text">Active</div>
-                                        <div class="help-text">Can log in</div>
-                                    </div>
-                                </label>
-                                <label class="checkbox-item"><input type="checkbox" name="is_staff" {{ is_staff_checked
-                                        }}>
-                                    <div>
-                                        <div class="label-text">Staff</div>
-                                        <div class="help-text">Can access admin</div>
-                                    </div>
-                                </label>
-                                <label class="checkbox-item"><input type="checkbox" name="is_superuser" {{
-                                        is_superuser_checked }}>
-                                    <div>
-                                        <div class="label-text">Superuser</div>
-                                        <div class="help-text">Full permissions</div>
-                                    </div>
-                                </label>
-                            </div>
+    <label class="checkbox-item">
+        <input type="checkbox" name="is_active" {{ is_active_checked }}>
+        <div>
+            <div class="label-text">Active</div>
+            <div class="help-text">Can log in</div>
+        </div>
+    </label>
+    <label class="checkbox-item">
+        <input type="checkbox" name="is_staff" {{ is_staff_checked }}>
+        <div>
+            <div class="label-text">Staff</div>
+            <div class="help-text">Can access admin</div>
+        </div>
+    </label>
+    <label class="checkbox-item">
+        <input type="checkbox" name="is_superuser" {{ is_superuser_checked }}>
+        <div>
+            <div class="label-text">Superuser</div>
+            <div class="help-text">Full permissions</div>
+        </div>
+    </label>
+</div>
                         </div>
                     </div>
                     <div class="form-card">
@@ -356,17 +358,20 @@
                         </div>
                         <div class="form-body">
                             <div class="info-row">
-                                <div class="info-item"><strong>Date Joined:</strong><span>{{
-                                        user_obj.date_joined|date:"M d, Y" }}</span></div>
-                                <div class="info-item"><strong>Last Login:</strong><span>{{ user_obj.last_login|date:"M
-                                        d, Y"|default:"Never" }}</span></div>
-                            </div>
+    <div class="info-item"><strong>Date Joined:</strong> <span>{{ user_obj.date_joined|date:"M d, Y" }}</span></div>
+    <div class="info-item"><strong>Last Login:</strong> <span>{{ user_obj.last_login|date:"M d, Y"|default:"Never" }}</span></div>
+</div>
                         </div>
-                    </div>{% endif %}
-                    {% if user_obj %}
-                    <div class="form-actions"><a href="{% url 'admin_users_list' %}"
-                            class="btn btn-secondary">Cancel</a><button type="submit" class="btn btn-primary">{% if
-                            is_add %}Create User{% else %}Save Changes{% endif %}</button></div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="form-actions">
+    <a href="{% url 'admin_users_list' %}" class="btn btn-secondary">Cancel</a>
+    <button type="submit" class="btn btn-primary">
+        {% if is_add %}Create User{% else %}Save Changes{% endif %}
+    </button>
+</div>
+                   
                 </form>
             </div>
         </main>

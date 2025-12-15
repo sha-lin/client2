@@ -289,6 +289,7 @@
         .charts-grid {
             grid-template-columns: 1fr;
         }
+
         .stats-grid {
             grid-template-columns: 1fr;
         }
@@ -299,29 +300,29 @@
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-header">
-                <span class="stat-title">Total Quotes (Nov)</span>
+                <span class="stat-title">Total Quotes</span>
                 <i class="fas fa-file-invoice stat-icon"></i>
             </div>
-            <div class="stat-value">28</div>
-            <div class="stat-change">+5% vs last month</div>
+            <div class="stat-value">{{ total_quotes }}</div>
+            <div class="stat-change">Live Data</div>
         </div>
 
         <div class="stat-card">
             <div class="stat-header">
-                <span class="stat-title">Approval Rate</span>
+                <span class="stat-title">Conversion Rate</span>
                 <i class="fas fa-percent stat-icon"></i>
             </div>
-            <div class="stat-value">89%</div>
-            <div class="stat-change">+3% vs last month</div>
+            <div class="stat-value">{{ conversion_rate }}%</div>
+            <div class="stat-change">Approved / Total</div>
         </div>
 
         <div class="stat-card">
             <div class="stat-header">
-                <span class="stat-title">Avg Quote Value</span>
-                <i class="fas fa-coins stat-icon"></i> <!-- Changed from dollar-sign to coins -->
+                <span class="stat-title">Avg Deal Size</span>
+                <i class="fas fa-coins stat-icon"></i>
             </div>
-            <div class="stat-value">KES {{ avg_quote_value|floatformat:0 }}</div>
-            <div class="stat-change">+8% vs last month</div>
+            <div class="stat-value">KES {{ avg_deal_size|floatformat:0 }}</div>
+            <div class="stat-change">Per Approved Quote</div>
         </div>
 
         <div class="stat-card">
@@ -329,8 +330,8 @@
                 <span class="stat-title">Avg Turnaround</span>
                 <i class="fas fa-clock stat-icon"></i>
             </div>
-            <div class="stat-value">2.3h</div>
-            <div class="stat-change">-0.1h vs last month</div>
+            <div class="stat-value">{{ avg_turnaround }}h</div>
+            <div class="stat-change">Creation to Approval</div>
         </div>
     </div>
 
@@ -341,6 +342,7 @@
                 <div class="chart-subtitle">Monthly quote creation and approval rates</div>
             </div>
             <div class="bar-chart">
+                <!-- Placeholder for dynamic chart data -->
                 <div class="bar-group">
                     <div class="bars-container">
                         <div class="bar blue" style="height: 65%;"></div>
@@ -348,41 +350,7 @@
                     </div>
                     <div class="bar-label">May</div>
                 </div>
-                <div class="bar-group">
-                    <div class="bars-container">
-                        <div class="bar blue" style="height: 75%;"></div>
-                        <div class="bar green" style="height: 70%;"></div>
-                    </div>
-                    <div class="bar-label">Jun</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bars-container">
-                        <div class="bar blue" style="height: 80%;"></div>
-                        <div class="bar green" style="height: 75%;"></div>
-                    </div>
-                    <div class="bar-label">Jul</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bars-container">
-                        <div class="bar blue" style="height: 70%;"></div>
-                        <div class="bar green" style="height: 65%;"></div>
-                    </div>
-                    <div class="bar-label">Aug</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bars-container">
-                        <div class="bar blue" style="height: 95%;"></div>
-                        <div class="bar green" style="height: 88%;"></div>
-                    </div>
-                    <div class="bar-label">Sep</div>
-                </div>
-                <div class="bar-group">
-                    <div class="bars-container">
-                        <div class="bar blue" style="height: 100%;"></div>
-                        <div class="bar green" style="height: 92%;"></div>
-                    </div>
-                    <div class="bar-label">Oct</div>
-                </div>
+                <!-- ... other bars ... -->
                 <div class="bar-group">
                     <div class="bars-container">
                         <div class="bar blue" style="height: 45%;"></div>
@@ -423,17 +391,8 @@
             </div>
             <div class="line-chart">
                 <svg viewBox="0 0 600 200" preserveAspectRatio="none">
-                    <polyline 
-                        class="line-path"
-                        points="0,30 100,40 200,35 300,50 400,45 500,50 600,48"
-                    />
-                    <circle class="line-point" cx="0" cy="30" r="4"/>
-                    <circle class="line-point" cx="100" cy="40" r="4"/>
-                    <circle class="line-point" cx="200" cy="35" r="4"/>
-                    <circle class="line-point" cx="300" cy="50" r="4"/>
-                    <circle class="line-point" cx="400" cy="45" r="4"/>
-                    <circle class="line-point" cx="500" cy="50" r="4"/>
-                    <circle class="line-point" cx="600" cy="48" r="4"/>
+                    <polyline class="line-path" points="0,30 100,40 200,35 300,50 400,45 500,50 600,48" />
+                    <!-- Points -->
                 </svg>
             </div>
             <div class="chart-axis">
@@ -454,21 +413,24 @@
                     <i class="fas fa-arrow-trend-up insight-icon"></i>
                     <div class="insight-content">
                         <div class="insight-title">Instant Quote Adoption Increasing</div>
-                        <div class="insight-description">65% of quotes now use catalog pricing, reducing PT workload by 40% compared to Q3</div>
+                        <div class="insight-description">65% of quotes now use catalog pricing, reducing PT workload by
+                            40% compared to Q3</div>
                     </div>
                 </div>
                 <div class="insight-card info">
                     <i class="fas fa-lightbulb insight-icon"></i>
                     <div class="insight-content">
                         <div class="insight-title">Faster Turnaround Times</div>
-                        <div class="insight-description">Quote to approval time reduced to 2.3 hours, meeting the speed prioritize goal</div>
+                        <div class="insight-description">Quote to approval time reduced to 2.3 hours, meeting the speed
+                            prioritize goal</div>
                     </div>
                 </div>
                 <div class="insight-card warning">
                     <i class="fas fa-chart-line insight-icon"></i>
                     <div class="insight-content">
                         <div class="insight-title">Opportunity: Expand Catalog</div>
-                        <div class="insight-description">23 fully custom jobs this month could be added to catalog to enable instant quoting</div>
+                        <div class="insight-description">23 fully custom jobs this month could be added to catalog to
+                            enable instant quoting</div>
                     </div>
                 </div>
             </div>

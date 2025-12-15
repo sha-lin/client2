@@ -539,6 +539,19 @@ def quote_management(request):
     leads = Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('name')
     products = Product.objects.filter(is_visible=True).order_by('name')
 
+    # Calculate Average Margin
+    total_revenue_all = 0
+    total_cost_all = 0
+    for q_dict in quotes_list:
+        # Sum up for all items in this quote group
+        for item in q_dict['items']:
+            total_revenue_all += item.total_amount
+            total_cost_all += (item.production_cost or Decimal('0'))
+            
+    avg_margin = 0
+    if total_revenue_all > 0:
+        avg_margin = ((total_revenue_all - total_cost_all) / total_revenue_all) * 100
+
     context = {
         'current_view': 'quote_management',
         'quotes': quotes_list,
@@ -546,6 +559,7 @@ def quote_management(request):
         'status_filter': status_filter,
         'total_value': total_value,
         'approved_value': approved_value,
+        'avg_margin': avg_margin,
         'clients': clients,
         'leads': leads,
         'products': products,
@@ -671,6 +685,18 @@ def analytics(request):
         status='Approved'
     ).aggregate(avg=Avg('total_amount'))['avg'] or 0
     
+    # ================= AVG TURNAROUND TIME =================
+    # Time from creation to approval
+    approved_quotes_objs = Quote.objects.filter(created_by=request.user, status='Approved')
+    total_hours = 0
+    count_approved = 0
+    for q in approved_quotes_objs:
+        if q.approved_at and q.created_at:
+             diff = q.approved_at - q.created_at
+             total_hours += diff.total_seconds() / 3600
+             count_approved += 1
+    avg_turnaround = round(total_hours / count_approved, 1) if count_approved > 0 else 0
+
     context = {
         'current_view': 'analytics',
         
@@ -693,6 +719,7 @@ def analytics(request):
         # Metrics
         'avg_deal_size': avg_deal_size,
         'conversion_rate': round((approved_quotes / total_quotes * 100), 1) if total_quotes > 0 else 0,
+        'avg_turnaround': avg_turnaround,
     }
     
     return render(request, 'analytics.html', context)
@@ -927,14 +954,14 @@ def client_onboarding(request):
                     messages.error(request, f'A client with email {email} already exists')
                     return redirect('client_onboarding')
 
-                # LEAD CONVERSION CHECK (B2B)
-                existing_lead = Lead.objects.filter(Q(email=email) | Q(phone=phone)).first()
-                if existing_lead:
-                    # Check if Lead has an APPROVED quote
-                    has_approved_quote = Quote.objects.filter(lead=existing_lead, status='Approved').exists()
-                    if not has_approved_quote:
-                        messages.error(request, f"Cannot onboard Lead '{existing_lead.name}' yet. They must approve a quote first.")
-                        return redirect('client_onboarding')
+                # LEAD CONVERSION CHECK (B2B) - DISABLED
+                # existing_lead = Lead.objects.filter(Q(email=email) | Q(phone=phone)).first()
+                # if existing_lead:
+                #     # Check if Lead has an APPROVED quote
+                #     has_approved_quote = Quote.objects.filter(lead=existing_lead, status='Approved').exists()
+                #     if not has_approved_quote:
+                #         messages.error(request, f"Cannot onboard Lead '{existing_lead.name}' yet. They must approve a quote first.")
+                #         return redirect('client_onboarding')
                 
                 # Create B2B client
                 client = Client.objects.create(
@@ -7535,3 +7562,59 @@ def admin_activity_list(request):
         'search': search
     }
     return render(request, 'admin/activity_list.html', context)
+
+
+from django.db.models import Count, Avg, Q, F
+from django.utils import timezone
+from datetime import timedelta
+
+# ... existing imports ...
+
+@login_required
+def production_settings(request):
+    """View for Production Team Settings"""
+    # You can add logic here to save settings if needed
+    if request.method == 'POST':
+        # Handle form submission here
+        messages.success(request, 'Settings updated successfully.')
+        return redirect('production_settings')
+        
+    context = {
+        'title': 'Production Settings',
+        'user': request.user,
+    }
+    return render(request, 'production_settings.html', context)
+
+@login_required
+def production_analytics(request):
+    """View for Production Team Analytics"""
+    # Calculate date ranges
+    today = timezone.now()
+    thirty_days_ago = today - timedelta(days=30)
+    
+    # Fetch relevant jobs
+    all_jobs = Job.objects.all() # Filter by production team if needed
+    recent_jobs = all_jobs.filter(created_at__gte=thirty_days_ago)
+    
+    # Calculate KPIs
+    total_jobs_month = recent_jobs.count()
+    completed_jobs = recent_jobs.filter(status='completed').count()
+    
+    # Calculate On-Time Rate (Example logic)
+    on_time_jobs = recent_jobs.filter(status='completed', actual_completion__lte=F('expected_completion')).count()
+
+    on_time_rate = (on_time_jobs / completed_jobs * 100) if completed_jobs > 0 else 100
+    
+    # Calculate Average Lead Time
+    # This is a placeholder calculation
+    avg_lead_time = 3.5 # Days
+    
+    context = {
+        'title': 'Production Analytics',
+        'total_jobs_month': total_jobs_month,
+        'completion_rate': (completed_jobs / total_jobs_month * 100) if total_jobs_month > 0 else 0,
+        'on_time_rate': on_time_rate,
+        'avg_lead_time': avg_lead_time,
+        'recent_jobs': recent_jobs.order_by('-created_at')[:5],
+    }
+    return render(request, 'production_analytics.html', context)

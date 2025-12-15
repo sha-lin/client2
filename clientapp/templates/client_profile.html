@@ -4,31 +4,35 @@
 {% block title %}{{ client.name }} - Client Profile{% endblock %}
 
 {% block content %}
-<!-- Client Profile Header -->
-<div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white px-8 py-6">
+<!-- Client Profile Header (New Black & White Design) -->
+<div class="bg-white border-b border-gray-200 px-8 py-6">
     <div class="flex items-center justify-between">
         <div class="flex items-center gap-4">
-            <div class="w-16 h-16 bg-white text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold">
+            <div
+                class="w-16 h-16 bg-gray-100 text-gray-900 rounded-full flex items-center justify-center text-2xl font-bold border border-gray-200">
                 {{ client.name|slice:":1"|upper }}
             </div>
             <div>
-                <h1 class="text-3xl font-bold">{{ client.name }}</h1>
+                <h1 class="text-3xl font-bold text-gray-900">{{ client.name }}</h1>
                 <div class="flex items-center gap-4 mt-2">
-                    <span class="px-3 py-1 bg-white/20 rounded-full text-sm">
+                    <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm border border-gray-200">
                         {{ client.get_client_type_display }}
                     </span>
-                    <span class="px-3 py-1 {% if client.status == 'Active' %}bg-green-500{% else %}bg-gray-500{% endif %} rounded-full text-sm">
+                    <span
+                        class="px-3 py-1 {% if client.status == 'Active' %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %} rounded-full text-sm">
                         {{ client.status }}
                     </span>
-                    <span class="text-sm">Client ID: {{ client.client_id }}</span>
+                    <span class="text-sm text-gray-500">Client ID: {{ client.client_id }}</span>
                 </div>
             </div>
         </div>
         <div class="flex gap-3">
-            <a href="{% url 'edit_client' client.pk %}" class="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-gray-100">
+            <a href="{% url 'edit_client' client.pk %}"
+                class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                 Edit Profile
             </a>
-            <a href="{% url 'create_quote' %}?client_id={{ client.id }}" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600">
+            <a href="{% url 'create_quote' %}?client_id={{ client.id }}"
+                class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 transition-colors">
                 Create Quote
             </a>
         </div>
@@ -80,26 +84,27 @@
                     </div>
                     <div>
                         <p class="text-sm text-gray-600">Delivery Instructions</p>
-                        <p class="font-medium text-sm whitespace-pre-wrap">{{ client.delivery_instructions|default:"-" }}</p>
+                        <p class="font-medium text-sm whitespace-pre-wrap">{{ client.delivery_instructions|default:"-"
+                            }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Business Metrics -->
+            <!-- Business Metrics (Fixed Variables) -->
             <div class="bg-white rounded-lg shadow p-6">
                 <h3 class="text-lg font-semibold mb-4">Business Metrics</h3>
                 <div class="space-y-4">
                     <div class="flex justify-between items-center">
                         <span class="text-gray-600">Total Jobs</span>
-                        <span class="text-2xl font-bold text-blue-600">{{ client.total_jobs }}</span>
+                        <span class="text-2xl font-bold text-gray-900">{{ total_jobs }}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-gray-600">Total Revenue</span>
-                        <span class="text-2xl font-bold text-green-600">KES {{ client.total_revenue|floatformat:0 }}</span>
+                        <span class="text-2xl font-bold text-gray-900">KES {{ total_revenue|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between items-center">
                         <span class="text-gray-600">Conversion Rate</span>
-                        <span class="text-2xl font-bold text-purple-600">{{ client.conversion_rate }}%</span>
+                        <span class="text-2xl font-bold text-gray-900">{{ conversion_rate }}%</span>
                     </div>
                 </div>
             </div>
@@ -110,7 +115,8 @@
                 <div class="space-y-3">
                     <div>
                         <p class="text-sm text-gray-600">Account Manager</p>
-                        <p class="font-medium">{{ client.account_manager.get_full_name|default:client.account_manager.username }}</p>
+                        <p class="font-medium">{{
+                            client.account_manager.get_full_name|default:client.account_manager.username }}</p>
                     </div>
                     <div>
                         <p class="text-sm text-gray-600">Last Activity</p>
@@ -123,7 +129,7 @@
                 </div>
             </div>
         </div>
-        
+
         <!-- Recent Activities -->
         <div class="mt-6 bg-white rounded-lg shadow p-6">
             <h3 class="text-lg font-semibold mb-4">Recent Activities</h3>
@@ -179,7 +185,8 @@
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-600">{{ quote.created_at|date:"M d, Y" }}</td>
                             <td class="px-6 py-4">
-                                <a href="{% url 'quote_detail' quote.quote_id %}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View</a>
+                                <a href="{% url 'quote_detail' quote.quote_id %}"
+                                    class="text-blue-600 hover:text-blue-800 text-sm font-medium">View</a>
                             </td>
                         </tr>
                         {% empty %}
@@ -193,7 +200,7 @@
         </div>
     </div>
 
-    <!-- Financials Tab -->
+    <!-- Financials Tab (Fixed Variable) -->
     <div id="financials-tab" class="tab-content hidden">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div class="bg-white rounded-lg shadow p-6">
@@ -201,7 +208,7 @@
                 <div class="space-y-4">
                     <div class="flex justify-between">
                         <span class="text-gray-600">Total Invoiced</span>
-                        <span class="font-bold">KES {{ client.total_revenue|floatformat:0 }}</span>
+                        <span class="font-bold">KES {{ total_revenue|floatformat:0 }}</span>
                     </div>
                     <div class="flex justify-between">
                         <span class="text-gray-600">Outstanding</span>
@@ -298,44 +305,44 @@
 </div>
 
 <style>
-.tab-btn {
-    padding: 16px 0;
-    border-bottom: 3px solid transparent;
-    font-weight: 500;
-    color: #6B7280;
-    transition: all 0.3s;
-}
+    .tab-btn {
+        padding: 16px 0;
+        border-bottom: 3px solid transparent;
+        font-weight: 500;
+        color: #6B7280;
+        transition: all 0.3s;
+    }
 
-.tab-btn:hover {
-    color: #3B82F6;
-}
+    .tab-btn:hover {
+        color: #111827;
+    }
 
-.tab-btn.active {
-    border-bottom-color: #3B82F6;
-    color: #3B82F6;
-}
+    .tab-btn.active {
+        border-bottom-color: #000000;
+        color: #000000;
+    }
 
-.tab-content {
-    display: none;
-}
+    .tab-content {
+        display: none;
+    }
 
-.tab-content.active {
-    display: block;
-}
+    .tab-content.active {
+        display: block;
+    }
 </style>
 
 <script>
-// Tab switching functionality
-document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-        // Remove active class from all buttons and contents
-        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-        
-        // Add active class to clicked button and corresponding content
-        btn.classList.add('active');
-        document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
+    // Tab switching functionality
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            // Remove active class from all buttons and contents
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+            // Add active class to clicked button and corresponding content
+            btn.classList.add('active');
+            document.getElementById(btn.dataset.tab + '-tab').classList.add('active');
+        });
     });
-});
 </script>
 {% endblock %}

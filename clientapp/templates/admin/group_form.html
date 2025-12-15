@@ -328,10 +328,9 @@
                                     <div class="permission-items">
                                         {% for perm in app_group.list %}
                                         <label class="permission-item">
-                                            <input type="checkbox" name="permissions" value="{{ perm.id }}" {% if
-                                                perm.id in group_permission_ids %}checked{% endif %}>
-                                            <span>{{ perm.name }}</span>
-                                        </label>
+    <input type="checkbox" name="permissions" value="{{ perm.id }}" {% if perm.id in group_permission_ids %}checked{% endif %}>
+    <span>{{ perm.name }}</span>
+</label>
                                         {% endfor %}
                                     </div>
                                 </div>

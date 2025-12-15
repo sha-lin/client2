@@ -1,0 +1,138 @@
+{% load humanize static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Copy styles from form_view.html or include a common css file if available */
+        /* For brevity, I'm assuming you can copy the styles from form_view.html here 
+           OR simpler: just include the same styles. 
+           To save space in this response, I'll assume you copy the <style> block from form_view.html 
+        */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f8f9fa; color: #212529; }
+        .app-container { display: flex; min-height: 100vh; }
+        .main-content { flex: 1; margin-left: 240px; display: flex; flex-direction: column; }
+        .header { background: #fff; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; }
+        .header-left h1 { font-size: 20px; font-weight: 600; color: #1e293b; }
+        .breadcrumb { display: flex; gap: 8px; align-items: center; font-size: 13px; color: #64748b; margin-top: 4px; }
+        .breadcrumb a { color: #3b82f6; text-decoration: none; }
+        .content { padding: 32px; flex: 1; }
+        .form-card { background: #fff; border-radius: 12px; border: 1px solid #e2e8f0; overflow: hidden; max-width: 1000px; }
+        .form-header { padding: 24px; border-bottom: 1px solid #e2e8f0; }
+        .form-title { font-size: 18px; font-weight: 600; color: #1e293b; }
+        .form-body { padding: 24px; }
+        .form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 24px; }
+        .field-wrapper { margin-bottom: 20px; }
+        .form-group label { display: block; font-size: 14px; font-weight: 500; color: #374151; margin-bottom: 8px; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 14px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+        .form-footer { padding: 24px; border-top: 1px solid #e2e8f0; display: flex; gap: 12px; background: #f8fafc; }
+        .btn { padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid transparent; }
+        .btn-primary { background: #3b82f6; color: #fff; }
+        .btn-secondary { background: #f1f5f9; color: #475569; border-color: #e2e8f0; }
+        .btn-danger { background: #ef4444; color: #fff; }
+        
+        /* Hidden class for toggling */
+        .hidden-field { display: none; }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        {% include 'admin/includes/sidebar_header.html' %}
+
+        <main class="main-content">
+            <header class="header">
+                <div class="header-left">
+                    <h1>{{ title }}</h1>
+                    <div class="breadcrumb">
+                        <a href="{% url 'admin_dashboard_index' %}">Dashboard</a>
+                        <span>›</span>
+                        <a href="{% url 'admin_clients_list' %}">Clients</a>
+                        <span>›</span>
+                        <span>{{ title }}</span>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content">
+                <div class="form-card">
+                    <div class="form-header">
+                        <h2 class="form-title">{% if is_add %}Add New Client{% else %}Edit Client{% endif %}</h2>
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="form-body">
+                            {% if form.non_field_errors %}
+                            <div class="message error">{{ form.non_field_errors }}</div>
+                            {% endif %}
+
+                            <div class="form-row">
+                                {% for field in form %}
+                                <div class="field-wrapper" id="wrapper_{{ field.name }}">
+                                    <div class="form-group">
+                                        <label for="{{ field.id_for_label }}">
+                                            {{ field.label }}
+                                            {% if field.field.required %}<span class="required" style="color:red">*</span>{% endif %}
+                                        </label>
+                                        {{ field }}
+                                        {% if field.help_text %}<p class="help-text" style="font-size:12px; color:#666">{{ field.help_text }}</p>{% endif %}
+                                        {% if field.errors %}<ul class="error" style="color:red; list-style:none">{% for error in field.errors %}<li>{{ error }}</li>{% endfor %}</ul>{% endif %}
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="form-footer">
+                            <button type="submit" class="btn btn-primary">{% if is_add %}Create Client{% else %}Save Changes{% endif %}</button>
+                            <a href="{% url 'admin_clients_list' %}" class="btn btn-secondary">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // B2B Specific Fields
+            const b2bFields = [
+                'company', 'vat_tax_id', 'kra_pin', 'industry', 
+                'credit_limit', 'default_markup', 'is_reseller'
+            ];
+
+            function toggleFields() {
+                // Get selected client type
+                // Note: Radio buttons have name="client_type"
+                const clientType = document.querySelector('input[name="client_type"]:checked')?.value;
+                
+                if (clientType) {
+                    b2bFields.forEach(field => {
+                        const wrapper = document.getElementById('wrapper_' + field);
+                        if (wrapper) {
+                            if (clientType === 'B2B') {
+                                wrapper.style.display = 'block';
+                            } else {
+                                wrapper.style.display = 'none';
+                            }
+                        }
+                    });
+                }
+            }
+
+            // Attach event listeners to radio buttons
+            const radios = document.querySelectorAll('input[name="client_type"]');
+            radios.forEach(radio => {
+                radio.addEventListener('change', toggleFields);
+            });
+
+            // Initial run
+            toggleFields();
+        });
+    </script>
+</body>
+</html>

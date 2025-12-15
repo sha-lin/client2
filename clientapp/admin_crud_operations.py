@@ -21,7 +21,8 @@ from .models import (
 from django.contrib.auth.models import User, Group, Permission
 from .forms import (
     ClientForm, LeadForm, QuoteForm, ProductForm, VendorForm, ProcessForm,
-    LPO_Form, PaymentForm, UserForm, JobForm
+    LPO_Form, PaymentForm, UserForm, JobForm,
+    AdminClientForm, AdminProductForm, AdminProcessForm  
 )
 
 def log_admin_action(request, action, model_obj, details=''):
@@ -95,14 +96,14 @@ def admin_client_detail(request, pk):
     client = get_object_or_404(Client, pk=pk)
     
     if request.method == 'POST':
-        form = ClientForm(request.POST, instance=client)
+        form = AdminClientForm(request.POST, instance=client)
         if form.is_valid():
             client = form.save()
             log_admin_action(request, 'UPDATE', client, 'Updated client details')
             messages.success(request, f'Client "{client.name}" updated successfully')
             return redirect('admin_client_detail', pk=client.pk)
     else:
-        form = ClientForm(instance=client)
+        form = AdminClientForm(instance=client)
     
     context = {
         'object': client,
@@ -113,14 +114,14 @@ def admin_client_detail(request, pk):
         'list_url': reverse('admin_clients_list'),
         'delete_url': reverse('admin_client_delete', args=[client.pk]),
     }
-    return render(request, 'admin/form_view.html', context)
+    return render(request, 'admin/client_form.html', context)
 
 
 @permission_required('clientapp.add_client', raise_exception=True)
 def admin_client_add(request):
     """Add a new client"""
     if request.method == 'POST':
-        form = ClientForm(request.POST)
+        form = AdminClientForm(request.POST)
         if form.is_valid():
             client = form.save(commit=False)
             client.onboarded_by = request.user
@@ -129,7 +130,7 @@ def admin_client_add(request):
             messages.success(request, f'Client "{client.name}" created successfully')
             return redirect('admin_client_detail', pk=client.pk)
     else:
-        form = ClientForm()
+        form = AdminClientForm()
     
     context = {
         'form': form,
@@ -139,7 +140,7 @@ def admin_client_add(request):
         'model_name_plural': 'Clients',
         'list_url': reverse('admin_clients_list'),
     }
-    return render(request, 'admin/form_view.html', context)
+    return render(request, 'admin/client_form.html', context)
 
 
 @permission_required('clientapp.delete_client', raise_exception=True)
@@ -439,14 +440,14 @@ def admin_product_detail(request, pk):
     product = get_object_or_404(Product, pk=pk)
     
     if request.method == 'POST':
-        form = ProductForm(request.POST, instance=product)
+        form = AdminProductForm(request.POST, instance=product)
         if form.is_valid():
             product = form.save()
             log_admin_action(request, 'UPDATE', product, 'Updated product details')
             messages.success(request, f'Product "{product.name}" updated successfully')
             return redirect('admin_product_detail', pk=product.pk)
     else:
-        form = ProductForm(instance=product)
+        form = AdminProductForm(instance=product)
     
     context = {
         'object': product,
@@ -464,13 +465,13 @@ def admin_product_detail(request, pk):
 def admin_product_add(request):
     """Add a new product"""
     if request.method == 'POST':
-        form = ProductForm(request.POST)
+        form = AdminProductForm(request.POST)
         if form.is_valid():
             product = form.save()
             messages.success(request, f'Product "{product.name}" created successfully')
             return redirect('admin_product_detail', pk=product.pk)
     else:
-        form = ProductForm()
+        form = AdminProductForm()
     
     context = {
         'form': form,
@@ -777,14 +778,14 @@ def admin_process_detail(request, pk):
     process = get_object_or_404(Process, pk=pk)
     
     if request.method == 'POST':
-        form = ProcessForm(request.POST, instance=process)
+        form = AdminProcessForm(request.POST, instance=process)
         if form.is_valid():
             process = form.save()
             log_admin_action(request, 'UPDATE', process, 'Updated process details')
             messages.success(request, f'Process "{process.process_name}" updated successfully')
             return redirect('admin_process_detail', pk=process.pk)
     else:
-        form = ProcessForm(instance=process)
+        form = AdminProcessForm(instance=process)
     
     context = {
         'object': process,
@@ -902,6 +903,7 @@ def admin_lpo_detail(request, pk):
         'object': lpo,
         'form': form,
         'title': f'Edit LPO: {lpo.lpo_number}',
+        'model_name': 'lpo',
     }
     return render(request, 'admin/detail_view.html', context)
 
@@ -927,6 +929,7 @@ def admin_lpo_add(request):
         'form': form,
         'title': 'Add LPO',
         'is_add': True,
+        'model_name': 'lpo',
     }
     return render(request, 'admin/detail_view.html', context)
 
@@ -946,6 +949,7 @@ def admin_lpo_delete(request, pk):
     context = {
         'object': lpo,
         'title': f'Delete LPO: {lpo.lpo_number}',
+        'model_name': 'lpo',
     }
     return render(request, 'admin/delete_confirm.html', context)
 
@@ -1011,6 +1015,7 @@ def admin_payment_detail(request, pk):
         'object': payment,
         'form': form,
         'title': f'Edit Payment: {payment.payment_id}',
+        'model_name': 'payment',
     }
     return render(request, 'admin/detail_view.html', context)
 
@@ -1034,6 +1039,7 @@ def admin_payment_add(request):
         'form': form,
         'title': 'Add Payment',
         'is_add': True,
+        'model_name': 'payment',
     }
     return render(request, 'admin/detail_view.html', context)
 
@@ -1053,6 +1059,7 @@ def admin_payment_delete(request, pk):
     context = {
         'object': payment,
         'title': f'Delete Payment: {payment.payment_id}',
+        'model_name': 'payment',
     }
     return render(request, 'admin/delete_confirm.html', context)
 
@@ -1145,8 +1152,6 @@ def admin_user_detail(request, pk):
         
         # Update groups
         user_obj.groups.clear()
-        # Update groups
-        user_obj.groups.clear()
         for group_id in selected_groups:
             try:
                 group = Group.objects.get(pk=group_id)
@@ -1183,7 +1188,6 @@ def admin_user_detail(request, pk):
     }
     return render(request, 'admin/user_form.html', context)
 
-
 @permission_required('auth.add_user', raise_exception=True)
 def admin_user_add(request):
     """Add a new user with group assignment"""
@@ -1196,7 +1200,8 @@ def admin_user_add(request):
         last_name = request.POST.get('last_name')
         password = request.POST.get('password')
         is_staff = request.POST.get('is_staff') == 'on'
-        is_active = request.POST.get('is_active', 'on') == 'on'
+        # Fix: Check if 'is_active' is present in POST data
+        is_active = request.POST.get('is_active') == 'on'
         is_superuser = request.POST.get('is_superuser') == 'on'
         selected_groups = request.POST.getlist('groups')
         
@@ -1248,7 +1253,6 @@ def admin_user_add(request):
         'list_url': reverse('admin_users_list'),
     }
     return render(request, 'admin/user_form.html', context)
-
 
 @permission_required('auth.delete_user', raise_exception=True)
 def admin_user_delete(request, pk):
@@ -1397,9 +1401,9 @@ def admin_group_delete(request, pk):
     context = {
         'object': group,
         'title': f'Delete Group: {group.name}',
+        'model_name': 'group',  
     }
     return render(request, 'admin/delete_confirm.html', context)
-
 
 # ==================== VIEW-ONLY LIST VIEWS ====================
 

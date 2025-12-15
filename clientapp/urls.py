@@ -271,6 +271,9 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     path('admin-dashboard/alerts/', admin_crud_operations.admin_alerts_list, name='admin_alerts_list'),
     path('admin-dashboard/audit-logs/', admin_crud_operations.admin_audit_logs, name='admin_audit_logs'),
     
+
+    path('production/settings/', views.production_settings, name='production_settings'),
+    path('production/analytics/', views.production_analytics, name='production_analytics'),
     # OLD ROUTES BELOW (DISABLED - using admin_crud_operations instead)
     # ===== ADMIN DASHBOARD ROUTES (Django Admin Style) =====
     # Main dashboard

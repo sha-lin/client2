@@ -42,10 +42,16 @@
         System
         {% endif %}
     </td>
-    <td>
-        <span
-            class="badge {% if log.action == 'CREATE' %}badge-success{% elif log.action == 'DELETE' %}badge-danger{% elif log.action == 'UPDATE' %}badge-warning{% else %}badge-info{% endif %}">{{
-            log.action }}</span>
+        <td>
+        {% if log.action == 'CREATE' %}
+            <span class="badge badge-success">CREATE</span>
+        {% elif log.action == 'DELETE' %}
+            <span class="badge badge-danger">DELETE</span>
+        {% elif log.action == 'UPDATE' %}
+            <span class="badge badge-warning">UPDATE</span>
+        {% else %}
+            <span class="badge badge-info">{{ log.action }}</span>
+        {% endif %}
     </td>
     <td>{{ log.model_name|title }}</td>
     <td>{{ log.object_repr }}</td>
