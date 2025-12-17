@@ -200,73 +200,80 @@
                                 </div>
 
                                 <!-- Delivery Details - B2B Only -->
-                                <div class="mt-6">
-                                    <h3 class="text-lg font-semibold">Delivery Details</h3>
-                                    <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
+<div id="b2bDeliverySection" class="mt-6">
+    <h3 class="text-lg font-semibold">Delivery Details</h3>
+    <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
 
-                                    <div class="grid grid-cols-1 gap-4">
-                                        <div class="space-y-2">
-                                            <label for="id_delivery_address" class="text-sm font-medium">Delivery
-                                                Address</label>
-                                            {{ form.delivery_address }}
-                                        </div>
-                                        <div class="space-y-2">
-                                            <label for="id_delivery_instructions" class="text-sm font-medium">Delivery
-                                                Instructions</label>
-                                            {{ form.delivery_instructions }}
-                                        </div>
-                                    </div>
-                                </div>
+    <div class="grid grid-cols-1 gap-4">
+        <div class="space-y-2">
+            <label for="id_delivery_address" class="text-sm font-medium">Delivery Address</label>
+            {{ form.delivery_address }}
+        </div>
+    </div>
+</div>
                             </div>
 
                             <!-- B2C Fields -->
-                            <div id="b2cFields" class="hidden">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div class="space-y-2">
-                                        <label for="id_company_b2c" class="text-sm font-medium">Company Name
-                                            (Optional)</label>
-                                        <input type="text" name="company_b2c" id="id_company_b2c"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="id_name_b2c" class="text-sm font-medium">Contact Person
-                                            *</label>
-                                        <input type="text" name="name_b2c" id="id_name_b2c"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            required>
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="id_email_b2c" class="text-sm font-medium">Email
-                                            (Optional)</label>
-                                        <input type="email" name="email_b2c" id="id_email_b2c"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="id_phone_b2c" class="text-sm font-medium">Phone *</label>
-                                        <input type="text" name="phone_b2c" id="id_phone_b2c"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            required>
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="id_preferred_channel_b2c" class="text-sm font-medium">Preferred
-                                            Channel</label>
-                                        <select name="preferred_channel_b2c" id="id_preferred_channel_b2c"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                            <option value="Email">Email</option>
-                                            <option value="Phone">Phone</option>
-                                            <option value="WhatsApp">WhatsApp</option>
-                                            <option value="In-Person">In-Person</option>
-                                        </select>
-                                    </div>
-                                    <div class="space-y-2">
-                                        <label for="id_lead_source_b2c" class="text-sm font-medium">Lead
-                                            Source</label>
-                                        <input type="text" name="lead_source_b2c" id="id_lead_source_b2c"
-                                            class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                            readonly>
-                                    </div>
-                                </div>
-                            </div>
+<div id="b2cFields" class="hidden">
+    <div class="grid grid-cols-2 gap-4">
+        <div class="space-y-2">
+            <label for="id_company_b2c" class="text-sm font-medium">Company Name
+                (Optional)</label>
+            <input type="text" name="company_b2c" id="id_company_b2c"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div class="space-y-2">
+            <label for="id_name_b2c" class="text-sm font-medium">Contact Person
+                *</label>
+            <input type="text" name="name_b2c" id="id_name_b2c"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                required>
+        </div>
+        <div class="space-y-2">
+            <label for="id_email_b2c" class="text-sm font-medium">Email
+                (Optional)</label>
+            <input type="email" name="email_b2c" id="id_email_b2c"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+        </div>
+        <div class="space-y-2">
+            <label for="id_phone_b2c" class="text-sm font-medium">Phone *</label>
+            <input type="text" name="phone_b2c" id="id_phone_b2c"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                required>
+        </div>
+        <div class="space-y-2">
+            <label for="id_preferred_channel_b2c" class="text-sm font-medium">Preferred
+                Channel</label>
+            <select name="preferred_channel_b2c" id="id_preferred_channel_b2c"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <option value="Email">Email</option>
+                <option value="Phone">Phone</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="In-Person">In-Person</option>
+            </select>
+        </div>
+        <div class="space-y-2">
+            <label for="id_lead_source_b2c" class="text-sm font-medium">Lead
+                Source</label>
+            <input type="text" name="lead_source_b2c" id="id_lead_source_b2c"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                readonly>
+        </div>
+    </div>
+    
+    <!-- Delivery Details - B2C -->
+    <div class="mt-6">
+        <h3 class="text-lg font-semibold">Delivery Details</h3>
+        <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
+        
+        <div class="grid grid-cols-1 gap-4">
+            <div class="space-y-2">
+                <label for="id_delivery_address" class="text-sm font-medium">Delivery Address</label>
+                {{ form.delivery_address }}
+            </div>
+        </div>
+    </div>
+</div>
                         </div>
 
                         <div id="validationErrors" class="hidden alert alert-error"></div>

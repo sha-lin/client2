@@ -34,6 +34,12 @@ class LeadForm(forms.ModelForm):
             'notes': forms.Textarea(attrs={'class': 'form-textarea w-full', 'rows': 4, 'placeholder': 'Additional notes'}),
         }
 
+    def clean_product_interest(self):
+        # Get the list of selected products from the raw data
+        products = self.data.getlist('product_interest')
+        # Join them into a single string separated by commas
+        return ", ".join(products)
+
 
 class ClientForm(forms.ModelForm):
     account_manager = forms.ModelChoiceField(

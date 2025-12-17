@@ -119,6 +119,8 @@
         
         <form method="post" id="leadForm">
             {% csrf_token %}
+            <input type="hidden" name="status" value="New">
+
             <div id="duplicateWarning" class="hidden alert alert-warning mb-4">
                 <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
                 <span id="duplicateMessage"></span>
@@ -143,14 +145,38 @@
                 </div>
                 <div class="space-y-2">
                     <label for="id_product_interest" class="text-sm font-medium">Product Interest</label>
-                    <select name="product_interest" id="id_product_interest" class="form-input">
-                        <option value="">Select a product...</option>
-                        {% for product in products %}
-                        <option value="{{ product.name }}" {% if form.product_interest.value == product.name %}selected{% endif %}>
-                            {{ product.name }} ({{ product.sku }})
-                        </option>
-                        {% endfor %}
-                    </select>
+<!-- Custom Multi-select Dropdown -->
+<div class="relative" id="product-multiselect">
+    <!-- Hidden Select for Form Submission -->
+    <select name="product_interest" id="id_product_interest" class="hidden" multiple>
+        {% for product in products %}
+        <option value="{{ product.name }}" {% if product.name in form.product_interest.value %}selected{% endif %}>
+            {{ product.name }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <!-- Dropdown Trigger Button -->
+    <button type="button" class="form-input w-full text-left flex justify-between items-center bg-white cursor-pointer h-10" onclick="toggleProductDropdown()">
+        <span id="selected-products-text" class="text-gray-500 truncate mr-2">Select products...</span>
+        <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+        </svg>
+    </button>
+
+    <!-- Dropdown Menu with Checkboxes -->
+    <div id="product-dropdown-menu" class="hidden absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+        {% for product in products %}
+        <label class="flex items-center px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0">
+            <input type="checkbox" value="{{ product.name }}" 
+                class="form-checkbox h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500 transition duration-150 ease-in-out" 
+                onchange="updateProductSelection(this)"
+                {% if product.name in form.product_interest.value %}checked{% endif %}>
+            <span class="ml-3 text-sm text-gray-700">{{ product.name }} <span class="text-gray-400 text-xs">({{ product.sku }})</span></span>
+        </label>
+        {% endfor %}
+    </div>
+</div>
                 </div>
                 <div class="space-y-2">
                     <label for="id_preferred_contact" class="text-sm font-medium">Preferred Contact Method</label>
@@ -200,5 +226,53 @@
     document.getElementById('id_name').addEventListener('blur', checkDuplicate);
     document.getElementById('id_email').addEventListener('blur', checkDuplicate);
     document.getElementById('id_phone').addEventListener('blur', checkDuplicate);
+     // Custom Multi-select Dropdown Logic
+    function toggleProductDropdown() {
+        const dropdown = document.getElementById('product-dropdown-menu');
+        dropdown.classList.toggle('hidden');
+    }
+
+    function updateProductSelection(checkbox) {
+        const select = document.getElementById('id_product_interest');
+        const options = Array.from(select.options);
+        const option = options.find(opt => opt.value === checkbox.value);
+        
+        if (option) {
+            option.selected = checkbox.checked;
+        }
+        
+        updateSelectedText();
+    }
+
+    function updateSelectedText() {
+        const select = document.getElementById('id_product_interest');
+        const selectedOptions = Array.from(select.selectedOptions);
+        const textSpan = document.getElementById('selected-products-text');
+        
+        if (selectedOptions.length === 0) {
+            textSpan.textContent = 'Select products...';
+            textSpan.classList.add('text-gray-500');
+            textSpan.classList.remove('text-gray-900');
+        } else {
+            const names = selectedOptions.map(opt => opt.value).join(', ');
+            textSpan.textContent = names;
+            textSpan.classList.remove('text-gray-500');
+            textSpan.classList.add('text-gray-900');
+        }
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('product-multiselect');
+        const dropdown = document.getElementById('product-dropdown-menu');
+        if (container && !container.contains(e.target) && dropdown && !dropdown.classList.contains('hidden')) {
+            dropdown.classList.add('hidden');
+        }
+    });
+
+    // Initialize text on load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSelectedText();
+    });
 </script>
 {% endblock %}

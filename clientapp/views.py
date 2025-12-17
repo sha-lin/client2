@@ -14,7 +14,7 @@ from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from functools import wraps
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from .models import BrandAsset
 from django.core.paginator import Paginator
 
@@ -272,11 +272,11 @@ def dashboard(request):
     
     # ========== CORE METRICS (matches your template) ==========
     
-    # Total leads
-    total_leads = Lead.objects.filter(created_by=request.user).count()
+        # Total leads (Global)
+    total_leads = Lead.objects.all().count()
     
-    # Converted leads
-    converted_leads = Lead.objects.filter(created_by=request.user, status='Converted').count()
+    # Converted leads (Global)
+    converted_leads = Lead.objects.filter(status='Converted').count()
     
     # Active clients
     active_clients = Client.objects.filter(account_manager=request.user, status='Active').count()
@@ -468,6 +468,17 @@ def dashboard(request):
         # Notifications
         'notifications': notifications,
         'unread_notifications_count': unread_notifications_count,
+        
+        # New Dashboard Sections
+        'jobs_nearing_deadline': Job.objects.filter(
+            client__account_manager=request.user,
+            status__in=['pending', 'in_progress'],
+            expected_completion__lte=timezone.now().date() + timedelta(days=5),
+            expected_completion__gte=timezone.now().date()
+        ).select_related('client').order_by('expected_completion')[:5],
+        'active_jobs_count': pending_jobs + in_progress_jobs,
+        
+
     }
     
     return render(request, 'dashboard.html', context)
@@ -667,6 +678,11 @@ def analytics(request):
         quantity_sold=Sum('quantity')
     ).order_by('-total_revenue')[:10]
     
+    # Prepare Top Products for Chart
+    top_products_list = list(top_products)
+    top_product_labels = [p['product_name'] for p in top_products_list]
+    top_product_data = [float(p['total_revenue']) for p in top_products_list]
+    
     # ================= CONVERSION FUNNEL =================
     total_leads = Lead.objects.filter(created_by=request.user).count()
     qualified_leads = Lead.objects.filter(created_by=request.user, status='Qualified').count()
@@ -703,7 +719,8 @@ def analytics(request):
         # Chart data (convert to JSON for JavaScript)
         'revenue_labels': json.dumps(labels),
         'revenue_data': json.dumps(revenue_data),
-        'top_products': list(top_products),
+        'top_product_labels': json.dumps(top_product_labels),
+        'top_product_data': json.dumps(top_product_data),
         
         # Funnel data
         'total_leads': total_leads,
@@ -753,6 +770,134 @@ def product_catalog(request):
     }
     
     return render(request, 'product_create_edit.html', context)
+
+
+
+@login_required
+@group_required('Account Manager')
+def account_manager_jobs_list(request):
+    """List of jobs for Account Manager"""
+    jobs = Job.objects.filter(
+        client__account_manager=request.user
+    ).exclude(status='completed').select_related('client').order_by('-created_at')
+    
+    # Add custom status property for template
+    for job in jobs:
+        # Check for delivery status
+        try:
+            if hasattr(job, 'delivery') and job.delivery.status == 'delivered':
+                job.delivery_status = 'delivered'
+            else:
+                job.delivery_status = None
+        except:
+            job.delivery_status = None
+            
+        # Check if overdue
+        if job.expected_completion and job.expected_completion < timezone.now().date() and job.status not in ['completed']:
+            job.is_overdue = True
+        else:
+            job.is_overdue = False
+
+    context = {
+        'jobs': jobs,
+        'current_view': 'jobs',
+    }
+    return render(request, 'account_manager/jobs_list.html', context)
+
+
+@login_required
+@group_required('Account Manager')
+def account_manager_job_detail(request, pk):
+    """Job detail view for Account Manager"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    # Get production users
+    production_group = Group.objects.filter(name='Production Team').first()
+    production_users = production_group.user_set.all() if production_group else []
+    
+    # Calculate metrics
+    days_active = (timezone.now().date() - job.start_date).days
+    days_remaining = (job.expected_completion - timezone.now().date()).days if job.expected_completion else 0
+    
+    # Check if overdue
+    job.is_overdue = False
+    if job.expected_completion and job.expected_completion < timezone.now().date() and job.status != 'completed':
+        job.is_overdue = True
+
+    context = {
+        'job': job,
+        'production_users': production_users,
+        'days_active': max(0, days_active),
+        'days_remaining': days_remaining,
+        'current_view': 'jobs',
+    }
+    return render(request, 'account_manager/job_detail.html', context)
+
+
+@login_required
+@group_required('Account Manager')
+def account_manager_job_update(request, pk):
+    """Update job assignment and status"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    if request.method == 'POST':
+        person_in_charge = request.POST.get('person_in_charge')
+        status = request.POST.get('status')
+        
+        if person_in_charge:
+            job.person_in_charge = person_in_charge
+        
+        if status:
+            job.status = status
+            
+        job.save()
+        messages.success(request, f'Job {job.job_number} updated successfully.')
+        
+    return redirect('account_manager_job_detail', pk=pk)
+
+
+@login_required
+@group_required('Account Manager')
+def account_manager_send_reminder(request, pk):
+    """Send reminder to production team"""
+    job = get_object_or_404(Job, pk=pk)
+    
+    if request.method == 'POST':
+        # Create notification for production team
+        # Ideally we should notify the specific person in charge if they are a user
+        # But since person_in_charge is a CharField, we might try to find a user with that name
+        # Or just notify all production team members
+        
+        production_group = Group.objects.filter(name='Production Team').first()
+        if production_group:
+            recipients = production_group.user_set.all()
+            
+            # Try to narrow down to person in charge if possible
+            if job.person_in_charge:
+                specific_user = User.objects.filter(
+                    Q(username__iexact=job.person_in_charge) | 
+                    Q(first_name__icontains=job.person_in_charge) | 
+                    Q(last_name__icontains=job.person_in_charge)
+                ).first()
+                if specific_user:
+                    recipients = [specific_user]
+            
+            for recipient in recipients:
+                Notification.objects.create(
+                    recipient=recipient,
+                    notification_type='job_reminder',
+                    title=f'⏰ Reminder: {job.job_name}',
+                    message=f'Reminder for job {job.job_number} ({job.client.name}). Due date: {job.expected_completion}. Please update status.',
+                    link=f'/job/{job.pk}/', # Link to PT job detail
+                    related_job=job
+                )
+            
+            messages.success(request, f'Reminder sent to production team for {job.job_number}.')
+        else:
+            messages.warning(request, 'No production team members found to notify.')
+            
+    return redirect('account_manager_job_detail', pk=pk)
+
 
 
 # ========== PRODUCTION TEAM VIEWS (Keep existing) ==========
@@ -1416,6 +1561,12 @@ def quote_create(request):
     clients = Client.objects.filter(status='Active').order_by('name')
     leads = Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('-created_at')
     products = Product.objects.filter(is_visible=True).order_by('name')
+
+    # Create lead interests dictionary for auto-population
+    lead_interests = {}
+    for lead in leads:
+        if lead.product_interest:
+            lead_interests[lead.name] = [p.strip() for p in lead.product_interest.split(',') if p.strip()]
     
     # Check if we're editing an existing quote
     quote_id_param = request.GET.get('quote_id')
@@ -1462,6 +1613,7 @@ def quote_create(request):
         'clients': clients,
         'leads': leads,
         'products': products,
+        'lead_interests': json.dumps(lead_interests),
         'existing_quote_data': json.dumps(existing_quote_data) if existing_quote_data else None,
         'existing_quote_obj': existing_quote_data,
     }
@@ -1810,6 +1962,7 @@ def quotes_list(request):
                 'item_count': 0,
                 'approved_items': 0,
                 'total_value': Decimal('0'),
+                'total_cost': Decimal('0'),
                 'margin': 0,
                 'status': quote.status,
                 'created_date': quote.created_at.strftime('%b %d, %Y'),
@@ -1820,7 +1973,8 @@ def quotes_list(request):
         # Increment counters
         quotes_dict[quote.quote_id]['item_count'] += 1
         quotes_dict[quote.quote_id]['total_value'] += quote.total_amount
-        
+        if quote.production_cost: 
+            quotes_dict[quote.quote_id]['total_cost'] += quote.production_cost
         # Count approved items
         if quote.status == 'Approved':
             quotes_dict[quote.quote_id]['approved_items'] += 1
@@ -1829,8 +1983,18 @@ def quotes_list(request):
         if quote.unit_price > 0:
             # Assuming 25% margin as default - adjust based on your business logic
             quotes_dict[quote.quote_id]['margin'] = 25.0
-    
+        for q in quotes_dict.values():
+            if q['total_value'] > 0:
+                cost = q['total_cost']
+                q['margin'] = ((q['total_value'] - cost) / q['total_value']) * 100
+            else:
+                q['margin'] = 0
     quotes_list = list(quotes_dict.values())
+
+    total_quotes_count = len(quotes_list)
+    pending_approval_count = sum(1 for q in quotes_list if q['status'] == 'Pending PT Approval')
+    total_value = sum(q['total_value'] for q in quotes_list)
+    avg_margin = sum(q['margin'] for q in quotes_list) / total_quotes_count if total_quotes_count > 0 else 0
     
     # Apply status filter
     status_filter = request.GET.get('status', 'all')
@@ -1848,6 +2012,10 @@ def quotes_list(request):
         'quotes': quotes_list,
         'status_filter': status_filter,
         'search_query': search_query,
+        'total_quotes_count': total_quotes_count,
+        'pending_approval_count': pending_approval_count,
+        'total_value': total_value,
+        'avg_margin': avg_margin,
     }
     
     return render(request, 'quote_list.html', context)
@@ -5428,22 +5596,26 @@ def my_jobs(request):
     
     return render(request, 'my_jobs.html', context)
 
-
 @login_required
 @group_required('Production Team')
 def my_quotes(request):
     """Show quotes for Production Team approval/costing"""
     from django.db.models import Q, Count
     
-    # Get all quotes (PT sees all quotes from all AMs)
-    quotes = Quote.objects.select_related('client', 'lead', 'created_by').order_by('-created_at')
+    # Get all quotes EXCEPT those that have been costed
+    # Only show quotes that need costing (pending, in_progress, or completed)
+    quotes = Quote.objects.select_related(
+        'client', 'lead', 'created_by'
+    ).exclude(
+        production_status='costed'  # Hide costed quotes
+    ).order_by('-created_at')
     
     # Apply filters
     status_filter = request.GET.get('status', 'all')
     if status_filter == 'urgent':
         quotes = quotes.filter(production_status='pending', status='Draft')
     elif status_filter == 'active':
-        quotes = quotes.filter(production_status__in=['in_progress', 'costed'])
+        quotes = quotes.filter(production_status='in_progress')
     elif status_filter == 'completed':
         quotes = quotes.filter(production_status='completed')
     
@@ -5456,7 +5628,7 @@ def my_quotes(request):
             Q(product_name__icontains=search_query)
         )
     
-    # Calculate snapshot counts
+    # Calculate snapshot counts (exclude costed quotes)
     active_quotes_count = Quote.objects.filter(
         production_status__in=['pending', 'in_progress']
     ).values('quote_id').distinct().count()
@@ -5523,7 +5695,6 @@ def my_quotes(request):
     }
     
     return render(request, 'my_quotes.html', context)
-
 
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse
@@ -6371,30 +6542,63 @@ def handle_process_save(request, process=None):
     # (Would need JavaScript to send this as JSON)
     # For now, simplified version
     
-    # ===== SAVE FORMULA-BASED PRICING =====
+    # In handle_process_save function, replace the formula-based pricing section:
+
+# ===== SAVE FORMULA-BASED PRICING =====
     if process.pricing_type == 'formula':
         # Delete existing variables
         process.variables.all().delete()
+    
+        # Save base cost if provided
+        base_cost = data.get('base_cost', 0)
+        if base_cost:
+            process.base_cost = Decimal(str(base_cost))
+        process.save()
+    
+    # Create variables with ranges from form data
+    var_num = 1
+    while f'variable{var_num}_name' in data:
+        var_name = data.get(f'variable{var_num}_name', '').strip()
         
-        # Save formula fields
-        process.base_rate = float(data.get('base_rate', 0) or 0)
-        process.formula_expression = data.get('formula_expression', '')
-        
-        # Create variables from form data
-        var_num = 1
-        while f'var{var_num}_name' in data:
-            var_name = data.get(f'var{var_num}_name', '').strip()
-            var_unit = data.get(f'var{var_num}_unit', '').strip()
-            var_default = data.get(f'var{var_num}_default', '')
+        if var_name:  # Only create if name exists
+            var_type = data.get(f'variable{var_num}_type', 'number')
+            var_unit = data.get(f'variable{var_num}_unit', '').strip()
+            var_description = data.get(f'variable{var_num}_description', '').strip()
             
-            if var_name:  # Only create if name exists
-                ProcessVariable.objects.create(
-                    process=process,
-                    variable_name=var_name,
-                    unit=var_unit,
-                    default_value=var_default
-                )
-            var_num += 1
+            # Create the variable
+            process_var = ProcessVariable.objects.create(
+                process=process,
+                variable_name=var_name,
+                variable_type=var_type,
+                unit=var_unit,
+                description=var_description,
+                order=var_num - 1
+            )
+            
+            # Add ranges for this variable
+            range_num = 1
+            while f'variable{var_num}_range{range_num}_from' in data:
+                try:
+                    range_from = Decimal(data.get(f'variable{var_num}_range{range_num}_from', 0))
+                    range_to = Decimal(data.get(f'variable{var_num}_range{range_num}_to', 0))
+                    range_price = Decimal(data.get(f'variable{var_num}_range{range_num}_price', 0))
+                    range_rate = Decimal(data.get(f'variable{var_num}_range{range_num}_rate', 1))
+                    
+                    # Create the range
+                    ProcessVariableRange.objects.create(
+                        variable=process_var,
+                        min_value=range_from,
+                        max_value=range_to,
+                        price=range_price,
+                        rate=range_rate,
+                        order=range_num - 1
+                    )
+                except (ValueError, TypeError) as e:
+                    logger.warning(f"Error saving range {range_num} for variable {var_name}: {e}")
+                
+                range_num += 1
+        
+        var_num += 1
     
     # ===== SAVE VENDORS =====
     # Delete existing vendor links

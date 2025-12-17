@@ -743,6 +743,198 @@
 
 <!-- Load JavaScript -->
 <script>
+document.addEventListener('DOMContentLoaded', function() {
+    let variableCount = 1; // Track number of variables
+    
+    // Add Variable Button Handler
+    const addVariableBtn = document.getElementById('add-variable-btn');
+    if (addVariableBtn) {
+        addVariableBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            variableCount++;
+            addVariableCard(variableCount);
+        });
+    }
+    
+    // Function to create a new variable card
+    function addVariableCard(varNum) {
+        const container = document.getElementById('variables-container');
+        
+        const variableHTML = `
+            <div class="border border-gray-300 rounded-lg p-5 mb-4 bg-white relative variable-card" data-var-num="${varNum}">
+                <button type="button" class="absolute top-3 right-3 text-red-500 hover:text-red-700 remove-variable-btn">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+
+                <h4 class="font-semibold mb-4">VARIABLE ${varNum}</h4>
+
+                <!-- Variable Name -->
+                <div class="mb-4">
+                    <label class="block font-medium mb-2">Variable Name: <span class="text-red-500">*</span></label>
+                    <input type="text" name="variable${varNum}_name" 
+                           class="w-full border border-gray-300 rounded px-3 py-2" 
+                           placeholder="e.g., Stitch Count, Position, Size" 
+                           required>
+                </div>
+
+                <!-- Variable Type & Unit -->
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block font-medium mb-2">Variable Type:</label>
+                        <select name="variable${varNum}_type" class="w-full border border-gray-300 rounded px-3 py-2">
+                            <option value="number" selected>Number</option>
+                            <option value="text">Text</option>
+                            <option value="dropdown">Dropdown</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-2">Unit:</label>
+                        <input type="text" name="variable${varNum}_unit" 
+                               class="w-full border border-gray-300 rounded px-3 py-2" 
+                               placeholder="e.g., stitches, cm, positions">
+                    </div>
+                </div>
+
+                <!-- Ranges Section -->
+                <div class="mb-4">
+                    <div class="flex justify-between items-center mb-3">
+                        <label class="block font-medium">Ranges & Pricing:</label>
+                        <button type="button" class="add-range-btn text-blue-600 hover:text-blue-800 text-sm" 
+                                data-var-num="${varNum}">
+                            + Add Range
+                        </button>
+                    </div>
+                    
+                    <div class="ranges-container" data-var-num="${varNum}">
+                        <!-- Initial range -->
+                        ${createRangeHTML(varNum, 1)}
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <label class="block font-medium mb-2">Description:</label>
+                    <input type="text" name="variable${varNum}_description" 
+                           class="w-full border border-gray-300 rounded px-3 py-2" 
+                           placeholder="Brief description of this variable">
+                </div>
+            </div>
+        `;
+        
+        container.insertAdjacentHTML('beforeend', variableHTML);
+        
+        // Attach event listeners to the new card
+        attachVariableEventListeners(varNum);
+    }
+    
+    // Function to create range HTML
+    function createRangeHTML(varNum, rangeNum) {
+        return `
+            <div class="range-item bg-gray-50 p-3 rounded mb-2" data-range-num="${rangeNum}">
+                <div class="flex justify-between items-center mb-2">
+                    <h5 class="font-medium text-sm">Range ${rangeNum}</h5>
+                    <button type="button" class="remove-range-btn text-red-500 hover:text-red-700 text-xs" 
+                            data-var-num="${varNum}" data-range-num="${rangeNum}">
+                        Remove
+                    </button>
+                </div>
+                
+                <div class="grid grid-cols-4 gap-2">
+                    <div>
+                        <label class="block text-xs mb-1">From:</label>
+                        <input type="number" name="variable${varNum}_range${rangeNum}_from" 
+                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                               placeholder="0" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs mb-1">To:</label>
+                        <input type="number" name="variable${varNum}_range${rangeNum}_to" 
+                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                               placeholder="5000" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs mb-1">Price (KES):</label>
+                        <input type="number" step="0.01" name="variable${varNum}_range${rangeNum}_price" 
+                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                               placeholder="50" required>
+                    </div>
+                    <div>
+                        <label class="block text-xs mb-1">Rate:</label>
+                        <input type="number" step="0.01" name="variable${varNum}_range${rangeNum}_rate" 
+                               class="w-full border border-gray-300 rounded px-2 py-1 text-sm" 
+                               placeholder="1.0" value="1.0" required>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // Attach event listeners to variable card
+    function attachVariableEventListeners(varNum) {
+        const card = document.querySelector(`.variable-card[data-var-num="${varNum}"]`);
+        if (!card) return;
+        
+        // Remove variable button
+        const removeBtn = card.querySelector('.remove-variable-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                if (confirm('Remove this variable?')) {
+                    card.remove();
+                }
+            });
+        }
+        
+        // Add range button
+        const addRangeBtn = card.querySelector('.add-range-btn');
+        if (addRangeBtn) {
+            addRangeBtn.addEventListener('click', function() {
+                const rangesContainer = card.querySelector('.ranges-container');
+                const rangeCount = rangesContainer.querySelectorAll('.range-item').length + 1;
+                rangesContainer.insertAdjacentHTML('beforeend', createRangeHTML(varNum, rangeCount));
+                attachRangeEventListeners(varNum, rangeCount);
+            });
+        }
+        
+        // Attach listeners to initial range
+        attachRangeEventListeners(varNum, 1);
+    }
+    
+    // Attach event listeners to range items
+    function attachRangeEventListeners(varNum, rangeNum) {
+        const rangeItem = document.querySelector(
+            `.variable-card[data-var-num="${varNum}"] .range-item[data-range-num="${rangeNum}"]`
+        );
+        
+        if (!rangeItem) return;
+        
+        const removeBtn = rangeItem.querySelector('.remove-range-btn');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', function() {
+                const rangesContainer = rangeItem.closest('.ranges-container');
+                const remainingRanges = rangesContainer.querySelectorAll('.range-item').length;
+                
+                if (remainingRanges > 1) {
+                    rangeItem.remove();
+                } else {
+                    alert('At least one range is required per variable.');
+                }
+            });
+        }
+    }
+    
+    // Initialize existing variables (for edit mode)
+    const existingVariables = document.querySelectorAll('.variable-card');
+    existingVariables.forEach((card, index) => {
+        const varNum = index + 1;
+        card.setAttribute('data-var-num', varNum);
+        attachVariableEventListeners(varNum);
+        variableCount = Math.max(variableCount, varNum);
+    });
+});
+
+
 (function() {
     'use strict';
     

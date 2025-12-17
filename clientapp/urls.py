@@ -57,6 +57,10 @@ urlpatterns = [
     path('account-manager/catalog/', views.product_catalog, name='product_catalog'),
     path('account-manager/analytics/', views.analytics, name='analytics'),
     path('account-manager/base/', views.base_view, name='base_view'),
+    path('account-manager/jobs/', views.account_manager_jobs_list, name='account_manager_jobs_list'),
+    path('account-manager/job/<int:pk>/', views.account_manager_job_detail, name='account_manager_job_detail'),
+    path('account-manager/job/<int:pk>/update/', views.account_manager_job_update, name='account_manager_job_update'),
+    path('account-manager/job/<int:pk>/remind/', views.account_manager_send_reminder, name='account_manager_send_reminder'),
     path('quotes/<str:quote_id>/send/', views.send_quote, name='send_quote'),
 
     # ===== Production Team URLs =====

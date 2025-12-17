@@ -1,6 +1,9 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 <style>
     .analytics-container {
         max-width: 1400px;
@@ -92,127 +95,10 @@
         color: #9ca3af;
     }
 
-    /* Bar Chart Styles */
-    .bar-chart {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        height: 240px;
-        gap: 0.5rem;
-        padding: 1rem 0;
-    }
-
-    .bar-group {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-    }
-
-    .bars-container {
-        display: flex;
-        align-items: flex-end;
-        gap: 0.25rem;
-        height: 100%;
-    }
-
-    .bar {
-        width: 18px;
-        border-radius: 4px 4px 0 0;
-        transition: all 0.3s ease;
-    }
-
-    .bar.blue {
-        background: #3b82f6;
-    }
-
-    .bar.green {
-        background: #10b981;
-    }
-
-    .bar:hover {
-        opacity: 0.8;
-    }
-
-    .bar-label {
-        font-size: 0.75rem;
-        color: #6b7280;
-        font-weight: 500;
-    }
-
-    /* Product Distribution Chart */
-    .distribution-chart {
-        display: flex;
-        gap: 2rem;
-        align-items: center;
-        height: 240px;
-    }
-
-    .bars-vertical {
-        flex: 1;
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-evenly;
-        height: 200px;
-        gap: 1rem;
-    }
-
-    .dist-bar-group {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
-        height: 100%;
-        justify-content: flex-end;
-    }
-
-    .dist-bar {
-        width: 60px;
-        background: #8b5cf6;
-        border-radius: 4px 4px 0 0;
-    }
-
-    .dist-label {
-        font-size: 0.75rem;
-        color: #6b7280;
-        font-weight: 500;
-        text-align: center;
-        max-width: 80px;
-    }
-
-    /* Line Chart */
-    .line-chart {
+    .chart-container {
         position: relative;
-        height: 240px;
-        padding: 1rem 0;
-    }
-
-    .line-chart svg {
-        width: 100%;
         height: 100%;
-    }
-
-    .line-path {
-        fill: none;
-        stroke: #f59e0b;
-        stroke-width: 2.5;
-    }
-
-    .line-point {
-        fill: #f59e0b;
-    }
-
-    .chart-axis {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 0.5rem;
-        padding: 0 1rem;
-    }
-
-    .axis-label {
-        font-size: 0.75rem;
-        color: #9ca3af;
+        width: 100%;
     }
 
     /* Insights Section */
@@ -321,7 +207,7 @@
                 <span class="stat-title">Avg Deal Size</span>
                 <i class="fas fa-coins stat-icon"></i>
             </div>
-            <div class="stat-value">KES {{ avg_deal_size|floatformat:0 }}</div>
+            <div class="stat-value">KES {{ avg_deal_size|floatformat:0|intcomma }}</div>
             <div class="stat-change">Per Approved Quote</div>
         </div>
 
@@ -338,68 +224,31 @@
     <div class="charts-grid">
         <div class="chart-card">
             <div class="chart-header">
-                <div class="chart-title">Quote Volume Trend</div>
-                <div class="chart-subtitle">Monthly quote creation and approval rates</div>
+                <div class="chart-title">Revenue Trend</div>
+                <div class="chart-subtitle">Monthly approved quote value</div>
             </div>
-            <div class="bar-chart">
-                <!-- Placeholder for dynamic chart data -->
-                <div class="bar-group">
-                    <div class="bars-container">
-                        <div class="bar blue" style="height: 65%;"></div>
-                        <div class="bar green" style="height: 55%;"></div>
-                    </div>
-                    <div class="bar-label">May</div>
-                </div>
-                <!-- ... other bars ... -->
-                <div class="bar-group">
-                    <div class="bars-container">
-                        <div class="bar blue" style="height: 45%;"></div>
-                        <div class="bar green" style="height: 40%;"></div>
-                    </div>
-                    <div class="bar-label">Nov</div>
-                </div>
+            <div class="chart-container" style="height: 240px;">
+                <canvas id="revenueChart"></canvas>
             </div>
         </div>
 
         <div class="chart-card">
             <div class="chart-header">
-                <div class="chart-title">Product Type Distribution</div>
-                <div class="chart-subtitle">Quotes by product complexity</div>
+                <div class="chart-title">Client Distribution</div>
+                <div class="chart-subtitle">B2B vs B2C Clients</div>
             </div>
-            <div class="distribution-chart">
-                <div class="bars-vertical">
-                    <div class="dist-bar-group">
-                        <div class="dist-bar" style="height: 90%;"></div>
-                        <div class="dist-label">Non-Custom</div>
-                    </div>
-                    <div class="dist-bar-group">
-                        <div class="dist-bar" style="height: 45%;"></div>
-                        <div class="dist-label">Semi-Custom</div>
-                    </div>
-                    <div class="dist-bar-group">
-                        <div class="dist-bar" style="height: 20%;"></div>
-                        <div class="dist-label">Fully Custom</div>
-                    </div>
-                </div>
+            <div class="chart-container" style="height: 240px; display: flex; justify-content: center;">
+                <canvas id="clientChart"></canvas>
             </div>
         </div>
 
         <div class="chart-card full-width">
             <div class="chart-header">
-                <div class="chart-title">Quote Turnaround Time</div>
-                <div class="chart-subtitle">Average time from quote creation to PT approval (hours)</div>
+                <div class="chart-title">Top Products by Revenue</div>
+                <div class="chart-subtitle">Best performing products</div>
             </div>
-            <div class="line-chart">
-                <svg viewBox="0 0 600 200" preserveAspectRatio="none">
-                    <polyline class="line-path" points="0,30 100,40 200,35 300,50 400,45 500,50 600,48" />
-                    <!-- Points -->
-                </svg>
-            </div>
-            <div class="chart-axis">
-                <span class="axis-label">Week 1</span>
-                <span class="axis-label">Week 2</span>
-                <span class="axis-label">Week 3</span>
-                <span class="axis-label">Week 4</span>
+            <div class="chart-container" style="height: 300px;">
+                <canvas id="productsChart"></canvas>
             </div>
         </div>
 
@@ -437,4 +286,93 @@
         </div>
     </div>
 </div>
+
+<script>
+    // Revenue Chart
+    const ctxRevenue = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctxRevenue, {
+        type: 'bar',
+        data: {
+            labels: {{ revenue_labels| safe }},
+        datasets: [{
+            label: 'Revenue (KES)',
+            data: {{ revenue_data| safe }},
+        backgroundColor: '#3b82f6',
+        borderRadius: 4,
+        barThickness: 20
+            }]
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                grid: { display: false }
+            },
+            x: {
+                grid: { display: false }
+            }
+        }
+    }
+    });
+
+    // Client Chart
+    const ctxClient = document.getElementById('clientChart').getContext('2d');
+    new Chart(ctxClient, {
+        type: 'doughnut',
+        data: {
+            labels: ['B2B', 'B2C'],
+            datasets: [{
+                data: [{{ b2b_clients }}, {{ b2c_clients }}],
+        backgroundColor: ['#8b5cf6', '#10b981'],
+        borderWidth: 0
+    }]
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '70%',
+        plugins: {
+            legend: { position: 'right' }
+        }
+    }
+    });
+
+    // Products Chart
+    const ctxProducts = document.getElementById('productsChart').getContext('2d');
+    new Chart(ctxProducts, {
+        type: 'bar',
+        data: {
+            labels: {{ top_product_labels| safe }},
+        datasets: [{
+            label: 'Revenue (KES)',
+            data: {{ top_product_data| safe }},
+        backgroundColor: '#f59e0b',
+        borderRadius: 4,
+        barThickness: 30
+            }]
+        },
+        options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        indexAxis: 'y',
+        plugins: {
+            legend: { display: false }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                grid: { display: false }
+            },
+            y: {
+                grid: { display: false }
+            }
+        }
+    }
+    });
+</script>
 {% endblock %}

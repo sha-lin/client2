@@ -5,6 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <title>{% block title %}Print Duka{% endblock %}</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -510,12 +511,6 @@
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
                     <span>Analytics</span>
                 </a>
-                
-                
-                <a href="{% url 'self_quote' %}" class="sidebar-item {% if current_view == 'self_quote' %}active{% endif %}">
-                    <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path><path d="M8 11v10"></path><path d="M16 11v10"></path></svg>
-                    <span>Self Quote</span>
-                </a>
                 <a href="{% url 'production_settings' %}" class="sidebar-item {% if current_view == 'production_settings' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
                     <span>Settings</span>
@@ -546,9 +541,9 @@
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"></path><path d="M7 13v6"></path><path d="M12 9v10"></path><path d="M17 5v14"></path></svg>
                     <span>Analytics</span>
                 </a>
-                <a href="{% url 'product_catalog' %}" class="sidebar-item {% if current_view == 'product_catalog' %}active{% endif %}">
+                                <a href="{% url 'account_manager_jobs_list' %}" class="sidebar-item {% if current_view == 'jobs' %}active{% endif %}">
                     <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v4H3z"></path><path d="M3 11h18v10H3z"></path></svg>
-                    <span>Product Catalog</span>
+                    <span>Jobs</span>
                 </a>
             {% endif %}
 {% if user|has_group:"Finance" %}

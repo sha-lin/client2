@@ -6,213 +6,441 @@
 
 {% block extra_css %}
 <style>
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background-color: #fafafa;
+        color: #1a1a1a;
+    }
+
+    .container {
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 40px 60px;
+    }
+
+    .back-button {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        color: #333;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        margin-bottom: 24px;
+        transition: all 0.2s ease;
+    }
+
+    .back-button:hover {
+        background: #f5f5f5;
+        border-color: #ccc;
+    }
+
     .job-header {
         background: white;
-        padding: 2rem;
-        border-radius: 8px;
-        margin-bottom: 2rem;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 32px;
+        border-radius: 12px;
+        margin-bottom: 32px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f0f0f0;
+    }
+
+    .header-content {
+        display: flex;
+        align-items: center;
+        gap: 20px;
     }
 
     .client-avatar {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        width: 64px;
+        height: 64px;
+        border-radius: 12px;
+        background: #1a1a1a;
         display: flex;
         align-items: center;
         justify-content: center;
         color: white;
         font-size: 24px;
-        font-weight: bold;
+        font-weight: 600;
+        flex-shrink: 0;
+    }
+
+    .header-info h2 {
+        font-size: 24px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 6px;
+    }
+
+    .header-subtitle {
+        color: #666;
+        font-size: 14px;
+    }
+
+    .header-actions {
+        margin-left: auto;
+    }
+
+    .btn-primary {
+        background: #1a1a1a;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 14px;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .btn-primary:hover {
+        background: #333;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #333;
+        padding: 10px 20px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 500;
+        font-size: 13px;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .btn-secondary:hover {
+        background: #f5f5f5;
+        border-color: #ccc;
+    }
+
+    .btn-secondary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        margin: 2rem 0;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+        margin-bottom: 32px;
     }
 
     .stat-card {
         background: white;
-        padding: 1.5rem;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 28px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f0f0f0;
+        transition: all 0.2s ease;
+    }
+
+    .stat-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
     }
 
     .stat-label {
         color: #666;
-        font-size: 0.875rem;
-        margin-bottom: 0.5rem;
+        font-size: 13px;
+        margin-bottom: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .stat-value {
-        font-size: 2rem;
-        font-weight: bold;
-        color: #333;
+        font-size: 36px;
+        font-weight: 600;
+        color: #1a1a1a;
     }
 
     .job-table {
         background: white;
-        border-radius: 8px;
+        border-radius: 12px;
         overflow: hidden;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f0f0f0;
+        margin-bottom: 32px;
+    }
+
+    .table-title {
+        padding: 24px 28px;
+        margin: 0;
+        border-bottom: 1px solid #f0f0f0;
+        font-size: 16px;
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+
+    .filter-section {
+        display: flex;
+        gap: 16px;
+        padding: 20px 28px;
+        background: #fafafa;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .form-select {
+        padding: 10px 38px 10px 14px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        background: white;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px center;
+        transition: all 0.2s ease;
+    }
+
+    .form-select:hover {
+        border-color: #ccc;
+    }
+
+    .form-select:focus {
+        outline: none;
+        border-color: #1a1a1a;
     }
 
     .table-header {
         display: grid;
-        grid-template-columns: 150px 200px 120px 100px 150px 150px 150px 120px;
-        gap: 1rem;
-        padding: 1rem;
-        background: #f8f9fa;
+        grid-template-columns: 140px 200px 110px 100px 140px 140px 140px 160px;
+        gap: 16px;
+        padding: 16px 28px;
+        background: #fafafa;
         font-weight: 600;
-        border-bottom: 2px solid #e9ecef;
+        font-size: 12px;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .job-row {
         display: grid;
-        grid-template-columns: 150px 200px 120px 100px 150px 150px 150px 120px;
-        gap: 1rem;
-        padding: 1rem;
-        border-bottom: 1px solid #e9ecef;
+        grid-template-columns: 140px 200px 110px 100px 140px 140px 140px 160px;
+        gap: 16px;
+        padding: 20px 28px;
+        border-bottom: 1px solid #f5f5f5;
         align-items: center;
+        transition: all 0.2s ease;
     }
 
     .job-row:hover {
-        background: #f8f9fa;
+        background: #fafafa;
+    }
+
+    .job-row:last-child {
+        border-bottom: none;
     }
 
     .status-badge {
-        padding: 0.25rem 0.75rem;
-        border-radius: 12px;
-        font-size: 0.875rem;
-        font-weight: 500;
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
         display: inline-block;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
 
     .status-pending {
-        background: #fff3cd;
-        color: #856404;
+        background: #f5f5f5;
+        color: #666;
     }
 
     .status-in-progress {
-        background: #cfe2ff;
-        color: #084298;
+        background: #e8e8e8;
+        color: #1a1a1a;
     }
 
     .status-completed {
-        background: #d1e7dd;
-        color: #0f5132;
+        background: #1a1a1a;
+        color: white;
     }
 
     .status-on-hold {
-        background: #f8d7da;
-        color: #842029;
+        background: #f5f5f5;
+        color: #666;
+        border: 1px solid #e0e0e0;
     }
 
     .priority-urgent {
-        background: #dc3545;
+        background: #1a1a1a;
         color: white;
     }
 
     .priority-high {
-        background: #fd7e14;
+        background: #4a4a4a;
         color: white;
     }
 
     .priority-normal {
-        background: #6c757d;
-        color: white;
+        background: #f5f5f5;
+        color: #666;
     }
 
     .progress-bar {
-        height: 8px;
-        background: #e9ecef;
-        border-radius: 4px;
+        height: 6px;
+        background: #f0f0f0;
+        border-radius: 3px;
         overflow: hidden;
-        margin-top: 0.5rem;
+        margin-top: 8px;
     }
 
     .progress-fill {
         height: 100%;
-        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        background: #1a1a1a;
+        border-radius: 3px;
         transition: width 0.3s ease;
     }
 
     .deadline-warning {
-        color: #dc3545;
+        color: #1a1a1a;
         font-weight: 600;
+        font-size: 12px;
     }
 
     .deadline-soon {
-        color: #fd7e14;
+        color: #666;
         font-weight: 600;
+        font-size: 12px;
     }
 
     .deadline-ok {
-        color: #28a745;
+        color: #999;
+        font-size: 12px;
     }
 
     .job-detail-grid {
         display: grid;
-        grid-template-columns: 2fr 1fr;
-        gap: 2rem;
-        margin-top: 2rem;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 32px;
     }
 
     .detail-card {
         background: white;
-        padding: 2rem;
-        border-radius: 8px;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        padding: 32px;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        border: 1px solid #f0f0f0;
+    }
+
+    .detail-card h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 24px;
+    }
+
+    .detail-card h4 {
+        font-size: 14px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 16px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 32px;
+        padding-bottom: 32px;
+        border-bottom: 1px solid #f0f0f0;
     }
 
     .detail-section {
-        margin-bottom: 2rem;
+        margin-bottom: 32px;
     }
 
     .detail-row {
         display: flex;
         justify-content: space-between;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid #e9ecef;
+        padding: 14px 0;
+        border-bottom: 1px solid #f5f5f5;
+    }
+
+    .detail-row:last-child {
+        border-bottom: none;
     }
 
     .detail-label {
         color: #666;
         font-weight: 500;
+        font-size: 14px;
     }
 
     .detail-value {
-        color: #333;
+        color: #1a1a1a;
         font-weight: 600;
+        font-size: 14px;
     }
 
     .notes-section {
-        max-height: 400px;
+        max-height: 500px;
         overflow-y: auto;
     }
 
     .note-item {
-        padding: 1rem;
-        background: #f8f9fa;
+        padding: 16px;
+        background: #fafafa;
         border-radius: 8px;
-        margin-bottom: 1rem;
+        margin-bottom: 12px;
+        border: 1px solid #f0f0f0;
     }
 
     .note-header {
-        font-size: 0.875rem;
+        font-size: 12px;
         color: #666;
-        margin-bottom: 0.5rem;
+        margin-bottom: 8px;
+        font-weight: 500;
+    }
+
+    .note-content {
+        color: #1a1a1a;
+        font-size: 14px;
+        line-height: 1.5;
     }
 
     .vendor-stage {
-        background: #f8f9fa;
-        padding: 1rem;
+        background: #fafafa;
+        padding: 20px;
         border-radius: 8px;
-        margin-bottom: 1rem;
-        border-left: 4px solid #667eea;
+        margin-bottom: 16px;
+        border: 1px solid #f0f0f0;
+        border-left: 3px solid #1a1a1a;
+    }
+
+    .vendor-stage h5 {
+        font-size: 15px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 6px;
+    }
+
+    .vendor-stage p {
+        color: #666;
+        font-size: 13px;
+        margin-bottom: 10px;
     }
 
     .modal {
@@ -224,81 +452,127 @@
         width: 100%;
         height: 100%;
         background: rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(4px);
     }
 
     .modal-content {
         background: white;
         margin: 5% auto;
-        padding: 2rem;
-        border-radius: 8px;
+        padding: 40px;
+        border-radius: 12px;
         max-width: 500px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        position: relative;
     }
 
-    .btn-primary {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 0.75rem 1.5rem;
-        border: none;
-        border-radius: 6px;
-        cursor: pointer;
+    .modal-content h3 {
+        font-size: 20px;
         font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 24px;
     }
 
-    .btn-secondary {
-        background: #6c757d;
-        color: white;
-        padding: 0.5rem 1rem;
-        border: none;
-        border-radius: 6px;
+    .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        font-size: 28px;
         cursor: pointer;
+        color: #666;
+        line-height: 1;
+    }
+
+    .modal-close:hover {
+        color: #1a1a1a;
     }
 
     .form-group {
-        margin-bottom: 1.5rem;
+        margin-bottom: 20px;
     }
 
     .form-label {
         display: block;
-        margin-bottom: 0.5rem;
+        margin-bottom: 8px;
         font-weight: 600;
-        color: #333;
+        color: #1a1a1a;
+        font-size: 14px;
     }
 
     .form-input,
     .form-select {
         width: 100%;
-        padding: 0.75rem;
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 1rem;
+        padding: 12px 16px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.2s ease;
     }
 
-    .filter-section {
-        display: flex;
-        gap: 1rem;
-        margin-bottom: 1rem;
-        padding: 1rem;
-        background: white;
+    .form-input:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: #1a1a1a;
+    }
+
+    textarea.form-input {
+        resize: vertical;
+        min-height: 100px;
+        font-family: inherit;
+    }
+
+    .empty-state {
+        padding: 60px 20px;
+        text-align: center;
+        color: #999;
+    }
+
+    .empty-state-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .empty-state-text {
+        font-size: 15px;
+        color: #666;
+    }
+
+    .special-instructions {
+        background: #fafafa;
+        padding: 20px;
         border-radius: 8px;
+        border: 1px solid #f0f0f0;
+        color: #333;
+        line-height: 1.6;
+    }
+
+    .job-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .action-link {
+        text-decoration: none;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <a href="{% url 'my_jobs' %}" class="btn-secondary" style="margin-bottom: 1rem; display: inline-block;">← Back to All Jobs</a>
+    <a href="{% url 'my_jobs' %}" class="back-button">← Back to All Jobs</a>
 
     <div class="job-header">
-        <div style="display: flex; align-items: center; gap: 1rem;">
+        <div class="header-content">
             <div class="client-avatar">
                 {{ job.client.name|slice:":2"|upper }}
             </div>
-            <div>
+            <div class="header-info">
                 <h2>{{ job.client.name }}</h2>
-                <p style="color: #666;">{{ client_jobs|length }} Active Job{{ client_jobs|length|pluralize }}</p>
+                <p class="header-subtitle">{{ client_jobs|length }} Active Job{{ client_jobs|length|pluralize }}</p>
             </div>
-            <div style="margin-left: auto;">
-                <button onclick="window.print()" class="btn-primary">🖨️ Print New Job</button>
+            <div class="header-actions">
+                <button onclick="window.print()" class="btn-primary">Print Job Details</button>
             </div>
         </div>
     </div>
@@ -350,7 +624,7 @@
     </div>
 
     <div class="job-table">
-        <h3 style="padding: 1.5rem; margin: 0; border-bottom: 2px solid #e9ecef;">📊 JOB MANAGEMENT TABLE</h3>
+        <h3 class="table-title">Job Management Table</h3>
 
         <div class="filter-section">
             <select id="statusFilter" class="form-select" onchange="filterJobs()">
@@ -385,8 +659,8 @@
                 <strong>{{ cj.job_number }}</strong>
             </div>
             <div>
-                <div>{{ cj.job_type }}</div>
-                <div style="color: #666; font-size: 0.875rem;">{{ cj.product }} • {{ cj.quantity|intcomma }} pcs</div>
+                <div style="font-weight: 500;">{{ cj.job_type }}</div>
+                <div style="color: #666; font-size: 13px;">{{ cj.product }} • {{ cj.quantity|intcomma }} pcs</div>
             </div>
             <div>
                 <span class="status-badge status-{{ cj.status }}">{{ cj.status_display }}</span>
@@ -395,13 +669,13 @@
                 <span class="status-badge priority-{{ cj.priority }}">{{ cj.priority_display }}</span>
             </div>
             <div>
-                <div>{{ cj.expected_completion|date:"M d, Y" }}</div>
+                <div style="margin-bottom: 4px;">{{ cj.expected_completion|date:"M d, Y" }}</div>
                 {% if cj.is_overdue and cj.status == 'completed' %}
                 <div class="deadline-ok">✓ Completed</div>
                 {% elif cj.is_overdue %}
-                <div class="deadline-warning">⚠️ {{ cj.days_remaining }} days overdue</div>
+                <div class="deadline-warning">{{ cj.days_remaining }} days overdue</div>
                 {% elif cj.days_remaining <= 2 and cj.status != 'completed' %}
-                <div class="deadline-soon">⏰ {{ cj.days_remaining }} days left</div>
+                <div class="deadline-soon">{{ cj.days_remaining }} days left</div>
                 {% elif cj.status != 'completed' %}
                 <div class="deadline-ok">{{ cj.days_remaining }} days left</div>
                 {% else %}
@@ -409,50 +683,50 @@
                 {% endif %}
             </div>
             <div>
-                <div>{{ cj.progress }}% complete</div>
+                <div style="margin-bottom: 4px; font-size: 13px; font-weight: 500;">{{ cj.progress }}% complete</div>
                 <div class="progress-bar">
                     <div class="progress-fill" style="width: {{ cj.progress }}%"></div>
                 </div>
             </div>
-            <div>{{ cj.person_in_charge }}</div>
-            <div>
+            <div style="font-size: 13px;">{{ cj.person_in_charge }}</div>
+            <div class="job-actions">
                 {% if cj.status == 'completed' %}
                 <button class="btn-secondary" disabled>✓ Done</button>
                 {% else %}
-                <button class="btn-secondary" onclick="updateProgress({{ cj.id }})">📊 Update Progress</button>
+                <button class="btn-secondary" onclick="updateProgress({{ cj.id }})">Update Progress</button>
                 {% endif %}
-                <button class="btn-secondary" onclick="addNote({{ cj.id }})" style="margin-top: 0.5rem;">➕ Add Note</button>
-                <button class="btn-secondary" onclick="uploadFile({{ cj.id }})" style="margin-top: 0.5rem;">📎 Upload File</button>
+                <button class="btn-secondary" onclick="addNote({{ cj.id }})">Add Note</button>
                 {% if cj.quote and cj.quote.lpo %}
-                <a href="{{ cj.quote.lpo.url }}" class="btn-secondary" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">📄 View LPO</a>
+                <a href="{{ cj.quote.lpo.url }}" class="btn-secondary action-link">View LPO</a>
                 {% endif %}
                 {% if cj.quote %}
-                <a href="{% url 'quote_detail' cj.quote.id %}" class="btn-secondary" style="margin-top: 0.5rem; display: inline-block; text-decoration: none;">📋 View Quote</a>
+                <a href="{% url 'quote_detail' cj.quote.id %}" class="btn-secondary action-link">View Quote</a>
                 {% endif %}
             </div>
         </div>
         {% empty %}
-        <div style="padding: 3rem; text-align: center; color: #666;">
-            📋 No jobs found for this client.
+        <div class="empty-state">
+            <div class="empty-state-icon">📋</div>
+            <div class="empty-state-text">No jobs found for this client.</div>
         </div>
         {% endfor %}
     </div>
 
     <div class="job-detail-grid">
         <div class="detail-card">
-            <h3 style="margin-bottom: 1.5rem;">📋 DETAILED VIEW: {{ job.job_number }} <span style="color: #667eea;">Current Job</span></h3>
+            <h3>Detailed View: {{ job.job_number }}</h3>
 
-            <div style="margin-bottom: 1.5rem;">
+            <div class="action-buttons">
                 {% if job.status != 'completed' %}
-                <button onclick="markCompleted({{ job.id }})" class="btn-primary">✅ Mark as Completed</button>
+                <button onclick="markCompleted({{ job.id }})" class="btn-primary">Mark as Completed</button>
                 {% else %}
-                <a href="{% url 'qc_inspection_start' job.id %}" class="btn-primary" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); text-decoration: none; display: inline-block;">🔍 Start QC Inspection</a>
-                <a href="{% url 'delivery_handoff' job.id %}" class="btn-secondary" style="margin-left: 1rem; text-decoration: none; display: inline-block;">🚚 Delivery Handoff</a>
+                <a href="{% url 'qc_inspection_start' job.id %}" class="btn-primary action-link">Start QC Inspection</a>
+                <a href="{% url 'delivery_handoff' job.id %}" class="btn-secondary action-link">Delivery Handoff</a>
                 {% endif %}
             </div>
 
             <div class="detail-section">
-                <h4>📦 Job Specifications</h4>
+                <h4>Job Specifications</h4>
                 <div class="detail-row">
                     <span class="detail-label">Product Type</span>
                     <span class="detail-value">{{ specs.product_type }}</span>
@@ -480,7 +754,7 @@
             </div>
 
             <div class="detail-section">
-                <h4>📅 Timeline</h4>
+                <h4>Timeline</h4>
                 <div class="detail-row">
                     <span class="detail-label">Start Date</span>
                     <span class="detail-value">{{ job.start_date|date:"M d, Y" }}</span>
@@ -508,7 +782,7 @@
             </div>
 
             <div class="detail-section">
-                <h4>👥 Assignment</h4>
+                <h4>Assignment</h4>
                 <div class="detail-row">
                     <span class="detail-label">Person In Charge</span>
                     <span class="detail-value">{{ job.person_in_charge }}</span>
@@ -537,56 +811,56 @@
 
             {% if job.notes %}
             <div class="detail-section">
-                <h4>📝 Special Instructions:</h4>
-                <p style="background: #f8f9fa; padding: 1rem; border-radius: 6px;">{{ job.notes }}</p>
+                <h4>Special Instructions</h4>
+                <p class="special-instructions">{{ job.notes }}</p>
             </div>
             {% endif %}
 
             <div class="detail-section">
-                <h4 style="margin-bottom: 1rem;">📊 Production Stages</h4>
+                <h4>Production Stages</h4>
                 {% if can_manage and job.status != 'completed' %}
-                <button onclick="showAddStageModal()" class="btn-primary" style="margin-bottom: 1rem;">Add Vendor Stage</button>
+                <button onclick="showAddStageModal()" class="btn-secondary" style="margin-bottom: 16px;">Add Vendor Stage</button>
                 {% endif %}
 
                 {% for stage in vendor_stages %}
                 <div class="vendor-stage">
                     <h5>{{ stage.stage_name }}</h5>
-                    <p style="color: #666;">{{ stage.vendor.name }}</p>
-                    <div>{{ stage.progress }}% • {{ stage.get_status_display }}</div>
+                    <p>{{ stage.vendor.name }}</p>
+                    <div style="margin-bottom: 8px; font-size: 13px; color: #666;">{{ stage.progress }}% • {{ stage.get_status_display }}</div>
                     <div class="progress-bar">
                         <div class="progress-fill" style="width: {{ stage.progress }}%"></div>
                     </div>
                 </div>
                 {% empty %}
-                <p style="color: #666; padding: 2rem; text-align: center; background: #f8f9fa; border-radius: 8px;">
-                    No vendor stages added yet. Click "Add Vendor Stage" to start tracking production.
-                </p>
+                <div class="empty-state" style="padding: 40px 20px;">
+                    <div class="empty-state-text">No vendor stages added yet. Click "Add Vendor Stage" to start tracking production.</div>
+                </div>
                 {% endfor %}
             </div>
         </div>
 
         <div class="detail-card">
-            <h4 style="margin-bottom: 1rem;">📝 Notes & Updates</h4>
+            <h4 style="margin-bottom: 20px;">Notes & Updates</h4>
             <div class="notes-section">
                 {% for note in notes %}
                 <div class="note-item">
                     <div class="note-header">
-                        🕐 {{ note.created_at|date:"M d, H:i" }} - {{ note.created_by.get_full_name|default:note.created_by.username }}
+                        {{ note.created_at|date:"M d, H:i" }} - {{ note.created_by.get_full_name|default:note.created_by.username }}
                     </div>
-                    <div>{{ note.content }}</div>
+                    <div class="note-content">{{ note.content }}</div>
                 </div>
                 {% empty %}
-                <p style="color: #666; text-align: center; padding: 2rem;">
-                    No notes yet. Add a note below.
-                </p>
+                <div class="empty-state" style="padding: 40px 20px;">
+                    <div class="empty-state-text">No notes yet. Add a note below.</div>
+                </div>
                 {% endfor %}
             </div>
 
-            <form method="post" action="{% url 'add_job_note' job.id %}" style="margin-top: 1rem;">
+            <form method="post" action="{% url 'add_job_note' job.id %}" style="margin-top: 20px;">
                 {% csrf_token %}
                 <div class="form-group">
                     <label class="form-label">Add Note</label>
-                    <textarea name="content" class="form-input" rows="3" required></textarea>
+                    <textarea name="content" class="form-input" rows="4" required></textarea>
                 </div>
                 <button type="submit" class="btn-primary">Add Note</button>
             </form>
@@ -597,8 +871,8 @@
 <!-- Add Vendor Stage Modal -->
 <div id="addStageModal" class="modal">
     <div class="modal-content">
-        <h3 style="margin-bottom: 1.5rem;">Add Vendor Stage</h3>
-        <span onclick="closeModal()" style="position: absolute; top: 1rem; right: 1rem; font-size: 2rem; cursor: pointer;">&times;</span>
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <h3>Add Vendor Stage</h3>
 
         <form method="post" action="{% url 'add_vendor_stage' job.id %}">
             {% csrf_token %}
@@ -670,18 +944,11 @@
 
     // Job Actions
     function updateProgress(jobId) {
-        // Implement progress update functionality
         alert('Update progress for job ' + jobId);
     }
 
     function addNote(jobId) {
-        // Implement add note functionality
         alert('Add note for job ' + jobId);
-    }
-
-    function uploadFile(jobId) {
-        // Implement file upload functionality
-        alert('Upload file for job ' + jobId);
     }
 
     function markCompleted(jobId) {
@@ -690,7 +957,6 @@
             form.method = 'POST';
             form.action = '/job/' + jobId + '/mark-completed/';
 
-            // Get CSRF token
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
             const csrfInput = document.createElement('input');
             csrfInput.type = 'hidden';

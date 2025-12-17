@@ -13,134 +13,161 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background-color: #f5f5f5;
+            background-color: #fafafa;
             color: #333;
         }
 
         .quotes-container {
-            padding: 30px 40px;
-            max-width: 1400px;
+            padding: 40px 60px;
+            max-width: 1600px;
             margin: 0 auto;
         }
 
         .page-header {
-            margin-bottom: 10px;
+            margin-bottom: 40px;
         }
 
         .page-header h1 {
-            font-size: 24px;
+            font-size: 28px;
             font-weight: 600;
             color: #1a1a1a;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
         }
 
         .page-subtitle {
             color: #666;
-            font-size: 14px;
-            margin-bottom: 30px;
+            font-size: 15px;
         }
 
         /* Today's Snapshot Section */
         .snapshot-section {
-            margin-bottom: 35px;
+            margin-bottom: 45px;
         }
 
         .snapshot-title {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: 600;
-            color: #555;
+            color: #666;
             margin-bottom: 20px;
-        }
-
-        .snapshot-title::before {
-            content: "📈";
-            font-size: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
         .snapshot-cards {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            margin-bottom: 35px;
+            gap: 24px;
         }
 
         .snapshot-card {
             background: white;
-            border-radius: 8px;
-            padding: 25px;
+            border-radius: 12px;
+            padding: 32px 28px;
             text-align: center;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #f0f0f0;
+            transition: all 0.2s ease;
+        }
+
+        .snapshot-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
         }
 
         .snapshot-card .number {
-            font-size: 32px;
+            font-size: 36px;
             font-weight: 600;
             color: #1a1a1a;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .snapshot-card .label {
-            font-size: 14px;
+            font-size: 13px;
             color: #666;
+            font-weight: 500;
         }
 
         /* Filters Section */
         .filters-section {
             display: flex;
-            gap: 15px;
-            margin-bottom: 25px;
+            gap: 16px;
+            margin-bottom: 32px;
             align-items: center;
+            padding: 24px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #f0f0f0;
         }
 
         .search-box {
             flex: 1;
-            max-width: 300px;
+            max-width: 320px;
         }
 
         .search-box input {
             width: 100%;
-            padding: 10px 15px 10px 40px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 11px 16px 11px 42px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 14px;
-            background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 12px center;
+            background: #fafafa url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.35-4.35'/%3E%3C/svg%3E") no-repeat 14px center;
+            transition: all 0.2s ease;
         }
 
-        .filter-dropdown {
-            position: relative;
+        .search-box input:focus {
+            outline: none;
+            border-color: #4285f4;
+            background-color: white;
         }
 
         .filter-dropdown select {
-            padding: 10px 35px 10px 15px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
+            padding: 11px 38px 11px 16px;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
             font-size: 14px;
-            background: white;
+            background: #fafafa;
             cursor: pointer;
             appearance: none;
             background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23666' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
             background-repeat: no-repeat;
-            background-position: right 12px center;
+            background-position: right 14px center;
+            transition: all 0.2s ease;
+        }
+
+        .filter-dropdown select:hover {
+            border-color: #ccc;
+        }
+
+        .filter-dropdown select:focus {
+            outline: none;
+            border-color: #4285f4;
+            background-color: white;
         }
 
         /* Quotes Grid */
         .quotes-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fill, minmax(450px, 1fr));
+            gap: 28px;
+            margin-bottom: 40px;
         }
 
         .quote-card {
             background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 12px;
+            padding: 28px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            border: 1px solid #f0f0f0;
             border-left: 4px solid #ddd;
             position: relative;
+            transition: all 0.2s ease;
+        }
+
+        .quote-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            transform: translateY(-2px);
         }
 
         .quote-card.urgent {
@@ -159,26 +186,30 @@
             display: flex;
             justify-content: space-between;
             align-items: start;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid #f5f5f5;
         }
 
         .quote-id {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
         }
 
         .quote-id .id-text {
             font-weight: 600;
             color: #1a1a1a;
+            font-size: 15px;
         }
 
         .status-badge {
-            padding: 4px 12px;
-            border-radius: 12px;
+            padding: 5px 14px;
+            border-radius: 16px;
             font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
+            letter-spacing: 0.3px;
         }
 
         .status-badge.urgent {
@@ -192,79 +223,84 @@
         }
 
         .quote-amount {
-            font-size: 16px;
+            font-size: 18px;
             font-weight: 600;
             color: #1a1a1a;
         }
 
         .quote-client {
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 600;
             color: #1a1a1a;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
         }
 
         .quote-meta {
             font-size: 13px;
-            color: #666;
-            margin-bottom: 15px;
+            color: #999;
+            margin-bottom: 20px;
         }
 
         .quote-info {
             display: flex;
             flex-direction: column;
-            gap: 6px;
-            margin-bottom: 15px;
+            gap: 10px;
+            margin-bottom: 20px;
         }
 
         .info-row {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-size: 13px;
-            color: #555;
+            color: #666;
         }
 
         .info-row svg {
-            width: 14px;
-            height: 14px;
+            width: 16px;
+            height: 16px;
             color: #999;
         }
 
         .line-items-section {
-            margin: 15px 0;
+            margin: 20px 0;
+            padding: 16px;
+            background: #fafafa;
+            border-radius: 8px;
         }
 
         .line-items-header {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
-            color: #555;
+            color: #666;
             text-transform: uppercase;
-            margin-bottom: 8px;
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
         }
 
         .line-items-list {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 8px;
         }
 
         .line-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-size: 13px;
             color: #555;
         }
 
         .line-item-checkbox {
-            width: 16px;
-            height: 16px;
-            border-radius: 3px;
+            width: 18px;
+            height: 18px;
+            border-radius: 4px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
+            font-size: 11px;
+            flex-shrink: 0;
         }
 
         .line-item-checkbox.complete {
@@ -283,8 +319,8 @@
         }
 
         .progress-section {
-            margin-top: 15px;
-            padding-top: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
             border-top: 1px solid #f0f0f0;
         }
 
@@ -293,27 +329,28 @@
             justify-content: space-between;
             font-size: 12px;
             color: #666;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .progress-bar {
             width: 100%;
-            height: 8px;
+            height: 6px;
             background: #f0f0f0;
-            border-radius: 4px;
+            border-radius: 3px;
             overflow: hidden;
         }
 
         .progress-fill {
             height: 100%;
-            background: #4285f4;
-            border-radius: 4px;
+            background: linear-gradient(90deg, #4285f4 0%, #5a97f7 100%);
+            border-radius: 3px;
             transition: width 0.3s ease;
         }
 
         .quote-footer {
-            margin-top: 15px;
+            margin-top: 20px;
             display: flex;
+            gap: 12px;
             justify-content: flex-end;
         }
 
@@ -324,11 +361,32 @@
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
         }
 
         .view-details-link:hover {
-            text-decoration: underline;
+            background: #f0f7ff;
+        }
+
+        .cost-quote-btn {
+            padding: 8px 18px;
+            background: #4285f4;
+            color: white;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+        }
+
+        .cost-quote-btn:hover {
+            background: #3367d6;
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
         }
 
         /* Pagination */
@@ -336,32 +394,35 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 10px;
-            margin-top: 30px;
+            gap: 12px;
+            margin-top: 50px;
         }
 
         .pagination-info {
             font-size: 14px;
             color: #666;
-            margin-right: 15px;
+            margin-right: 20px;
         }
 
         .pagination button {
-            padding: 8px 12px;
-            border: 1px solid #ddd;
+            padding: 10px 16px;
+            border: 1px solid #e0e0e0;
             background: white;
-            border-radius: 6px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 14px;
             color: #555;
+            transition: all 0.2s ease;
+            min-width: 40px;
         }
 
         .pagination button:hover:not(:disabled) {
             background: #f5f5f5;
+            border-color: #ccc;
         }
 
         .pagination button:disabled {
-            opacity: 0.5;
+            opacity: 0.4;
             cursor: not-allowed;
         }
 
@@ -377,13 +438,13 @@
 
     <div class="quotes-container">
         <div class="page-header">
-            <h1>MY QUOTES</h1>
+            <h1>My Quotes</h1>
             <p class="page-subtitle">Manage multi-product quotes and track production</p>
         </div>
 
         <!-- Today's Snapshot -->
         <div class="snapshot-section">
-            <div class="snapshot-title">TODAY'S SNAPSHOT</div>
+            <div class="snapshot-title">Today's Snapshot</div>
             <div class="snapshot-cards">
                 <div class="snapshot-card">
                     <div class="number">{{ active_quotes_count|default:"12" }}</div>
@@ -446,25 +507,49 @@
         <!-- Quotes Grid -->
         <div class="quotes-grid">
             {% for quote in quotes %}
-<div class="quote-card {{ quote.status|lower }}">
-    <div class="quote-header">
-        <div class="quote-id">
-            <span class="id-text">{{ quote.quote_id }}</span>
-            <!-- ... status badges ... -->
-        </div>
-        <div class="quote-amount">KES {{ quote.total_amount|floatformat:1 }}</div>
-    </div>
-    <!-- ... -->
-    <div class="quote-footer">
-        <a href="{% url 'quote_detail2' quote.quote_id %}" class="view-details-link">
-            View Quote Details →
-        <a href="{% url 'production_quote_costing_v2' quote.quote_id %}" 
-   class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium">
-     Cost Quote
-</a>
-    </div>
-</div>
-{% endfor %}
+            <div class="quote-card {{ quote.status|lower }}">
+                <div class="quote-header">
+                    <div class="quote-id">
+                        <span class="id-text">{{ quote.quote_id }}</span>
+                        <!-- status badges -->
+                    </div>
+                    <div class="quote-amount">KES {{ quote.total_amount|floatformat:1 }}</div>
+                </div>
+                
+                <div class="quote-client">{{ quote.client_name }}</div>
+                <div class="quote-meta">{{ quote.created_date }}</div>
+                
+                <div class="quote-info">
+                    <!-- info rows -->
+                </div>
+                
+                <div class="line-items-section">
+                    <div class="line-items-header">Line Items</div>
+                    <div class="line-items-list">
+                        <!-- line items -->
+                    </div>
+                </div>
+                
+                <div class="progress-section">
+                    <div class="progress-label">
+                        <span>Progress</span>
+                        <span>{{ quote.progress }}%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: {{ quote.progress }}%"></div>
+                    </div>
+                </div>
+                
+                <div class="quote-footer">
+                    <!-- <a href="{% url 'quote_detail2' quote.quote_id %}" class="view-details-link">
+                        View Details →
+                    </a> -->
+                    <a href="{% url 'production_quote_costing_v2' quote.quote_id %}" class="cost-quote-btn">
+                        Cost Quote
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
         </div>
 
         <!-- Pagination -->
@@ -479,22 +564,68 @@
         </div>
     </div>
 
-    {% endblock %}
+{% endblock %}
 
-    {% block extra_js %}
+{% block extra_js %}
+<script>
+    // Add interactivity for filters
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        console.log('Searching:', e.target.value);
+    });
 
-    <script>
-        // Add interactivity for filters
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            // Implement search functionality
-            console.log('Searching:', e.target.value);
+    document.querySelectorAll('.filter-dropdown select').forEach(select => {
+        select.addEventListener('change', function() {
+            console.log('Filter changed:', this.id, this.value);
         });
+    });
 
-        document.querySelectorAll('.filter-dropdown select').forEach(select => {
-            select.addEventListener('change', function() {
-                // Implement filter functionality
-                console.log('Filter changed:', this.id, this.value);
-            });
+    // Handle quote costing - remove quote from list when Cost Quote is clicked
+    document.querySelectorAll('.cost-quote-btn').forEach(button => {
+        button.addEventListener('click', function(e) {
+            // Optional: Show confirmation before proceeding
+            const quoteCard = this.closest('.quote-card');
+            const quoteId = quoteCard.querySelector('.id-text').textContent;
+            
+            // Add fade-out animation
+            quoteCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            quoteCard.style.opacity = '0';
+            quoteCard.style.transform = 'scale(0.95)';
+            
+            // Remove card after animation
+            setTimeout(() => {
+                quoteCard.remove();
+                
+                // Update counts if needed
+                updateQuoteCounts();
+            }, 300);
+            
+            // Note: The actual navigation will happen after the animation starts
+            // The backend should filter out costed quotes on next page load
         });
-    </script>
+    });
+
+    function updateQuoteCounts() {
+        // Update the grid layout
+        const grid = document.querySelector('.quotes-grid');
+        const remainingCards = grid.querySelectorAll('.quote-card').length;
+        
+        // If no cards left, show empty state
+        if (remainingCards === 0) {
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: #999;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">✓</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #666; margin-bottom: 8px;">All quotes costed!</div>
+                    <div style="font-size: 14px;">Great job! All your active quotes have been processed.</div>
+                </div>
+            `;
+        }
+        
+        // Update pagination info
+        const paginationInfo = document.querySelector('.pagination-info');
+        if (paginationInfo) {
+            const currentCount = document.querySelectorAll('.quote-card').length;
+            paginationInfo.textContent = `Showing ${currentCount} quotes`;
+        }
+    }
+</script>
 {% endblock %}

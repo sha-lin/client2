@@ -4,146 +4,341 @@
 
 {% block extra_css %}
 <style>
-    :root {
-        --primary-color: #111827;
-        --secondary-color: #4b5563;
-        --accent-color: #e5e7eb;
-        --bg-color: #f9fafb;
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background-color: #fafafa;
+        color: #1a1a1a;
     }
 
     .settings-container {
-        max-width: 1000px;
+        max-width: 1400px;
         margin: 0 auto;
-        padding: 40px 20px;
+        padding: 40px 60px;
     }
 
     .page-header {
-        margin-bottom: 30px;
-        border-bottom: 1px solid var(--accent-color);
-        padding-bottom: 20px;
+        margin-bottom: 40px;
     }
 
     .page-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--primary-color);
+        font-size: 28px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 8px;
+        letter-spacing: -0.5px;
+    }
+
+    .page-subtitle {
+        font-size: 15px;
+        color: #666;
     }
 
     .settings-grid {
         display: grid;
-        grid-template-columns: 250px 1fr;
-        gap: 40px;
+        grid-template-columns: 280px 1fr;
+        gap: 32px;
     }
 
     .settings-nav {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 8px;
+        position: sticky;
+        top: 40px;
+        height: fit-content;
     }
 
     .nav-item {
-        padding: 12px 16px;
-        border-radius: 6px;
-        color: var(--secondary-color);
+        padding: 14px 20px;
+        border-radius: 8px;
+        color: #666;
         text-decoration: none;
         font-weight: 500;
         font-size: 14px;
-        transition: all 0.2s;
+        transition: all 0.2s ease;
         display: flex;
         align-items: center;
-        gap: 10px;
+        gap: 12px;
+        border: 1px solid transparent;
     }
 
     .nav-item:hover {
-        background-color: #f3f4f6;
-        color: var(--primary-color);
+        background-color: #f5f5f5;
+        color: #1a1a1a;
+        border-color: #e0e0e0;
     }
 
     .nav-item.active {
-        background-color: #f3f4f6;
-        color: var(--primary-color);
+        background-color: #1a1a1a;
+        color: white;
         font-weight: 600;
+        border-color: #1a1a1a;
+    }
+
+    .nav-item i {
+        width: 20px;
+        text-align: center;
+        font-size: 16px;
+    }
+
+    .settings-content {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
     }
 
     .settings-card {
         background: white;
-        border: 1px solid var(--accent-color);
-        border-radius: 8px;
-        padding: 30px;
-        margin-bottom: 20px;
+        border: 1px solid #f0f0f0;
+        border-radius: 12px;
+        padding: 40px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     }
 
     .card-title {
         font-size: 18px;
         font-weight: 600;
-        color: var(--primary-color);
-        margin-bottom: 20px;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #f3f4f6;
+        color: #1a1a1a;
+        margin-bottom: 24px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #f0f0f0;
+    }
+
+    .form-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 24px;
+    }
+
+    .form-grid.full {
+        grid-template-columns: 1fr;
     }
 
     .form-group {
-        margin-bottom: 20px;
+        display: flex;
+        flex-direction: column;
     }
 
     .form-label {
         display: block;
         font-size: 13px;
-        font-weight: 500;
-        color: var(--secondary-color);
-        margin-bottom: 8px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
     }
 
-    .form-input {
+    .form-input,
+    .form-select {
         width: 100%;
-        padding: 10px 12px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
+        padding: 12px 16px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
         font-size: 14px;
-        color: var(--primary-color);
-        transition: border-color 0.2s;
+        color: #1a1a1a;
+        transition: all 0.2s ease;
+        background: white;
     }
 
-    .form-input:focus {
+    .form-input:focus,
+    .form-select:focus {
         outline: none;
-        border-color: var(--primary-color);
-        box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.05);
+        border-color: #1a1a1a;
+    }
+
+    .form-input:disabled,
+    .form-input:read-only {
+        background-color: #fafafa;
+        color: #999;
+        cursor: not-allowed;
+    }
+
+    .toggle-list {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
     }
 
     .toggle-switch {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 0;
-        border-bottom: 1px solid #f9fafb;
+        padding: 20px;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        background: #fafafa;
+        transition: all 0.2s ease;
+    }
+
+    .toggle-switch:hover {
+        background: #f5f5f5;
+        border-color: #e0e0e0;
+    }
+
+    .toggle-info {
+        flex: 1;
     }
 
     .toggle-label {
-        font-size: 14px;
-        color: var(--primary-color);
-        font-weight: 500;
+        font-size: 15px;
+        color: #1a1a1a;
+        font-weight: 600;
+        margin-bottom: 4px;
     }
 
     .toggle-desc {
-        font-size: 12px;
-        color: var(--secondary-color);
-        margin-top: 2px;
+        font-size: 13px;
+        color: #666;
+        line-height: 1.5;
     }
 
-    .btn-save {
-        background-color: var(--primary-color);
-        color: white;
-        padding: 10px 24px;
-        border-radius: 6px;
+    /* Custom Toggle Switch */
+    .toggle-input {
+        position: relative;
+        width: 52px;
+        height: 28px;
+        appearance: none;
+        background: #e0e0e0;
+        border-radius: 14px;
+        cursor: pointer;
+        transition: background 0.3s ease;
+        flex-shrink: 0;
+    }
+
+    .toggle-input:checked {
+        background: #1a1a1a;
+    }
+
+    .toggle-input::before {
+        content: '';
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: white;
+        top: 3px;
+        left: 3px;
+        transition: transform 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-input:checked::before {
+        transform: translateX(24px);
+    }
+
+    .form-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        padding-top: 32px;
+        margin-top: 32px;
+        border-top: 1px solid #f0f0f0;
+    }
+
+    .btn {
+        padding: 12px 28px;
+        border-radius: 8px;
         border: none;
-        font-weight: 500;
+        font-weight: 600;
         font-size: 14px;
         cursor: pointer;
-        transition: opacity 0.2s;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
     }
 
-    .btn-save:hover {
-        opacity: 0.9;
+    .btn-secondary {
+        background: white;
+        color: #666;
+        border: 1px solid #e0e0e0;
+    }
+
+    .btn-secondary:hover {
+        background: #f5f5f5;
+        border-color: #ccc;
+        color: #1a1a1a;
+    }
+
+    .btn-primary {
+        background: #1a1a1a;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #333;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .info-box {
+        padding: 16px 20px;
+        background: #fafafa;
+        border: 1px solid #f0f0f0;
+        border-radius: 8px;
+        margin-top: 20px;
+    }
+
+    .info-box-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+    }
+
+    .info-box-text {
+        font-size: 13px;
+        color: #666;
+        line-height: 1.6;
+    }
+
+    .role-badge {
+        display: inline-block;
+        padding: 6px 14px;
+        background: #1a1a1a;
+        color: white;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        margin-top: 8px;
+    }
+
+    .alert-success {
+        padding: 16px 20px;
+        background: #f0fdf4;
+        border: 1px solid #86efac;
+        color: #166534;
+        border-radius: 8px;
+        margin-bottom: 24px;
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    @media (max-width: 1024px) {
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .settings-nav {
+            position: static;
+            flex-direction: row;
+            overflow-x: auto;
+        }
+
+        .form-grid {
+            grid-template-columns: 1fr;
+        }
     }
 </style>
 {% endblock %}
@@ -152,104 +347,268 @@
 <div class="settings-container">
     <div class="page-header">
         <h1 class="page-title">Settings</h1>
+        <p class="page-subtitle">Manage your production team preferences and configurations</p>
     </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert-success">
+            {{ message }}
+        </div>
+        {% endfor %}
+    {% endif %}
 
     <div class="settings-grid">
         <!-- Sidebar Navigation -->
         <div class="settings-nav">
-            <a href="#profile" class="nav-item active">
+            <a href="#profile" class="nav-item active" data-section="profile">
                 <i class="fas fa-user"></i> Profile Settings
             </a>
-            <a href="#notifications" class="nav-item">
+            <a href="#notifications" class="nav-item" data-section="notifications">
                 <i class="fas fa-bell"></i> Notifications
             </a>
-            <a href="#workflow" class="nav-item">
+            <a href="#workflow" class="nav-item" data-section="workflow">
                 <i class="fas fa-cogs"></i> Workflow
             </a>
-            <a href="#security" class="nav-item">
+            <a href="#security" class="nav-item" data-section="security">
                 <i class="fas fa-shield-alt"></i> Security
             </a>
         </div>
 
         <!-- Settings Content -->
         <div class="settings-content">
-            <form method="POST">
+            <form method="POST" id="settingsForm">
                 {% csrf_token %}
                 
                 <!-- Profile Section -->
-                <div class="settings-card" id="profile">
+                <div class="settings-card" id="profile-section">
                     <h2 class="card-title">Profile Information</h2>
-                    <div class="grid grid-cols-2 gap-4">
+                    
+                    <div class="form-grid">
                         <div class="form-group">
                             <label class="form-label">First Name</label>
-                            <input type="text" class="form-input" value="{{ user.first_name }}">
+                            <input type="text" name="first_name" class="form-input" value="{{ user.first_name }}" required>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Last Name</label>
-                            <input type="text" class="form-input" value="{{ user.last_name }}">
+                            <input type="text" name="last_name" class="form-input" value="{{ user.last_name }}" required>
                         </div>
-                        <div class="form-group" style="grid-column: span 2;">
+                    </div>
+
+                    <div class="form-grid full" style="margin-top: 24px;">
+                        <div class="form-group">
                             <label class="form-label">Email Address</label>
-                            <input type="email" class="form-input" value="{{ user.email }}" readonly style="background-color: #f9fafb;">
+                            <input type="email" name="email" class="form-input" value="{{ user.email }}" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Phone Number</label>
+                            <input type="tel" name="phone" class="form-input" value="{{ user.profile.phone|default:'' }}" placeholder="+254 XXX XXX XXX">
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <div class="info-box-title">Your Role</div>
+                        <div class="info-box-text">
+                            You are currently assigned to the Production Team
+                            <span class="role-badge">Production Team</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Notifications Section -->
-                <div class="settings-card" id="notifications">
+                <div class="settings-card" id="notifications-section">
                     <h2 class="card-title">Notification Preferences</h2>
                     
-                    <div class="toggle-switch">
-                        <div>
-                            <div class="toggle-label">New Job Alerts</div>
-                            <div class="toggle-desc">Receive emails when new jobs are assigned</div>
+                    <div class="toggle-list">
+                        <div class="toggle-switch">
+                            <div class="toggle-info">
+                                <div class="toggle-label">New Job Assignments</div>
+                                <div class="toggle-desc">Receive email notifications when new jobs are assigned to you</div>
+                            </div>
+                            <input type="checkbox" name="notify_new_jobs" class="toggle-input" {% if user.profile.notify_new_jobs %}checked{% endif %}>
                         </div>
-                        <input type="checkbox" checked>
-                    </div>
 
-                    <div class="toggle-switch">
-                        <div>
-                            <div class="toggle-label">Deadline Reminders</div>
-                            <div class="toggle-desc">Get notified 24 hours before job deadlines</div>
+                        <div class="toggle-switch">
+                            <div class="toggle-info">
+                                <div class="toggle-label">Deadline Reminders</div>
+                                <div class="toggle-desc">Get notified 24 hours before job deadlines to stay on track</div>
+                            </div>
+                            <input type="checkbox" name="notify_deadlines" class="toggle-input" {% if user.profile.notify_deadlines %}checked{% endif %}>
                         </div>
-                        <input type="checkbox" checked>
-                    </div>
 
-                    <div class="toggle-switch">
-                        <div>
-                            <div class="toggle-label">Quality Control Updates</div>
-                            <div class="toggle-desc">Notifications when QC status changes</div>
+                        <div class="toggle-switch">
+                            <div class="toggle-info">
+                                <div class="toggle-label">Quality Control Updates</div>
+                                <div class="toggle-desc">Notifications when QC inspections are completed or require action</div>
+                            </div>
+                            <input type="checkbox" name="notify_qc" class="toggle-input" {% if user.profile.notify_qc %}checked{% endif %}>
                         </div>
-                        <input type="checkbox">
+
+                        <div class="toggle-switch">
+                            <div class="toggle-info">
+                                <div class="toggle-label">Vendor Deliveries</div>
+                                <div class="toggle-desc">Alert when vendors deliver items to the warehouse</div>
+                            </div>
+                            <input type="checkbox" name="notify_deliveries" class="toggle-input" {% if user.profile.notify_deliveries %}checked{% endif %}>
+                        </div>
+
+                        <div class="toggle-switch">
+                            <div class="toggle-info">
+                                <div class="toggle-label">System Updates</div>
+                                <div class="toggle-desc">Important system announcements and maintenance notifications</div>
+                            </div>
+                            <input type="checkbox" name="notify_system" class="toggle-input" {% if user.profile.notify_system %}checked{% endif %}>
+                        </div>
                     </div>
                 </div>
 
                 <!-- Workflow Section -->
-                <div class="settings-card" id="workflow">
+                <div class="settings-card" id="workflow-section">
                     <h2 class="card-title">Workflow Configuration</h2>
-                    <div class="form-group">
-                        <label class="form-label">Default View</label>
-                        <select class="form-input">
-                            <option>Kanban Board</option>
-                            <option>List View</option>
-                            <option>Calendar View</option>
-                        </select>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label class="form-label">Default Dashboard View</label>
+                            <select name="default_view" class="form-select">
+                                <option value="kanban" {% if user.profile.default_view == 'kanban' %}selected{% endif %}>Kanban Board</option>
+                                <option value="list" {% if user.profile.default_view == 'list' %}selected{% endif %}>List View</option>
+                                <option value="calendar" {% if user.profile.default_view == 'calendar' %}selected{% endif %}>Calendar View</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Items Per Page</label>
+                            <select name="items_per_page" class="form-select">
+                                <option value="10" {% if user.profile.items_per_page == 10 %}selected{% endif %}>10</option>
+                                <option value="25" {% if user.profile.items_per_page == 25 %}selected{% endif %}>25</option>
+                                <option value="50" {% if user.profile.items_per_page == 50 %}selected{% endif %}>50</option>
+                                <option value="100" {% if user.profile.items_per_page == 100 %}selected{% endif %}>100</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Date Format</label>
+                            <select name="date_format" class="form-select">
+                                <option value="dd/mm/yyyy">DD/MM/YYYY</option>
+                                <option value="mm/dd/yyyy">MM/DD/YYYY</option>
+                                <option value="yyyy-mm-dd">YYYY-MM-DD</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Time Format</label>
+                            <select name="time_format" class="form-select">
+                                <option value="12">12-hour (AM/PM)</option>
+                                <option value="24">24-hour</option>
+                            </select>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label class="form-label">Items per Page</label>
-                        <select class="form-input">
-                            <option>10</option>
-                            <option>25</option>
-                            <option>50</option>
-                        </select>
+
+                    <div class="info-box">
+                        <div class="info-box-title">Auto-Refresh</div>
+                        <div class="info-box-text">
+                            Dashboard auto-refreshes every 5 minutes to show the latest job updates
+                        </div>
                     </div>
                 </div>
 
-                <div style="text-align: right;">
-                    <button type="submit" class="btn-save">Save Changes</button>
+                <!-- Security Section -->
+                <div class="settings-card" id="security-section">
+                    <h2 class="card-title">Security Settings</h2>
+                    
+                    <div class="form-grid full">
+                        <div class="form-group">
+                            <label class="form-label">Current Password</label>
+                            <input type="password" name="current_password" class="form-input" placeholder="Enter current password to change">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">New Password</label>
+                            <input type="password" name="new_password" class="form-input" placeholder="Leave blank to keep current password">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Confirm New Password</label>
+                            <input type="password" name="confirm_password" class="form-input" placeholder="Confirm new password">
+                        </div>
+                    </div>
+
+                    <div class="info-box">
+                        <div class="info-box-title">Password Requirements</div>
+                        <div class="info-box-text">
+                            • Minimum 8 characters<br>
+                            • At least one uppercase letter<br>
+                            • At least one number<br>
+                            • At least one special character
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Actions -->
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        Save Changes
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 </div>
+
+<script>
+    // Smooth scroll to sections
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Update active state
+            document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Scroll to section
+            const section = this.dataset.section;
+            const element = document.getElementById(section + '-section');
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        });
+    });
+
+    // Intersection Observer for auto-updating active nav
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const id = entry.target.id.replace('-section', '');
+                document.querySelectorAll('.nav-item').forEach(nav => {
+                    nav.classList.remove('active');
+                    if (nav.dataset.section === id) {
+                        nav.classList.add('active');
+                    }
+                });
+            }
+        });
+    }, { threshold: 0.5 });
+
+    document.querySelectorAll('.settings-card').forEach(card => observer.observe(card));
+
+    // Reset form
+    function resetForm() {
+        if (confirm('Are you sure you want to discard all changes?')) {
+            document.getElementById('settingsForm').reset();
+        }
+    }
+
+    // Form validation
+    document.getElementById('settingsForm').addEventListener('submit', function(e) {
+        const newPassword = document.querySelector('input[name="new_password"]').value;
+        const confirmPassword = document.querySelector('input[name="confirm_password"]').value;
+        
+        if (newPassword && newPassword !== confirmPassword) {
+            e.preventDefault();
+            alert('New passwords do not match!');
+            return false;
+        }
+    });
+</script>
 {% endblock %}

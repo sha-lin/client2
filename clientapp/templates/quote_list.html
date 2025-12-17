@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load humanize %}
 
 {% block title %}Multi-Product Quotes - Production Management{% endblock %}
 
@@ -20,22 +21,22 @@
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <div class="bg-white p-5 rounded-lg border border-gray-200">
             <p class="text-xs text-gray-600 mb-1">Total Quotes</p>
-            <p class="text-2xl font-semibold text-gray-900 mb-1">{{ quotes|length|default:"6" }}</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">{{ total_quotes_count }}</p>
             <p class="text-xs text-gray-500">This month</p>
         </div>
         <div class="bg-white p-5 rounded-lg border border-gray-200">
             <p class="text-xs text-gray-600 mb-1">Pending Approval</p>
-            <p class="text-2xl font-semibold text-gray-900 mb-1">1</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">{{ pending_approval_count }}</p>
             <p class="text-xs text-yellow-600">Awaiting client</p>
         </div>
         <div class="bg-white p-5 rounded-lg border border-gray-200">
             <p class="text-xs text-gray-600 mb-1">Total Value</p>
-            <p class="text-2xl font-semibold text-gray-900 mb-1">KES 480,500</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">KES {{ total_value|floatformat:0|intcomma }}</p>
             <p class="text-xs text-green-600">Active quotes</p>
         </div>
         <div class="bg-white p-5 rounded-lg border border-gray-200">
             <p class="text-xs text-gray-600 mb-1">Avg Margin</p>
-            <p class="text-2xl font-semibold text-gray-900 mb-1">28.8%</p>
+            <p class="text-2xl font-semibold text-gray-900 mb-1">{{ avg_margin|floatformat:1 }}%</p>
             <p class="text-xs text-green-600">Above target</p>
         </div>
     </div>

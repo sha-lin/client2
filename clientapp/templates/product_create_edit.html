@@ -434,418 +434,183 @@
             </div>
 
             <!-- Pricing & Variables Tab -->
+<!-- Pricing & Variables Tab -->
 <div class="tab-content hidden" data-content="pricing">
-    <!-- Hidden input for existing variables when editing -->
-    <input type="hidden" id="existing_variables_json" value='{% if product and product.variables.all %}{{ product.variables.all|safe }}{% endif %}'>
     
-    <!-- Base Pricing Information -->
+    <!-- Customization Level Selection -->
     <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h3 class="text-base font-semibold text-gray-900 mb-6">Base Pricing Information</h3>
-
-        <div class="space-y-6">
-            <!-- Pricing Model -->
-            <div>
-                <label class="block text-sm font-medium text-gray-900 mb-2">
-                    Pricing Model <span class="text-red-500">*</span>
-                </label>
-                <div class="space-y-2">
-                    <label class="flex items-center">
-                        <input type="radio" name="pricing_model" value="variable" 
-                            {% if not product or not product.pricing or product.pricing.pricing_model == 'variable' %}checked{% endif %}
-                            class="mr-3 text-blue-600">
-                        <span class="text-sm text-gray-900">Variable Pricing (customer selects options)</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="radio" name="pricing_model" value="simple" 
-                            {% if product and product.pricing and product.pricing.pricing_model == 'simple' %}checked{% endif %}
-                            class="mr-3 text-blue-600">
-                        <span class="text-sm text-gray-700">Simple/Fixed Pricing (one price)</span>
-                    </label>
-                    <label class="flex items-center">
-                        <input type="radio" name="pricing_model" value="quote" 
-                            {% if product and product.pricing and product.pricing.pricing_model == 'quote' %}checked{% endif %}
-                            class="mr-3 text-blue-600">
-                        <span class="text-sm text-gray-700">Quote-Based (PT must cost)</span>
-                    </label>
-                </div>
-            </div>
-
-            <!-- Base Cost and Price Display -->
-                        <!-- Base Cost and Price Display -->
-            <div class="grid grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Base Cost (EVP) <span class="text-red-500">*</span>
-                    </label>
-                    <div class="flex">
-                        <span
-                            class="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 text-gray-600 text-sm">
-                            KES
-                        </span>
-                        <input type="number" name="base_cost" id="id_base_cost" 
-                            value="{% if product and product.pricing %}{{ product.pricing.base_cost }}{% else %}15{% endif %}" 
-                            step="0.01" required
-                            class="flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                    <p id="base_cost_helper" class="text-xs text-gray-500 mt-1">Lowest possible vendor cost per piece</p>
-                    <!-- Process cost indicator (shown when process is linked) -->
-                    <p id="process_cost_indicator" class="text-xs text-blue-600 mt-1 hidden">
-                        <i data-lucide="link" class="w-3 h-3 inline"></i>
-                        <span id="process_cost_source">Linked to process pricing</span>
-                    </p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Price Display <span class="text-red-500">*</span>
-                    </label>
-                    <select name="price_display" id="id_price_display"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="from" {% if not product or not product.pricing or product.pricing.price_display == 'from' %}selected{% endif %}>From KES X</option>
-                        <option value="starting" {% if product and product.pricing and product.pricing.price_display == 'starting' %}selected{% endif %}>Starting at KES X</option>
-                        <option value="plus" {% if product and product.pricing and product.pricing.price_display == 'plus' %}selected{% endif %}>KES X+</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Margins and Minimum Order Value -->
-            <div class="grid grid-cols-3 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Default Margin % <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" name="default_margin" id="id_default_margin"
-                        value="{% if product and product.pricing %}{{ product.pricing.default_margin }}{% else %}30{% endif %}" 
-                        step="0.01" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Minimum Margin % <span class="text-red-500">*</span>
-                    </label>
-                    <input type="number" name="minimum_margin" id="id_minimum_margin"
-                        value="{% if product and product.pricing %}{{ product.pricing.minimum_margin }}{% else %}15{% endif %}" 
-                        step="0.01" required
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <p class="text-xs text-gray-500 mt-1">Below this triggers approval</p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Minimum Order Value
-                    </label>
-                    <div class="flex">
-                        <span
-                            class="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 text-gray-600 text-sm">
-                            KES
-                        </span>
-                        <input type="number" name="minimum_order_value" id="id_minimum_order_value"
-                            value="{% if product and product.pricing %}{{ product.pricing.minimum_order_value }}{% else %}2500{% endif %}" 
-                            step="1"
-                            class="flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    </div>
-                </div>
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Product Customization Level</h3>
+        
+        <div class="space-y-4">
+            <label class="block text-sm font-medium text-gray-900 mb-2">
+                Customization Level <span class="text-red-500">*</span>
+            </label>
+            
+            <select name="customization_level" id="id_customization_level" required
+                    class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                <option value="non_customizable" 
+                    {% if product and product.customization_level == 'non_customizable' %}selected{% endif %}>
+                    Non-Customizable (Fixed product, quantity-based pricing only)
+                </option>
+                <option value="semi_customizable"
+                    {% if product and product.customization_level == 'semi_customizable' %}selected{% endif %}>
+                    Semi-Customizable (Base product + optional customizations)
+                </option>
+                <option value="fully_customizable"
+                    {% if product and product.customization_level == 'fully_customizable' %}selected{% endif %}>
+                    Fully Customizable (Entirely customization-based pricing)
+                </option>
+            </select>
+            
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mt-3">
+                <p class="text-sm text-blue-800">
+                    <strong>Guide:</strong><br>
+                    • <strong>Non-Customizable:</strong> Fixed specs (e.g., plain mugs). Uses base price + tier pricing for quantities.<br>
+                    • <strong>Semi-Customizable:</strong> Fixed base + options (e.g., T-shirts with embroidery). Uses base price + tier pricing + customization process.<br>
+                    • <strong>Fully Customizable:</strong> All custom (e.g., custom signage). Uses tier + customization processes only.
+                </p>
             </div>
         </div>
     </div>
-
-
-        <!-- ========== NEW SECTION: Process & Costing Integration ========== -->
-        <!-- ========== ENHANCED SECTION: Process & Costing Integration ========== -->
-    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h3 class="text-base font-semibold text-gray-900 mb-6">
-            <i data-lucide="settings" class="w-5 h-5 inline-block mr-2"></i>
-            Process & Costing
-        </h3>
-
-        <div class="space-y-4">
-            <!-- Process Selection Dropdown -->
+    
+    <!-- Base Pricing Information -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6" id="base-cost-field">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">Base Pricing</h3>
+        
+        <div class="grid grid-cols-2 gap-6">
             <div>
                 <label class="block text-sm font-medium text-gray-900 mb-2">
-                    Select Costing Process
-                    <span class="text-gray-500 font-normal">(Optional)</span>
+                    Base Cost (EVP) <span class="text-red-500">*</span>
                 </label>
-                <select name="process" id="id_process"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="">-- No Process (Manual Pricing) --</option>
+                <div class="flex">
+                    <span class="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-md bg-gray-50 text-gray-600 text-sm">
+                        KES
+                    </span>
+                    <input type="number" name="base_cost" id="id_base_cost" 
+                        value="{% if product and product.pricing %}{{ product.pricing.base_cost }}{% else %}0{% endif %}" 
+                        step="0.01" required
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-r-md">
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Base cost before any customization</p>
+            </div>
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">Price Display</label>
+                <select name="price_display" id="id_price_display" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="from">From KES X</option>
+                    <option value="starting">Starting at KES X</option>
+                    <option value="plus">KES X+</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tier-Based Process Selection -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6" id="tier-process-field">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">
+            <i data-lucide="layers" class="w-5 h-5 inline-block mr-2"></i>
+            Tier-Based Pricing (Quantity Discounts)
+        </h3>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">
+                    Select Tier-Based Process <span class="text-gray-500">(Optional)</span>
+                </label>
+                <select name="tier_process" id="id_tier_process" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="">-- No Tier Pricing --</option>
                     {% for process in processes %}
-                    <option value="{{ process.id }}" 
-                        data-pricing-type="{{ process.pricing_type }}"
-                        data-category="{{ process.get_category_display }}"
-                        data-lead-time="{{ process.standard_lead_time }}"
-                        data-process-id="{{ process.process_id }}"
-                        {% if product and product.pricing and product.pricing.process_id == process.id %}selected{% endif %}>
-                        {{ process.process_id }} - {{ process.process_name }} ({{ process.get_pricing_type_display }})
-                    </option>
+                        {% if process.pricing_type == 'tier' %}
+                        <option value="{{ process.id }}"
+                            data-process-name="{{ process.process_name }}"
+                            {% if product and product.pricing and product.pricing.tier_process_id == process.id %}selected{% endif %}>
+                            {{ process.process_id }} - {{ process.process_name }}
+                        </option>
+                        {% endif %}
                     {% endfor %}
                 </select>
                 <p class="text-xs text-gray-500 mt-1">
-                    <i data-lucide="info" class="w-3 h-3 inline"></i>
-                    Select a process to auto-populate costs and variables from the costing system
+                    Choose a tier-based process for quantity-based pricing
                 </p>
             </div>
             
-            <!-- Use Process Costs Toggle -->
-            <div id="use-process-costs-section" class="hidden">
-                <div class="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <div>
-                        <label class="block text-sm font-medium text-blue-900">Use Process Costs</label>
-                        <p class="text-xs text-blue-700">Uncheck to manually override the base cost</p>
-                    </div>
-                    <label class="relative inline-flex items-center cursor-pointer">
-                        <input type="checkbox" name="use_process_costs" id="id_use_process_costs" checked class="sr-only peer">
-                        <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
-                        </div>
-                    </label>
+            <!-- Show tier preview when selected -->
+            <div id="tier-preview" class="hidden mt-4">
+                <h5 class="text-sm font-semibold mb-2">Pricing Tiers Preview:</h5>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm border border-gray-200 rounded">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Quantity</th>
+                                <th class="px-3 py-2 text-right">Cost</th>
+                                <th class="px-3 py-2 text-right">Price</th>
+                                <th class="px-3 py-2 text-right">Margin</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tier-preview-body"></tbody>
+                    </table>
                 </div>
             </div>
+        </div>
+    </div>
+    
+    <!-- Formula-Based Process Selection -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6" id="formula-process-field">
+        <h3 class="text-base font-semibold text-gray-900 mb-6">
+            <i data-lucide="calculator" class="w-5 h-5 inline-block mr-2"></i>
+            Formula-Based Pricing (Customizations)
+        </h3>
+        
+        <div class="space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">
+                    Select Customization Process
+                </label>
+                <select name="formula_process" id="id_formula_process" class="w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="">-- No Customization Process --</option>
+                    {% for process in processes %}
+                        {% if process.pricing_type == 'formula' %}
+                        <option value="{{ process.id }}"
+                            data-process-name="{{ process.process_name }}"
+                            {% if product and product.pricing and product.pricing.formula_process_id == process.id %}selected{% endif %}>
+                            {{ process.process_id }} - {{ process.process_name }}
+                        </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <p class="text-xs text-gray-500 mt-1">
+                    Choose a formula-based process for customization pricing
+                </p>
+            </div>
             
-            <!-- Auto-import Variables Checkbox -->
-            <div id="auto-import-section" class="hidden">
+            <!-- Auto-import variables checkbox -->
+            <div>
                 <label class="flex items-center">
                     <input type="checkbox" name="auto_import_variables" id="id_auto_import_variables" 
-                        class="mr-2 rounded text-blue-600">
-                    <span class="text-sm text-gray-700">
-                        Auto-import variables from selected process
-                    </span>
+                           class="mr-2 rounded text-blue-600">
+                    <span class="text-sm text-gray-700">Auto-import variables from selected process</span>
                 </label>
                 <p class="text-xs text-gray-500 mt-1 ml-6">
-                    This will replace existing product variables with variables from the process
+                    Variables will be imported and shown as read-only
                 </p>
             </div>
-
-            <!-- Process Info Display (shown when process is selected) -->
-            <div id="process-info-display" class="hidden border-t border-gray-200 pt-4 mt-4">
-                <h4 class="text-sm font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                    <i data-lucide="file-text" class="w-4 h-4"></i>
-                    Process Information
-                </h4>
-                <div class="grid grid-cols-4 gap-4 text-sm">
-                    <div>
-                        <span class="text-gray-600">Process ID:</span>
-                        <span id="process_id_display" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Pricing Type:</span>
-                        <span id="process_pricing_type" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Lead Time:</span>
-                        <span id="process_lead_time" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-600">Category:</span>
-                        <span id="process_category" class="font-medium text-gray-900 ml-2 block mt-1">-</span>
-                    </div>
-                </div>
-                
-                <!-- Process Pricing Tiers Display (for tier-based) -->
-                <div id="process-tiers-display" class="mt-4 hidden">
-                    <h5 class="text-sm font-semibold text-gray-900 mb-2 flex items-center gap-2">
-                        <i data-lucide="layers" class="w-4 h-4"></i>
-                        Pricing Tiers from Process
-                    </h5>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm border border-gray-200 rounded-md">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-3 py-2 text-left text-gray-700 font-medium">Tier</th>
-                                    <th class="px-3 py-2 text-left text-gray-700 font-medium">Quantity Range</th>
-                                    <th class="px-3 py-2 text-right text-gray-700 font-medium">Vendor Cost (EVP)</th>
-                                    <th class="px-3 py-2 text-right text-gray-700 font-medium">Selling Price</th>
-                                    <th class="px-3 py-2 text-right text-gray-700 font-medium">Margin</th>
-                                </tr>
-                            </thead>
-                            <tbody id="process-tiers-body">
-                                <!-- Populated by JavaScript -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <p class="text-xs text-gray-500 mt-2">
-                        <i data-lucide="info" class="w-3 h-3 inline"></i>
-                        Base Cost will be set to the lowest tier cost: <strong id="lowest-tier-cost">-</strong>
-                    </p>
-                </div>
-                
-                <!-- Process Variables Display (for formula-based) -->
-                <div id="process-variables-preview" class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md hidden">
-                    <h5 class="text-sm font-semibold text-blue-900 mb-2">Process Variables (Formula-Based):</h5>
-                    <div id="variables-list" class="text-sm text-blue-800">
-                        <!-- Will be populated by JavaScript -->
-                    </div>
-                </div>
-
-                <!-- Button to View Full Process Details -->
-                <div class="mt-3">
-                    <a id="view_process_link" href="#" target="_blank" 
-                        class="text-sm text-blue-600 hover:text-blue-800 inline-flex items-center gap-2">
-                        <i data-lucide="external-link" class="w-3 h-3"></i>
-                        View Full Process Details
-                    </a>
-                </div>
+            
+            <!-- Show variables preview when selected -->
+            <div id="formula-variables-preview" class="hidden mt-4">
+                <h5 class="text-sm font-semibold mb-2">Process Variables:</h5>
+                <div id="variables-list" class="space-y-2"></div>
             </div>
         </div>
     </div>
-    <!-- ========== END ENHANCED SECTION ========== -->
-    <!-- ========== END NEW SECTION ========== -->
-
-    <!-- Production & Vendor Information -->
-    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <h3 class="text-base font-semibold text-gray-900 mb-6">Production & Vendor Information</h3>
-
-        <div class="space-y-6">
-            <div class="grid grid-cols-3 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Standard Lead Time <span class="text-red-500">*</span>
-                    </label>
-                    <div class="flex gap-2">
-                        <input type="number" name="lead_time_value" value="3" min="1"
-                            class="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <select name="lead_time_unit"
-                            class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <option value="days" selected>Days</option>
-                            <option value="weeks">Weeks</option>
-                            <option value="hours">Hours</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Production Method
-                    </label>
-                    <select name="production_method"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="digital-offset" selected>Digital Offset Printing</option>
-                        <option value="offset">Offset Printing</option>
-                        <option value="screen">Screen Printing</option>
-                        <option value="digital">Digital Printing</option>
-                    </select>
-                </div>
-
-                                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Primary Vendor
-                    </label>
-                    <select name="primary_vendor"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <option value="">-- Select Vendor (Optional) --</option>
-                        {% for vendor in vendors %}
-                        <option value="{{ vendor.id }}" 
-                            {% if product and product.pricing and product.pricing.primary_vendor_id == vendor.id %}selected{% endif %}>
-                            {{ vendor.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-            </div>
-
-                        <div class="grid grid-cols-2 gap-6">
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Alternative Vendors (Optional)
-                    </label>
-                    <select name="alternative_vendors" multiple size="4"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        {% for vendor in vendors %}
-                        <option value="{{ vendor.id }}"
-                            {% if product and product.pricing and vendor in product.pricing.alternative_vendors.all %}selected{% endif %}>
-                            {{ vendor.name }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                    <p class="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple vendors</p>
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-900 mb-2">
-                        Minimum Quantity
-                    </label>
-                    <input type="number" name="minimum_quantity" value="50" min="1"
-                        class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                </div>
-            </div>
-
-            <!-- Rush Production Option -->
-            <div class="border-t border-gray-200 pt-6">
-                <label class="flex items-center mb-4">
-                    <input type="checkbox" name="rush_available" checked class="mr-3 rounded text-blue-600">
-                    <span class="text-sm font-medium text-gray-900">Rush production available</span>
-                </label>
-
-                <div class="grid grid-cols-2 gap-6 pl-7">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-900 mb-2">
-                            Rush Lead Time
-                        </label>
-                        <div class="flex gap-2">
-                            <input type="number" name="rush_lead_time_value" value="1" min="1"
-                                class="w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <select name="rush_lead_time_unit"
-                                class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                <option value="days" selected>Days</option>
-                                <option value="hours">Hours</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-900 mb-2">
-                            Rush Upcharge
-                        </label>
-                        <div class="flex">
-                            <input type="number" name="rush_upcharge" value="50" step="1"
-                                class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <span
-                                class="inline-flex items-center px-3 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-600 text-sm">
-                                %
-                            </span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    
+    <!-- Pricing Calculation Formula Display -->
+    <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+        <h4 class="text-sm font-semibold text-blue-900 mb-2">Cost Calculation Formula:</h4>
+        <p class="text-sm text-blue-800" id="formula-display">
+            Select customization level and processes to see formula
+        </p>
     </div>
-
-    <!-- Product Variables -->
-    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <div class="flex items-center justify-between mb-6">
-            <h3 class="text-base font-semibold text-gray-900">Product Variables</h3>
-            <button type="button" data-action="add-variable"
-                class="px-4 py-2 bg-black text-white rounded-md text-sm hover:bg-gray-800 flex items-center gap-2">
-                <i data-lucide="plus" class="w-4 h-4"></i>
-                Add Variable
-            </button>
-        </div>
-
-        <div id="variables-container" class="space-y-4">
-            <!-- Variables will be rendered here by JavaScript -->
-        </div>
-    </div>
-
-    <!-- Conditional Logic -->
-    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-semibold text-gray-900">Conditional Logic (Advanced)</h3>
-            <label class="flex items-center">
-                <input type="checkbox" name="enable_conditional_logic" class="mr-2 rounded text-blue-600">
-                <span class="text-sm text-gray-700">Enable Conditional Display Rules</span>
-            </label>
-        </div>
-    </div>
-
-    <!-- Conflict Detection -->
-    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-base font-semibold text-gray-900">Conflict Detection (Advanced)</h3>
-            <label class="flex items-center">
-                <input type="checkbox" name="enable_conflict_detection" class="mr-2 rounded text-blue-600">
-                <span class="text-sm text-gray-700">Enable Conflict Detection</span>
-            </label>
-        </div>
-    </div>
+    
 
     <!-- Test Your Pricing -->
     <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
@@ -3067,6 +2832,65 @@ if (tagInput && addTagBtn && tagsContainer) {
         }
         lucide.createIcons();
     };
+
+
+    document.addEventListener('DOMContentLoaded', function() {
+    const customizationLevelSelect = document.getElementById('id_customization_level');
+    const baseCostField = document.getElementById('base-cost-field');
+    const tierProcessField = document.getElementById('tier-process-field');
+    const formulaProcessField = document.getElementById('formula-process-field');
+    
+    function updateFieldsBasedOnCustomizationLevel() {
+        const level = customizationLevelSelect.value;
+        
+        // Hide all first
+        baseCostField.style.display = 'none';
+        tierProcessField.style.display = 'none';
+        formulaProcessField.style.display = 'none';
+        
+        // Show based on level
+        if (level === 'non_customizable') {
+            // Non-customizable: Base Cost + Tier Process
+            baseCostField.style.display = 'block';
+            baseCostField.querySelector('input').required = true;
+            
+            tierProcessField.style.display = 'block';
+            tierProcessField.querySelector('select').required = true;
+            
+            formulaProcessField.querySelector('select').required = false;
+            
+        } else if (level === 'semi_customizable') {
+            // Semi-customizable: Base Cost + Tier Process + Formula Process
+            baseCostField.style.display = 'block';
+            baseCostField.querySelector('input').required = true;
+            
+            tierProcessField.style.display = 'block';
+            tierProcessField.querySelector('select').required = false;  // Optional
+            
+            formulaProcessField.style.display = 'block';
+            formulaProcessField.querySelector('select').required = true;
+            
+        } else if (level === 'fully_customizable') {
+            // Fully customizable: Tier Process + Formula Process (no base cost or optional)
+            baseCostField.style.display = 'none';
+            baseCostField.querySelector('input').required = false;
+            
+            tierProcessField.style.display = 'block';
+            tierProcessField.querySelector('select').required = true;
+            
+            formulaProcessField.style.display = 'block';
+            formulaProcessField.querySelector('select').required = true;
+        }
+    }
+    
+    // Run on page load
+    if (customizationLevelSelect) {
+        updateFieldsBasedOnCustomizationLevel();
+        
+        // Run on change
+        customizationLevelSelect.addEventListener('change', updateFieldsBasedOnCustomizationLevel);
+    }
+});
             // ==================== ENHANCED PROCESS SELECTION HANDLER ====================
     const processSelect = document.getElementById('id_process');
     const baseCostInput = document.getElementById('id_base_cost');

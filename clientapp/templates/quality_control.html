@@ -663,22 +663,33 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid px-4 py-4">
+<div class="container-fluid">
     <!-- Header -->
     <div class="qc-header">
-        
+        <a href="{% url 'production2_dashboard' %}" class="back-link">← Back to Dashboard</a>
 
-        <div class="qc-title">QC INSPECTION</div>
+        <div class="qc-title">QC Inspection</div>
         <div class="qc-subtitle">{{ inspection.reference_number }} | {{ job.title }}</div>
 
         <div class="qc-meta">
-            <div>
-                <strong>Vendor:</strong> {{ vendor.name }}<br>
-                <strong>Delivered:</strong> {{ inspection.delivered_date|date:"M d, Y, g:i A" }}<br>
+            <div class="meta-group">
+                <div>
+                    <span class="meta-label">Vendor:</span>
+                    <span class="meta-value">{{ vendor.name }}</span>
+                </div>
+                <div>
+                    <span class="meta-label">Delivered:</span>
+                    <span class="meta-value">{{ inspection.delivered_date|date:"M d, Y, g:i A" }}</span>
+                </div>
             </div>
-            <div style="text-align: right;">
-                <strong>Warehouse Location:</strong> {{ inspection.warehouse_location }}<br>
-                <span class="inspection-status">You Inspected: {{ inspection.inspected_quantity }} pcs</span>
+            <div class="meta-group" style="text-align: right;">
+                <div>
+                    <span class="meta-label">Warehouse Location:</span>
+                    <span class="meta-value">{{ inspection.warehouse_location }}</span>
+                </div>
+                <div>
+                    <span class="inspection-status">Inspected: {{ inspection.inspected_quantity }} pcs</span>
+                </div>
             </div>
         </div>
     </div>
@@ -689,43 +700,41 @@
             <!-- Delivery Checklist -->
             <div class="qc-section">
                 <div class="section-header">
-                    <span class="section-icon">📦</span>
-                    <h3 class="section-title">DELIVERY CHECKLIST</h3>
+                    <h3 class="section-title">Delivery Checklist</h3>
                 </div>
 
                 <div class="checklist-item">
-                    <input type="checkbox" id="check1" checked>
+                    <input type="checkbox" id="check1">
                     <label for="check1" class="checklist-label">Packaging intact (no damage)</label>
                 </div>
                 <div class="checklist-item">
-                    <input type="checkbox" id="check2" checked>
-                    <label for="check2" class="checklist-label">Correct quantity (50 of 50 pcs)</label>
+                    <input type="checkbox" id="check2">
+                    <label for="check2" class="checklist-label">Correct quantity received</label>
                 </div>
                 <div class="checklist-item">
-                    <input type="checkbox" id="check3" checked>
+                    <input type="checkbox" id="check3">
                     <label for="check3" class="checklist-label">Anonymous Job ID label present</label>
                 </div>
                 <div class="checklist-item">
-                    <input type="checkbox" id="check4" checked>
+                    <input type="checkbox" id="check4">
                     <label for="check4" class="checklist-label">Sealed boxes/packaging</label>
                 </div>
                 <div class="checklist-item">
-                    <input type="checkbox" id="check5" checked>
+                    <input type="checkbox" id="check5">
                     <label for="check5" class="checklist-label">No visible damage to contents</label>
                 </div>
 
-                <div class="form-group" style="margin-top: 20px;">
-                    <label class="form-label">Delivery Notes:</label>
+                <div class="form-group" style="margin-top: 24px;">
+                    <label class="form-label">Delivery Notes</label>
                     <textarea class="delivery-notes" id="deliveryNotes"
-                        placeholder="All items delivered in excellent condition. Packaging secure. No issues noted.">All items delivered in excellent condition. Packaging secure. No issues noted.</textarea>
+                        placeholder="Record any observations about the delivery condition..."></textarea>
                 </div>
             </div>
 
             <!-- Quality Inspection -->
             <div class="qc-section">
                 <div class="section-header">
-                    <span class="section-icon">⭐</span>
-                    <h3 class="section-title">QUALITY INSPECTION (Rate 1-5)</h3>
+                    <h3 class="section-title">Quality Inspection (Rate 1-5)</h3>
                 </div>
 
                 <!-- Print Quality -->
@@ -736,18 +745,18 @@
                         <button class="rating-btn" data-value="2">2</button>
                         <button class="rating-btn" data-value="3">3</button>
                         <button class="rating-btn" data-value="4">4</button>
-                        <button class="rating-btn active" data-value="5">5</button>
+                        <button class="rating-btn" data-value="5">5</button>
                     </div>
                     <div class="rating-stars" data-stars-group="print-quality">
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
                     </div>
-                    <div class="rating-note">Selected: 5/5 ★★★★★ ★</div>
+                    <div class="rating-note">Not rated</div>
                     <textarea class="quality-notes"
-                        placeholder="Notes on print quality...">Excellent print clarity and color.</textarea>
+                        placeholder="Notes on print quality..."></textarea>
                 </div>
 
                 <!-- Color Accuracy -->
@@ -758,18 +767,18 @@
                         <button class="rating-btn" data-value="2">2</button>
                         <button class="rating-btn" data-value="3">3</button>
                         <button class="rating-btn" data-value="4">4</button>
-                        <button class="rating-btn active" data-value="5">5</button>
+                        <button class="rating-btn" data-value="5">5</button>
                     </div>
                     <div class="rating-stars" data-stars-group="color-accuracy">
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
                     </div>
-                    <div class="rating-note">Selected: 5/5 ★★★★★</div>
+                    <div class="rating-note">Not rated</div>
                     <textarea class="quality-notes"
-                        placeholder="Notes on color accuracy...">Perfect Pantone match.</textarea>
+                        placeholder="Notes on color accuracy..."></textarea>
                 </div>
 
                 <!-- Material Quality -->
@@ -779,19 +788,19 @@
                         <button class="rating-btn" data-value="1">1</button>
                         <button class="rating-btn" data-value="2">2</button>
                         <button class="rating-btn" data-value="3">3</button>
-                        <button class="rating-btn active" data-value="4">4</button>
+                        <button class="rating-btn" data-value="4">4</button>
                         <button class="rating-btn" data-value="5">5</button>
                     </div>
                     <div class="rating-stars" data-stars-group="material-quality">
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
                         <span>★</span>
                     </div>
-                    <div class="rating-note">Selected: 4/5 ★★★★☆</div>
+                    <div class="rating-note">Not rated</div>
                     <textarea class="quality-notes"
-                        placeholder="Notes on material quality...">Good fabric, slight variation in 2 pieces but acceptable.</textarea>
+                        placeholder="Notes on material quality..."></textarea>
                 </div>
 
                 <!-- Finishing Quality -->
@@ -802,18 +811,18 @@
                         <button class="rating-btn" data-value="2">2</button>
                         <button class="rating-btn" data-value="3">3</button>
                         <button class="rating-btn" data-value="4">4</button>
-                        <button class="rating-btn active" data-value="5">5</button>
+                        <button class="rating-btn" data-value="5">5</button>
                     </div>
                     <div class="rating-stars" data-stars-group="finishing-quality">
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
                     </div>
-                    <div class="rating-note">Selected: 5/5 ★★★★★</div>
+                    <div class="rating-note">Not rated</div>
                     <textarea class="quality-notes"
-                        placeholder="Notes on finishing quality...">Clean edges, professional finish.</textarea>
+                        placeholder="Notes on finishing quality..."></textarea>
                 </div>
 
                 <!-- Overall Quality -->
@@ -824,32 +833,31 @@
                         <button class="rating-btn" data-value="2">2</button>
                         <button class="rating-btn" data-value="3">3</button>
                         <button class="rating-btn" data-value="4">4</button>
-                        <button class="rating-btn active" data-value="5">5</button>
+                        <button class="rating-btn" data-value="5">5</button>
                     </div>
                     <div class="rating-stars" data-stars-group="overall-quality">
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
-                        <span class="active">★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
+                        <span>★</span>
                     </div>
-                    <div class="rating-note">Selected: 5/5 ★★★★★</div>
+                    <div class="rating-note">Not rated</div>
                     <textarea class="quality-notes"
-                        placeholder="Notes on overall quality...">Exceeds expectations. Highly satisfied.</textarea>
+                        placeholder="Notes on overall quality..."></textarea>
                 </div>
             </div>
 
             <!-- Inspection Photos -->
             <div class="qc-section">
                 <div class="section-header">
-                    <span class="section-icon">📷</span>
-                    <h3 class="section-title">INSPECTION PHOTOS (Min 2, Max 10)</h3>
+                    <h3 class="section-title">Inspection Photos (Min 2, Max 10)</h3>
                 </div>
 
                 <div class="photo-upload-section" onclick="document.getElementById('photoInput').click()">
                     <div class="upload-icon">📁</div>
-                    <div class="upload-text">Drag & Drop Zone</div>
-                    <div class="upload-link">or 📎 Upload Photos</div>
+                    <div class="upload-text">Drag & Drop or Click to Upload</div>
+                    <div class="upload-link">Select Photos</div>
                 </div>
                 <input type="file" id="photoInput" accept="image/*" multiple style="display: none;">
 
@@ -875,12 +883,12 @@
                 </div>
 
                 <div class="upload-tips">
-                    <div class="upload-tips-title">Tips:</div>
+                    <div class="upload-tips-title">Photography Guidelines</div>
                     <ul>
                         <li>Capture overall product view</li>
                         <li>Close-ups of print quality</li>
-                        <li>Any defects or issues</li>
-                        <li>Packaging condition</li>
+                        <li>Document any defects or issues</li>
+                        <li>Show packaging condition</li>
                     </ul>
                 </div>
             </div>
@@ -888,18 +896,17 @@
             <!-- QC Decision -->
             <div class="decision-section">
                 <div class="section-header">
-                    <span class="section-icon">✓</span>
-                    <h3 class="section-title">QC DECISION</h3>
+                    <h3 class="section-title">QC Decision</h3>
                 </div>
 
                 <div class="decision-options">
-                    <div class="decision-option selected pass" data-decision="pass">
-                        <input type="radio" name="qc-decision" value="pass" class="decision-radio" checked>
+                    <div class="decision-option" data-decision="pass">
+                        <input type="radio" name="qc-decision" value="pass" class="decision-radio">
                         <div class="decision-content">
-                            <div class="decision-title" style="color: #10b981;">★ PASS - Approve for delivery</div>
-                            <div class="decision-desc">Quality meets/exceeds standards</div>
+                            <div class="decision-title">PASS - Approve for Delivery</div>
+                            <div class="decision-desc">Quality meets or exceeds standards</div>
                             <ul class="decision-bullets">
-                                <li>Vendor VPS > 1.0 point</li>
+                                <li>Vendor VPS +1.0 point</li>
                                 <li>Ready for client delivery</li>
                             </ul>
                         </div>
@@ -908,10 +915,11 @@
                     <div class="decision-option" data-decision="conditions">
                         <input type="radio" name="qc-decision" value="conditions" class="decision-radio">
                         <div class="decision-content">
-                            <div class="decision-title" style="color: #f59e0b;">⚠ PASS WITH CONDITIONS</div>
+                            <div class="decision-title">PASS WITH CONDITIONS</div>
                             <div class="decision-desc">Minor issues, requires AM approval</div>
                             <ul class="decision-bullets">
                                 <li>May need client notification</li>
+                                <li>Document conditions clearly</li>
                             </ul>
                         </div>
                     </div>
@@ -919,11 +927,10 @@
                     <div class="decision-option" data-decision="fail">
                         <input type="radio" name="qc-decision" value="fail" class="decision-radio">
                         <div class="decision-content">
-                            <div class="decision-title" style="color: #ef4444;">✗ FAIL - Reject & Request Rework</div>
+                            <div class="decision-title">FAIL - Reject & Request Rework</div>
                             <div class="decision-desc">Quality below standards</div>
                             <ul class="decision-bullets">
-                                <li>Vendor VPS - 2.0 points</li>
-                                <li>Vendor VPS < 2.0 points</li>
+                                <li>Vendor VPS -2.0 points</li>
                                 <li>Rework workflow triggered</li>
                             </ul>
                         </div>
@@ -934,15 +941,15 @@
             <!-- Delivery Preparation -->
             <div class="delivery-prep">
                 <div class="section-header">
-                    <span class="section-icon">📦</span>
-                    <h3 class="section-title">DELIVERY PREPARATION</h3>
+                    <h3 class="section-title">Delivery Preparation</h3>
                 </div>
 
                 <div class="prep-grid">
                     <div>
                         <div class="form-group">
-                            <label class="form-label">Shelf Location:</label>
+                            <label class="form-label">Shelf Location</label>
                             <select class="form-select" id="shelfLocation">
+                                <option value="">Select location...</option>
                                 <option value="A-15">A-15</option>
                                 <option value="A-16">A-16</option>
                                 <option value="B-10">B-10</option>
@@ -951,21 +958,21 @@
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Packaging Verification:</label>
+                            <label class="form-label">Packaging Verification</label>
                             <div class="checklist-item">
-                                <input type="checkbox" id="pack1" checked>
+                                <input type="checkbox" id="pack1">
                                 <label for="pack1" class="checklist-label">All items properly packed</label>
                             </div>
                             <div class="checklist-item">
-                                <input type="checkbox" id="pack2" checked>
+                                <input type="checkbox" id="pack2">
                                 <label for="pack2" class="checklist-label">Anonymous Job ID label applied</label>
                             </div>
                             <div class="checklist-item">
-                                <input type="checkbox" id="pack3" checked>
+                                <input type="checkbox" id="pack3">
                                 <label for="pack3" class="checklist-label">Quantity marked on boxes</label>
                             </div>
                             <div class="checklist-item">
-                                <input type="checkbox" id="pack4" checked>
+                                <input type="checkbox" id="pack4">
                                 <label for="pack4" class="checklist-label">Fragile stickers (if needed)</label>
                             </div>
                         </div>
@@ -973,24 +980,24 @@
 
                     <div>
                         <div class="form-group">
-                            <label class="form-label">Box Count:</label>
+                            <label class="form-label">Box Count</label>
                             <input type="number" class="form-input" value="1" min="1">
                         </div>
 
                         <div class="form-group">
-                            <label class="form-label">Notes to AM:</label>
-                            <textarea class="delivery-notes" style="min-height: 120px;"
-                                id="notesToAM">All 50 t-shirts inspected. Quality excellent. Ready for immediate delivery.</textarea>
+                            <label class="form-label">Notes to Account Manager</label>
+                            <textarea class="delivery-notes" style="min-height: 140px;"
+                                id="notesToAM" placeholder="Provide any important information for the account manager..."></textarea>
                         </div>
                     </div>
                 </div>
 
-                <div class="form-group" style="margin-top: 20px;">
-                    <label class="form-label">Notify:</label>
+                <div class="form-group" style="margin-top: 24px;">
+                    <label class="form-label">Notifications</label>
                     <div class="notify-group">
                         <label class="checkbox-label">
                             <input type="checkbox" checked>
-                            Account Manager (Sarah Mwanji)
+                            Notify Account Manager
                         </label>
                         <label class="checkbox-label">
                             <input type="checkbox" checked>
@@ -1009,121 +1016,109 @@
         <div class="sidebar">
             <!-- QC Score -->
             <div class="qc-score">
-                <div class="score-label">QC SCORE (Auto-calculated)</div>
-                <div class="score-value" id="totalScore">96%</div>
+                <div class="score-label">QC Score (Auto-calculated)</div>
+                <div class="score-value" id="totalScore">--%</div>
                 <div class="score-bar">
-                    <div class="score-bar-fill" id="scoreBar" style="width: 96%"></div>
+                    <div class="score-bar-fill" id="scoreBar" style="width: 0%"></div>
                 </div>
                 <div class="score-calculation">
-                    Calculation:<br>
-                    (5/5 + 5/5 + 4/5 + 5/5 + 5/5) ÷ 5 = 100 ÷ 25 = 96%
+                    Complete all quality ratings to calculate score
                 </div>
 
                 <div class="grade-scale">
-                    <div class="grade-scale-title">Grade Scale:</div>
-                    <div class="grade-item excellent">
-                        <span>• A (90-100%):</span>
-                        <span class="grade">😊 Excellent</span>
+                    <div class="grade-scale-title">Grade Scale</div>
+                    <div class="grade-item">
+                        <span>A (90-100%)</span>
+                        <span class="grade">Excellent</span>
                     </div>
-                    <div class="grade-item good">
-                        <span>• B (80-89%):</span>
+                    <div class="grade-item">
+                        <span>B (80-89%)</span>
                         <span class="grade">Good</span>
                     </div>
-                    <div class="grade-item acceptable">
-                        <span>• C (70-79%):</span>
+                    <div class="grade-item">
+                        <span>C (70-79%)</span>
                         <span class="grade">Acceptable</span>
                     </div>
-                    <div class="grade-item below">
-                        <span>• D (60-69%):</span>
+                    <div class="grade-item">
+                        <span>D (60-69%)</span>
                         <span class="grade">Below Standard</span>
                     </div>
-                    <div class="grade-item below">
-                        <span>• F (Below 60%):</span>
+                    <div class="grade-item">
+                        <span>F (Below 60%)</span>
                         <span class="grade">Failed</span>
-                    </div>
-                </div>
-
-                <div
-                    style="margin-top: 15px; padding: 10px; background: #f0fdf4; border-radius: 6px; text-align: center;">
-                    <div style="font-size: 12px; color: #065f46; font-weight: 600;">
-                        ✓ Consistent high quality
                     </div>
                 </div>
             </div>
 
             <!-- Item Summary -->
             <div class="sidebar-section">
-                <div class="sidebar-title">📋 ITEM SUMMARY</div>
+                <div class="sidebar-title">Item Summary</div>
                 <div class="info-row">
-                    <span class="info-label">Quote #:</span>
-                    <span class="info-value">EST-060180-01</span>
+                    <span class="info-label">Quote #</span>
+                    <span class="info-value">{{ job.quote.quote_id }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Client:</span>
-                    <span class="info-value">Artisan Makers</span>
+                    <span class="info-label">Client</span>
+                    <span class="info-value">{{ job.client.name }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Product:</span>
-                    <span class="info-value">Custom T-shirts</span>
+                    <span class="info-label">Product</span>
+                    <span class="info-value">{{ job.product }}</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Quantity:</span>
-                    <span class="info-value">50 pcs</span>
+                    <span class="info-label">Quantity</span>
+                    <span class="info-value">{{ job.quantity }} pcs</span>
                 </div>
                 <div class="info-row">
-                    <span class="info-label">Vendor:</span>
-                    <span class="info-value">Elite Print House</span>
+                    <span class="info-label">Vendor</span>
+                    <span class="info-value">{{ vendor.name }}</span>
                 </div>
+                {% if job.vendor_cost %}
                 <div class="info-row">
-                    <span class="info-label">Cost:</span>
-                    <span class="info-value">70,000 KES</span>
+                    <span class="info-label">Vendor Cost</span>
+                    <span class="info-value">{{ job.vendor_cost|floatformat:0 }} KES</span>
                 </div>
-                <div class="info-row">
-                    <span class="info-label">Charged:</span>
-                    <span class="info-value">49,000 KES</span>
-                </div>
-                <div class="info-row">
-                    <span class="info-label">Margin:</span>
-                    <span class="info-value" style="color: #10b981;">+3,000 KES (27%)</span>
-                </div>
+                {% endif %}
             </div>
 
             <!-- Sampling Requirements -->
             <div class="sidebar-section">
-                <div class="sidebar-title">🔍 SAMPLING REQUIREMENTS</div>
-                <div style="margin-bottom: 12px;">
-                    <div class="info-label">Total Quantity: 50 pcs</div>
-                    <div class="info-value">Required Sample: 10 pcs (20%)</div>
+                <div class="sidebar-title">Sampling Requirements</div>
+                <div style="margin-bottom: 16px;">
+                    <div class="info-label">Total Quantity: {{ job.quantity }} pcs</div>
+                    <div class="info-value">Required Sample: {{ inspection.inspected_quantity }} pcs</div>
                 </div>
 
                 <div class="sampling-reqs">
                     <strong>Sampling Standard:</strong>
-                    <ul style="margin-top: 8px; padding-left: 20px;">
-                        <li>• Under 100 pcs: 20% sample</li>
-                        <li>• 100-1000: 10% sample</li>
-                        <li>• 1000-5000: 10% sample</li>
-                        <li>• Over 5000: 5% sample min 250</li>
+                    <ul style="margin-top: 10px; padding-left: 20px;">
+                        <li>Under 100 pcs: 20% sample</li>
+                        <li>100-1000: 10% sample</li>
+                        <li>1000-5000: 5% sample</li>
+                        <li>Over 5000: 5% sample (min 250)</li>
                     </ul>
                 </div>
             </div>
 
             <!-- Vendor QC History -->
             <div class="sidebar-section">
-                <div class="sidebar-title">📊 VENDOR QC HISTORY</div>
+                <div class="sidebar-title">Vendor QC History</div>
 
-                <div class="qc-history-item">
-                    <div class="history-vendor">Elite Print House</div>
-                    <div class="history-details">
-                        <div>Last 3 QC Scores:</div>
-                        <div>• Nov 14: 95% (A) ⭐⭐⭐⭐⭐ - T-shirts</div>
-                        <div>• Nov 10: 92% (A) ⭐⭐⭐⭐⭐ - Hoodies</div>
-                        <div>• Oct 28: 98% (A) ⭐⭐⭐⭐⭐ - Cards</div>
-                        <div style="margin-top: 8px;">
-                            <strong>Average: 92% (A)</strong>
-                            <span class="history-score high">★★★★★</span>
+                {% if vendor_history %}
+                    {% for history in vendor_history %}
+                    <div class="qc-history-item">
+                        <div class="history-vendor">{{ vendor.name }}</div>
+                        <div class="history-details">
+                            <div>{{ history.date|date:"M d, Y" }}: {{ history.score }}%</div>
+                            <div>{{ history.product }}</div>
                         </div>
                     </div>
-                </div>
+                    {% endfor %}
+                {% else %}
+                    <div style="padding: 20px; text-align: center; color: #999; font-size: 13px;">
+                        No previous QC history
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -1150,12 +1145,9 @@
 
         buttons.forEach(btn => {
             btn.addEventListener('click', function () {
-                // Remove active from all buttons in this group
                 buttons.forEach(b => b.classList.remove('active'));
-                // Add active to clicked button
                 this.classList.add('active');
 
-                // Update stars
                 const value = parseInt(this.dataset.value);
                 if (starsGroup) {
                     const stars = starsGroup.querySelectorAll('span');
@@ -1168,12 +1160,10 @@
                     });
                 }
 
-                // Update rating note
                 const note = this.closest('.quality-item').querySelector('.rating-note');
                 const starText = '★'.repeat(value) + '☆'.repeat(5 - value);
                 note.textContent = `Selected: ${value}/5 ${starText}`;
 
-                // Recalculate score
                 calculateScore();
             });
         });
@@ -1189,12 +1179,15 @@
             }
         });
 
-        if (ratings.length > 0) {
+        if (ratings.length === 5) {
             const average = ratings.reduce((a, b) => a + b, 0) / ratings.length;
             const percentage = (average / 5) * 100;
 
             document.getElementById('totalScore').textContent = percentage.toFixed(0) + '%';
             document.getElementById('scoreBar').style.width = percentage + '%';
+        } else {
+            document.getElementById('totalScore').textContent = '--% ';
+            document.getElementById('scoreBar').style.width = '0%';
         }
     }
 
@@ -1202,11 +1195,10 @@
     document.querySelectorAll('.decision-option').forEach(option => {
         option.addEventListener('click', function () {
             document.querySelectorAll('.decision-option').forEach(opt => {
-                opt.classList.remove('selected', 'pass', 'conditions', 'fail');
+                opt.classList.remove('selected');
             });
 
-            const decision = this.dataset.decision;
-            this.classList.add('selected', decision);
+            this.classList.add('selected');
             this.querySelector('input[type="radio"]').checked = true;
         });
     });
@@ -1221,9 +1213,9 @@
                 const reader = new FileReader();
                 reader.onload = function (e) {
                     photoSlots[index].innerHTML = `
-                    <img src="${e.target.result}" alt="Photo ${index + 1}">
-                    <button class="remove-btn" onclick="removePhoto(${index})">×</button>
-                `;
+                        <img src="${e.target.result}" alt="Photo ${index + 1}">
+                        <button class="remove-btn" onclick="removePhoto(${index})">×</button>
+                    `;
                 };
                 reader.readAsDataURL(file);
             }
@@ -1240,39 +1232,43 @@
     }
 
     function submitQC() {
-        // Gather all form data
         const formData = {
-            inspection_id: {{ inspection.id }
-    },
-    print_quality: parseInt(document.querySelector('[data-rating-group="print-quality"] .rating-btn.active').dataset.value),
-        color_accuracy: parseInt(document.querySelector('[data-rating-group="color-accuracy"] .rating-btn.active').dataset.value),
-            material_quality: parseInt(document.querySelector('[data-rating-group="material-quality"] .rating-btn.active').dataset.value),
-                finishing_quality: parseInt(document.querySelector('[data-rating-group="finishing-quality"] .rating-btn.active').dataset.value),
-                    overall_quality: parseInt(document.querySelector('[data-rating-group="overall-quality"] .rating-btn.active').dataset.value),
-                        print_quality_notes: document.querySelector('[data-rating-group="print-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
-                            color_accuracy_notes: document.querySelector('[data-rating-group="color-accuracy"]').closest('.quality-item').querySelector('.quality-notes').value,
-                                material_quality_notes: document.querySelector('[data-rating-group="material-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
-                                    finishing_quality_notes: document.querySelector('[data-rating-group="finishing-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
-                                        overall_quality_notes: document.querySelector('[data-rating-group="overall-quality"]').closest('.quality-item').querySelector('.quality-notes').value,
-                                            delivery_notes: document.getElementById('deliveryNotes').value,
-                                                notes_to_am: document.getElementById('notesToAM').value,
-                                                    decision: document.querySelector('input[name="qc-decision"]:checked').value
-    };
+            inspection_id: {{ inspection.id }},
+            print_quality: parseInt(document.querySelector('[data-rating-group="print-quality"] .rating-btn.active')?.dataset.value || 0),
+            color_accuracy: parseInt(document.querySelector('[data-rating-group="color-accuracy"] .rating-btn.active')?.dataset.value || 0),
+            material_quality: parseInt(document.querySelector('[data-rating-group="material-quality"] .rating-btn.active')?.dataset.value || 0),
+            finishing_quality: parseInt(document.querySelector('[data-rating-group="finishing-quality"] .rating-btn.active')?.dataset.value || 0),
+            overall_quality: parseInt(document.querySelector('[data-rating-group="overall-quality"] .rating-btn.active')?.dataset.value || 0),
+            delivery_notes: document.getElementById('deliveryNotes').value,
+            notes_to_am: document.getElementById('notesToAM').value,
+            decision: document.querySelector('input[name="qc-decision"]:checked')?.value
+        };
 
-    // Disable submit button
-    const submitBtn = document.getElementById('submitBtn');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting...';
+        // Validation
+        if (!formData.decision) {
+            alert('Please select a QC decision');
+            return;
+        }
 
-    // Submit via AJAX
-    fetch('{% url "submit_qc" %}', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': '{{ csrf_token }}'
-        },
-        body: JSON.stringify(formData)
-    })
+        if (formData.print_quality === 0 || formData.color_accuracy === 0 || 
+            formData.material_quality === 0 || formData.finishing_quality === 0 || 
+            formData.overall_quality === 0) {
+            alert('Please complete all quality ratings');
+            return;
+        }
+
+        const submitBtn = document.getElementById('submitBtn');
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Submitting...';
+
+        fetch('{% url "submit_qc" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify(formData)
+        })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
@@ -1290,9 +1286,6 @@
             submitBtn.disabled = false;
             submitBtn.textContent = 'Submit QC & Handoff to AM →';
         });
-}
-
-    // Initialize score on page load
-    calculateScore();
+    }
 </script>
 {% endblock %}
