@@ -1,394 +1,354 @@
-{%extends 'base.html' %}
-{% load static %}
+{% extends 'base.html' %}
+
+{% block title %}Processes - Cost Management{% endblock %}
+
 {% block content %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Process Catalogue</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        }
-        .header-section {
-            background: white;
-            padding: 2rem 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        .page-title {
-            font-size: 1.75rem;
-            font-weight: 600;
-            color: #212529;
-            margin-bottom: 0.5rem;
-        }
-        .page-subtitle {
-            color: #6c757d;
-            font-size: 0.95rem;
-        }
-        .stats-card {
-            background: white;
-            border-radius: 8px;
-            padding: 1.5rem;
-            border: 1px solid #e9ecef;
-            transition: all 0.2s;
-        }
-        .stats-card:hover {
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-        }
-        .stats-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 8px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.25rem;
-            margin-bottom: 1rem;
-        }
-        .stats-icon.blue { background: #e7f1ff; color: #0d6efd; }
-        .stats-icon.green { background: #d1f5e9; color: #10b981; }
-        .stats-icon.purple { background: #f3e8ff; color: #7c3aed; }
-        .stats-icon.teal { background: #d5f5f6; color: #0891b2; }
-        .stats-number {
-            font-size: 2rem;
-            font-weight: 600;
-            color: #212529;
-            margin-bottom: 0.25rem;
-        }
-        .stats-label {
-            color: #6c757d;
-            font-size: 0.875rem;
-        }
-        .search-filter-section {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid #e9ecef;
-            margin-bottom: 1.5rem;
-        }
-        .search-box {
-            position: relative;
-        }
-        .search-box input {
-            padding-left: 2.5rem;
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-        }
-        .search-box i {
-            position: absolute;
-            left: 1rem;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #6c757d;
-        }
-        .filter-select {
-            border: 1px solid #dee2e6;
-            border-radius: 6px;
-            padding: 0.5rem 1rem;
-            font-size: 0.95rem;
-        }
-        .btn-new-process {
-            background: #2563eb;
-            color: white;
-            border: none;
-            padding: 0.5rem 1.25rem;
-            border-radius: 6px;
-            font-weight: 500;
-            transition: all 0.2s;
-        }
-        .btn-new-process:hover {
-            background: #1d4ed8;
-            color: white;
-        }
-        .process-table {
-            background: white;
-            border-radius: 8px;
-            overflow: hidden;
-            border: 1px solid #e9ecef;
-        }
-        .process-table table {
-            margin-bottom: 0;
-        }
-        .process-table th {
-            background: #f8f9fa;
-            color: #495057;
-            font-weight: 600;
-            font-size: 0.85rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            padding: 1rem;
-            border-bottom: 2px solid #e9ecef;
-        }
-        .process-table td {
-            padding: 1rem;
-            vertical-align: middle;
-            border-bottom: 1px solid #f1f3f5;
-        }
-        .process-table tbody tr:hover {
-            background: #f8f9fa;
-        }
-        .process-name {
-            font-weight: 500;
-            color: #212529;
-            margin-bottom: 0.25rem;
-        }
-        .process-description {
-            color: #6c757d;
-            font-size: 0.875rem;
-        }
-        .badge-tier {
-            background: #d1f5e9;
-            color: #047857;
-            padding: 0.375rem 0.75rem;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 0.8125rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.375rem;
-        }
-        .badge-formula {
-            background: #dbeafe;
-            color: #1e40af;
-            padding: 0.375rem 0.75rem;
-            border-radius: 6px;
-            font-weight: 500;
-            font-size: 0.8125rem;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.375rem;
-        }
-        .btn-edit {
-            color: #6c757d;
-            text-decoration: none;
-            font-size: 0.875rem;
-            transition: color 0.2s;
-        }
-        .btn-edit:hover {
-            color: #2563eb;
-        }
-        .pagination-wrapper {
-            padding: 1.5rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 1rem;
-            border-top: 1px solid #e9ecef;
-        }
-        .pagination-info {
-            color: #6c757d;
-            font-size: 0.875rem;
-        }
-        .pagination .page-link {
-            border: 1px solid #dee2e6;
-            color: #495057;
-            padding: 0.5rem 0.75rem;
-            margin: 0 0.25rem;
-            border-radius: 6px;
-        }
-        .pagination .page-link.active {
-            background: #2563eb;
-            color: white;
-            border-color: #2563eb;
-        }
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
-        .notification-badge {
-            position: relative;
-        }
-        .notification-badge .badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: #ef4444;
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 0.7rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .user-avatar {
-            width: 35px;
-            height: 35px;
-            border-radius: 50%;
-            background: #e9ecef;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #495057;
-            font-weight: 500;
-        }
-    </style>
-</head>
-<body>
-    <div class="header-section">
-        <div class="container-fluid px-4">
-            <div class="d-flex justify-content-between align-items-start">
-                <div>
-                    <h1 class="page-title">PROCESS CATALOGUE</h1>
-                    <p class="page-subtitle">Manage production processes and pricing logic for all product types</p>
+<div class="p-8 max-w-7xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-semibold text-gray-900">Processes</h1>
+                <p class="text-gray-600 mt-1">Manage your costing processes</p>
+            </div>
+            <a href="{% url 'process_create' %}" 
+                class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                New Process
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+        <div class="mb-6">
+            {% for message in messages %}
+            <div class="rounded-md p-4 {% if message.tags == 'error' %}bg-red-50 text-red-800{% elif message.tags == 'success' %}bg-green-50 text-green-800{% else %}bg-blue-50 text-blue-800{% endif %}">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i data-lucide="{% if message.tags == 'error' %}alert-circle{% elif message.tags == 'success' %}check-circle{% else %}info{% endif %}" 
+                            class="w-5 h-5"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium">{{ message }}</p>
+                    </div>
                 </div>
-                
+            </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="bg-white rounded-lg border border-gray-200 mb-6">
+        <div class="p-4 border-b border-gray-200">
+            <div class="flex flex-wrap gap-4">
+                <div class="flex-1 min-w-64">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                    <input type="text" id="search-input" placeholder="Search processes..." 
+                           class="w-full border border-gray-300 rounded-md px-3 py-2">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="status-filter" class="border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">All Statuses</option>
+                        <option value="active">Active</option>
+                        <option value="draft">Draft</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Pricing Type</label>
+                    <select id="pricing-filter" class="border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">All Types</option>
+                        <option value="tier">Tier-Based</option>
+                        <option value="formula">Formula-Based</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select id="category-filter" class="border border-gray-300 rounded-md px-3 py-2">
+                        <option value="">All Categories</option>
+                        <option value="outsourced">Outsourced</option>
+                        <option value="in_house">In-house</option>
+                    </select>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="container-fluid px-4 py-4">
-        <!-- Stats Cards -->
-        <div class="row g-3 mb-4">
-            <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="stats-icon blue">
-                        <i class="fas fa-chart-bar"></i>
-                    </div>
-                    <div class="stats-number">{{ total_processes }}</div>
-                    <div class="stats-label">Processes</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="stats-icon green">
-                        <i class="fas fa-bullseye"></i>
-                    </div>
-                    <div class="stats-number">{{ tier_based_count }}</div>
-                    <div class="stats-label">Processes</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="stats-icon purple">
-                        <i class="fas fa-calculator"></i>
-                    </div>
-                    <div class="stats-number">{{ formula_based_count }}</div>
-                    <div class="stats-label">Processes</div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="stats-card">
-                    <div class="stats-icon teal">
-                        <i class="fas fa-check-circle"></i>
-                    </div>
-                    <div class="stats-number">{{ total_processes }}</div>
-                    <div class="stats-label">Processes</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Search and Filters -->
-        <div class="search-filter-section">
-            <form method="GET" action="{% url 'process_list' %}">
-                <div class="row g-3 align-items-center">
-                    <div class="col-md-4">
-                        <div class="search-box">
-                            <i class="fas fa-search"></i>
-                            <input type="text" name="search" class="form-control" placeholder="Search by name, category, or ID..." value="{{ search_query }}">
-                        </div>
-                    </div>
-                    <div class="col-md-3">
-                        <select name="category" class="form-select filter-select">
-                            <option value="">All Categories</option>
-                            <option value="outsourced">Outsourced</option>
-                            <option value="in_house">In-House</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <select name="type" class="form-select filter-select">
-                            <option value="">All Types</option>
-                            <option value="tier">Tier-Based</option>
-                            <option value="formula">Formula-Based</option>
-                        </select>
-                    </div>
-                    <div class="col-md-2">
-                        <a href="{% url 'process_create' %}" class="btn btn-new-process w-100">
-                            <i class="fas fa-plus"></i> New Process
-                        </a>
-                    </div>
-                </div>
-            </form>
-        </div>
-
-        <!-- Process Table -->
-        <div class="process-table">
-            <table class="table">
-                <thead>
+    <!-- Processes List -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
                     <tr>
-                        <th>Process ID</th>
-                        <th>Process Name</th>
-                        <th>Type</th>
-                        <th>Category</th>
-                        <th>Vendors</th>
-                        <th>Actions</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Process
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Category
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Pricing Type
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Lead Time
+                        </th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Created
+                        </th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                        </th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="bg-white divide-y divide-gray-200" id="processes-table-body">
                     {% for process in processes %}
-                    <tr>
-                        <td>{{ process.process_id }}</td>
-                        <td>
-                            <div class="process-name">{{ process.process_name }}</div>
-                            <div class="process-description">{{ process.description|truncatewords:15 }}</div>
-                        </td>
-                        <td>
-                            {% if process.pricing_type == 'tier' %}
-                            <span class="badge-tier">
-                                <i class="fas fa-bullseye"></i> Tier-Based
-                            </span>
-                            {% else %}
-                            <span class="badge-formula">
-                                <i class="fas fa-calculator"></i> Formula
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td>{{ process.get_category_display }}</td>
-                        <td>{{ process.process_vendors.count }}</td>
-                        <td>
-                            <a href="{% url 'process_edit' process.process_id %}" class="btn-edit">
-                                <i class="fas fa-edit"></i> Edit
-                            </a>
-                        </td>
-                    </tr>
+                        <tr class="hover:bg-gray-50 process-row" 
+                            data-status="{{ process.status }}"
+                            data-pricing="{{ process.pricing_type }}"
+                            data-category="{{ process.category }}">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0 h-10 w-10">
+                                        <div class="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                            <i data-lucide="settings" class="w-5 h-5 text-blue-600"></i>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4">
+                                        <div class="text-sm font-medium text-gray-900">
+                                            {{ process.process_name }}
+                                        </div>
+                                        <div class="text-sm text-gray-500">
+                                            {{ process.process_id }}
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                             {% if process.category == 'outsourced' %}bg-purple-100 text-purple-800
+                                             {% else %}bg-green-100 text-green-800{% endif %}">
+                                    {{ process.get_category_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                             {% if process.pricing_type == 'tier' %}bg-blue-100 text-blue-800
+                                             {% else %}bg-orange-100 text-orange-800{% endif %}">
+                                    {{ process.get_pricing_type_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                                             {% if process.status == 'active' %}bg-green-100 text-green-800
+                                             {% elif process.status == 'draft' %}bg-yellow-100 text-yellow-800
+                                             {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ process.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ process.standard_lead_time }} days
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ process.created_at|date:"M d, Y" }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <div class="flex items-center justify-end gap-2">
+                                    <!-- Edit Button -->
+                                    <a href="{% url 'process_edit' process.id %}" 
+                                       class="text-blue-600 hover:text-blue-900 p-1 rounded"
+                                       title="Edit Process">
+                                        <i data-lucide="edit" class="w-4 h-4"></i>
+                                    </a>
+                                    
+                                    <!-- Formula-based processes: Variable Ranges Management -->
+                                    {% if process.pricing_type == 'formula' and process.variables.count > 0 %}
+                                    <a href="{% url 'process_variable_ranges_manager' process.id %}" 
+                                       class="text-green-600 hover:text-green-900 p-1 rounded"
+                                       title="Manage Variable Ranges">
+                                        <i data-lucide="list" class="w-4 h-4"></i>
+                                    </a>
+                                    {% endif %}
+                                    
+                                    <!-- Delete Button -->
+                                    <button onclick="deleteProcess('{{ process.id }}')" 
+                                            class="text-red-600 hover:text-red-900 p-1 rounded"
+                                            title="Delete Process">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
                     {% empty %}
-                    <tr>
-                        <td colspan="6" class="text-center py-5">
-                            <i class="fas fa-inbox" style="font-size: 3rem; color: #dee2e6;"></i>
-                            <p class="mt-3 text-muted">No processes found</p>
-                        </td>
-                    </tr>
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center">
+                                <div class="flex flex-col items-center">
+                                    <i data-lucide="cpu" class="w-12 h-12 text-gray-300 mb-4"></i>
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">No Processes Found</h3>
+                                    <p class="text-gray-600 mb-4">Get started by creating your first process.</p>
+                                    <a href="{% url 'process_create' %}" 
+                                       class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                                        </svg>
+                                        Create New Process
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
                     {% endfor %}
                 </tbody>
             </table>
-
-            <!-- Pagination -->
-            <div class="pagination-wrapper">
-                <span class="pagination-info">Showing 1-6 of {{ total_processes }} processes</span>
-                <nav>
-                    <ul class="pagination mb-0">
-                        <li class="page-item disabled">
-                            <a class="page-link" href="#"><i class="fas fa-chevron-left"></i> Previous</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link active" href="#">1</a>
-                        </li>
-                        <li class="page-item">
-                            <a class="page-link" href="#"><i class="fas fa-chevron-right"></i> Next</a>
-                        </li>
-                    </ul>
-                </nav>
-            </div>
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+    <!-- Summary Stats -->
+    {% if processes %}
+    <div class="mt-8 grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i data-lucide="settings" class="w-4 h-4 text-blue-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Total Processes</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ processes|length }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                        <i data-lucide="check-circle" class="w-4 h-4 text-green-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Active</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ processes|length }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                        <i data-lucide="layers" class="w-4 h-4 text-blue-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Tier-Based</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ processes|length }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white rounded-lg border border-gray-200 p-6">
+            <div class="flex items-center">
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
+                        <i data-lucide="calculator" class="w-4 h-4 text-orange-600"></i>
+                    </div>
+                </div>
+                <div class="ml-4">
+                    <p class="text-sm font-medium text-gray-500">Formula-Based</p>
+                    <p class="text-2xl font-semibold text-gray-900">{{ processes|length }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        lucide.createIcons();
+        
+        // Filter functionality
+        const searchInput = document.getElementById('search-input');
+        const statusFilter = document.getElementById('status-filter');
+        const pricingFilter = document.getElementById('pricing-filter');
+        const categoryFilter = document.getElementById('category-filter');
+        const processRows = document.querySelectorAll('.process-row');
+        
+        function filterProcesses() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const statusValue = statusFilter.value;
+            const pricingValue = pricingFilter.value;
+            const categoryValue = categoryFilter.value;
+            
+            processRows.forEach(row => {
+                const processName = row.querySelector('.text-sm.font-medium').textContent.toLowerCase();
+                const processId = row.querySelector('.text-sm.text-gray-500').textContent.toLowerCase();
+                const rowStatus = row.dataset.status;
+                const rowPricing = row.dataset.pricing;
+                const rowCategory = row.dataset.category;
+                
+                const matchesSearch = processName.includes(searchTerm) || processId.includes(searchTerm);
+                const matchesStatus = !statusValue || rowStatus === statusValue;
+                const matchesPricing = !pricingValue || rowPricing === pricingValue;
+                const matchesCategory = !categoryValue || rowCategory === categoryValue;
+                
+                if (matchesSearch && matchesStatus && matchesPricing && matchesCategory) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        searchInput.addEventListener('input', filterProcesses);
+        statusFilter.addEventListener('change', filterProcesses);
+        pricingFilter.addEventListener('change', filterProcesses);
+        categoryFilter.addEventListener('change', filterProcesses);
+    });
+    
+    function deleteProcess(processId) {
+        if (confirm('Are you sure you want to delete this process? This action cannot be undone.')) {
+            fetch(`/ajax/delete-process/${processId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert('Error deleting process: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while deleting the process');
+            });
+        }
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+</script>
 {% endblock %}

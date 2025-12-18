@@ -385,10 +385,8 @@
             </div>
             <div class="qc-badge">
                 <div class="qc-badge-header">✓ QC Status</div>
-                <div class="qc-badge-status">{% if qc_inspection %}{{ qc_inspection.get_status_display|upper }}{% else
-                    %}PENDING{% endif %}</div>
-                <div class="qc-badge-score">{% if qc_inspection and qc_inspection.status == 'passed' %}100%{% else
-                    %}--{% endif %}</div>
+                <div class="qc-badge-status">{% if qc_inspection %}{{ qc_inspection.get_status_display|upper }}{% else %}PENDING{% endif %}</div>
+                <div class="qc-badge-score">{% if qc_inspection and qc_inspection.status == 'passed' %}100%{% else %}--{% endif %}</div>
             </div>
         </div>
         <div class="job-details">
@@ -582,20 +580,19 @@
 
         // Collect form data
         const formData = {
-            job_id: {{ job.id }
-    },
-        staging_location: document.getElementById('staging-location').value,
-        notes_to_am: document.getElementById('notes').value,
-        boxes_sealed: packagingChecks['boxes-sealed'],
-        job_labels: packagingChecks['job-labels'],
-        quantity_marked: packagingChecks['quantity-marked'],
-        total_quantity: packagingChecks['total-quantity'],
-        fragile_stickers: packagingChecks['fragile-stickers'],
-        locked_evp: {{ locked_evp }},
-        actual_cost: {{ actual_cost }},
-        notify_am: true,
-        notify_via_email: true,
-        mark_urgent: false
+            job_id: {{ job.id }},
+            staging_location: document.getElementById('staging-location').value,
+            notes_to_am: document.getElementById('notes').value,
+            boxes_sealed: packagingChecks['boxes-sealed'],
+            job_labels: packagingChecks['job-labels'],
+            quantity_marked: packagingChecks['quantity-marked'],
+            total_quantity: packagingChecks['total-quantity'],
+            fragile_stickers: packagingChecks['fragile-stickers'],
+            locked_evp: {{ locked_evp }},
+            actual_cost: {{ actual_cost }},
+            notify_am: true,
+            notify_via_email: true,
+            mark_urgent: false
         };
 
     // Disable button

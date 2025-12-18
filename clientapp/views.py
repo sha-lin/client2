@@ -44,6 +44,7 @@ from .models import (
     LPO,
     LPOLineItem,
     SystemAlert,
+    ProcessVariableRange,
 )
 
 # Import comprehensive CRUD API endpoints
@@ -2639,10 +2640,7 @@ def qc_inspection_start(request, job_id):
     except:
         pass
     
-    # Check if job is completed
-    if job.status != 'completed':
-        messages.warning(request, 'Job must be completed before starting QC inspection.')
-        return redirect('job_detail', pk=job_id)
+    # Allow QC inspection for jobs that are ready for QC (not just completed jobs)
     
     # Create new QC inspection
     try:
@@ -2918,6 +2916,324 @@ def production_catalog(request):
     availability = request.GET.get('availability', 'all')
 
     products = Product.objects.all()
+
+    # Apply filters
+    if search:
+        products = products.filter(Q(name__icontains=search) | Q(sku__icontains=search))
+    if product_type != 'all':
+        products = products.filter(product_type=product_type)
+    if availability != 'all':
+        products = products.filter(availability=availability)
+
+    products = products.order_by('name')
+
+    editing_product = None
+    form = ProductionUpdateForm()
+
+    if request.method == 'POST':
+        action = request.POST.get('action', 'save')
+        product_id = request.POST.get('product_id')
+
+        if action == 'toggle' and product_id:
+            product = get_object_or_404(Product, pk=product_id)
+            product.is_active = not product.is_active
+            product.updated_by = request.user
+            product.save(update_fields=['is_active', 'updated_at', 'updated_by'])
+            messages.success(request, f'{product.name} status updated.')
+            return redirect('production_catalog')
+
+        if product_id:
+            editing_product = get_object_or_404(Product, pk=product_id)
+
+        form = ProductionUpdateForm(request.POST, instance=editing_product)
+        if form.is_valid():
+            product = form.save(commit=False)
+            if editing_product is None:
+                product.created_by = request.user
+            product.updated_by = request.user
+            product.save()
+            messages.success(request, f'Product {product.name} saved successfully.')
+            return redirect('production_catalog')
+    else:
+        product_id = request.GET.get('product_id')
+        if product_id:
+            editing_product = get_object_or_404(Product, pk=product_id)
+            form = ProductionUpdateForm(instance=editing_product)
+
+    context = {
+        'current_view': 'production_catalog',
+        'products': products,
+        'form': form,
+        'editing_product': editing_product,
+        'search': search,
+        'product_type': product_type,
+        'availability': availability,
+    }
+    return render(request, 'product_catalog.html', context)
+
+
+# ================================
+# PROCESS MANAGEMENT VIEWS (FORMULA-BASED PRICING)
+# ================================
+
+@login_required
+@require_POST
+def ajax_delete_process(request, process_id):
+    """Delete a process via AJAX"""
+    try:
+        process = get_object_or_404(Process, pk=process_id)
+        process_name = process.process_name
+        process.delete()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Process "{process_name}" deleted successfully'
+        })
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        })
+
+@login_required
+def process_variable_ranges_manager(request, process_id):
+    """
+    Web interface to manage variable ranges for a process
+    """
+    from .models import Process, ProcessVariable, ProcessVariableRange
+    from django.contrib import messages
+    
+    process = get_object_or_404(Process, pk=process_id)
+    
+    if process.pricing_type != 'formula':
+        messages.error(request, f"Process {process.process_name} is not formula-based.")
+        return redirect('process_list')
+    
+    variables = process.variables.all().prefetch_related('ranges')
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        
+        if action == 'add_range':
+            return add_variable_range(request, process)
+        elif action == 'delete_range':
+            return delete_variable_range(request, process)
+        elif action == 'create_sample_ranges':
+            return create_sample_ranges(request, process)
+    
+    context = {
+        'process': process,
+        'variables': variables,
+    }
+    
+    return render(request, 'process_variable_ranges_manager.html', context)
+
+@login_required
+def add_variable_range(request, process):
+    """
+    Add a new variable range via AJAX
+    """
+    from .models import ProcessVariable, ProcessVariableRange
+    from django.contrib import messages
+    
+    try:
+        variable_id = request.POST.get('variable_id')
+        min_value = request.POST.get('min_value')
+        max_value = request.POST.get('max_value')
+        price = request.POST.get('price')
+        rate = request.POST.get('rate') or '1.0'
+        order = request.POST.get('order') or '1'
+        
+        variable = get_object_or_404(ProcessVariable, pk=variable_id, process=process)
+        
+        # Convert to Decimal
+        min_val = Decimal(min_value) if min_value else None
+        max_val = Decimal(max_value) if max_value else None
+        price_val = Decimal(price) if price else Decimal('0')
+        rate_val = Decimal(rate)
+        order_val = int(order)
+        
+        # Create the range
+        range_obj = ProcessVariableRange.objects.create(
+            variable=variable,
+            min_value=min_val,
+            max_value=max_val,
+            price=price_val,
+            rate=rate_val,
+            order=order_val
+        )
+        
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Range added successfully',
+                'range': {
+                    'id': range_obj.id,
+                    'min_value': str(range_obj.min_value) if range_obj.min_value else '',
+                    'max_value': str(range_obj.max_value) if range_obj.max_value else '',
+                    'price': str(range_obj.price),
+                    'rate': str(range_obj.rate),
+                    'order': range_obj.order
+                }
+            })
+        
+        messages.success(request, 'Variable range added successfully!')
+        
+    except Exception as e:
+        error_msg = f'Error adding range: {str(e)}'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': error_msg})
+        messages.error(request, error_msg)
+    
+    return redirect('process_variable_ranges_manager', process_id=process.id)
+
+@login_required
+def delete_variable_range(request, process):
+    """
+    Delete a variable range via AJAX
+    """
+    from .models import ProcessVariableRange
+    from django.contrib import messages
+    
+    try:
+        range_id = request.POST.get('range_id')
+        range_obj = get_object_or_404(ProcessVariableRange, pk=range_id, variable__process=process)
+        range_obj.delete()
+        
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'Range deleted successfully'
+            })
+        
+        messages.success(request, 'Variable range deleted successfully!')
+        
+    except Exception as e:
+        error_msg = f'Error deleting range: {str(e)}'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': error_msg})
+        messages.error(request, error_msg)
+    
+    return redirect('process_variable_ranges_manager', process_id=process.id)
+
+@login_required
+def create_sample_ranges(request, process):
+    """
+    Create sample ranges for all variables in a process
+    """
+    from .models import ProcessVariable, ProcessVariableRange
+    from django.contrib import messages
+    
+    try:
+        variables = process.variables.all()
+        ranges_created = 0
+        
+        for variable in variables:
+            # Check if ranges already exist
+            if variable.ranges.exists():
+                continue
+            
+            # Create sample ranges based on variable type and name
+            ranges_created += create_sample_ranges_for_variable(variable)
+        
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': f'Created {ranges_created} sample ranges',
+                'ranges_created': ranges_created
+            })
+        
+        messages.success(request, f'Created {ranges_created} sample ranges!')
+        
+    except Exception as e:
+        error_msg = f'Error creating sample ranges: {str(e)}'
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'message': error_msg})
+        messages.error(request, error_msg)
+    
+    return redirect('process_variable_ranges_manager', process_id=process.id)
+
+def create_sample_ranges_for_variable(variable):
+    """
+    Create sample ranges for a specific variable
+    """
+    from .models import ProcessVariableRange
+    
+    ranges_created = 0
+    
+    # Stitch Count ranges
+    if 'stitch' in variable.variable_name.lower():
+        sample_ranges = [
+            (1, 1000, Decimal('0.15'), Decimal('1.0'), 1),
+            (1001, 5000, Decimal('0.12'), Decimal('1.0'), 2),
+            (5001, 15000, Decimal('0.10'), Decimal('1.0'), 3),
+            (15001, 30000, Decimal('0.08'), Decimal('1.0'), 4),
+            (30001, 50000, Decimal('0.06'), Decimal('1.0'), 5),
+        ]
+    # Size ranges
+    elif 'size' in variable.variable_name.lower() and variable.variable_type == 'number':
+        sample_ranges = [
+            (1, 5, Decimal('0.50'), Decimal('1.0'), 1),
+            (6, 10, Decimal('0.75'), Decimal('1.0'), 2),
+            (11, 20, Decimal('1.00'), Decimal('1.0'), 3),
+            (21, 30, Decimal('1.50'), Decimal('1.0'), 4),
+        ]
+    # Color ranges
+    elif 'color' in variable.variable_name.lower():
+        sample_ranges = [
+            (1, 2, Decimal('25.00'), Decimal('1.0'), 1),
+            (3, 4, Decimal('40.00'), Decimal('1.0'), 2),
+            (5, 6, Decimal('60.00'), Decimal('1.0'), 3),
+            (7, 8, Decimal('85.00'), Decimal('1.0'), 4),
+            (9, 12, Decimal('120.00'), Decimal('1.0'), 5),
+        ]
+    # Generic number ranges
+    elif variable.variable_type == 'number':
+        sample_ranges = [
+            (1, 10, Decimal('10.00'), Decimal('1.0'), 1),
+            (11, 50, Decimal('8.00'), Decimal('1.0'), 2),
+            (51, 100, Decimal('6.00'), Decimal('1.0'), 3),
+            (101, 500, Decimal('4.00'), Decimal('1.0'), 4),
+            (501, 1000, Decimal('2.00'), Decimal('1.0'), 5),
+        ]
+    # Generic dropdown ranges
+    else:
+        sample_ranges = [
+            (1, 1, Decimal('20.00'), Decimal('1.0'), 1),
+            (2, 2, Decimal('35.00'), Decimal('1.0'), 2),
+            (3, 3, Decimal('50.00'), Decimal('1.0'), 3),
+            (4, 4, Decimal('70.00'), Decimal('1.0'), 4),
+            (5, 5, Decimal('90.00'), Decimal('1.0'), 5),
+        ]
+    
+    # Create the ranges
+    for min_val, max_val, price, rate, order in sample_ranges:
+        ProcessVariableRange.objects.create(
+            variable=variable,
+            min_value=Decimal(str(min_val)),
+            max_value=Decimal(str(max_val)),
+            price=price,
+            rate=rate,
+            order=order
+        )
+        ranges_created += 1
+    
+    return ranges_created
+
+@login_required
+def process_list(request):
+    """
+    List all processes with links to manage variable ranges
+    """
+    from .models import Process
+    
+    processes = Process.objects.filter(pricing_type='formula').prefetch_related('variables__ranges')
+    
+    context = {
+        'processes': processes,
+    }
+    
+    return render(request, 'process_list.html', context)
 
     if search:
         products = products.filter(Q(name__icontains=search) | Q(sku__icontains=search))
@@ -3959,213 +4275,12 @@ def _get_product_form_context(product, general_form=None):
     return context
 
 
-def _handle_pricing_tab(request, product):
-    """Handle Pricing & Variables tab data"""
-    from clientapp.models import ProductPricing, ProductVariable
-    
-    # Get or create pricing object
-    pricing, created = ProductPricing.objects.get_or_create(product=product)
-    
-    # Update pricing fields
-    pricing.pricing_model = request.POST.get('pricing_model', 'variable')
-    pricing.base_cost = Decimal(request.POST.get('base_cost', '0') or '0')
-    pricing.price_display = request.POST.get('price_display', 'from')
-    pricing.default_margin = Decimal(request.POST.get('default_margin', '30') or '30')
-    pricing.minimum_margin = Decimal(request.POST.get('minimum_margin', '15') or '15')
-    pricing.minimum_order_value = Decimal(request.POST.get('minimum_order_value', '0') or '0')
-    
-    # Process integration
-    process_id = request.POST.get('process')
-    if process_id:
-        try:
-            pricing.process = Process.objects.get(id=process_id)
-            # Save the "use_process_costs" preference
-            pricing.use_process_costs = request.POST.get('use_process_costs') == 'on'
-        except Process.DoesNotExist:
-            pricing.process = None
-            pricing.use_process_costs = False
-    else:
-        pricing.process = None
-        pricing.use_process_costs = False
-    
-    # Lead time
-    lead_time_value = request.POST.get('lead_time_value')
-    if lead_time_value:
-        pricing.lead_time_value = int(lead_time_value)
-    pricing.lead_time_unit = request.POST.get('lead_time_unit', 'days')
-    
-    # Production method
-    pricing.production_method = request.POST.get('production_method', '')
-    
-    # Vendor integration
-    primary_vendor_id = request.POST.get('primary_vendor')
-    if primary_vendor_id:
-        try:
-            pricing.primary_vendor = Vendor.objects.get(id=primary_vendor_id)
-        except Vendor.DoesNotExist:
-            pricing.primary_vendor = None
-    else:
-        pricing.primary_vendor = None
-    
-    # Minimum quantity
-    min_qty = request.POST.get('minimum_quantity')
-    if min_qty:
-        pricing.minimum_quantity = int(min_qty)
-    
-    # Rush options
-    pricing.rush_available = request.POST.get('rush_available') == 'on'
-    rush_lead_time = request.POST.get('rush_lead_time_value')
-    if rush_lead_time:
-        pricing.rush_lead_time_value = int(rush_lead_time)
-    pricing.rush_lead_time_unit = request.POST.get('rush_lead_time_unit', 'days')
-    rush_upcharge = request.POST.get('rush_upcharge')
-    if rush_upcharge:
-        pricing.rush_upcharge = Decimal(rush_upcharge)
-    
-    pricing.save()
-    
-    # Handle Product Variables
-    # If auto-importing from process
-    if request.POST.get('auto_import_variables') and pricing.process:
-        # Clear existing variables
-        product.variables.all().delete()
-        
-        if pricing.process.pricing_type == 'tier':
-            # For tier-based, create a Quantity variable with tier options
-            quantity_var = ProductVariable.objects.create(
-                product=product,
-                name='Quantity',
-                variable_type='required',
-                is_required=True,
-                affects_pricing=True,
-                order=0
-            )
-            
-            # Create options from process tiers
-            for tier in pricing.process.tiers.all().order_by('tier_number'):
-                ProductVariableOption.objects.create(
-                    variable=quantity_var,
-                    name=f"{tier.quantity_from}-{tier.quantity_to} pieces",
-                    value=str(tier.quantity_to),
-                    price_modifier=tier.price,
-                    display_order=tier.tier_number
-                )
-                
-        elif pricing.process.pricing_type == 'formula':
-            # For formula-based, import each process variable
-            for proc_var in pricing.process.variables.all().order_by('order'):
-                ProductVariable.objects.create(
-                    product=product,
-                    name=proc_var.variable_name,
-                    variable_type=proc_var.variable_type,
-                    default_value=str(proc_var.default_value) if proc_var.default_value else '',
-                    is_required=True,
-                    affects_pricing=True,
-                    order=proc_var.order,
-                    source_process_variable=proc_var
-                )
-    
-    # Handle manually added variables (from JSON)
-    variables_json = request.POST.get('product_variables_json')
-    if variables_json and not request.POST.get('auto_import_variables'):
-        try:
-            import json
-            variables_data = json.loads(variables_json)
-            
-            # Only add new variables (don't clear existing unless explicitly importing)
-            for var_data in variables_data:
-                if not product.variables.filter(name=var_data.get('name')).exists():
-                    product_var = ProductVariable.objects.create(
-                        product=product,
-                        name=var_data.get('name', ''),
-                        variable_type=var_data.get('variable_type', 'required'),
-                        is_required=var_data.get('variable_type') == 'required',
-                        affects_pricing=True,
-                        order=var_data.get('display_order', 0)
-                    )
-                    
-                    # Create options
-                    for opt_data in var_data.get('options', []):
-                        ProductVariableOption.objects.create(
-                            variable=product_var,
-                            name=opt_data.get('value', ''),
-                            value=opt_data.get('value', ''),
-                            price_modifier=Decimal(str(opt_data.get('price_adjustment', 0))),
-                            display_order=0
-                        )
-        except json.JSONDecodeError:
-            pass
+# Duplicate function removed - using the complete version at line 4954
 
-def _handle_images_tab(request, product):
-    """Handle Images & Media tab data"""
-    from clientapp.models import ProductImage
-    
-    # Handle new image uploads
-    images = request.FILES.getlist('product_images')
-    for idx, image in enumerate(images):
-        ProductImage.objects.create(
-            product=product,
-            image=image,
-            is_primary=(idx == 0 and not product.images.filter(is_primary=True).exists()),
-            order=product.images.count()
-        )
+# Duplicate function removed - using the complete version at line 5095
 
 
-def _handle_seo_tab(request, product):
-    """Handle E-commerce & SEO tab data - COMPLETE VERSION"""
-    
-    # Get or create SEO instance
-    seo, created = ProductSEO.objects.get_or_create(product=product)
-    
-    # Basic SEO fields
-    seo.meta_title = request.POST.get('meta_title', '')[:60]
-    seo.meta_description = request.POST.get('meta_description', '')[:160]
-    seo.focus_keyword = request.POST.get('focus_keyword', '')
-    seo.additional_keywords = request.POST.get('additional_keywords', '')
-    
-    # Slug handling
-    seo.auto_generate_slug = request.POST.get('auto_generate_slug') == 'on'
-    if seo.auto_generate_slug or not seo.slug:
-        seo.slug = slugify(product.name)
-    else:
-        seo.slug = slugify(request.POST.get('slug', product.name))
-    
-    # Display settings
-    seo.show_price = request.POST.get('show_price') == 'on'
-    seo.price_display_format = request.POST.get('price_display_format', 'from')
-    seo.show_stock_status = request.POST.get('show_stock_status', 'in-stock-only')
-    
-    seo.save()
-    
-    # Handle related products (many-to-many)
-    related_product_ids = request.POST.getlist('related_products')
-    seo.related_products.clear()
-    for prod_id in related_product_ids:
-        try:
-            related_prod = Product.objects.get(id=prod_id)
-            seo.related_products.add(related_prod)
-        except Product.DoesNotExist:
-            pass
-    
-    # Handle upsell products
-    upsell_product_ids = request.POST.getlist('upsell_products')
-    seo.upsell_products.clear()
-    for prod_id in upsell_product_ids:
-        try:
-            upsell_prod = Product.objects.get(id=prod_id)
-            seo.upsell_products.add(upsell_prod)
-        except Product.DoesNotExist:
-            pass
-    
-    # Handle frequently bought together
-    bundle_product_ids = request.POST.getlist('frequently_bought_together')
-    seo.frequently_bought_together.clear()
-    for prod_id in bundle_product_ids:
-        try:
-            bundle_prod = Product.objects.get(id=prod_id)
-            seo.frequently_bought_together.add(bundle_prod)
-        except Product.DoesNotExist:
-            pass
+# Duplicate function removed - using the complete version at line 5277
     
     # Review Settings
     review_settings, created = ProductReviewSettings.objects.get_or_create(product=product)
@@ -4437,153 +4552,7 @@ def product_edit(request, pk):
     return render(request, 'product_create_edit.html', context)
 
 
-def _handle_pricing_tab(request, product):
-    """Handle pricing and variables tab - UPDATED"""
-    
-    # Get or create pricing instance
-    pricing, created = ProductPricing.objects.get_or_create(product=product)
-    
-    # Save basic pricing fields
-    pricing.pricing_model = request.POST.get('pricing_model', 'variable')
-    
-    # Base cost - ensure it's never NULL
-    base_cost = request.POST.get('base_cost', '').strip()
-    if not base_cost or base_cost == '':
-        base_cost = '15'
-    try:
-        pricing.base_cost = Decimal(base_cost)
-    except (ValueError, decimal.InvalidOperation):
-        pricing.base_cost = Decimal('15')
-    
-    pricing.price_display = request.POST.get('price_display', 'from')
-    
-    # Margins
-    try:
-        pricing.default_margin = Decimal(request.POST.get('default_margin', '30'))
-        pricing.minimum_margin = Decimal(request.POST.get('minimum_margin', '15'))
-    except:
-        pricing.default_margin = Decimal('30')
-        pricing.minimum_margin = Decimal('15')
-    
-    # Minimum order value
-    try:
-        pricing.minimum_order_value = Decimal(request.POST.get('minimum_order_value', '0'))
-    except:
-        pricing.minimum_order_value = Decimal('0')
-    
-    # Lead time
-    try:
-        pricing.lead_time_value = int(request.POST.get('lead_time_value', '3'))
-    except:
-        pricing.lead_time_value = 3
-    
-    pricing.lead_time_unit = request.POST.get('lead_time_unit', 'days')
-    pricing.production_method = request.POST.get('production_method', 'digital-offset')
-    
-    # Handle custom production method
-    if pricing.production_method == 'other':
-        custom_method = request.POST.get('production_method_custom', '').strip()
-        if custom_method:
-            pricing.production_method = custom_method
-    
-    # Primary vendor
-    primary_vendor_id = request.POST.get('primary_vendor')
-    if primary_vendor_id:
-        try:
-            pricing.primary_vendor = Vendor.objects.get(id=primary_vendor_id)
-        except Vendor.DoesNotExist:
-            pass
-    
-    # Minimum quantity
-    try:
-        pricing.minimum_quantity = int(request.POST.get('minimum_quantity', '1'))
-    except:
-        pricing.minimum_quantity = 1
-    
-    # Rush production
-    pricing.rush_available = request.POST.get('rush_available') == 'on'
-    
-    if pricing.rush_available:
-        try:
-            pricing.rush_lead_time_value = int(request.POST.get('rush_lead_time_value', '1'))
-        except:
-            pricing.rush_lead_time_value = 1
-        
-        pricing.rush_lead_time_unit = request.POST.get('rush_lead_time_unit', 'days')
-        
-        try:
-            pricing.rush_upcharge = Decimal(request.POST.get('rush_upcharge', '0'))
-        except:
-            pricing.rush_upcharge = Decimal('0')
-    
-    pricing.enable_conditional_logic = request.POST.get('enable_conditional_logic') == 'on'
-    pricing.enable_conflict_detection = request.POST.get('enable_conflict_detection') == 'on'
-    
-    pricing.save()
-    
-    # ===== NEW: Handle process linking and variable import =====
-    process_id = request.POST.get('process')
-    auto_import = request.POST.get('auto_import_variables') == 'on'
-    
-    if process_id:
-        try:
-            process = Process.objects.get(id=process_id)
-            # Link the process to product pricing
-            pricing.process = process
-            pricing.save()
-            messages.success(request, f'Linked to process: {process.process_name}')
-            
-            # Auto-import variables if requested
-            if auto_import:
-                imported_count = import_process_variables_to_product(process, product)
-                if imported_count > 0:
-                    messages.success(request, f'Imported {imported_count} variables from process')
-        except Process.DoesNotExist:
-            messages.warning(request, 'Selected process not found')
-    else:
-        # Clear process link if no process selected
-        pricing.process = None
-        pricing.save()
-    # ===== END NEW =====
-    
-    # Handle alternative vendors
-    alt_vendor_ids = request.POST.getlist('alternative_vendors')
-    pricing.alternative_vendors.clear()
-    for vendor_id in alt_vendor_ids:
-        try:
-            vendor = Vendor.objects.get(id=vendor_id)
-            pricing.alternative_vendors.add(vendor)
-        except Vendor.DoesNotExist:
-            pass
-    
-    # Handle Product Variables
-    variables_json = request.POST.get('product_variables_json')
-    if variables_json:
-        try:
-            product.variables.all().delete()
-            variables_data = json.loads(variables_json)
-            
-            for idx, var_data in enumerate(variables_data):
-                variable = ProductVariable.objects.create(
-                    product=product,
-                    name=var_data.get('name', f'Variable {idx+1}'),
-                    display_order=var_data.get('display_order', idx),
-                    variable_type=var_data.get('variable_type', 'required'),
-                    pricing_type=var_data.get('pricing_type', 'fixed'),
-                    is_active=True
-                )
-                
-                for opt_idx, opt_data in enumerate(var_data.get('options', [])):
-                    ProductVariableOption.objects.create(
-                        variable=variable,
-                        name=opt_data.get('value', f'Option {opt_idx+1}'),
-                        display_order=opt_idx,
-                        is_default=opt_data.get('is_default', False),
-                        price_modifier=Decimal(str(opt_data.get('price_adjustment', 0))),
-                        is_active=True
-                    )
-        except json.JSONDecodeError as e:
-            messages.warning(request, f"Error processing variables: {str(e)}")
+# Duplicate function removed - using the complete version at line 4954
 # ========== HELPER FUNCTIONS ==========
 
 def _get_product_form_context(product, general_form=None):
@@ -5135,48 +5104,7 @@ def product_update_image_metadata(request, image_pk):
     
     return JsonResponse({'success': False, 'message': 'Invalid request'})
 
-def _handle_seo_tab(request, product):
-    """Handle SEO and e-commerce tab"""
-    
-    seo_form = ProductSEOForm(
-        request.POST,
-        instance=product.seo if hasattr(product, 'seo') else None
-    )
-    
-    if seo_form.is_valid():
-        seo = seo_form.save(commit=False)
-        seo.product = product
-        
-        # Auto-generate slug if enabled
-        if seo.auto_generate_slug or not seo.slug:
-            seo.slug = slugify(product.name)
-        
-        seo.save()
-        seo_form.save_m2m()
-    
-    # Review Settings
-    review_settings, created = ProductReviewSettings.objects.get_or_create(product=product)
-    review_settings.enable_reviews = request.POST.get('enable_reviews') == 'on'
-    review_settings.require_purchase = request.POST.get('require_purchase') == 'on'
-    review_settings.auto_approve_reviews = request.POST.get('auto_approve_reviews') == 'on'
-    review_settings.review_reminder = request.POST.get('review_reminder', '7')
-    review_settings.save()
-    
-    # FAQs - Delete existing and create new
-    product.faqs.all().delete()
-    
-    faq_questions = request.POST.getlist('faq_question[]')
-    faq_answers = request.POST.getlist('faq_answer[]')
-    
-    for idx, question in enumerate(faq_questions):
-        if question.strip() and idx < len(faq_answers) and faq_answers[idx].strip():
-            ProductFAQ.objects.create(
-                product=product,
-                question=question.strip(),
-                answer=faq_answers[idx].strip(),
-                display_order=idx,
-                is_active=True
-            )
+
 
 
 def _handle_shipping_tab(request, product):
@@ -5207,18 +5135,7 @@ def _handle_legal_tab(request, product):
         legal.save()
 
 
-def _handle_production_tab(request, product):
-    """Handle production tab"""
-    
-    production_form = ProductProductionForm(
-        request.POST,
-        instance=product.production if hasattr(product, 'production') else None
-    )
-    
-    if production_form.is_valid():
-        production = production_form.save(commit=False)
-        production.product = product
-        production.save()
+
 
 
 # ========== AJAX ENDPOINTS ==========
@@ -6230,100 +6147,6 @@ def select_vendor(request):
             'message': str(e)
         }, status=500)
 
-
-@login_required
-@require_POST
-def submit_qc(request):
-    """
-    AJAX endpoint to submit QC inspection results.
-    
-    Saves all quality ratings, notes, and decision.
-    Updates vendor VPS score based on the decision.
-    Changes job status based on pass/fail decision.
-    """
-    try:
-        data = json.loads(request.body)
-        inspection_id = data.get('inspection_id')
-        
-        if not inspection_id:
-            return JsonResponse({
-                'success': False,
-                'message': 'Inspection ID is required'
-            }, status=400)
-        
-        inspection = get_object_or_404(QCInspection, id=inspection_id)
-        
-        # Update inspection ratings
-        inspection.print_quality_score = data.get('print_quality')
-        inspection.color_accuracy_score = data.get('color_accuracy')
-        inspection.material_quality_score = data.get('material_quality')
-        inspection.finishing_quality_score = data.get('finishing_quality')
-        inspection.overall_quality_score = data.get('overall_quality')
-        
-        # Update notes
-        inspection.print_quality_notes = data.get('print_quality_notes', '')
-        inspection.color_accuracy_notes = data.get('color_accuracy_notes', '')
-        inspection.material_quality_notes = data.get('material_quality_notes', '')
-        inspection.finishing_quality_notes = data.get('finishing_quality_notes', '')
-        inspection.overall_quality_notes = data.get('overall_quality_notes', '')
-        
-        inspection.delivery_notes = data.get('delivery_notes', '')
-        inspection.notes_to_am = data.get('notes_to_am', '')
-        
-        # Set decision and status
-        decision = data.get('decision')
-        inspection.decision = decision
-        inspection.status = 'completed'
-        inspection.inspector = request.user
-        
-        from django.utils import timezone
-        inspection.completed_date = timezone.now()
-        
-        inspection.save()
-        
-        # Update vendor VPS score based on decision
-        vendor = inspection.vendor
-        if decision == 'pass':
-            vendor.vps_score_value += 1.0
-        elif decision == 'fail':
-            vendor.vps_score_value -= 2.0
-        
-        # Recalculate VPS letter grade
-        if vendor.vps_score_value >= 8.0:
-            vendor.vps_score = 'A'
-        elif vendor.vps_score_value >= 5.0:
-            vendor.vps_score = 'B'
-        else:
-            vendor.vps_score = 'C'
-        
-        vendor.save()
-        
-        # Update job status
-        job = inspection.job
-        if decision == 'pass':
-            job.status = 'qc_passed'
-        elif decision == 'conditions':
-            job.status = 'qc_conditional'
-        else:  # fail
-            job.status = 'qc_failed'
-        
-        job.save()
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'QC inspection submitted successfully'
-        })
-        
-    except json.JSONDecodeError:
-        return JsonResponse({
-            'success': False,
-            'message': 'Invalid JSON data'
-        }, status=400)
-    except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'message': str(e)
-        }, status=500)
 
 @login_required
 def quality_control_list(request):

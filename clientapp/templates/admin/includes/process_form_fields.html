@@ -1,0 +1,174 @@
+<!-- Process-specific form fields -->
+<!-- Basic Information Section -->
+<div class="field-section">
+    <h3 class="section-title">Basic Information</h3>
+    <div class="form-row">
+        <!-- Process Name -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.process_name.id_for_label }}">{{ form.process_name.label }} <span class="required">*</span></label>
+                {{ form.process_name }}
+                {% if form.process_name.help_text %}
+                    <p class="help-text">{{ form.process_name.help_text }}</p>
+                {% endif %}
+                {% if form.process_name.errors %}
+                    <ul class="error">{% for error in form.process_name.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Category -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
+                {{ form.category }}
+                {% if form.category.help_text %}
+                    <p class="help-text">{{ form.category.help_text }}</p>
+                {% endif %}
+                {% if form.category.errors %}
+                    <ul class="error">{% for error in form.category.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Description -->
+    <div class="field-wrapper">
+        <div class="form-group">
+            <label for="{{ form.description.id_for_label }}">{{ form.description.label }}</label>
+            {{ form.description }}
+            {% if form.description.help_text %}
+                <p class="help-text">{{ form.description.help_text }}</p>
+            {% endif %}
+            {% if form.description.errors %}
+                <ul class="error">{% for error in form.description.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Operational Settings Section -->
+<div class="field-section">
+    <h3 class="section-title">Operational Settings</h3>
+    <div class="form-row">
+        <!-- Standard Lead Time -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.standard_lead_time.id_for_label }}">{{ form.standard_lead_time.label }} <span class="required">*</span></label>
+                {{ form.standard_lead_time }}
+                {% if form.standard_lead_time.help_text %}
+                    <p class="help-text">{{ form.standard_lead_time.help_text }}</p>
+                {% endif %}
+                {% if form.standard_lead_time.errors %}
+                    <ul class="error">{% for error in form.standard_lead_time.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Pricing Type -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.pricing_type.id_for_label }}">{{ form.pricing_type.label }}</label>
+                {{ form.pricing_type }}
+                {% if form.pricing_type.help_text %}
+                    <p class="help-text">{{ form.pricing_type.help_text }}</p>
+                {% endif %}
+                {% if form.pricing_type.errors %}
+                    <ul class="error">{% for error in form.pricing_type.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Unit of Measure -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.unit_of_measure.id_for_label }}">{{ form.unit_of_measure.label }}</label>
+                {{ form.unit_of_measure }}
+                {% if form.unit_of_measure.help_text %}
+                    <p class="help-text">{{ form.unit_of_measure.help_text }}</p>
+                {% endif %}
+                {% if form.unit_of_measure.errors %}
+                    <ul class="error">{% for error in form.unit_of_measure.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+                {{ form.status }}
+                {% if form.status.help_text %}
+                    <p class="help-text">{{ form.status.help_text }}</p>
+                {% endif %}
+                {% if form.status.errors %}
+                    <ul class="error">{% for error in form.status.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Approval Settings Section -->
+<div class="field-section">
+    <h3 class="section-title">Approval Settings</h3>
+    <div class="form-row">
+        <!-- Approval Type -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.approval_type.id_for_label }}">{{ form.approval_type.label }}</label>
+                {{ form.approval_type }}
+                {% if form.approval_type.help_text %}
+                    <p class="help-text">{{ form.approval_type.help_text }}</p>
+                {% endif %}
+                {% if form.approval_type.errors %}
+                    <ul class="error">{% for error in form.approval_type.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Approval Margin Threshold -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.approval_margin_threshold.id_for_label }}">{{ form.approval_margin_threshold.label }}</label>
+                {{ form.approval_margin_threshold }}
+                {% if form.approval_margin_threshold.help_text %}
+                    <p class="help-text">{{ form.approval_margin_threshold.help_text }}</p>
+                {% endif %}
+                {% if form.approval_margin_threshold.errors %}
+                    <ul class="error">{% for error in form.approval_margin_threshold.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Process Fields (if any from the model) -->
+<!-- Add any additional fields that might be in the Process model but not in the form -->
+
+<!-- Any remaining fields not covered above -->
+{% for field in form %}
+    {% if field.name not in 'process_name,description,category,standard_lead_time,pricing_type,unit_of_measure,status,approval_type,approval_margin_threshold' %}
+        <div class="field-wrapper" id="wrapper_{{ field.name }}">
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                    {% if field.field.required %}<span class="required">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.help_text %}
+                    <p class="help-text">{{ field.help_text }}</p>
+                {% endif %}
+                {% if field.errors %}
+                    <ul class="error">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}

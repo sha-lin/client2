@@ -160,6 +160,16 @@
                                             <label for="id_lead_source" class="text-sm font-medium">Lead Source</label>
                                             {{ form.lead_source }}
                                         </div>
+                                        <script>
+                                            // Make B2B lead source field readonly
+                                            document.addEventListener('DOMContentLoaded', function() {
+                                                const leadSourceField = document.getElementById('id_lead_source');
+                                                if (leadSourceField) {
+                                                    leadSourceField.setAttribute('readonly', 'readonly');
+                                                    leadSourceField.classList.add('bg-gray-100');
+                                                }
+                                            });
+                                        </script>
                                     </div>
 
                                     <!-- Financial & Credit Control - B2B Only -->
@@ -184,22 +194,19 @@
                                                 {{ form.risk_rating }}
                                             </div>
                                         </div>
+<div class="flex items-center justify-between p-4 border rounded-lg mt-4">
+    <div class="space-y-1">
+        <label class="text-sm font-medium">Agency / Reseller</label>
+        <p class="text-sm text-gray-600">Mark if this client manages multiple
+            brands</p>
+    </div>
+    <label class="toggle-switch">
+        {{ form.is_reseller }}
+        <span class="toggle-slider"></span>
+    </label>
+</div>
 
-                                        <div class="flex items-center justify-between p-4 border rounded-lg mt-4">
-                                            <div class="space-y-1">
-                                                <label class="text-sm font-medium">Agency / Reseller</label>
-                                                <p class="text-sm text-gray-600">Mark if this client manages multiple
-                                                    brands</p>
-                                            </div>
-                                            <label class="toggle-switch">
-                                                {{ form.is_reseller }}
-                                                <span class="toggle-slider"></span>
-                                            </label>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <!-- Delivery Details - B2B Only -->
+<!-- Delivery Details - B2B Only -->
 <div id="b2bDeliverySection" class="mt-6">
     <h3 class="text-lg font-semibold">Delivery Details</h3>
     <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
@@ -210,6 +217,9 @@
             {{ form.delivery_address }}
         </div>
     </div>
+</div>
+</div>
+
 </div>
                             </div>
 
@@ -319,7 +329,7 @@
                             </select>
                         </div>
                         <div>
-                            <button type="button"
+                            <button type="button" id="addContactBtn"
                                 class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
                                 + Add New Contact
                             </button>
@@ -711,57 +721,58 @@
 
     // ================= Contact Management Fix =================
     document.addEventListener('DOMContentLoaded', function () {
-        const addContactBtns = document.querySelectorAll('button');
-        addContactBtns.forEach(btn => {
-            if (btn.textContent.trim() === '+ Add New Contact') {
-                btn.addEventListener('click', function (e) {
-                    e.preventDefault();
+        const addContactBtn = document.getElementById('addContactBtn');
+        if (addContactBtn) {
+            addContactBtn.addEventListener('click', function (e) {
+                e.preventDefault();
 
-                    // Get current input values
-                    const nameInput = document.querySelector('input[placeholder="Enter full name"]');
-                    const emailInput = document.querySelector('input[placeholder="Enter email"]');
-                    const phoneInput = document.querySelector('input[placeholder="Enter phone number"]');
-                    const roleSelect = document.querySelector('select');
+                // Get current input values
+                const nameInput = document.querySelector('input[placeholder="Enter full name"]');
+                const emailInput = document.querySelector('input[placeholder="Enter email"]');
+                const phoneInput = document.querySelector('input[placeholder="Enter phone number"]');
+                const roleSelect = document.querySelector('select');
 
-                    const currentName = nameInput ? nameInput.value : '';
-                    const currentEmail = emailInput ? emailInput.value : '';
-                    const currentPhone = phoneInput ? phoneInput.value : '';
-                    const currentRole = roleSelect ? roleSelect.value : 'None';
+                const currentName = nameInput ? nameInput.value : '';
+                const currentEmail = emailInput ? emailInput.value : '';
+                const currentPhone = phoneInput ? phoneInput.value : '';
+                const currentRole = roleSelect ? roleSelect.value : 'None';
 
-                    // Create new contact container with current values
-                    const container = document.createElement('div');
-                    container.classList.add('p-4', 'border', 'rounded-lg', 'mt-4', 'bg-gray-50');
-                    container.innerHTML = `
-                    <div class="grid grid-cols-4 gap-4">
-                        <input type="text" name="contact_name[]" placeholder="Full Name" class="border rounded-lg px-3 py-2" value="${currentName}">
-                        <input type="email" name="contact_email[]" placeholder="Email" class="border rounded-lg px-3 py-2" value="${currentEmail}">
-                        <input type="text" name="contact_phone[]" placeholder="Phone" class="border rounded-lg px-3 py-2" value="${currentPhone}">
-                        <select name="contact_role[]" class="border rounded-lg px-3 py-2">
-                            <option value="None" ${currentRole === 'None' ? 'selected' : ''}>None</option>
-                            <option value="Approve Quotes" ${currentRole === 'Approve Quotes' ? 'selected' : ''}>Approve Quotes</option>
-                            <option value="Approve Artwork" ${currentRole === 'Approve Artwork' ? 'selected' : ''}>Approve Artwork</option>
-                            <option value="Billing Contact" ${currentRole === 'Billing Contact' ? 'selected' : ''}>Billing Contact</option>
-                        </select>
-                    </div>
-                    <button type="button" class="mt-2 text-red-600 text-sm hover:underline remove-contact">Remove</button>
-                `;
+                // Create new contact container with current values
+                const container = document.createElement('div');
+                container.classList.add('contact-item', 'p-4', 'border', 'rounded-lg', 'mt-4', 'bg-gray-50');
+                container.innerHTML = `
+                <div class="grid grid-cols-4 gap-4">
+                    <input type="text" name="contact_name[]" placeholder="Full Name" class="border rounded-lg px-3 py-2" value="${currentName}" required>
+                    <input type="email" name="contact_email[]" placeholder="Email" class="border rounded-lg px-3 py-2" value="${currentEmail}">
+                    <input type="text" name="contact_phone[]" placeholder="Phone" class="border rounded-lg px-3 py-2" value="${currentPhone}">
+                    <select name="contact_role[]" class="border rounded-lg px-3 py-2">
+                        <option value="None" ${currentRole === 'None' ? 'selected' : ''}>None</option>
+                        <option value="Approve Quotes" ${currentRole === 'Approve Quotes' ? 'selected' : ''}>Approve Quotes</option>
+                        <option value="Approve Artwork" ${currentRole === 'Approve Artwork' ? 'selected' : ''}>Approve Artwork</option>
+                        <option value="Billing Contact" ${currentRole === 'Billing Contact' ? 'selected' : ''}>Billing Contact</option>
+                    </select>
+                </div>
+                <button type="button" class="mt-2 text-red-600 text-sm hover:underline remove-contact">Remove</button>
+            `;
 
-                    // Add remove functionality
-                    container.querySelector('.remove-contact').addEventListener('click', function () {
-                        container.remove();
-                    });
-
-                    const target = document.querySelector('#step2 .border-dashed');
-                    if (target) target.before(container);
-
-                    // Clear the input fields for next entry
-                    if (nameInput) nameInput.value = '';
-                    if (emailInput) emailInput.value = '';
-                    if (phoneInput) phoneInput.value = '';
-                    if (roleSelect) roleSelect.value = 'None';
+                // Add remove functionality
+                container.querySelector('.remove-contact').addEventListener('click', function () {
+                    container.remove();
                 });
-            }
-        });
+
+                // Insert before the "No contacts added yet" message
+                const target = document.querySelector('#step2 .border-dashed');
+                if (target) {
+                    target.parentNode.insertBefore(container, target);
+                }
+
+                // Clear the input fields for next entry
+                if (nameInput) nameInput.value = '';
+                if (emailInput) emailInput.value = '';
+                if (phoneInput) phoneInput.value = '';
+                if (roleSelect) roleSelect.value = 'None';
+            });
+        }
     });
 
     // ================= Brand Asset Upload Handling =================
@@ -976,11 +987,12 @@
                     }
 
                     // If B2B and has files, attach them properly
-                    if (selected.size > 0 && clientType === 'B2B') {
+                    if ((selected.size > 0 || brandFiles.size > 0) && clientType === 'B2B') {
                         e.preventDefault();
                         const url = form.action || window.location.href;
                         const fd = new FormData(form);
                         selected.forEach(file => fd.append('compliance_files', file));
+                        brandFiles.forEach(file => fd.append('brand_files', file));
 
                         // Disable submit button to prevent double submission
                         const submitBtn = document.getElementById('submitBtn');

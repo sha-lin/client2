@@ -1,0 +1,350 @@
+<!-- Client-specific form fields with B2B/B2C distinction -->
+<div class="form-row">
+    <!-- Client Type Selection -->
+    <div class="field-wrapper">
+        <div class="form-group">
+            <label>Client Type <span class="required">*</span></label>
+            <div class="radio-group">
+                {% for radio in form.client_type %}
+                    {{ radio.tag }}
+                    <label for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+                {% endfor %}
+            </div>
+            {% if form.client_type.help_text %}
+                <p class="help-text">{{ form.client_type.help_text }}</p>
+            {% endif %}
+            {% if form.client_type.errors %}
+                <ul class="error">{% for error in form.client_type.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Status -->
+    <div class="field-wrapper">
+        <div class="form-group">
+            <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+            {{ form.status }}
+            {% if form.status.help_text %}
+                <p class="help-text">{{ form.status.help_text }}</p>
+            {% endif %}
+            {% if form.status.errors %}
+                <ul class="error">{% for error in form.status.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Basic Information Section -->
+<div class="field-section">
+    <h3 class="section-title">Basic Information</h3>
+    <div class="form-row">
+        <!-- Name (Required for both B2B and B2C) -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }} <span class="required">*</span></label>
+                {{ form.name }}
+                {% if form.name.help_text %}
+                    <p class="help-text">{{ form.name.help_text }}</p>
+                {% endif %}
+                {% if form.name.errors %}
+                    <ul class="error">{% for error in form.name.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Company (B2B only) -->
+        <div class="field-wrapper conditional-field" id="wrapper_company">
+            <div class="form-group">
+                <label for="{{ form.company.id_for_label }}">{{ form.company.label }}</label>
+                {{ form.company }}
+                {% if form.company.help_text %}
+                    <p class="help-text">{{ form.company.help_text }}</p>
+                {% endif %}
+                {% if form.company.errors %}
+                    <ul class="error">{% for error in form.company.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Email (Required) -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.email.id_for_label }}">{{ form.email.label }} <span class="required">*</span></label>
+                {{ form.email }}
+                {% if form.email.help_text %}
+                    <p class="help-text">{{ form.email.help_text }}</p>
+                {% endif %}
+                {% if form.email.errors %}
+                    <ul class="error">{% for error in form.email.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Phone (Required) -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.phone.id_for_label }}">{{ form.phone.label }} <span class="required">*</span></label>
+                {{ form.phone }}
+                {% if form.phone.help_text %}
+                    <p class="help-text">{{ form.phone.help_text }}</p>
+                {% endif %}
+                {% if form.phone.errors %}
+                    <ul class="error">{% for error in form.phone.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Business Details Section (B2B only) -->
+<div class="field-section conditional-field" id="business-details-section">
+    <h3 class="section-title">Business Details</h3>
+    <div class="form-row">
+        <!-- VAT/Tax ID -->
+        <div class="field-wrapper" id="wrapper_vat_tax_id">
+            <div class="form-group">
+                <label for="{{ form.vat_tax_id.id_for_label }}">{{ form.vat_tax_id.label }}</label>
+                {{ form.vat_tax_id }}
+                {% if form.vat_tax_id.help_text %}
+                    <p class="help-text">{{ form.vat_tax_id.help_text }}</p>
+                {% endif %}
+                {% if form.vat_tax_id.errors %}
+                    <ul class="error">{% for error in form.vat_tax_id.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- KRA PIN -->
+        <div class="field-wrapper" id="wrapper_kra_pin">
+            <div class="form-group">
+                <label for="{{ form.kra_pin.id_for_label }}">{{ form.kra_pin.label }}</label>
+                {{ form.kra_pin }}
+                {% if form.kra_pin.help_text %}
+                    <p class="help-text">{{ form.kra_pin.help_text }}</p>
+                {% endif %}
+                {% if form.kra_pin.errors %}
+                    <ul class="error">{% for error in form.kra_pin.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Industry -->
+        <div class="field-wrapper" id="wrapper_industry">
+            <div class="form-group">
+                <label for="{{ form.industry.id_for_label }}">{{ form.industry.label }}</label>
+                {{ form.industry }}
+                {% if form.industry.help_text %}
+                    <p class="help-text">{{ form.industry.help_text }}</p>
+                {% endif %}
+                {% if form.industry.errors %}
+                    <ul class="error">{% for error in form.industry.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Address -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.address.id_for_label }}">{{ form.address.label }}</label>
+                {{ form.address }}
+                {% if form.address.help_text %}
+                    <p class="help-text">{{ form.address.help_text }}</p>
+                {% endif %}
+                {% if form.address.errors %}
+                    <ul class="error">{% for error in form.address.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Financial Section -->
+<div class="field-section">
+    <h3 class="section-title">Financial Information</h3>
+    <div class="form-row">
+        <!-- Payment Terms -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.payment_terms.id_for_label }}">{{ form.payment_terms.label }}</label>
+                {{ form.payment_terms }}
+                {% if form.payment_terms.help_text %}
+                    <p class="help-text">{{ form.payment_terms.help_text }}</p>
+                {% endif %}
+                {% if form.payment_terms.errors %}
+                    <ul class="error">{% for error in form.payment_terms.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Credit Limit (B2B only) -->
+        <div class="field-wrapper conditional-field" id="wrapper_credit_limit">
+            <div class="form-group">
+                <label for="{{ form.credit_limit.id_for_label }}">{{ form.credit_limit.label }}</label>
+                {{ form.credit_limit }}
+                {% if form.credit_limit.help_text %}
+                    <p class="help-text">{{ form.credit_limit.help_text }}</p>
+                {% endif %}
+                {% if form.credit_limit.errors %}
+                    <ul class="error">{% for error in form.credit_limit.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Default Markup (B2B only) -->
+        <div class="field-wrapper conditional-field" id="wrapper_default_markup">
+            <div class="form-group">
+                <label for="{{ form.default_markup.id_for_label }}">{{ form.default_markup.label }}</label>
+                {{ form.default_markup }}
+                {% if form.default_markup.help_text %}
+                    <p class="help-text">{{ form.default_markup.help_text }}</p>
+                {% endif %}
+                {% if form.default_markup.errors %}
+                    <ul class="error">{% for error in form.default_markup.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Risk Rating -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.risk_rating.id_for_label }}">{{ form.risk_rating.label }}</label>
+                {{ form.risk_rating }}
+                {% if form.risk_rating.help_text %}
+                    <p class="help-text">{{ form.risk_rating.help_text }}</p>
+                {% endif %}
+                {% if form.risk_rating.errors %}
+                    <ul class="error">{% for error in form.risk_rating.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Is Reseller (B2B only) -->
+    <div class="field-wrapper conditional-field" id="wrapper_is_reseller">
+        <div class="form-group">
+            <div class="checkbox-group">
+                {{ form.is_reseller }}
+                <label for="{{ form.is_reseller.id_for_label }}">{{ form.is_reseller.label }}</label>
+            </div>
+            {% if form.is_reseller.help_text %}
+                <p class="help-text">{{ form.is_reseller.help_text }}</p>
+            {% endif %}
+            {% if form.is_reseller.errors %}
+                <ul class="error">{% for error in form.is_reseller.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Delivery Section -->
+<div class="field-section">
+    <h3 class="section-title">Delivery Information</h3>
+    <div class="form-row">
+        <!-- Delivery Address -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.delivery_address.id_for_label }}">{{ form.delivery_address.label }}</label>
+                {{ form.delivery_address }}
+                {% if form.delivery_address.help_text %}
+                    <p class="help-text">{{ form.delivery_address.help_text }}</p>
+                {% endif %}
+                {% if form.delivery_address.errors %}
+                    <ul class="error">{% for error in form.delivery_address.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Preferred Channel -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.preferred_channel.id_for_label }}">{{ form.preferred_channel.label }}</label>
+                {{ form.preferred_channel }}
+                {% if form.preferred_channel.help_text %}
+                    <p class="help-text">{{ form.preferred_channel.help_text }}</p>
+                {% endif %}
+                {% if form.preferred_channel.errors %}
+                    <ul class="error">{% for error in form.preferred_channel.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Delivery Instructions -->
+    <div class="field-wrapper">
+        <div class="form-group">
+            <label for="{{ form.delivery_instructions.id_for_label }}">{{ form.delivery_instructions.label }}</label>
+            {{ form.delivery_instructions }}
+            {% if form.delivery_instructions.help_text %}
+                <p class="help-text">{{ form.delivery_instructions.help_text }}</p>
+            {% endif %}
+            {% if form.delivery_instructions.errors %}
+                <ul class="error">{% for error in form.delivery_instructions.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Lead Source and Account Manager -->
+<div class="field-section">
+    <h3 class="section-title">Lead Source & Account Management</h3>
+    <div class="form-row">
+        <!-- Lead Source -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.lead_source.id_for_label }}">{{ form.lead_source.label }}</label>
+                {{ form.lead_source }}
+                {% if form.lead_source.help_text %}
+                    <p class="help-text">{{ form.lead_source.help_text }}</p>
+                {% endif %}
+                {% if form.lead_source.errors %}
+                    <ul class="error">{% for error in form.lead_source.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Account Manager -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.account_manager.id_for_label }}">{{ form.account_manager.label }}</label>
+                {{ form.account_manager }}
+                {% if form.account_manager.help_text %}
+                    <p class="help-text">{{ form.account_manager.help_text }}</p>
+                {% endif %}
+                {% if form.account_manager.errors %}
+                    <ul class="error">{% for error in form.account_manager.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Any remaining fields not covered above -->
+{% for field in form %}
+    {% if field.name not in 'client_type,name,company,email,phone,vat_tax_id,kra_pin,industry,address,payment_terms,credit_limit,default_markup,risk_rating,is_reseller,delivery_address,delivery_instructions,preferred_channel,lead_source,account_manager,status' %}
+        <div class="field-wrapper" id="wrapper_{{ field.name }}">
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                    {% if field.field.required %}<span class="required">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.help_text %}
+                    <p class="help-text">{{ field.help_text }}</p>
+                {% endif %}
+                {% if field.errors %}
+                    <ul class="error">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}

@@ -2,6 +2,7 @@
 from django.urls import path
 from . import views
 from . import admin_crud_operations
+from . import ajax_views
 from django.urls import reverse
 from django.shortcuts import redirect
 from django.urls import include
@@ -84,10 +85,10 @@ urlpatterns = [
     path('update-quote-status/', views.update_quote_status, name='update_quote_status'),
     path('production/jobs/', views.production_jobs, name='production_jobs'),
     # Product Image AJAX endpoints
-path('ajax/product-image/<int:image_id>/', views.ajax_get_product_image, name='ajax_get_product_image'),
-path('ajax/product-image/<int:image_id>/update/', views.ajax_update_product_image, name='ajax_update_product_image'),
-path('ajax/product-image/<int:image_id>/delete/', views.ajax_delete_product_image, name='ajax_delete_product_image'),
-path('ajax/product-image/<int:image_id>/replace/', views.ajax_replace_product_image, name='ajax_replace_product_image'),
+ path('ajax/product-image/<int:image_id>/', ajax_views.ajax_get_product_image, name='ajax_get_product_image'),
+ path('ajax/product-image/<int:image_id>/update/', ajax_views.ajax_update_product_image, name='ajax_update_product_image'),
+ path('ajax/product-image/<int:image_id>/delete/', ajax_views.ajax_delete_product_image, name='ajax_delete_product_image'),
+ path('ajax/product-image/<int:image_id>/replace/', ajax_views.ajax_replace_product_image, name='ajax_replace_product_image'),
     
 
     
@@ -152,11 +153,17 @@ path('quality-control/', views.quality_control_list, name='quality_control_list'
     path('processes/', views.process_list, name='process_list'),
     path('processes/create/', views.process_create, name='process_create'),
     path('processes/<str:process_id>/edit/', views.process_edit, name='process_edit'),
+    # Variable Ranges Management
+    path('processes/<int:process_id>/variable-ranges/', views.process_variable_ranges_manager, name='process_variable_ranges_manager'),
+    path('ajax/process-variable-ranges/<int:process_id>/add/', views.add_variable_range, name='add_variable_range'),
+    path('ajax/process-variable-ranges/<int:process_id>/delete/', views.delete_variable_range, name='delete_variable_range'),
+    path('ajax/process-variable-ranges/<int:process_id>/create-samples/', views.create_sample_ranges, name='create_sample_ranges'),
     # path('processes/<str:process_id>/', views.process_detail, name='process_detail'),
     
     # AJAX endpoints
     path('ajax/generate-process-id/', views.ajax_generate_process_id, name='ajax_generate_process_id'),
     path('ajax/calculate-margin/', views.ajax_calculate_margin, name='ajax_calculate_margin'),
+    path('ajax/delete-process/<int:process_id>/', views.ajax_delete_process, name='ajax_delete_process'),
     path('delivery/', views.delivery_list, name='delivery_list'),
     # Job Completion
     # path('jobs/<int:pk>/complete/', views.complete_job, name='complete_job'),
@@ -172,8 +179,10 @@ path('quality-control/', views.quality_control_list, name='quality_control_list'
     path('admin/dismiss-alert/<int:alert_id>/', views.dismiss_alert, name='dismiss_alert'),
     path('admin/export-report/<str:report_type>/', views.export_dashboard_report, name='export_report'),
     
-    # NEW: Process-Product Integration AJAX endpoint
-    path('ajax/process/<int:process_id>/variables/', views.ajax_process_variables, name='ajax_process_variables'),
+    # Process-Product Integration AJAX endpoints
+    path('ajax/process/<int:process_id>/tiers/', ajax_views.ajax_process_tiers, name='ajax_process_tiers'),
+    path('ajax/process/<int:process_id>/variables/', ajax_views.ajax_process_variables, name='ajax_process_variables'),
+    path('ajax/process/<int:process_id>/calculate/', ajax_views.ajax_calculate_pricing, name='ajax_calculate_pricing'),
 
     # Add these to your urlpatterns
 path('qc-inspection/<int:inspection_id>/', views.qc_inspection, name='qc_inspection'),

@@ -114,7 +114,7 @@ def admin_client_detail(request, pk):
         'list_url': reverse('admin_clients_list'),
         'delete_url': reverse('admin_client_delete', args=[client.pk]),
     }
-    return render(request, 'admin/client_form.html', context)
+    return render(request, 'admin/enhanced_form_view.html', context)
 
 
 @permission_required('clientapp.add_client', raise_exception=True)
@@ -140,7 +140,7 @@ def admin_client_add(request):
         'model_name_plural': 'Clients',
         'list_url': reverse('admin_clients_list'),
     }
-    return render(request, 'admin/client_form.html', context)
+    return render(request, 'admin/enhanced_form_view.html', context)
 
 
 @permission_required('clientapp.delete_client', raise_exception=True)
@@ -458,7 +458,7 @@ def admin_product_detail(request, pk):
         'list_url': reverse('admin_products_list'),
         'delete_url': reverse('admin_product_delete', args=[product.pk]),
     }
-    return render(request, 'admin/form_view.html', context)
+    return render(request, 'admin/enhanced_form_view.html', context)
 
 
 @permission_required('clientapp.add_product', raise_exception=True)
@@ -481,7 +481,7 @@ def admin_product_add(request):
         'model_name_plural': 'Products',
         'list_url': reverse('admin_products_list'),
     }
-    return render(request, 'admin/form_view.html', context)
+    return render(request, 'admin/enhanced_form_view.html', context)
 
 
 @permission_required('clientapp.delete_product', raise_exception=True)
@@ -796,21 +796,21 @@ def admin_process_detail(request, pk):
         'list_url': reverse('admin_processes_list'),
         'delete_url': reverse('admin_process_delete', args=[process.pk]),
     }
-    return render(request, 'admin/form_view.html', context)
+    return render(request, 'admin/enhanced_form_view.html', context)
 
 
 @permission_required('clientapp.add_process', raise_exception=True)
 def admin_process_add(request):
     """Add a new process"""
     if request.method == 'POST':
-        form = ProcessForm(request.POST)
+        form = AdminProcessForm(request.POST)
         if form.is_valid():
             process = form.save()
             log_admin_action(request, 'CREATE', process, 'Created new process')
             messages.success(request, f'Process "{process.process_name}" created successfully')
             return redirect('admin_process_detail', pk=process.pk)
     else:
-        form = ProcessForm()
+        form = AdminProcessForm()
     
     context = {
         'form': form,
@@ -820,7 +820,7 @@ def admin_process_add(request):
         'model_name_plural': 'Processes',
         'list_url': reverse('admin_processes_list'),
     }
-    return render(request, 'admin/form_view.html', context)
+    return render(request, 'admin/enhanced_form_view.html', context)
 
 
 @permission_required('clientapp.delete_process', raise_exception=True)

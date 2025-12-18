@@ -495,6 +495,38 @@
             </div>
             
             <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">
+                    Return Margin (%) <span class="text-red-500">*</span>
+                </label>
+                <div class="flex">
+                    <input type="number" name="return_margin" id="id_return_margin"
+                        value="{% if product and product.pricing %}{{ product.pricing.return_margin }}{% else %}30{% endif %}"
+                        step="0.01" min="0" max="100" required
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md">
+                    <span class="inline-flex items-center px-3 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-600 text-sm">
+                        %
+                    </span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Margin percentage for this product</p>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-900 mb-2">
+                    Return Margin (%) <span class="text-red-500">*</span>
+                </label>
+                <div class="flex">
+                    <input type="number" name="return_margin" id="id_return_margin"
+                        value="{% if product and product.pricing %}{{ product.pricing.return_margin|default:30 }}{% else %}30{% endif %}"
+                        step="0.01" min="0" max="100" required
+                        class="flex-1 px-3 py-2 border border-gray-300 rounded-md">
+                    <span class="inline-flex items-center px-3 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-600 text-sm">
+                        %
+                    </span>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">Profit margin percentage for this product</p>
+            </div>
+
+            <div>
                 <label class="block text-sm font-medium text-gray-900 mb-2">Price Display</label>
                 <select name="price_display" id="id_price_display" class="w-full px-3 py-2 border border-gray-300 rounded-md">
                     <option value="from">From KES X</option>
@@ -534,6 +566,14 @@
                 </p>
             </div>
             
+            <!-- Show tier pricing when selected -->
+            <div id="tier-pricing-display" class="hidden mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <h5 class="text-sm font-semibold mb-2">Selected Tier Process Pricing:</h5>
+                <div id="tier-pricing-content" class="text-sm text-gray-700">
+                    <!-- Pricing will be displayed here -->
+                </div>
+            </div>
+
             <!-- Show tier preview when selected -->
             <div id="tier-preview" class="hidden mt-4">
                 <h5 class="text-sm font-semibold mb-2">Pricing Tiers Preview:</h5>
@@ -595,6 +635,14 @@
                 </p>
             </div>
             
+            <!-- Show formula pricing when selected -->
+            <div id="formula-pricing-display" class="hidden mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                <h5 class="text-sm font-semibold mb-2">Selected Formula Process Pricing:</h5>
+                <div id="formula-pricing-content" class="text-sm text-gray-700">
+                    <!-- Pricing will be displayed here -->
+                </div>
+            </div>
+
             <!-- Show variables preview when selected -->
             <div id="formula-variables-preview" class="hidden mt-4">
                 <h5 class="text-sm font-semibold mb-2">Process Variables:</h5>
@@ -616,93 +664,34 @@
     <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
         <h3 class="text-base font-semibold text-gray-900 mb-6">Test Your Pricing</h3>
 
-        <div class="grid grid-cols-2 gap-6 mb-6">
-            <div>
-                <label class="block text-sm font-medium text-gray-900 mb-2">Quantity</label>
-                <select name="test_quantity" id="test_quantity"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="500">500 pieces</option>
-                    <option value="100">100 pieces</option>
-                    <option value="250">250 pieces</option>
-                    <option value="1000">1000 pieces</option>
-                </select>
-            </div>
+        <!-- Quantity Input -->
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-900 mb-2">Quantity</label>
+            <input type="number" name="test_quantity" id="test_quantity" min="1"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                value="500" placeholder="Enter quantity">
+        </div>
 
-            <div>
-                <label class="block text-sm font-medium text-gray-900 mb-2">Paper Weight</label>
-                <select name="test_paper_weight" id="test_paper_weight"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="350">350gsm</option>
-                    <option value="250">250gsm</option>
-                    <option value="300">300gsm</option>
-                    <option value="400">400gsm</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-900 mb-2">Coating</label>
-                <select name="test_coating" id="test_coating"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="matte">Matte</option>
-                    <option value="none">None</option>
-                    <option value="gloss">Gloss</option>
-                    <option value="silk">Silk</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-900 mb-2">Lamination Sides</label>
-                <select name="test_lamination" id="test_lamination"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                    <option value="both">Both Sides</option>
-                    <option value="one">One Side</option>
-                    <option value="none">None</option>
-                </select>
-            </div>
+        <!-- Dynamic Variables Section -->
+        <div id="test-variables-section" class="mb-6">
+            <!-- Variables will be dynamically loaded here based on selected formula process -->
+            <p class="text-sm text-gray-500">Select a formula-based process above to see customization variables.</p>
         </div>
 
         <div class="bg-gray-50 rounded-lg p-4 border border-gray-200" id="pricing-breakdown">
             <h4 class="text-sm font-semibold text-gray-900 mb-3">CALCULATION BREAKDOWN:</h4>
-            <div class="space-y-2 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-gray-700">Base (500 × KES 12):</span>
-                    <span class="font-medium text-gray-900">KES 6,000</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-700">Premium Paper (× KES 4):</span>
-                    <span class="font-medium text-gray-900">KES 2,000</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-700">Matte Coating (× KES 2):</span>
-                    <span class="font-medium text-gray-900">KES 1,000</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-700">Both Sides (× KES 1.50):</span>
-                    <span class="font-medium text-gray-900">KES 750</span>
-                </div>
-                <div class="flex justify-between pt-2 border-t border-gray-300">
-                    <span class="text-gray-700">Subtotal EVP:</span>
-                    <span class="font-semibold text-gray-900">KES 9,750</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-gray-700">Margin (30%):</span>
-                    <span class="font-semibold text-gray-900">KES 2,925</span>
-                </div>
-                <div class="flex justify-between pt-2 border-t-2 border-gray-400">
-                    <span class="text-gray-900 font-semibold">CUSTOMER PAYS:</span>
-                    <span class="font-bold text-green-600 text-lg">KES 12,675</span>
-                </div>
-                <div class="flex justify-between text-xs">
-                    <span class="text-gray-600">Per Unit:</span>
-                    <span class="font-medium text-gray-900">KES 25.35</span>
+            <div id="breakdown-content" class="space-y-2 text-sm">
+                <!-- Dynamic breakdown will be populated here -->
+                <div class="text-center py-4 text-gray-500">
+                    <p>Select pricing methods and enter values to see calculation breakdown</p>
                 </div>
             </div>
         </div>
 
         <div class="flex gap-3 mt-4">
-            <button type="button" id="test-another-btn"
-                class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm">
-                Test Another Combination
+            <button type="button" id="calculate-pricing-btn"
+                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                Calculate Pricing
             </button>
             <button type="button" id="reset-test-btn"
                 class="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 text-sm">
@@ -2636,103 +2625,374 @@ if (editorToolbar && longDescTextarea) {
         });
     }
     
-    // ==================== PRICING CALCULATOR ====================
-    window.calculatePricing = function() {
-        const quantity = parseInt(document.getElementById('test_quantity')?.value || 500);
-        const basePrice = parseFloat(document.getElementById('id_base_cost')?.value || 12);
-        const margin = parseFloat(document.getElementById('id_default_margin')?.value || 30);
-        
-        const base = quantity * basePrice;
-        const paper = quantity * 4;
-        const coating = quantity * 2;
-        const lamination = quantity * 1.5;
-        const subtotal = base + paper + coating + lamination;
-        const marginAmount = subtotal * (margin / 100);
-        const total = subtotal + marginAmount;
-        const perUnit = total / quantity;
-        
-        const breakdown = document.getElementById('pricing-breakdown');
-        if (breakdown) {
-            breakdown.innerHTML = `
-                <h4 class="text-sm font-semibold text-gray-900 mb-3">CALCULATION BREAKDOWN:</h4>
-                <div class="space-y-2 text-sm">
-                    <div class="flex justify-between">
-                        <span class="text-gray-700">Base (${quantity} × KES ${basePrice}):</span>
-                        <span class="font-medium text-gray-900">KES ${base.toLocaleString()}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-700">Premium Paper (× KES 4):</span>
-                        <span class="font-medium text-gray-900">KES ${paper.toLocaleString()}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-700">Coating (× KES 2):</span>
-                        <span class="font-medium text-gray-900">KES ${coating.toLocaleString()}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-700">Lamination (× KES 1.50):</span>
-                        <span class="font-medium text-gray-900">KES ${lamination.toLocaleString()}</span>
-                    </div>
-                    <div class="flex justify-between pt-2 border-t border-gray-300">
-                        <span class="text-gray-700">Subtotal EVP:</span>
-                        <span class="font-semibold text-gray-900">KES ${subtotal.toLocaleString()}</span>
-                    </div>
-                    <div class="flex justify-between">
-                        <span class="text-gray-700">Margin (${margin}%):</span>
-                        <span class="font-semibold text-gray-900">KES ${marginAmount.toLocaleString()}</span>
-                    </div>
-                    <div class="flex justify-between pt-2 border-t-2 border-gray-400">
-                        <span class="text-gray-900 font-semibold">CUSTOMER PAYS:</span>
-                        <span class="font-bold text-green-600 text-lg">KES ${total.toLocaleString()}</span>
-                    </div>
-                    <div class="flex justify-between text-xs">
-                        <span class="text-gray-600">Per Unit:</span>
-                        <span class="font-medium text-gray-900">KES ${perUnit.toFixed(2)}</span>
-                    </div>
+    // ==================== DYNAMIC PRICING CALCULATOR ====================
+    let testVariables = {}; // Store variable values for calculation
+
+    // Update test variables section when formula process changes
+    async function updateTestVariablesSection() {
+        const formulaProcessSelect = document.getElementById('id_formula_process');
+        const testVariablesSection = document.getElementById('test-variables-section');
+
+        if (!formulaProcessSelect || !testVariablesSection) {
+            console.log('updateTestVariablesSection: Missing elements');
+            return;
+        }
+
+        const processId = formulaProcessSelect.value;
+        console.log('updateTestVariablesSection: processId =', processId);
+
+        if (!processId) {
+            testVariablesSection.innerHTML = '<p class="text-sm text-gray-500">Select a formula-based process above to see customization variables.</p>';
+            return;
+        }
+
+        // Show loading state
+        testVariablesSection.innerHTML = '<p class="text-sm text-gray-500">Loading variables...</p>';
+
+        try {
+            console.log('Fetching variables from:', `/ajax/process/${processId}/variables/`);
+            // Fetch process variables
+            const response = await fetch(`/ajax/process/${processId}/variables/`);
+            console.log('Response status:', response.status);
+            const data = await response.json();
+            console.log('Response data:', data);
+
+            if (data.success && data.variables && data.variables.length > 0) {
+                console.log('Found variables:', data.variables.length);
+                let html = '<div class="grid grid-cols-2 gap-4">';
+                data.variables.forEach(variable => {
+                    const varId = `test_var_${variable.id}`;
+                    html += `
+                        <div>
+                            <label class="block text-sm font-medium text-gray-900 mb-2">
+                                ${variable.name} ${variable.unit ? `(${variable.unit})` : ''}
+                            </label>
+                            <input type="number" id="${varId}" name="test_${variable.name.toLowerCase().replace(/\s+/g, '_')}"
+                                class="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                min="${variable.min_value || 0}" max="${variable.max_value || ''}"
+                                value="${variable.default_value || variable.min_value || 0}"
+                                step="0.01">
+                        </div>
+                    `;
+                });
+                html += '</div>';
+                testVariablesSection.innerHTML = html;
+
+                // Clear existing testVariables
+                testVariables = {};
+
+                // Add event listeners to variable inputs
+                data.variables.forEach(variable => {
+                    const input = document.getElementById(`test_var_${variable.id}`);
+                    if (input) {
+                        input.addEventListener('input', function() {
+                            console.log(`Setting testVariables['${variable.name}'] = ${this.value}`);
+                            testVariables[variable.name] = parseFloat(this.value) || 0;
+                            console.log('Updated testVariables:', testVariables);
+                        });
+                        // Initialize values
+                        const initialValue = parseFloat(input.value) || 0;
+                        console.log(`Initializing testVariables['${variable.name}'] = ${initialValue}`);
+                        testVariables[variable.name] = initialValue;
+                    }
+                });
+                console.log('Final testVariables object:', testVariables);
+                console.log('testVariables initialized:', testVariables);
+            } else {
+                console.log('No variables found');
+                testVariablesSection.innerHTML = '<p class="text-sm text-gray-500">No variables found for this process.</p>';
+                testVariables = {};
+            }
+        } catch (error) {
+            console.error('Error fetching process variables:', error);
+            testVariablesSection.innerHTML = '<p class="text-sm text-red-500">Error loading variables. Please try again.</p>';
+            testVariables = {};
+        }
+    }
+
+    // Calculate pricing based on selected processes and customization level
+    async function calculatePricing() {
+        const quantity = parseInt(document.getElementById('test_quantity')?.value || 1);
+        const customizationLevel = document.getElementById('id_customization_level')?.value;
+        const baseCost = parseFloat(document.getElementById('id_base_cost')?.value || 0);
+        const returnMargin = parseFloat(document.getElementById('id_return_margin')?.value || 30);
+
+        let breakdown = [];
+        let subtotalEVP = 0;
+
+        // Debug: Check what's selected
+        const tierProcessSelect = document.getElementById('id_tier_process');
+        const formulaProcessSelect = document.getElementById('id_formula_process');
+        console.log('=== CALCULATE PRICING DEBUG ===');
+        console.log('Quantity:', quantity);
+        console.log('Customization Level:', customizationLevel);
+        console.log('Base Cost:', baseCost);
+        console.log('Tier Process Selected:', tierProcessSelect?.value || 'None');
+        console.log('Formula Process Selected:', formulaProcessSelect?.value || 'None');
+        console.log('testVariables:', testVariables);
+        console.log('================================');
+
+        // Show loading state
+        const breakdownContent = document.getElementById('breakdown-content');
+        if (breakdownContent) {
+            breakdownContent.innerHTML = '<div class="text-center py-4"><p class="text-gray-500">Calculating pricing...</p></div>';
+        }
+
+        try {
+            // 1. Base Cost (for non-customizable and semi-customizable)
+            if (customizationLevel === 'non_customizable' || customizationLevel === 'semi_customizable') {
+                const baseAmount = baseCost * quantity;
+                subtotalEVP += baseAmount;
+                breakdown.push({
+                    component: `Base Cost (${quantity} × KES ${baseCost.toLocaleString()})`,
+                    calculation: `${quantity} × ${baseCost}`,
+                    amount: baseAmount
+                });
+            }
+
+            // 2. Tier-Based Cost
+            const tierProcessSelect = document.getElementById('id_tier_process');
+            if (tierProcessSelect && tierProcessSelect.value) {
+                try {
+                    const tierResponse = await fetch(`/ajax/process/${tierProcessSelect.value}/tiers/`);
+                    const tierData = await tierResponse.json();
+
+                    if (tierData.success && tierData.tiers) {
+                        // Find applicable tier for quantity
+                        const applicableTier = tierData.tiers.find(tier =>
+                            quantity >= tier.quantity_from && quantity <= tier.quantity_to
+                        );
+
+                        if (applicableTier) {
+                            const tierCost = applicableTier.cost * quantity;
+                            subtotalEVP += tierCost;
+                            breakdown.push({
+                                component: `Tier ${applicableTier.tier_number} Cost (${quantity} × KES ${applicableTier.cost.toLocaleString()})`,
+                                calculation: `${quantity} × ${applicableTier.cost}`,
+                                amount: tierCost
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching tier pricing:', error);
+                    breakdown.push({
+                        component: 'Tier-Based Cost',
+                        calculation: 'Error loading tier pricing',
+                        amount: 0,
+                        error: true
+                    });
+                }
+            }
+
+            // 3. Formula-Based Customization Cost
+            const formulaProcessSelect = document.getElementById('id_formula_process');
+            if (formulaProcessSelect && formulaProcessSelect.value) {
+                try {
+                    // Use testVariables if available, otherwise use default values (zeros)
+                    const formulaVariables = Object.keys(testVariables).length > 0 ? testVariables : {};
+                    
+                    console.log('Formula pricing calculation:');
+                    console.log('- Process ID:', formulaProcessSelect.value);
+                    console.log('- Variables:', formulaVariables);
+                    console.log('- Quantity:', quantity);
+                    
+                    const formulaResponse = await fetch(`/ajax/process/${formulaProcessSelect.value}/calculate/`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                        },
+                        body: JSON.stringify({
+                            variables: formulaVariables,
+                            quantity: quantity
+                        })
+                    });
+                    const formulaData = await formulaResponse.json();
+
+                    console.log('Formula pricing response:', formulaData);
+
+                    if (formulaData.success && formulaData.breakdown) {
+                        formulaData.breakdown.forEach(item => {
+                            subtotalEVP += parseFloat(item.amount);
+                            breakdown.push({
+                                component: item.component,
+                                calculation: item.calculation,
+                                amount: parseFloat(item.amount)
+                            });
+                        });
+                    } else if (formulaData.error) {
+                        console.error('Formula pricing error:', formulaData.error);
+                        breakdown.push({
+                            component: 'Formula-Based Cost',
+                            calculation: `Error: ${formulaData.error}`,
+                            amount: 0,
+                            error: true
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error calculating formula pricing:', error);
+                    breakdown.push({
+                        component: 'Formula-Based Cost',
+                        calculation: 'Error calculating formula pricing',
+                        amount: 0,
+                        error: true
+                    });
+                }
+            }
+
+            // Update the display with complete breakdown
+            updatePricingBreakdownWithItems(breakdown, subtotalEVP, quantity, returnMargin);
+
+        } catch (error) {
+            console.error('Error in calculatePricing:', error);
+            if (breakdownContent) {
+                breakdownContent.innerHTML = '<div class="text-center py-4"><p class="text-red-500">Error calculating pricing</p></div>';
+            }
+        }
+    }
+
+    // Helper function to update pricing breakdown with structured items
+    function updatePricingBreakdownWithItems(breakdown, subtotalEVP, quantity, returnMargin) {
+        let breakdownHtml = '<div class="space-y-2 text-sm">';
+
+        // Add breakdown items
+        breakdown.forEach(item => {
+            const amountClass = item.error ? 'text-red-600' : 'text-gray-900';
+            const amountText = item.error ? item.calculation : `KES ${item.amount.toLocaleString()}`;
+            breakdownHtml += `
+                <div class="flex justify-between">
+                    <span class="text-gray-700">${item.component}:</span>
+                    <span class="font-medium ${amountClass}">${amountText}</span>
                 </div>
             `;
-        }
-    };
-    
-    // Setup event listeners for test inputs
-    const testQuantity = document.getElementById('test_quantity');
-    const testPaperWeight = document.getElementById('test_paper_weight');
-    const testCoating = document.getElementById('test_coating');
-    const testLamination = document.getElementById('test_lamination');
-    const testAnotherBtn = document.getElementById('test-another-btn');
-    const resetTestBtn = document.getElementById('reset-test-btn');
-    
-    if (testQuantity) {
-        testQuantity.addEventListener('change', calculatePricing);
-    }
-    if (testPaperWeight) {
-        testPaperWeight.addEventListener('change', calculatePricing);
-    }
-    if (testCoating) {
-        testCoating.addEventListener('change', calculatePricing);
-    }
-    if (testLamination) {
-        testLamination.addEventListener('change', calculatePricing);
-    }
-    
-    if (testAnotherBtn) {
-        testAnotherBtn.addEventListener('click', function() {
-            // Trigger calculation again
-            calculatePricing();
         });
+
+        // Subtotal EVP
+        breakdownHtml += `
+            <div class="flex justify-between pt-2 border-t border-gray-300">
+                <span class="text-gray-700">Subtotal EVP:</span>
+                <span class="font-semibold text-gray-900">KES ${subtotalEVP.toLocaleString()}</span>
+            </div>
+        `;
+
+        // Margin
+        const marginAmount = subtotalEVP * (returnMargin / 100);
+        const totalWithMargin = subtotalEVP + marginAmount;
+        const perUnit = quantity > 0 ? totalWithMargin / quantity : 0;
+
+        breakdownHtml += `
+            <div class="flex justify-between">
+                <span class="text-gray-700">Return Margin (${returnMargin}%):</span>
+                <span class="font-semibold text-gray-900">KES ${marginAmount.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between pt-2 border-t-2 border-gray-400">
+                <span class="text-gray-900 font-semibold">CUSTOMER PAYS:</span>
+                <span class="font-bold text-green-600 text-lg">KES ${totalWithMargin.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between text-xs">
+                <span class="text-gray-600">Per Unit:</span>
+                <span class="font-medium text-gray-900">KES ${perUnit.toFixed(2)}</span>
+            </div>
+        `;
+
+        breakdownHtml += '</div>';
+
+        const breakdownContent = document.getElementById('breakdown-content');
+        if (breakdownContent) {
+            breakdownContent.innerHTML = breakdownHtml;
+        }
     }
-    
+
+    // Make calculatePricing available globally
+    window.calculatePricing = calculatePricing;
+
+    function updatePricingBreakdown(subtotalEVP, quantity, returnMargin) {
+        let breakdownHtml = '<div class="space-y-2 text-sm">';
+
+        // Add existing breakdown content
+        const existingContent = document.getElementById('breakdown-content');
+        if (existingContent) {
+            const existingBreakdown = existingContent.querySelector('.space-y-2');
+            if (existingBreakdown) {
+                // Keep the base and tier breakdown, update totals
+                const breakdownItems = existingBreakdown.querySelectorAll('.flex.justify-between');
+                breakdownItems.forEach(item => {
+                    if (!item.textContent.includes('Subtotal') &&
+                        !item.textContent.includes('Margin') &&
+                        !item.textContent.includes('CUSTOMER PAYS') &&
+                        !item.textContent.includes('Per Unit')) {
+                        breakdownHtml += item.outerHTML;
+                    }
+                });
+            }
+        }
+
+        // Subtotal EVP
+        breakdownHtml += `
+            <div class="flex justify-between pt-2 border-t border-gray-300">
+                <span class="text-gray-700">Subtotal EVP:</span>
+                <span class="font-semibold text-gray-900">KES ${subtotalEVP.toLocaleString()}</span>
+            </div>
+        `;
+
+        // Margin
+        const marginAmount = subtotalEVP * (returnMargin / 100);
+        const totalWithMargin = subtotalEVP + marginAmount;
+        const perUnit = quantity > 0 ? totalWithMargin / quantity : 0;
+
+        breakdownHtml += `
+            <div class="flex justify-between">
+                <span class="text-gray-700">Return Margin (${returnMargin}%):</span>
+                <span class="font-semibold text-gray-900">KES ${marginAmount.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between pt-2 border-t-2 border-gray-400">
+                <span class="text-gray-900 font-semibold">CUSTOMER PAYS:</span>
+                <span class="font-bold text-green-600 text-lg">KES ${totalWithMargin.toLocaleString()}</span>
+            </div>
+            <div class="flex justify-between text-xs">
+                <span class="text-gray-600">Per Unit:</span>
+                <span class="font-medium text-gray-900">KES ${perUnit.toFixed(2)}</span>
+            </div>
+        `;
+
+        breakdownHtml += '</div>';
+
+        const breakdownContent = document.getElementById('breakdown-content');
+        if (breakdownContent) {
+            breakdownContent.innerHTML = breakdownHtml;
+        }
+    }
+
+    // Setup event listeners
+    const testQuantity = document.getElementById('test_quantity');
+    const calculatePricingBtn = document.getElementById('calculate-pricing-btn');
+    const resetTestBtn = document.getElementById('reset-test-btn');
+
+    if (testQuantity) {
+        testQuantity.addEventListener('input', calculatePricing);
+    }
+
+    if (calculatePricingBtn) {
+        calculatePricingBtn.addEventListener('click', calculatePricing);
+    }
+
     if (resetTestBtn) {
         resetTestBtn.addEventListener('click', function() {
-            // Reset to default values
             if (testQuantity) testQuantity.value = '500';
-            if (testPaperWeight) testPaperWeight.value = '350';
-            if (testCoating) testCoating.value = 'matte';
-            if (testLamination) testLamination.value = 'both';
+            // Reset all test variables to defaults
+            Object.keys(testVariables).forEach(varName => {
+                testVariables[varName] = 0;
+            });
+            // Reset variable inputs
+            document.querySelectorAll('#test-variables-section input').forEach(input => {
+                input.value = input.min || 0;
+            });
             calculatePricing();
         });
     }
-    
-    // Calculate pricing on page load
+
+    // Initialize
+    updateTestVariablesSection();
     calculatePricing();
     // ==================== TAG MANAGEMENT ====================
 const tagInput = document.getElementById('new_tag_input');
@@ -2891,159 +3151,138 @@ if (tagInput && addTagBtn && tagsContainer) {
         customizationLevelSelect.addEventListener('change', updateFieldsBasedOnCustomizationLevel);
     }
 });
-            // ==================== ENHANCED PROCESS SELECTION HANDLER ====================
-    const processSelect = document.getElementById('id_process');
-    const baseCostInput = document.getElementById('id_base_cost');
-    const useProcessCostsCheckbox = document.getElementById('id_use_process_costs');
-    
-    if (processSelect) {
-        processSelect.addEventListener('change', function() {
-            const selectedOption = this.options[this.selectedIndex];
+            // ==================== TIER PROCESS SELECTION HANDLER ====================
+            const tierProcessSelect = document.getElementById('id_tier_process');
+            const baseCostInput = document.getElementById('id_base_cost');
+        
+            if (tierProcessSelect) {
+                tierProcessSelect.addEventListener('change', function() {
+                    const processId = this.value;
+                    const tierPreview = document.getElementById('tier-preview');
+                    const tierPricingDisplay = document.getElementById('tier-pricing-display');
+                    const tierPricingContent = document.getElementById('tier-pricing-content');
+        
+                    if (processId) {
+                        // Fetch tier pricing via AJAX
+                        fetch(`/ajax/process/${processId}/tiers/`)
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.success && data.tiers) {
+                                    // Show tier preview
+                                    tierPreview.classList.remove('hidden');
+        
+                                    // Build the tiers table
+                                    const tiersBody = document.getElementById('tier-preview-body');
+                                    let tiersHtml = '';
+        
+                                    data.tiers.forEach(tier => {
+                                        const cost = parseFloat(tier.cost);
+                                        const price = parseFloat(tier.price);
+                                        const margin = price > 0 ? ((price - cost) / price * 100).toFixed(1) : 0;
+        
+                                        tiersHtml += `
+                                            <tr class="border-t border-gray-200">
+                                                <td class="px-3 py-2 text-gray-900">${tier.quantity_from} - ${tier.quantity_to}</td>
+                                                <td class="px-3 py-2 text-right font-medium text-gray-900">KES ${cost.toLocaleString()}</td>
+                                                <td class="px-3 py-2 text-right font-medium text-green-600">KES ${price.toLocaleString()}</td>
+                                                <td class="px-3 py-2 text-right text-gray-600">${margin}%</td>
+                                            </tr>
+                                        `;
+                                    });
+        
+                                    tiersBody.innerHTML = tiersHtml;
+        
+                                    // Show read-only pricing display
+                                    tierPricingDisplay.classList.remove('hidden');
+                                    tierPricingContent.innerHTML = `
+                                        <div class="space-y-1">
+                                            <p><strong>Process:</strong> ${data.process_name || 'Tier-based Process'}</p>
+                                            <p><strong>Tiers:</strong> ${data.tiers.length} pricing tiers available</p>
+                                            <p><strong>Imported:</strong> ✓ Pricing has been imported and will be reflected in calculation breakdown</p>
+                                        </div>
+                                    `;
+        
+                                    // Auto-calculate pricing when tier process is selected
+                                    calculatePricing();
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching tier pricing:', error);
+                                tierPricingContent.innerHTML = '<p class="text-red-600">Error loading pricing data</p>';
+                                tierPricingDisplay.classList.remove('hidden');
+                            });
+                    } else {
+                        // Hide tier preview and pricing display
+                        tierPreview.classList.add('hidden');
+                        tierPricingDisplay.classList.add('hidden');
+                        calculatePricing();
+                    }
+                });
+            }
+
+    // ==================== FORMULA PROCESS SELECTION HANDLER ====================
+    const formulaProcessSelect = document.getElementById('id_formula_process');
+
+    if (formulaProcessSelect) {
+        formulaProcessSelect.addEventListener('change', function() {
             const processId = this.value;
-            const processInfoDisplay = document.getElementById('process-info-display');
-            const useProcessCostsSection = document.getElementById('use-process-costs-section');
-            const autoImportSection = document.getElementById('auto-import-section');
-            const processTiersDisplay = document.getElementById('process-tiers-display');
-            const processVariablesPreview = document.getElementById('process-variables-preview');
-            const processCostIndicator = document.getElementById('process_cost_indicator');
-            
+            const formulaVariablesPreview = document.getElementById('formula-variables-preview');
+            const formulaPricingDisplay = document.getElementById('formula-pricing-display');
+            const formulaPricingContent = document.getElementById('formula-pricing-content');
+
             if (processId) {
-                // Show process-related sections
-                processInfoDisplay.classList.remove('hidden');
-                useProcessCostsSection.classList.remove('hidden');
-                autoImportSection.classList.remove('hidden');
-                
-                // Update process info display
-                document.getElementById('process_id_display').textContent = 
-                    selectedOption.getAttribute('data-process-id') || '-';
-                    
-                const pricingType = selectedOption.getAttribute('data-pricing-type');
-                document.getElementById('process_pricing_type').textContent = 
-                    pricingType === 'tier' ? 'Tier-Based Pricing' : 'Formula-Based Pricing';
-                    
-                document.getElementById('process_lead_time').textContent = 
-                    (selectedOption.getAttribute('data-lead-time') || '-') + ' Days';
-                document.getElementById('process_category').textContent = 
-                    selectedOption.getAttribute('data-category') || '-';
-                
-                // Update view process link
-                document.getElementById('view_process_link').href = `/processes/${processId}/`;
-                
-                // Fetch process variables/tiers via AJAX
+                // Fetch process variables via AJAX
                 fetch(`/ajax/process/${processId}/variables/`)
                     .then(response => response.json())
                     .then(data => {
-                        if (data.success) {
-                            if (data.pricing_type === 'tier' && data.variables && data.variables.length > 0) {
-                                // Show tier-based pricing table
-                                processTiersDisplay.classList.remove('hidden');
-                                processVariablesPreview.classList.add('hidden');
-                                
-                                // Build the tiers table
-                                const tiersBody = document.getElementById('process-tiers-body');
-                                let tiersHtml = '';
-                                let lowestCost = Infinity;
-                                
-                                data.variables.forEach((tier, index) => {
-                                    const cost = parseFloat(tier.cost);
-                                    const price = parseFloat(tier.price);
-                                    const margin = price > 0 ? ((price - cost) / price * 100).toFixed(1) : 0;
-                                    
-                                    if (cost < lowestCost) {
-                                        lowestCost = cost;
-                                    }
-                                    
-                                    tiersHtml += `
-                                        <tr class="border-t border-gray-200 ${index === 0 ? 'bg-green-50' : ''}">
-                                            <td class="px-3 py-2 text-gray-900">Tier ${tier.tier_number}</td>
-                                            <td class="px-3 py-2 text-gray-900">${tier.quantity_from} - ${tier.quantity_to} pcs</td>
-                                            <td class="px-3 py-2 text-right font-medium text-gray-900">KES ${parseFloat(tier.cost).toLocaleString()}</td>
-                                            <td class="px-3 py-2 text-right font-medium text-green-600">KES ${parseFloat(tier.price).toLocaleString()}</td>
-                                            <td class="px-3 py-2 text-right text-gray-600">${margin}%</td>
-                                        </tr>
-                                    `;
-                                });
-                                
-                                tiersBody.innerHTML = tiersHtml;
-                                
-                                // Display lowest tier cost
-                                document.getElementById('lowest-tier-cost').textContent = 
-                                    `KES ${lowestCost.toLocaleString()}`;
-                                
-                                // Auto-fill base cost if "Use Process Costs" is checked
-                                if (useProcessCostsCheckbox && useProcessCostsCheckbox.checked) {
-                                    baseCostInput.value = lowestCost;
-                                    baseCostInput.classList.add('bg-blue-50');
-                                    processCostIndicator.classList.remove('hidden');
-                                    document.getElementById('process_cost_source').textContent = 
-                                        `Auto-filled from process (Tier 1 cost: KES ${lowestCost.toLocaleString()})`;
-                                }
-                                
-                            } else if (data.pricing_type === 'formula' && data.variables && data.variables.length > 0) {
-                                // Show formula-based variables
-                                processTiersDisplay.classList.add('hidden');
-                                processVariablesPreview.classList.remove('hidden');
-                                
-                                let variablesHtml = '<ul class="list-disc list-inside space-y-1">';
-                                data.variables.forEach(variable => {
-                                    variablesHtml += `
-                                        <li>
-                                            <strong>${variable.name}</strong> 
-                                            <span class="text-gray-600">(${variable.type || 'number'})</span>
-                                            ${variable.unit ? `<span class="text-gray-500"> - ${variable.unit}</span>` : ''}
-                                            ${variable.min_value ? `<span class="text-xs text-gray-500"> min: ${variable.min_value}</span>` : ''}
-                                            ${variable.max_value ? `<span class="text-xs text-gray-500"> max: ${variable.max_value}</span>` : ''}
-                                        </li>
-                                    `;
-                                });
-                                variablesHtml += '</ul>';
-                                
-                                document.getElementById('variables-list').innerHTML = variablesHtml;
-                                
-                                // Hide process cost indicator for formula-based
-                                processCostIndicator.classList.add('hidden');
-                            }
+                        if (data.success && data.variables && data.variables.length > 0) {
+                            // Show variables preview
+                            formulaVariablesPreview.classList.remove('hidden');
+
+                            let variablesHtml = '<ul class="list-disc list-inside space-y-1">';
+                            data.variables.forEach(variable => {
+                                variablesHtml += `
+                                    <li>
+                                        <strong>${variable.name}</strong>
+                                        <span class="text-gray-600">(${variable.type || 'number'})</span>
+                                        ${variable.unit ? `<span class="text-gray-500"> - ${variable.unit}</span>` : ''}
+                                        ${variable.min_value ? `<span class="text-xs text-gray-500"> min: ${variable.min_value}</span>` : ''}
+                                        ${variable.max_value ? `<span class="text-xs text-gray-500"> max: ${variable.max_value}</span>` : ''}
+                                    </li>
+                                `;
+                            });
+                            variablesHtml += '</ul>';
+
+                            document.getElementById('variables-list').innerHTML = variablesHtml;
+
+                            // Show read-only pricing display
+                            formulaPricingDisplay.classList.remove('hidden');
+                            formulaPricingContent.innerHTML = `
+                                <div class="space-y-1">
+                                    <p><strong>Process:</strong> ${data.process_name || 'Formula-based Process'}</p>
+                                    <p><strong>Variables:</strong> ${data.variables.length} customization variables</p>
+                                    <p><strong>Imported:</strong> ✓ Pricing has been imported and will be reflected in calculation breakdown</p>
+                                </div>
+                            `;
+
+                            // Update test variables section and calculate pricing
+                            updateTestVariablesSection();
+                            calculatePricing();
                         }
                     })
                     .catch(error => {
                         console.error('Error fetching process variables:', error);
+                        formulaPricingContent.innerHTML = '<p class="text-red-600">Error loading pricing data</p>';
+                        formulaPricingDisplay.classList.remove('hidden');
                     });
-                
-                lucide.createIcons();
             } else {
-                // Hide process-related sections
-                processInfoDisplay.classList.add('hidden');
-                useProcessCostsSection.classList.add('hidden');
-                autoImportSection.classList.add('hidden');
-                processTiersDisplay.classList.add('hidden');
-                processVariablesPreview.classList.add('hidden');
-                processCostIndicator.classList.add('hidden');
-                
-                // Remove styling from base cost
-                baseCostInput.classList.remove('bg-blue-50');
+                // Hide variables preview and pricing display
+                formulaVariablesPreview.classList.add('hidden');
+                formulaPricingDisplay.classList.add('hidden');
+                updateTestVariablesSection();
+                calculatePricing();
             }
         });
-        
-        // Handle "Use Process Costs" toggle
-        if (useProcessCostsCheckbox) {
-            useProcessCostsCheckbox.addEventListener('change', function() {
-                if (this.checked && processSelect.value) {
-                    // Re-trigger the process selection to re-fetch and apply costs
-                    processSelect.dispatchEvent(new Event('change'));
-                    baseCostInput.classList.add('bg-blue-50');
-                } else {
-                    // Allow manual editing
-                    baseCostInput.classList.remove('bg-blue-50');
-                    document.getElementById('process_cost_indicator').classList.add('hidden');
-                }
-            });
-        }
-        
-        // Trigger on page load if a process is already selected
-        if (processSelect.value) {
-            processSelect.dispatchEvent(new Event('change'));
-        }
-    
     }
     
     

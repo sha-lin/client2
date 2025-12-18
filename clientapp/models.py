@@ -630,147 +630,6 @@ class ProductPricing(models.Model):
     ]
     
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='pricing')
-    def calculate_cost(self, quantity=1, customization_values=None):
-        """
-        Calculate total cost based on customization level and selected processes
-        
-        Args:
-            quantity: Order quantity
-            customization_values: Dict of {variable_name: value} for customizations
-        
-        Returns:
-            dict: {
-                'base_cost': Decimal,
-                'tier_cost': Decimal,
-                'customization_cost': Decimal,
-                'total_cost': Decimal,
-                'breakdown': list of cost components
-            }
-        """
-        breakdown = []
-        base_cost = Decimal('0')
-        tier_cost = Decimal('0')
-        customization_cost = Decimal('0')
-        
-        customization_level = self.product.customization_level
-        customization_values = customization_values or {}
-        
-        # 1. Base Cost (for non-customizable and semi-customizable)
-        if customization_level in ['non_customizable', 'semi_customizable']:
-            base_cost = self.base_cost * quantity
-            breakdown.append({
-                'component': 'Base Cost',
-                'calculation': f'{self.base_cost} × {quantity}',
-                'amount': base_cost
-            })
-        
-        # 2. Tier-Based Cost (quantity discounts)
-        if self.tier_process:
-            tier = self.tier_process.tiers.filter(
-                quantity_from__lte=quantity,
-                quantity_to__gte=quantity
-            ).first()
-            
-            if tier:
-                # For non-customizable: tier cost replaces base cost
-                # For semi/fully customizable: tier cost is adjustment
-                if customization_level == 'non_customizable':
-                    tier_cost = tier.cost * quantity
-                    base_cost = Decimal('0')  # Override base cost
-                    breakdown = [{
-                        'component': 'Tier Cost',
-                        'calculation': f'{tier.cost} × {quantity} (Tier {tier.tier_number})',
-                        'amount': tier_cost
-                    }]
-                else:
-                    tier_cost = tier.cost * quantity
-                    breakdown.append({
-                        'component': f'Tier {tier.tier_number} Cost',
-                        'calculation': f'{tier.cost} × {quantity}',
-                        'amount': tier_cost
-                    })
-        
-        # 3. Formula-Based Customization Cost
-        if self.formula_process and customization_values:
-            for variable in self.formula_process.variables.all():
-                var_value = customization_values.get(variable.variable_name)
-                
-                if var_value is not None:
-                    # Find applicable range
-                    applicable_range = variable.ranges.filter(
-                        min_value__lte=var_value,
-                        max_value__gte=var_value
-                    ).first()
-                    
-                    if applicable_range:
-                        var_cost = (applicable_range.price * applicable_range.rate) * quantity
-                        customization_cost += var_cost
-                        
-                        breakdown.append({
-                            'component': f'{variable.variable_name} Cost',
-                            'calculation': f'{applicable_range.price} × {quantity} (Rate {applicable_range.rate})',
-                            'amount': var_cost
-                        })
-        
-        # 4. Total Cost
-        total_cost = base_cost + tier_cost + customization_cost
-        
-        return {
-            'base_cost': base_cost,
-            'tier_cost': tier_cost,
-            'customization_cost': customization_cost,
-            'total_cost': total_cost,
-            'breakdown': breakdown
-        }
-
-    # Base pricing (always available)
-    base_cost = models.DecimalField(
-        max_digits=10,
-        decimal_places=2,
-        default=0,
-        help_text="Base cost before customization (EVP)"
-    )
-    
-    # Link to tier-based process (for quantity discounts)
-    tier_process = models.ForeignKey(
-        'Process',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='products_using_tiers',
-        limit_choices_to={'pricing_type': 'tier', 'status': 'active'},
-        help_text="Tier-based pricing process for quantity discounts"
-    )
-    
-    # Link to formula-based process (for customizations)
-    formula_process = models.ForeignKey(
-        'Process',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='products_using_formula',
-        limit_choices_to={'pricing_type': 'formula', 'status': 'active'},
-        help_text="Formula-based pricing process for customizations"
-    )
-    
-    use_process_costs = models.BooleanField(
-        default=False,
-        help_text="Use process costs instead of manual base cost"
-    )
-    # ===== NEW: Link to Process (Costing System Integration) =====
-    process = models.ForeignKey(
-        'Process',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='products',
-        help_text="Select the costing process for this product"
-    )
-    use_process_costs = models.BooleanField(
-        default=True,
-        help_text="Use costs from linked process, or override with custom values"
-    )
-    # ===== END NEW =====
     
     # Base Pricing Information
     pricing_model = models.CharField(max_length=20, choices=PRICING_MODEL_CHOICES, default='variable')
@@ -779,6 +638,10 @@ class ProductPricing(models.Model):
     default_margin = models.DecimalField(max_digits=5, decimal_places=2, default=30, validators=[MinValueValidator(0), MaxValueValidator(100)])
     minimum_margin = models.DecimalField(max_digits=5, decimal_places=2, default=15, validators=[MinValueValidator(0), MaxValueValidator(100)], help_text="Below this triggers approval")
     minimum_order_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    # Process Integration
+    process = models.ForeignKey('Process', on_delete=models.SET_NULL, null=True, blank=True, related_name='products', help_text='Select the costing process for this product')
+    use_process_costs = models.BooleanField(default=True, help_text='Use costs from linked process, or override with custom values')
     
     # Production & Vendor Information
     lead_time_value = models.IntegerField(default=3)
@@ -2551,6 +2414,9 @@ class ProcessVariable(models.Model):
         return f"{self.process.process_id} - {self.variable_name}"
 
 
+
+
+
 class ProcessVendor(models.Model):
     """Vendors linked to a process"""
     
@@ -2823,15 +2689,33 @@ class ProcessVariableRange(models.Model):
         help_text="Multiplier rate for this range"
     )
     order = models.IntegerField(default=0)
-    
+
     class Meta:
         ordering = ['order', 'min_value']
         verbose_name = "Variable Range"
         verbose_name_plural = "Variable Ranges"
-    
+
     def __str__(self):
         return f"{self.variable.variable_name}: {self.min_value}-{self.max_value}"
-    
+
     def applies_to(self, value):
         """Check if this range applies to a given value"""
         return self.min_value <= Decimal(str(value)) <= self.max_value
+
+
+# ============================================
+# COSTING PROCESS SYSTEM MODELS
+# ============================================
+
+
+
+
+
+
+
+
+
+
+
+
+

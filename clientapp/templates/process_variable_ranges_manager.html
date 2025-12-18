@@ -1,0 +1,268 @@
+{% extends "base2.html" %}
+{% load static %}
+{% block title %}Manage Variable Ranges - {{ process.process_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <div class="d-lg-flex">
+                        <div>
+                            <h6 class="mb-0">Process Variable Ranges</h6>
+                            <p class="text-sm mb-0">
+                                Managing variable ranges for: <strong>{{ process.process_name }}</strong>
+                            </p>
+                        </div>
+                        <div class="ms-auto my-auto mt-lg-0 mt-4">
+                            <div class="ms-auto my-auto">
+                                <a href="{% url 'process_list' %}" class="btn bg-gradient-secondary btn-sm mb-0">← Back to Processes</a>
+                                <button class="btn btn-sm btn-success mb-0 ms-2" onclick="createSampleRanges()">Create Sample Ranges</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card-body px-0 pb-0">
+                    {% if variables %}
+                        {% for variable in variables %}
+                        <div class="border rounded mb-4 p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div>
+                                    <h6 class="mb-0">
+                                        <i class="fas fa-list-ul text-primary me-2"></i>
+                                        {{ variable.variable_name }}
+                                        <small class="text-muted">({{ variable.variable_type }})</small>
+                                    </h6>
+                                    {% if variable.description %}
+                                    <p class="text-sm text-muted mb-0">{{ variable.description }}</p>
+                                    {% endif %}
+                                </div>
+                                <button class="btn btn-sm btn-primary" onclick="showAddRangeModal('{{ variable.id }}', '{{ variable.variable_name }}')">
+                                    <i class="fas fa-plus me-1"></i>Add Range
+                                </button>
+                            </div>
+                            
+                            {% if variable.ranges.all %}
+                            <div class="table-responsive">
+                                <table class="table align-items-center mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Order</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Min Value</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Max Value</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Price (KES)</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Rate</th>
+                                            <th class="text-uppercase text-secondary text-xxs font-weight-bolder opacity-7">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for range in variable.ranges.all %}
+                                        <tr>
+                                            <td>
+                                                <div class="text-sm font-weight-bold mb-0">{{ range.order }}</div>
+                                            </td>
+                                            <td>
+                                                <div class="text-sm">{{ range.min_value|default:"-" }}</div>
+                                            </td>
+                                            <td>
+                                                <div class="text-sm">{{ range.max_value|default:"-" }}</div>
+                                            </td>
+                                            <td>
+                                                <div class="text-sm font-weight-bold">{{ range.price }}</div>
+                                            </td>
+                                            <td>
+                                                <div class="text-sm">{{ range.rate }}</div>
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteRange('{{ range.id }}')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="text-center py-3">
+                                <p class="text-sm text-muted mb-0">No ranges configured for this variable.</p>
+                                <button class="btn btn-sm btn-outline-primary mt-2" onclick="addSingleRange('{{ variable.id }}', '{{ variable.variable_name }}')">Add First Range</button>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <p class="text-muted">This process has no variables defined.</p>
+                            <p class="text-sm text-muted">Variables are required for formula-based pricing calculations.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Range Modal -->
+<div class="modal fade" id="addRangeModal" tabindex="-1" aria-labelledby="addRangeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addRangeModalLabel">Add Variable Range</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addRangeForm">
+                    <input type="hidden" id="variableId" name="variable_id">
+                    <div class="mb-3">
+                        <label class="form-label">Variable Name</label>
+                        <input type="text" class="form-control" id="variableNameDisplay" readonly>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Min Value</label>
+                                <input type="number" step="0.01" class="form-control" name="min_value" placeholder="0">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Max Value</label>
+                                <input type="number" step="0.01" class="form-control" name="max_value" placeholder="100">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Price (KES)</label>
+                        <input type="number" step="0.01" class="form-control" name="price" placeholder="10.00" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Rate</label>
+                        <input type="number" step="0.1" class="form-control" name="rate" value="1.0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Display Order</label>
+                        <input type="number" class="form-control" name="order" value="1">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="submitAddRange()">Add Range</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showAddRangeModal(variableId, variableName) {
+    document.getElementById('variableId').value = variableId;
+    document.getElementById('variableNameDisplay').value = variableName;
+    document.getElementById('addRangeForm').reset();
+    new bootstrap.Modal(document.getElementById('addRangeModal')).show();
+}
+
+function addSingleRange(variableId, variableName) {
+    showAddRangeModal(variableId, variableName);
+}
+
+function submitAddRange() {
+    const form = document.getElementById('addRangeForm');
+    const formData = new FormData(form);
+    
+    fetch('{% url "add_variable_range" process.id %}', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': getCookie('csrftoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while adding the range');
+    });
+}
+
+function deleteRange(rangeId) {
+    if (confirm('Are you sure you want to delete this range?')) {
+        const formData = new FormData();
+        formData.append('range_id', rangeId);
+        
+        fetch('{% url "delete_variable_range" process.id %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the range');
+        });
+    }
+}
+
+function createSampleRanges() {
+    if (confirm('This will create sample ranges for all variables that don\'t have ranges yet. Continue?')) {
+        const formData = new FormData();
+        formData.append('action', 'create_sample_ranges');
+        
+        fetch('{% url "process_variable_ranges_manager" process.id %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while creating sample ranges');
+        });
+    }
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

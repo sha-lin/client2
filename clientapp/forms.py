@@ -347,13 +347,35 @@ class AdminClientForm(ClientForm):
     """Extended form for Admins with ALL fields"""
     class Meta(ClientForm.Meta):
         fields = '__all__'
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add any admin-specific field customizations here
+        # Make all fields editable for admin
+        for field_name, field in self.fields.items():
+            if hasattr(field.widget, 'attrs'):
+                field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' admin-field'
 
 class AdminProductForm(ProductForm):
     """Extended form for Admins with ALL fields"""
     class Meta(ProductForm.Meta):
         fields = '__all__'
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add admin-specific field customizations
+        for field_name, field in self.fields.items():
+            if hasattr(field.widget, 'attrs'):
+                field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' admin-field'
 
 class AdminProcessForm(ProcessForm):
     """Extended form for Admins with ALL fields"""
     class Meta(ProcessForm.Meta):
         fields = '__all__'
+        
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Add admin-specific field customizations
+        for field_name, field in self.fields.items():
+            if hasattr(field.widget, 'attrs'):
+                field.widget.attrs['class'] = field.widget.attrs.get('class', '') + ' admin-field'

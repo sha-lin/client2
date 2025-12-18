@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.html import format_html
-from django.utils import timezone
-from .admin_site import PrintDukaAdminSite
+from django.db.models import DecimalField
+from django.forms import DecimalField as DecimalFormField
 from .models import (
     Lead, Client, ClientContact, BrandAsset, ComplianceDocument,
     Quote, ActivityLog, ProductionUpdate, Notification,
@@ -12,11 +12,11 @@ from .models import (
     ProductTag, ProductPricing, ProductVariable, ProductVariableOption,
     ProductVideo, ProductDownloadableFile, ProductSEO,
     ProductReviewSettings, ProductFAQ, ProductShipping, ProductLegal,
-    ProductProduction, ProductChangeHistory
+    ProductProduction, ProductChangeHistory,
+    # Process-related models for formula-based pricing
+    Process, ProcessVariable, ProcessVariableRange, ProcessTier,
+    ProcessVendor
 )
-
-# Register the custom admin site
-admin.site = PrintDukaAdminSite()
 
 # ---------------------- LEAD ----------------------
 @admin.register(Lead)
@@ -248,9 +248,9 @@ class ProductFamilyAdmin(admin.ModelAdmin):
 
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
-    list_display = ['name', 'email', 'phone', 'vps_score', 'rating', 'active']
-    list_filter = ['active', 'vps_score', 'recommended']
-    search_fields = ['name', 'email', 'phone']
+    list_display = ['name', 'contact_person', 'email', 'phone', 'active']
+    list_filter = ['active']
+    search_fields = ['name', 'contact_person', 'email']
 
 
 @admin.register(ProductTag)
@@ -822,111 +822,152 @@ class ProductTemplateAdmin(admin.ModelAdmin):
         return f"-"
     usage_count.short_description = 'Uses'
 
-# ==================== CONFIGURE CUSTOM ADMIN SITE ====================
+# ================================
+# PROCESS MANAGEMENT ADMINS (FORMULA-BASED PRICING)
+# ================================
 
-# ==================== SYSTEM ALERTS ADMIN ====================
-from .models import SystemAlert
-
-@admin.register(SystemAlert)
-class SystemAlertAdmin(admin.ModelAdmin):
-    """Admin for System Alerts"""
+@admin.register(Process)
+class ProcessAdmin(admin.ModelAdmin):
     list_display = [
-        'title', 'alert_type', 'severity_badge', 'is_active',
-        'is_dismissed', 'created_at', 'created_by'
+        'process_id', 'process_name', 'pricing_type', 'category', 
+        'status', 'standard_lead_time', 'created_at'
     ]
-    list_filter = ['alert_type', 'severity', 'is_active', 'is_dismissed', 'created_at']
-    search_fields = ['title', 'message']
-    readonly_fields = ['created_at', 'dismissed_at', 'dismissed_by']
+    list_filter = ['pricing_type', 'category', 'status', 'created_at']
+    search_fields = ['process_id', 'process_name', 'description']
+    readonly_fields = ['process_id', 'created_at', 'updated_at']
     
     fieldsets = (
-        ('Alert Information', {
-            'fields': ('alert_type', 'severity', 'title', 'message', 'link')
+        ('Basic Information', {
+            'fields': ('process_id', 'process_name', 'description', 'category')
         }),
-        ('Visibility', {
-            'fields': ('visible_to_admins', 'visible_to_production')
+        ('Pricing Configuration', {
+            'fields': ('pricing_type', 'unit_of_measure', 'standard_lead_time')
         }),
-        ('Status', {
-            'fields': ('is_active', 'is_dismissed', 'dismissed_by', 'dismissed_at')
+        ('Approval Settings', {
+            'fields': ('approval_type', 'approval_margin_threshold')
         }),
-        ('Related Objects', {
-            'fields': ('related_client', 'related_quote', 'related_lpo'),
+        ('Metadata', {
+            'fields': ('status', 'created_by', 'created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )
     
-    def severity_badge(self, obj):
-        colors = {
-            'low': '#28a745',
-            'medium': '#0dcaf0',
-            'high': '#ffc107',
-            'critical': '#dc3545'
-        }
-        return format_html(
-            '<span style="background-color: {}; color: white; padding: 3px 10px; '
-            'border-radius: 3px; font-size: 11px; font-weight: bold;">{}</span>',
-            colors.get(obj.severity, '#6c757d'),
-            obj.get_severity_display()
-        )
-    severity_badge.short_description = 'Severity'
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('created_by')
 
-
-# ==================== PAYMENT TRACKING ADMIN ====================
-from .models import Payment
-
-@admin.register(Payment)
-class PaymentAdmin(admin.ModelAdmin):
-    """Admin for Payment tracking"""
-    list_display = [
-        'reference_number', 'lpo', 'amount', 'payment_method',
-        'payment_date', 'status', 'recorded_by'
-    ]
-    list_filter = ['status', 'payment_method', 'payment_date']
-    search_fields = ['reference_number', 'lpo__lpo_number', 'notes']
-    readonly_fields = ['created_at']
-    date_hierarchy = 'payment_date'
-    
-    fieldsets = (
-        ('Payment Information', {
-            'fields': ('lpo', 'amount', 'payment_date', 'payment_method', 'status')
-        }),
-        ('Reference', {
-            'fields': ('reference_number', 'notes')
-        }),
-        ('Tracking', {
-            'fields': ('recorded_by', 'created_at')
-        }),
-    )
-    
-    def save_model(self, request, obj, form, change):
-        if not obj.recorded_by:
-            obj.recorded_by = request.user
-        super().save_model(request, obj, form, change)
-
-
-
-# ============================================
-# ADD TO clientapp/admin.py
-# ============================================
-
-from django.contrib import admin
-from .models import Process, ProcessTier, ProcessVariable, ProcessVendor
-
-@admin.register(Process)
-class ProcessAdmin(admin.ModelAdmin):
-    list_display = ['process_id', 'process_name', 'pricing_type', 'category', 'status', 'created_at']
-    list_filter = ['pricing_type', 'category', 'status']
-    search_fields = ['process_id', 'process_name']
-
-@admin.register(ProcessTier)
-class ProcessTierAdmin(admin.ModelAdmin):
-    list_display = ['process', 'tier_number', 'quantity_from', 'quantity_to', 'price', 'margin_percentage']
 
 @admin.register(ProcessVariable)
 class ProcessVariableAdmin(admin.ModelAdmin):
-    list_display = ['process', 'variable_name', 'variable_type', 'unit']
+    list_display = [
+        'variable_name', 'process', 'variable_type', 'unit', 
+        'min_value', 'max_value', 'order'
+    ]
+    list_filter = ['variable_type', 'process', 'process__pricing_type']
+    search_fields = ['variable_name', 'process__process_name', 'description']
+    ordering = ['process', 'order']
+    
+    fieldsets = (
+        ('Variable Details', {
+            'fields': ('process', 'variable_name', 'variable_type', 'unit')
+        }),
+        ('Validation', {
+            'fields': ('min_value', 'max_value', 'default_value')
+        }),
+        ('Display', {
+            'fields': ('order', 'description')
+        }),
+    )
+
+
+@admin.register(ProcessVariableRange)
+class ProcessVariableRangeAdmin(admin.ModelAdmin):
+    list_display = [
+        'variable', 'min_value', 'max_value', 'price', 'rate', 'order'
+    ]
+    list_filter = ['variable__process', 'variable__variable_type']
+    search_fields = ['variable__variable_name', 'variable__process__process_name']
+    ordering = ['variable', 'order', 'min_value']
+    
+    fieldsets = (
+        ('Range Details', {
+            'fields': ('variable', 'order')
+        }),
+        ('Value Range', {
+            'fields': ('min_value', 'max_value')
+        }),
+        ('Pricing', {
+            'fields': ('price', 'rate'),
+            'description': 'Cost calculation: (price × rate) × quantity'
+        }),
+    )
+    
+    def formfield_for_decimalfield(self, db_field, request, **kwargs):
+        if db_field.name in ['min_value', 'max_value']:
+            kwargs['max_digits'] = 10
+            kwargs['decimal_places'] = 2
+        elif db_field.name == 'rate':
+            kwargs['max_digits'] = 10
+            kwargs['decimal_places'] = 4
+        else:
+            kwargs['max_digits'] = 10
+            kwargs['decimal_places'] = 2
+        return super().formfield_for_decimalfield(db_field, request, **kwargs)
+
+
+@admin.register(ProcessTier)
+class ProcessTierAdmin(admin.ModelAdmin):
+    list_display = [
+        'process', 'tier_number', 'quantity_from', 'quantity_to', 
+        'cost', 'price', 'margin_percentage'
+    ]
+    list_filter = ['process', 'process__pricing_type']
+    search_fields = ['process__process_name', 'process__process_id']
+    ordering = ['process', 'tier_number']
+    
+    readonly_fields = ['per_unit_price', 'margin_amount', 'margin_percentage']
+
 
 @admin.register(ProcessVendor)
 class ProcessVendorAdmin(admin.ModelAdmin):
-    list_display = ['process', 'vendor_name', 'vps_score', 'priority', 'standard_lead_time']
+    list_display = [
+        'process', 'vendor_name', 'vendor_id', 'vps_score', 
+        'priority', 'rush_enabled'
+    ]
+    list_filter = ['priority', 'rush_enabled', 'process']
+    search_fields = ['vendor_name', 'vendor_id', 'process__process_name']
+    ordering = ['priority', '-vps_score']
 
 
+# ================================
+# PRODUCT PRICING ADMIN (INTEGRATED)
+# ================================
+
+@admin.register(ProductPricing)
+class ProductPricingAdmin(admin.ModelAdmin):
+    list_display = [
+        'product', 'base_cost', 'pricing_model', 'default_margin'
+    ]
+    list_filter = ['pricing_model']
+    search_fields = ['product__name', 'product__internal_code']
+    
+    fieldsets = (
+        ('Product', {
+            'fields': ('product',)
+        }),
+        ('Base Pricing', {
+            'fields': ('base_cost', 'pricing_model', 'default_margin', 'minimum_margin', 'minimum_order_value')
+        }),
+        ('Production & Vendor', {
+            'fields': ('lead_time_value', 'lead_time_unit', 'production_method', 'primary_vendor', 'alternative_vendors', 'minimum_quantity')
+        }),
+        ('Rush Production', {
+            'fields': ('rush_available', 'rush_lead_time_value', 'rush_lead_time_unit', 'rush_upcharge'),
+            'classes': ('collapse',)
+        }),
+        ('Advanced Settings', {
+            'fields': ('enable_conditional_logic', 'enable_conflict_detection'),
+            'classes': ('collapse',)
+        }),
+    )
+    filter_horizontal = ['alternative_vendors']

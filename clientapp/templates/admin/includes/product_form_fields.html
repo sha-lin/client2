@@ -1,0 +1,445 @@
+<!-- Product-specific form fields -->
+<!-- Basic Information Section -->
+<div class="field-section">
+    <h3 class="section-title">Basic Information</h3>
+    <div class="form-row">
+        <!-- Product Name -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.name.id_for_label }}">{{ form.name.label }} <span class="required">*</span></label>
+                {{ form.name }}
+                {% if form.name.help_text %}
+                    <p class="help-text">{{ form.name.help_text }}</p>
+                {% endif %}
+                {% if form.name.errors %}
+                    <ul class="error">{% for error in form.name.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Product Type -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.product_type.id_for_label }}">{{ form.product_type.label }}</label>
+                {{ form.product_type }}
+                {% if form.product_type.help_text %}
+                    <p class="help-text">{{ form.product_type.help_text }}</p>
+                {% endif %}
+                {% if form.product_type.errors %}
+                    <ul class="error">{% for error in form.product_type.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Short Description -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.short_description.id_for_label }}">{{ form.short_description.label }} <span class="required">*</span></label>
+                {{ form.short_description }}
+                {% if form.short_description.help_text %}
+                    <p class="help-text">{{ form.short_description.help_text }}</p>
+                {% endif %}
+                {% if form.short_description.errors %}
+                    <ul class="error">{% for error in form.short_description.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Primary Category -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.primary_category.id_for_label }}">{{ form.primary_category.label }}</label>
+                {{ form.primary_category }}
+                {% if form.primary_category.help_text %}
+                    <p class="help-text">{{ form.primary_category.help_text }}</p>
+                {% endif %}
+                {% if form.primary_category.errors %}
+                    <ul class="error">{% for error in form.primary_category.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Long Description -->
+    <div class="field-wrapper">
+        <div class="form-group">
+            <label for="{{ form.long_description.id_for_label }}">{{ form.long_description.label }}</label>
+            {{ form.long_description }}
+            {% if form.long_description.help_text %}
+                <p class="help-text">{{ form.long_description.help_text }}</p>
+            {% endif %}
+            {% if form.long_description.errors %}
+                <ul class="error">{% for error in form.long_description.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Technical Specs -->
+    <div class="field-wrapper">
+        <div class="form-group">
+            <label for="{{ form.technical_specs.id_for_label }}">{{ form.technical_specs.label }}</label>
+            {{ form.technical_specs }}
+            {% if form.technical_specs.help_text %}
+                <p class="help-text">{{ form.technical_specs.help_text }}</p>
+            {% endif %}
+            {% if form.technical_specs.errors %}
+                <ul class="error">{% for error in form.technical_specs.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Classification Section -->
+<div class="field-section">
+    <h3 class="section-title">Classification & Organization</h3>
+    <div class="form-row">
+        <!-- Sub Category -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.sub_category.id_for_label }}">{{ form.sub_category.label }}</label>
+                {{ form.sub_category }}
+                {% if form.sub_category.help_text %}
+                    <p class="help-text">{{ form.sub_category.help_text }}</p>
+                {% endif %}
+                {% if form.sub_category.errors %}
+                    <ul class="error">{% for error in form.sub_category.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Product Family -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.product_family.id_for_label }}">{{ form.product_family.label }}</label>
+                {{ form.product_family }}
+                {% if form.product_family.help_text %}
+                    <p class="help-text">{{ form.product_family.help_text }}</p>
+                {% endif %}
+                {% if form.product_family.errors %}
+                    <ul class="error">{% for error in form.product_family.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tags -->
+    <div class="field-wrapper">
+        <div class="form-group">
+            <label for="{{ form.tags.id_for_label }}">{{ form.tags.label }}</label>
+            {{ form.tags }}
+            {% if form.tags.help_text %}
+                <p class="help-text">{{ form.tags.help_text }}</p>
+            {% endif %}
+            {% if form.tags.errors %}
+                <ul class="error">{% for error in form.tags.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Status & Visibility Section -->
+<div class="field-section">
+    <h3 class="section-title">Status & Visibility</h3>
+    <div class="form-row">
+        <!-- Status -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+                {{ form.status }}
+                {% if form.status.help_text %}
+                    <p class="help-text">{{ form.status.help_text }}</p>
+                {% endif %}
+                {% if form.status.errors %}
+                    <ul class="error">{% for error in form.status.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Visibility -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.visibility.id_for_label }}">{{ form.visibility.label }}</label>
+                {{ form.visibility }}
+                {% if form.visibility.help_text %}
+                    <p class="help-text">{{ form.visibility.help_text }}</p>
+                {% endif %}
+                {% if form.visibility.errors %}
+                    <ul class="error">{% for error in form.visibility.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Is Visible -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <div class="checkbox-group">
+                    {{ form.is_visible }}
+                    <label for="{{ form.is_visible.id_for_label }}">{{ form.is_visible.label }}</label>
+                </div>
+                {% if form.is_visible.help_text %}
+                    <p class="help-text">{{ form.is_visible.help_text }}</p>
+                {% endif %}
+                {% if form.is_visible.errors %}
+                    <ul class="error">{% for error in form.is_visible.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Feature Product -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <div class="checkbox-group">
+                    {{ form.feature_product }}
+                    <label for="{{ form.feature_product.id_for_label }}">{{ form.feature_product.label }}</label>
+                </div>
+                {% if form.feature_product.help_text %}
+                    <p class="help-text">{{ form.feature_product.help_text }}</p>
+                {% endif %}
+                {% if form.feature_product.errors %}
+                    <ul class="error">{% for error in form.feature_product.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Bestseller Badge -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <div class="checkbox-group">
+                    {{ form.bestseller_badge }}
+                    <label for="{{ form.bestseller_badge.id_for_label }}">{{ form.bestseller_badge.label }}</label>
+                </div>
+                {% if form.bestseller_badge.help_text %}
+                    <p class="help-text">{{ form.bestseller_badge.help_text }}</p>
+                {% endif %}
+                {% if form.bestseller_badge.errors %}
+                    <ul class="error">{% for error in form.bestseller_badge.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- New Arrival -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <div class="checkbox-group">
+                    {{ form.new_arrival }}
+                    <label for="{{ form.new_arrival.id_for_label }}">{{ form.new_arrival.label }}</label>
+                </div>
+                {% if form.new_arrival.help_text %}
+                    <p class="help-text">{{ form.new_arrival.help_text }}</p>
+                {% endif %}
+                {% if form.new_arrival.errors %}
+                    <ul class="error">{% for error in form.new_arrival.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Physical Attributes Section -->
+<div class="field-section">
+    <h3 class="section-title">Physical Attributes</h3>
+    <div class="form-row">
+        <!-- Unit of Measure -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.unit_of_measure.id_for_label }}">{{ form.unit_of_measure.label }}</label>
+                {{ form.unit_of_measure }}
+                {% if form.unit_of_measure.help_text %}
+                    <p class="help-text">{{ form.unit_of_measure.help_text }}</p>
+                {% endif %}
+                {% if form.unit_of_measure.errors %}
+                    <ul class="error">{% for error in form.unit_of_measure.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Weight -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.weight.id_for_label }}">{{ form.weight.label }}</label>
+                {{ form.weight }}
+                {% if form.weight.help_text %}
+                    <p class="help-text">{{ form.weight.help_text }}</p>
+                {% endif %}
+                {% if form.weight.errors %}
+                    <ul class="error">{% for error in form.weight.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Weight Unit -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.weight_unit.id_for_label }}">{{ form.weight_unit.label }}</label>
+                {{ form.weight_unit }}
+                {% if form.weight_unit.help_text %}
+                    <p class="help-text">{{ form.weight_unit.help_text }}</p>
+                {% endif %}
+                {% if form.weight_unit.errors %}
+                    <ul class="error">{% for error in form.weight_unit.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Dimension Unit -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.dimension_unit.id_for_label }}">{{ form.dimension_unit.label }}</label>
+                {{ form.dimension_unit }}
+                {% if form.dimension_unit.help_text %}
+                    <p class="help-text">{{ form.dimension_unit.help_text }}</p>
+                {% endif %}
+                {% if form.dimension_unit.errors %}
+                    <ul class="error">{% for error in form.dimension_unit.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Length -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.length.id_for_label }}">{{ form.length.label }}</label>
+                {{ form.length }}
+                {% if form.length.help_text %}
+                    <p class="help-text">{{ form.length.help_text }}</p>
+                {% endif %}
+                {% if form.length.errors %}
+                    <ul class="error">{% for error in form.length.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Width -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.width.id_for_label }}">{{ form.width.label }}</label>
+                {{ form.width }}
+                {% if form.width.help_text %}
+                    <p class="help-text">{{ form.width.help_text }}</p>
+                {% endif %}
+                {% if form.width.errors %}
+                    <ul class="error">{% for error in form.width.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <!-- Height -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.height.id_for_label }}">{{ form.height.label }}</label>
+                {{ form.height }}
+                {% if form.height.help_text %}
+                    <p class="help-text">{{ form.height.help_text }}</p>
+                {% endif %}
+                {% if form.height.errors %}
+                    <ul class="error">{% for error in form.height.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quality & Origin Section -->
+<div class="field-section">
+    <h3 class="section-title">Quality & Origin</h3>
+    <div class="form-row">
+        <!-- Warranty -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.warranty.id_for_label }}">{{ form.warranty.label }}</label>
+                {{ form.warranty }}
+                {% if form.warranty.help_text %}
+                    <p class="help-text">{{ form.warranty.help_text }}</p>
+                {% endif %}
+                {% if form.warranty.errors %}
+                    <ul class="error">{% for error in form.warranty.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Country of Origin -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.country_of_origin.id_for_label }}">{{ form.country_of_origin.label }}</label>
+                {{ form.country_of_origin }}
+                {% if form.country_of_origin.help_text %}
+                    <p class="help-text">{{ form.country_of_origin.help_text }}</p>
+                {% endif %}
+                {% if form.country_of_origin.errors %}
+                    <ul class="error">{% for error in form.country_of_origin.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Notes Section -->
+<div class="field-section">
+    <h3 class="section-title">Notes & Documentation</h3>
+    <div class="form-row">
+        <!-- Internal Notes -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.internal_notes.id_for_label }}">{{ form.internal_notes.label }}</label>
+                {{ form.internal_notes }}
+                {% if form.internal_notes.help_text %}
+                    <p class="help-text">{{ form.internal_notes.help_text }}</p>
+                {% endif %}
+                {% if form.internal_notes.errors %}
+                    <ul class="error">{% for error in form.internal_notes.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Client Notes -->
+        <div class="field-wrapper">
+            <div class="form-group">
+                <label for="{{ form.client_notes.id_for_label }}">{{ form.client_notes.label }}</label>
+                {{ form.client_notes }}
+                {% if form.client_notes.help_text %}
+                    <p class="help-text">{{ form.client_notes.help_text }}</p>
+                {% endif %}
+                {% if form.client_notes.errors %}
+                    <ul class="error">{% for error in form.client_notes.errors %}<li>{{ error }}</li>{% endfor %}</ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Any remaining fields not covered above -->
+{% for field in form %}
+    {% if field.name not in 'name,short_description,long_description,technical_specs,primary_category,sub_category,product_type,product_family,tags,status,is_visible,visibility,feature_product,bestseller_badge,new_arrival,unit_of_measure,weight,weight_unit,length,width,height,dimension_unit,warranty,country_of_origin,internal_notes,client_notes' %}
+        <div class="field-wrapper" id="wrapper_{{ field.name }}">
+            <div class="form-group">
+                <label for="{{ field.id_for_label }}">
+                    {{ field.label }}
+                    {% if field.field.required %}<span class="required">*</span>{% endif %}
+                </label>
+                {{ field }}
+                {% if field.help_text %}
+                    <p class="help-text">{{ field.help_text }}</p>
+                {% endif %}
+                {% if field.errors %}
+                    <ul class="error">
+                        {% for error in field.errors %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+{% endfor %}
