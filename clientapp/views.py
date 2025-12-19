@@ -1,5 +1,6 @@
 import decimal
 import json
+import uuid
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -45,6 +46,8 @@ from .models import (
     LPOLineItem,
     SystemAlert,
     ProcessVariableRange,
+    Process,
+    Vendor,
 )
 
 # Import comprehensive CRUD API endpoints
@@ -1413,214 +1416,117 @@ def create_quote(request):
 @group_required('Account Manager')
 @transaction.atomic
 def quote_create(request):
-    """Create multi-product quote - matches quote_create.html template"""
+    """Create multi-product quote with product customization logic"""
     if request.method == 'POST':
         try:
-            # Get form data
+            # 1. Get Core Form Data
             client_name = request.POST.get('client_name', '').strip()
-            account_manager = request.POST.get('account_manager', request.user.get_full_name() or request.user.username)
             valid_until = request.POST.get('valid_until')
             delivery_deadline = request.POST.get('delivery_deadline')
             special_instructions = request.POST.get('special_instructions', '')
             action = request.POST.get('action', 'save_draft')
             
-            # Validate required fields
-            if not client_name:
-                messages.error(request, 'Client name is required')
-                return redirect('quote_create')
-            
-            # Try to find existing client by name
-            client = Client.objects.filter(
-                Q(name__iexact=client_name) | Q(company__iexact=client_name)
-            ).first()
-            
-            # If no client found, this might be for a lead
+            client_id = request.POST.get('client_id')
+            lead_id = request.POST.get('lead_id')
+
+            # 2. Validate Client Selection
+            client = None
             lead = None
-            if not client:
-                lead = Lead.objects.filter(name__iexact=client_name).first()
-            
-            # Parse dates
-            valid_until_date = timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date() + timedelta(days=14)
-            delivery_deadline_date = timezone.datetime.fromisoformat(delivery_deadline).date() if delivery_deadline else None
-            
-            # Generate unique quote ID
-            import uuid
-            quote_id = f"Q-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
-            
-            # Get line items from POST data
-            # Line items would be sent as arrays: product_name[], quantity[], unit_price[]
-            product_names = request.POST.getlist('product_name[]')
+            if client_id:
+                client = get_object_or_404(Client, id=client_id)
+            elif lead_id:
+                lead = get_object_or_404(Lead, id=lead_id)
+            else:
+                messages.error(request, "Please select a valid client or lead.")
+                return redirect('quote_create')
+
+            # 3. Parse Line Items (The Fix)
+            # request.POST.getlist matches the 'name' attribute in your HTML inputs
+            product_ids = request.POST.getlist('product_id[]')
             quantities = request.POST.getlist('quantity[]')
-            unit_prices = request.POST.getlist('unit_price[]')
-            
-            if not product_names or len(product_names) == 0:
+            unit_prices = []  # No unit_price input - PT will do the costing
+
+            if not product_ids:
                 messages.error(request, 'Please add at least one product to the quote')
                 return redirect('quote_create')
+
+            # 4. Generate unique quote ID for the group
+            quote_group_id = f"Q-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
             
-            # Create quote items
-            total_amount = Decimal('0')
-            for i, product_name in enumerate(product_names):
-                if not product_name.strip():
-                    continue
-                    
-                quantity = int(quantities[i]) if i < len(quantities) else 1
-                unit_price = Decimal(unit_prices[i]) if i < len(unit_prices) else Decimal('0')
+            # 5. Process and Save Quotes (Atomic transaction for safety)
+            with transaction.atomic():
                 
-                quote = Quote.objects.create(
-                    quote_id=quote_id,
-                    client=client,
-                    lead=lead,
-                    product_name=product_name.strip(),
-                    quantity=quantity,
-                    unit_price=unit_price,
-                    status='Draft' if action == 'save_draft' else 'Quoted',
-                    quote_date=timezone.now().date(),
-                    valid_until=valid_until_date,
-                    notes=special_instructions,
-                    created_by=request.user
-                )
-                
-                total_amount += quote.total_amount
-            
-            # Create activity log
-            if client:
-                ActivityLog.objects.create(
-                    client=client,
-                    activity_type='Quote',
-                    title=f"Multi-Product Quote {quote_id} Created",
-                    description=f"Quote created with {len(product_names)} items. Total: KES {total_amount:,.2f}",
-                    created_by=request.user
-                )
-            
-            # Get all quotes for this quote_id for status updates
-            quotes = Quote.objects.filter(quote_id=quote_id)
-            
-            # Handle action
-            if action == 'save_draft':
-                # Just save as draft - no notifications
-                quotes.update(status='Draft')
-                messages.success(request, f'💾 Quote {quote_id} saved as draft!')
-                return redirect('quotes_list')
-                
-            elif action == 'save_send_pt':
-                # Send to Production Team for approval
-                quotes.update(status='Pending PT Approval', production_status='pending')
-                
-                # Create notifications for ALL PT members
-                pt_users = User.objects.filter(groups__name='Production Team')
-                for pt in pt_users:
-                    Notification.objects.create(
-                        recipient=pt,
-                        notification_type='quote_sent_pt',
-                        title=f'📋 Quote {quote_id} Needs Your Approval',
-                        message=f'AM {request.user.get_full_name() or request.user.username} sent a quote for review. Total: KES {total_amount:,.2f}',
-                        link=f'/quote-detail/{quote_id}/',
-                        related_quote_id=quote_id,
-                        action_url=f'/quotes/{quote_id}/action/',
-                        action_label='Review Quote'
+                for i in range(len(product_ids)):
+                    product = Product.objects.get(id=product_ids[i])
+                    qty = int(quantities[i]) if i < len(quantities) else 1
+
+                    # Create individual Quote records sharing the same quote_id
+                    # Price is 0 - PT will fill in the costing later
+                    quote_obj = Quote.objects.create(
+                        quote_id=quote_group_id,
+                        client=client,
+                        lead=lead,
+
+                        product_name=product.name,
+                        quantity=qty,
+                        unit_price=Decimal('0'),  # PT will cost this
+                        status='Draft',  # Default status
+                        quote_date=timezone.now().date(),
+                        valid_until=timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date(),
+                        notes=special_instructions,
+                        created_by=request.user
                     )
+
+                # 6. Finalize Status based on the Action button clicked
+                quotes = Quote.objects.filter(quote_id=quote_group_id)
                 
-                messages.success(request, f'✅ Quote {quote_id} sent to Production Team for approval!')
-                return redirect('quotes_list')
+                if action == 'save_draft':
+                    quotes.update(status='Draft')
+                    msg = f"💾 Quote {quote_group_id} saved as draft."
                 
-            elif action == 'send_to_client':
-                # Check if we're working with an existing approved quote
-                existing_quote_id = request.POST.get('existing_quote_id') or request.GET.get('quote_id')
+                elif action == 'save_send_pt':
+                    # All quotes sent to PT need costing
+                    quotes.update(status='Pending PT Approval', production_status='pending')
+                    
+                    # Notify Production Team
+                    from django.contrib.auth.models import User
+                    pt_users = User.objects.filter(groups__name='Production Team')
+                    for pt in pt_users:
+                        Notification.objects.create(
+                            recipient=pt,
+                            notification_type='quote_sent_pt',
+                            title=f'📋 Quote {quote_group_id} Needs Costing',
+                            message=f'New quote from {request.user.get_full_name()} requires costing.',
+                            link=f'/production/quote-costing-v2/{quote_group_id}/',
+                            related_quote_id=quote_group_id
+                        )
+                    msg = f"✅ Quote {quote_group_id} sent to PT for costing."
                 
-                if existing_quote_id:
-                    # We're sending an existing quote - check if it's approved
-                    existing_quotes = Quote.objects.filter(quote_id=existing_quote_id)
-                    if existing_quotes.exists():
-                        first_existing = existing_quotes.first()
-                        if first_existing.production_status != 'approved':
-                            messages.error(request, '❌ Quote must be approved by Production Team before sending to client!')
-                            return redirect('quote_create')
-                        
-                        # Update status to "Sent to Client"
-                        existing_quotes.update(status='Sent to Client')
-                        
-                        # Send quote via email
-                        result = send_quote_email(existing_quote_id, request)
-                        if result['success']:
-                            messages.success(request, f'✅ Quote {existing_quote_id} sent to client!')
-                        else:
-                            messages.warning(request, f'Quote sent but email failed: {result["message"]}')
-                        
-                        return redirect('quotes_list')
-                
-                # If we get here, it's a newly created quote (shouldn't happen with current flow)
-                messages.error(request, '❌ Please save and send to PT for approval first!')
-                return redirect('quote_create')
-            
+                # Log the Activity (only if client exists - leads don't have activity logs)
+                if client:
+                    ActivityLog.objects.create(
+                        client=client,
+
+                        activity_type='Quote',
+                        title=f"Quote {quote_group_id} Created",
+                        description=f"Quote with {len(product_ids)} items created. Sent for PT costing.",
+                        created_by=request.user
+                    )
+
+            messages.success(request, msg)
+            return redirect('quote_detail', quote_id=quote_group_id)
+
         except Exception as e:
-            messages.error(request, f'Error creating quote: {str(e)}')
-            import traceback
-            traceback.print_exc()
+            messages.error(request, f'Error: {str(e)}')
             return redirect('quote_create')
-    
-    # GET request - show form
-    clients = Client.objects.filter(status='Active').order_by('name')
-    leads = Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('-created_at')
-    products = Product.objects.filter(is_visible=True).order_by('name')
 
-    # Create lead interests dictionary for auto-population
-    lead_interests = {}
-    for lead in leads:
-        if lead.product_interest:
-            lead_interests[lead.name] = [p.strip() for p in lead.product_interest.split(',') if p.strip()]
-    
-    # Check if we're editing an existing quote
-    quote_id_param = request.GET.get('quote_id')
-    existing_quote_data = None
-    
-    if quote_id_param:
-        # Load existing quote data
-        existing_quotes = Quote.objects.filter(quote_id=quote_id_param)
-        if existing_quotes.exists():
-            first_quote = existing_quotes.first()
-            
-            # Get all line items for this quote
-            line_items = []
-            for quote in existing_quotes:
-                line_items.append({
-                    'product_name': quote.product_name,
-                    'quantity': quote.quantity,
-                    'unit_price': float(quote.unit_price),
-                })
-            
-            # Determine client/lead name
-            if first_quote.client:
-                client_name = first_quote.client.name
-            elif first_quote.lead:
-                client_name = first_quote.lead.name
-            else:
-                client_name = ''
-            
-            existing_quote_data = {
-                'quote_id': quote_id_param,
-                'client_name': client_name,
-                'account_manager': first_quote.created_by.get_full_name() if first_quote.created_by else '',
-                'valid_until': first_quote.valid_until.strftime('%Y-%m-%d') if first_quote.valid_until else '',
-                'delivery_deadline': getattr(first_quote, 'delivery_deadline', None).strftime('%Y-%m-%d') if hasattr(first_quote, 'delivery_deadline') and first_quote.delivery_deadline else '',
-                'special_instructions': first_quote.notes or '',
-                'line_items': line_items,
-                'production_status': first_quote.production_status,
-                'status': first_quote.status,
-            }
-    
-    import json
+    # GET request logic
     context = {
-        'current_view': 'quote_create',
-        'clients': clients,
-        'leads': leads,
-        'products': products,
-        'lead_interests': json.dumps(lead_interests),
-        'existing_quote_data': json.dumps(existing_quote_data) if existing_quote_data else None,
-        'existing_quote_obj': existing_quote_data,
+        'clients': Client.objects.filter(status='Active').order_by('name'),
+        'leads': Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('-created_at'),
+        'products': Product.objects.filter(is_visible=True).order_by('name'),
     }
-    
     return render(request, 'quote_create.html', context)
-
 
 @login_required
 def download_quote_pdf(request, quote_id):
@@ -6302,53 +6208,53 @@ def process_edit(request, process_id):
 
 
 @transaction.atomic
+
 def handle_process_save(request, process=None):
     """
     Handle POST data for creating/updating a process
     This is the core function that processes the form submission
     """
+    import logging
+    from decimal import Decimal
+    
+    logger = logging.getLogger(__name__)
+    
     data = request.POST
     action = data.get('action', 'draft')  # 'draft' or 'activate'
-    
+
     # Create or update main process
     if process is None:
         process = Process()
         process.created_by = request.user
-    
+
     # Update basic fields
     process.process_name = data.get('process_name')
     process.description = data.get('description', '')
     process.category = data.get('category')
     process.standard_lead_time = int(data.get('standard_lead_time', 5))
-    
-    # Determine which pricing type was selected from the pricing_method hidden field
-    # This field is set by JavaScript when user clicks "SELECT" on tier or formula card
-    pricing_method = data.get('pricing_method', 'tier')  # Default to tier if not specified
-    
+
+    # Pricing method
+    pricing_method = data.get('pricing_method', 'tier')
+
     if pricing_method == 'formula':
         process.pricing_type = 'formula'
-        process.unit_of_measure = None  # Not applicable for formula-based
+        process.unit_of_measure = None
     else:
         process.pricing_type = 'tier'
         process.unit_of_measure = data.get('unit_of_measure', 'per_piece')
-    
+
     # Approval settings
     process.approval_type = data.get('approval_settings', 'auto_approve')
-    
+
     # Status
-    if action == 'activate':
-        process.status = 'active'
-    else:
-        process.status = 'draft'
-    
+    process.status = 'active' if action == 'activate' else 'draft'
+
     process.save()
-    
+
     # ===== SAVE TIER-BASED PRICING =====
     if process.pricing_type == 'tier':
-        # Delete existing tiers
         process.tiers.all().delete()
-        
-        # Create new tiers from form data
+
         tier_num = 1
         while f'tier{tier_num}_from' in data:
             ProcessTier.objects.create(
@@ -6360,80 +6266,56 @@ def handle_process_save(request, process=None):
                 cost=float(data.get(f'tier{tier_num}_cost', 0)),
             )
             tier_num += 1
-    
-    # ===== SAVE FORMULA-BASED PRICING =====
-    # (Would need JavaScript to send this as JSON)
-    # For now, simplified version
-    
-    # In handle_process_save function, replace the formula-based pricing section:
 
-# ===== SAVE FORMULA-BASED PRICING =====
+    # ===== SAVE FORMULA-BASED PRICING =====
     if process.pricing_type == 'formula':
-        # Delete existing variables
         process.variables.all().delete()
-    
-        # Save base cost if provided
+
         base_cost = data.get('base_cost', 0)
         if base_cost:
             process.base_cost = Decimal(str(base_cost))
         process.save()
-    
-    # Create variables with ranges from form data
-    var_num = 1
-    while f'variable{var_num}_name' in data:
-        var_name = data.get(f'variable{var_num}_name', '').strip()
-        
-        if var_name:  # Only create if name exists
-            var_type = data.get(f'variable{var_num}_type', 'number')
-            var_unit = data.get(f'variable{var_num}_unit', '').strip()
-            var_description = data.get(f'variable{var_num}_description', '').strip()
-            
-            # Create the variable
-            process_var = ProcessVariable.objects.create(
-                process=process,
-                variable_name=var_name,
-                variable_type=var_type,
-                unit=var_unit,
-                description=var_description,
-                order=var_num - 1
-            )
-            
-            # Add ranges for this variable
-            range_num = 1
-            while f'variable{var_num}_range{range_num}_from' in data:
-                try:
-                    range_from = Decimal(data.get(f'variable{var_num}_range{range_num}_from', 0))
-                    range_to = Decimal(data.get(f'variable{var_num}_range{range_num}_to', 0))
-                    range_price = Decimal(data.get(f'variable{var_num}_range{range_num}_price', 0))
-                    range_rate = Decimal(data.get(f'variable{var_num}_range{range_num}_rate', 1))
-                    
-                    # Create the range
-                    ProcessVariableRange.objects.create(
-                        variable=process_var,
-                        min_value=range_from,
-                        max_value=range_to,
-                        price=range_price,
-                        rate=range_rate,
-                        order=range_num - 1
-                    )
-                except (ValueError, TypeError) as e:
-                    logger.warning(f"Error saving range {range_num} for variable {var_name}: {e}")
+
+        var_num = 1
+        while f'variable{var_num}_name' in data:
+            var_name = data.get(f'variable{var_num}_name', '').strip()
+
+            if var_name:
+                var_type = data.get(f'variable{var_num}_type', 'number')  # NEW
+                var_unit = data.get(f'variable{var_num}_unit', '').strip()
+                var_price = data.get(f'variable{var_num}_price', 0)
+                var_rate = data.get(f'variable{var_num}_rate', 1.0)
                 
-                range_num += 1
-        
-        var_num += 1
-    
+                # Only get value for number type
+                var_value = None
+                if var_type == 'number':
+                    var_value = data.get(f'variable{var_num}_value', 0)
+
+                try:
+                    ProcessVariable.objects.create(
+                        process=process,
+                        variable_name=var_name,
+                        variable_type=var_type,  # NEW
+                        unit=var_unit,
+                        variable_value=Decimal(str(var_value)) if var_value else None,
+                        price=Decimal(str(var_price)),
+                        rate=Decimal(str(var_rate)),
+                        order=var_num - 1
+                    )
+                except (ValueError, TypeError, decimal.InvalidOperation) as e:
+                    logger.warning(f"Error saving variable {var_name}: {e}")
+
+            var_num += 1
+
     # ===== SAVE VENDORS =====
-    # Delete existing vendor links
     process.process_vendors.all().delete()
-    
-    # Save Vendor 1 (Primary)
+
+    # Vendor 1 (Primary)
     vendor_pk = data.get('vendor1_id')
     if vendor_pk:
         try:
             vendor_obj = Vendor.objects.get(pk=vendor_pk)
-            
-            # Build formula_rates JSON if pricing type is formula
+
             formula_rates = None
             if process.pricing_type == 'formula':
                 formula_rates = {
@@ -6441,12 +6323,14 @@ def handle_process_save(request, process=None):
                     'rate_per_unit': float(data.get('vendor1_rate_per_unit', 0) or 0),
                     'setup_fee': float(data.get('vendor1_setup_fee', 0) or 0),
                 }
-            
-            # Get all vendor 1 fields from form
+
             ProcessVendor.objects.create(
                 process=process,
                 vendor_name=vendor_obj.name,
-                vendor_id=data.get('vendor1_vendor_id', f"VND-{str(vendor_obj.id).zfill(3)}"),
+                vendor_id=data.get(
+                    'vendor1_vendor_id',
+                    f"VND-{str(vendor_obj.id).zfill(3)}"
+                ),
                 vps_score=vendor_obj.vps_score_value,
                 priority='preferred',
                 rush_enabled=data.get('vendor1_rush_enabled') == 'on',
@@ -6456,23 +6340,24 @@ def handle_process_save(request, process=None):
                 standard_lead_time=int(data.get('vendor1_standard_days', 5) or 5),
                 rush_lead_time=int(data.get('vendor1_rush_days', 2) or 2),
                 notes=data.get('vendor1_notes', ''),
-                # Store formula-based pricing in JSON field
                 formula_rates=formula_rates,
             )
         except Vendor.DoesNotExist:
-            pass  # Vendor not found, skip
-    
-    
-    # Save Vendor 2 (Alternative) - if provided
+            pass
+
+    # Vendor 2 (Alternative)
     vendor2_pk = data.get('vendor2_id')
     if vendor2_pk:
         try:
             vendor2_obj = Vendor.objects.get(pk=vendor2_pk)
-            
+
             ProcessVendor.objects.create(
                 process=process,
                 vendor_name=vendor2_obj.name,
-                vendor_id=data.get('vendor2_vendor_id', f"VND-{str(vendor2_obj.id).zfill(3)}"),
+                vendor_id=data.get(
+                    'vendor2_vendor_id',
+                    f"VND-{str(vendor2_obj.id).zfill(3)}"
+                ),
                 vps_score=vendor2_obj.vps_score_value,
                 priority='alternative',
                 rush_enabled=data.get('vendor2_rush_enabled') == 'on',
@@ -6482,24 +6367,26 @@ def handle_process_save(request, process=None):
                 standard_lead_time=int(data.get('vendor2_standard_days', 5) or 5),
                 rush_lead_time=int(data.get('vendor2_rush_days', 2) or 2),
                 notes=data.get('vendor2_notes', ''),
-                # Formula-based pricing fields
                 base_rate=float(data.get('vendor2_base_rate', 0) or 0),
                 rate_per_unit=float(data.get('vendor2_rate_per_unit', 0) or 0),
                 setup_fee=float(data.get('vendor2_setup_fee', 0) or 0),
             )
         except Vendor.DoesNotExist:
             pass
-    
-    # Save Vendor 3 (Backup) - if provided
+
+    # Vendor 3 (Backup)
     vendor3_pk = data.get('vendor3_id')
     if vendor3_pk:
         try:
             vendor3_obj = Vendor.objects.get(pk=vendor3_pk)
-            
+
             ProcessVendor.objects.create(
                 process=process,
                 vendor_name=vendor3_obj.name,
-                vendor_id=data.get('vendor3_vendor_id', f"VND-{str(vendor3_obj.id).zfill(3)}"),
+                vendor_id=data.get(
+                    'vendor3_vendor_id',
+                    f"VND-{str(vendor3_obj.id).zfill(3)}"
+                ),
                 vps_score=vendor3_obj.vps_score_value,
                 priority='backup',
                 rush_enabled=data.get('vendor3_rush_enabled') == 'on',
@@ -6509,19 +6396,25 @@ def handle_process_save(request, process=None):
                 standard_lead_time=int(data.get('vendor3_standard_days', 5) or 5),
                 rush_lead_time=int(data.get('vendor3_rush_days', 2) or 2),
                 notes=data.get('vendor3_notes', ''),
-                # Formula-based pricing fields
                 base_rate=float(data.get('vendor3_base_rate', 0) or 0),
                 rate_per_unit=float(data.get('vendor3_rate_per_unit', 0) or 0),
                 setup_fee=float(data.get('vendor3_setup_fee', 0) or 0),
             )
         except Vendor.DoesNotExist:
             pass
-    
-    # Success message
+
+    # ===== SUCCESS MESSAGE =====
     if action == 'activate':
-        messages.success(request, f'Process "{process.process_name}" has been activated!')
+        messages.success(
+            request,
+            f'Process "{process.process_name}" has been activated!'
+        )
     else:
-        messages.success(request, f'Process "{process.process_name}" saved as draft.')
+        messages.success(
+            request,
+            f'Process "{process.process_name}" saved as draft.'
+        )
+
     return redirect('process_list')
 
 

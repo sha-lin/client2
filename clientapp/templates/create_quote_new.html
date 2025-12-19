@@ -199,7 +199,7 @@
 <!-- Main Content -->
 <div class="pt-20 pb-32 px-4 bg-gray-100">
     <div class="invoice-container">
-        <form id="quoteForm" method="POST" action="{% url 'quote_create' %}">
+        <form id="quoteForm" method="POST" action="{% url 'create_quote' %}">
             {% csrf_token %}
 
             <!-- Hidden fields for form submission -->
@@ -508,15 +508,17 @@
         const leadIdField = document.getElementById('leadId');
 
         // Product data for reference
-        let productsData = [];
-        try {
-            const productsJson = '{{ products_json|escapejs }}';
-            if (productsJson && productsJson !== 'null') {
-                productsData = JSON.parse(productsJson);
-            }
-        } catch (e) {
-            console.warn('Error parsing products JSON:', e);
-        }
+        const productsData = [
+            {% for product in products %}{
+                id: {{ product.id }},
+                name: "{{ product.name|escapejs }}",
+                internal_code: "{{ product.internal_code|escapejs }}",
+                customization_level: "{{ product.customization_level }}",
+                base_price: {{ product.base_price|default:0 }},
+                display_name: "{{ product.internal_code }} - {{ product.name }} ({{ product.get_customization_level_display }})"
+            }{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
 
         // Handle client/lead type selection
         clientTypeSelect.addEventListener('change', function () {
@@ -780,38 +782,20 @@
         includeVAT.addEventListener('change', updateTotals);
         addItemBtn.addEventListener('click', () => addLineItem());
 
-        // Form validation function (reusable for action buttons)
-        function validateForm() {
-            console.log('Form validation triggered');
-            
+        // Form validation
+        form.addEventListener('submit', function (e) {
             const type = quoteTypeField.value;
             const clientId = clientIdField.value;
             const leadId = leadIdField.value;
-            const clientName = clientNameField.value.trim();
 
-            console.log('Validation check:', { type, clientId, leadId, clientName });
-
-            if (!type) {
-                alert('Please select a client or lead type');
-                return false;
-            }
-            
-            if (type === 'client' && !clientId) {
-                alert('Please select a client');
-                return false;
-            }
-            
-            if (type === 'lead' && !leadId) {
-                alert('Please select a lead');
-                return false;
-            }
-            
-            if (!clientName) {
-                alert('Client/Lead name is required');
+            if (!type || (type === 'client' && !clientId) || (type === 'lead' && !leadId)) {
+                e.preventDefault();
+                alert('Please select a client or lead');
                 return false;
             }
 
             if (itemCounter === 0) {
+                e.preventDefault();
                 alert('Please add at least one item');
                 return false;
             }
@@ -820,101 +804,34 @@
             const productSelects = document.querySelectorAll('.item-product');
             for (let select of productSelects) {
                 if (!select.value) {
+                    e.preventDefault();
                     alert('Please select a product for all line items');
                     return false;
                 }
             }
-            
-            console.log('Validation passed');
-            return true;
-        }
-
-        // Form validation
-        form.addEventListener('submit', function (e) {
-            console.log('Form submit triggered');
-            
-            // Use the validateForm function
-            if (!validateForm()) {
-                e.preventDefault();
-                return false;
-            }
-            
-            console.log('Validation passed, allowing form submission');
         });
 
         // Save Draft button
         saveDraftBtn.addEventListener('click', () => {
-            // Validate form before submission
-            if (!validateForm()) {
-                return;
-            }
-            
-            // Add hidden action field
-            let actionField = document.querySelector('input[name="action"]');
-            if (!actionField) {
-                actionField = document.createElement('input');
-                actionField.type = 'hidden';
-                actionField.name = 'action';
-                form.appendChild(actionField);
-            }
-            actionField.value = 'save_draft';
+            document.getElementById('quoteStatus').value = 'Draft';
             form.submit();
         });
 
         // Download button
         downloadBtn.addEventListener('click', () => {
-            // Validate form before submission
-            if (!validateForm()) {
-                return;
-            }
-            
-            // Add action for download
-            let actionField = document.querySelector('input[name="action"]');
-            if (!actionField) {
-                actionField = document.createElement('input');
-                actionField.type = 'hidden';
-                actionField.name = 'action';
-                form.appendChild(actionField);
-            }
-            actionField.value = 'download';
-            form.submit();
+            window.print();
         });
 
         // Email button
         emailBtn.addEventListener('click', () => {
-            // Validate form before submission
-            if (!validateForm()) {
-                return;
-            }
-            
-            // Add action for email
-            let actionField = document.querySelector('input[name="action"]');
-            if (!actionField) {
-                actionField = document.createElement('input');
-                actionField.type = 'hidden';
-                actionField.name = 'action';
-                form.appendChild(actionField);
-            }
-            actionField.value = 'email_client';
-            form.submit();
+            // Implement email functionality
+            alert('Email functionality will be implemented here');
         });
 
         // Send to PT button
         sendToPTBtn.addEventListener('click', () => {
-            // Validate form before submission
-            if (!validateForm()) {
-                return;
-            }
-            
-            // Add action for send to PT
-            let actionField = document.querySelector('input[name="action"]');
-            if (!actionField) {
-                actionField = document.createElement('input');
-                actionField.type = 'hidden';
-                actionField.name = 'action';
-                form.appendChild(actionField);
-            }
-            actionField.value = 'send_to_pt';
+            // Set status to pending PT approval and submit
+            document.getElementById('quoteStatus').value = 'Pending PT Approval';
             form.submit();
         });
 

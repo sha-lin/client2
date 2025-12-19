@@ -533,6 +533,9 @@ class Product(models.Model):
     warranty = models.CharField(max_length=50, choices=WARRANTY_CHOICES, default='satisfaction-guarantee')
     country_of_origin = models.CharField(max_length=50, choices=COUNTRY_CHOICES, default='kenya')
     
+    # Pricing
+    base_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Base price for non-customizable products")
+    
     # Notes & Comments
     internal_notes = models.TextField(blank=True, help_text="Internal use only")
     client_notes = models.TextField(blank=True, help_text="Visible to clients")
@@ -667,6 +670,172 @@ class ProductPricing(models.Model):
     def __str__(self):
         return f"Pricing for {self.product.name}"
 
+from django.db import models
+from django.contrib.auth.models import User
+from django.core.validators import MinValueValidator, MaxValueValidator
+import json
+class Process(models.Model):
+    """Main Process model - represents a production process with pricing logic"""
+    
+    PRICING_TYPE_CHOICES = [
+        ('tier', 'Tier-Based Pricing'),
+        ('formula', 'Formula-Based Pricing'),
+    ]
+    
+    CATEGORY_CHOICES = [
+        ('outsourced', 'Outsourced'),
+        ('in_house', 'In-house'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+    ]
+    
+    # Basic Information
+    process_id = models.CharField(max_length=50, unique=True, db_index=True)
+    process_name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    standard_lead_time = models.IntegerField(help_text="Days")
+    
+    # Pricing Configuration
+    pricing_type = models.CharField(max_length=20, choices=PRICING_TYPE_CHOICES)
+    unit_of_measure = models.CharField(max_length=50, blank=True, null=True)
+    base_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Base cost for formula-based pricing")
+    
+    # Approval Settings
+    approval_type = models.CharField(max_length=50, default='auto_approve')
+    approval_margin_threshold = models.DecimalField(
+        max_digits=5, decimal_places=2, default=25.00
+    )
+    
+    # Metadata
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, 
+                                   related_name='processes_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Process'
+        verbose_name_plural = 'Processes'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.process_id} - {self.process_name}"
+    
+    def generate_process_id(self):
+        """Auto-generate process ID from name"""
+        words = self.process_name.upper().split()
+        if len(words) >= 2:
+            code = f"PR-{words[0][:3]}-{words[1][:3]}"
+        else:
+            code = f"PR-{words[0][:6]}"
+        
+        # Ensure uniqueness
+        counter = 1
+        original_code = code
+        while Process.objects.filter(process_id=code).exists():
+            code = f"{original_code}-{counter}"
+            counter += 1
+        return code
+    
+    def save(self, *args, **kwargs):
+        if not self.process_id:
+            self.process_id = self.generate_process_id()
+        super().save(*args, **kwargs)
+
+
+
+
+class ProcessTier(models.Model):
+    """Quantity tiers for tier-based pricing"""
+    
+    process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='tiers')
+    tier_number = models.IntegerField()
+    
+    # Quantity Range
+    quantity_from = models.IntegerField(validators=[MinValueValidator(1)])
+    quantity_to = models.IntegerField(validators=[MinValueValidator(1)])
+    
+    # Pricing
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    cost = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    # Auto-calculated fields
+    per_unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    margin_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    margin_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['tier_number']
+        unique_together = ['process', 'tier_number']
+    
+    def __str__(self):
+        return f"{self.process.process_id} - Tier {self.tier_number}"
+    
+    def calculate_values(self):
+        """Calculate per-unit price and margin"""
+        if self.quantity_to > 0:
+            self.per_unit_price = self.price / self.quantity_to
+        self.margin_amount = self.price - self.cost
+        if self.price > 0:
+            self.margin_percentage = (self.margin_amount / self.price) * 100
+    
+    def save(self, *args, **kwargs):
+        self.calculate_values()
+        super().save(*args, **kwargs)
+
+
+class ProcessVariable(models.Model):
+    """Variables for formula-based pricing"""
+    
+    VARIABLE_TYPE_CHOICES = [
+        ('number', 'Number'),
+        ('alphanumeric', 'Alphanumeric'),
+    ]
+    
+    process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='variables')
+    variable_name = models.CharField(max_length=100)
+    variable_type = models.CharField(max_length=20, choices=VARIABLE_TYPE_CHOICES, default='number')  # NEW
+    unit = models.CharField(max_length=50, blank=True, help_text="e.g., stitches, m, cm")
+    
+    # Single value fields (for number type)
+    variable_value = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        null=True, 
+        blank=True,
+        help_text="Single value for this variable (only for number type)"
+    )
+    price = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2, 
+        default=0,
+        help_text="Price for this variable value (KES)"
+    )
+    rate = models.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        default=1.0,
+        help_text="Multiplier rate for this variable"
+    )
+    
+    # Keep these for backward compatibility but make optional
+    min_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    max_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    default_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    
+    description = models.TextField(blank=True)
+    order = models.IntegerField(default=0)
+    
+    class Meta:
+        ordering = ['order']
+    
+    def __str__(self):
+        return f"{self.process.process_id} - {self.variable_name} ({self.get_variable_type_display()})"
 
 class ProductVariable(models.Model):
     """Product Variables for configurable products"""
@@ -2267,154 +2436,6 @@ class Delivery(models.Model):
 # ADD THESE MODELS TO clientapp/models.py
 # ============================================
 
-from django.db import models
-from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, MaxValueValidator
-import json
-
-
-class Process(models.Model):
-    """Main Process model - represents a production process with pricing logic"""
-    
-    PRICING_TYPE_CHOICES = [
-        ('tier', 'Tier-Based Pricing'),
-        ('formula', 'Formula-Based Pricing'),
-    ]
-    
-    CATEGORY_CHOICES = [
-        ('outsourced', 'Outsourced'),
-        ('in_house', 'In-house'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('draft', 'Draft'),
-        ('active', 'Active'),
-        ('inactive', 'Inactive'),
-    ]
-    
-    # Basic Information
-    process_id = models.CharField(max_length=50, unique=True, db_index=True)
-    process_name = models.CharField(max_length=200)
-    description = models.TextField(blank=True)
-    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
-    standard_lead_time = models.IntegerField(help_text="Days")
-    
-    # Pricing Configuration
-    pricing_type = models.CharField(max_length=20, choices=PRICING_TYPE_CHOICES)
-    unit_of_measure = models.CharField(max_length=50, blank=True, null=True)
-    
-    # Approval Settings
-    approval_type = models.CharField(max_length=50, default='auto_approve')
-    approval_margin_threshold = models.DecimalField(
-        max_digits=5, decimal_places=2, default=25.00
-    )
-    
-    # Metadata
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, 
-                                   related_name='processes_created')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        verbose_name = 'Process'
-        verbose_name_plural = 'Processes'
-        ordering = ['-created_at']
-    
-    def __str__(self):
-        return f"{self.process_id} - {self.process_name}"
-    
-    def generate_process_id(self):
-        """Auto-generate process ID from name"""
-        words = self.process_name.upper().split()
-        if len(words) >= 2:
-            code = f"PR-{words[0][:3]}-{words[1][:3]}"
-        else:
-            code = f"PR-{words[0][:6]}"
-        
-        # Ensure uniqueness
-        counter = 1
-        original_code = code
-        while Process.objects.filter(process_id=code).exists():
-            code = f"{original_code}-{counter}"
-            counter += 1
-        return code
-    
-    def save(self, *args, **kwargs):
-        if not self.process_id:
-            self.process_id = self.generate_process_id()
-        super().save(*args, **kwargs)
-
-
-class ProcessTier(models.Model):
-    """Quantity tiers for tier-based pricing"""
-    
-    process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='tiers')
-    tier_number = models.IntegerField()
-    
-    # Quantity Range
-    quantity_from = models.IntegerField(validators=[MinValueValidator(1)])
-    quantity_to = models.IntegerField(validators=[MinValueValidator(1)])
-    
-    # Pricing
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    cost = models.DecimalField(max_digits=10, decimal_places=2)
-    
-    # Auto-calculated fields
-    per_unit_price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    margin_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    margin_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    
-    class Meta:
-        ordering = ['tier_number']
-        unique_together = ['process', 'tier_number']
-    
-    def __str__(self):
-        return f"{self.process.process_id} - Tier {self.tier_number}"
-    
-    def calculate_values(self):
-        """Calculate per-unit price and margin"""
-        if self.quantity_to > 0:
-            self.per_unit_price = self.price / self.quantity_to
-        self.margin_amount = self.price - self.cost
-        if self.price > 0:
-            self.margin_percentage = (self.margin_amount / self.price) * 100
-    
-    def save(self, *args, **kwargs):
-        self.calculate_values()
-        super().save(*args, **kwargs)
-
-
-class ProcessVariable(models.Model):
-    """Variables for formula-based pricing"""
-    
-    VARIABLE_TYPE_CHOICES = [
-        ('number', 'Number'),
-        ('text', 'Text'),
-        ('dropdown', 'Dropdown'),
-        ('boolean', 'Boolean'),
-    ]
-    
-    process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='variables')
-    variable_name = models.CharField(max_length=100)
-    variable_type = models.CharField(max_length=20, choices=VARIABLE_TYPE_CHOICES)
-    unit = models.CharField(max_length=50, blank=True)
-    
-    # Validation
-    min_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    max_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    default_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    description = models.TextField(blank=True)
-    order = models.IntegerField(default=0)
-    
-    class Meta:
-        ordering = ['order']
-    
-    def __str__(self):
-        return f"{self.process.process_id} - {self.variable_name}"
-
-
-
 
 
 class ProcessVendor(models.Model):
@@ -2484,6 +2505,13 @@ class PricingTier(models.Model):
     
     def __str__(self):
         return f"Tier {self.tier_number}: {self.quantity_from}-{self.quantity_to}"
+
+
+
+
+
+
+
 
 
 # class Vendor(models.Model):
