@@ -1407,8 +1407,9 @@ class Quote(models.Model):
         if not self.valid_until:
             self.valid_until = timezone.now().date() + timedelta(days=30)
 
-        # Enforce status transitions (Zoho-like behavior)
-        self._enforce_status_transitions()
+        # Enforce status transitions (Zoho-like behavior) unless explicitly skipped
+        if not getattr(self, '_skip_status_validation', False):
+            self._enforce_status_transitions()
         
         # Update production status transitions automatically
         if self.status == 'Costed' and self.production_status == 'pending':
@@ -1437,7 +1438,7 @@ class Quote(models.Model):
             valid_transitions = {
                 'Draft': ['Sent to PT', 'Sent to Customer'],  # Can skip PT if no fully customizable products
                 'Sent to PT': ['Costed', 'Draft'],  # Can go back to draft
-                'Costed': ['Sent to Customer', 'Draft'],
+                'Costed': ['Sent to Customer', 'Draft', 'Sent to PT'],  # Allow going back to PT for re-costing
                 'Sent to Customer': ['Approved', 'Lost', 'Draft'],
                 'Approved': ['Lost'],  # Once approved, can only be lost
                 'Lost': [],  # Terminal state
@@ -1446,7 +1447,11 @@ class Quote(models.Model):
             # Check if transition is valid
             if old_status != new_status:
                 allowed_next = valid_transitions.get(old_status, [])
-                if new_status not in allowed_next:
+                # Special case: Allow Draft -> Costed transition when costed_by is set (PT costing workflow)
+                if new_status == 'Costed' and old_status == 'Draft' and hasattr(self, 'costed_by') and self.costed_by:
+                    # This is a valid transition when PT is costing a draft quote
+                    pass
+                elif new_status not in allowed_next:
                     raise ValidationError(
                         f"Invalid status transition from '{old_status}' to '{new_status}'. "
                         f"Allowed transitions: {', '.join(allowed_next) if allowed_next else 'None'}"

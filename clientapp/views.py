@@ -2938,8 +2938,17 @@ def update_quote_costing_v2(request, quote_id):
             # Update status based on action
             if action == 'approve':
                 quote.production_status = 'costed'
-                quote.status = 'Costed'  # Use new status
                 quote.costed_by = request.user
+                # Set status to 'Sent to PT' first if it's Draft, then to 'Costed'
+                # This ensures proper status transition
+                if quote.status == 'Draft':
+                    # Temporarily bypass validation to set intermediate status
+                    quote._skip_status_validation = True
+                    quote.status = 'Sent to PT'
+                    quote.save()
+                    quote._skip_status_validation = False
+                # Now transition to Costed
+                quote.status = 'Costed'
                 quote.save()
             
             # Create production update
