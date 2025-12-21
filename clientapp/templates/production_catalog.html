@@ -30,32 +30,28 @@
             <select name="category"
                 class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="all">All Categories</option>
-                <option value="Print Materials" {% if category_filter=='Print Materials' %}selected{% endif %}>Print
-                    Materials</option>
-                <option value="Signage" {% if category_filter=='Signage' %}selected{% endif %}>Signage</option>
-                <option value="Apparel" {% if category_filter=='Apparel' %}selected{% endif %}>Apparel</option>
-                <option value="Promotional Items" {% if category_filter=='Promotional Items' %}selected{% endif %}>
-                    Promotional Items</option>
-                <option value="Packaging" {% if category_filter=='Packaging' %}selected{% endif %}>Packaging</option>
+                <option value="Print Materials" {% if category_filter == 'Print Materials' %}selected{% endif %}>Print Materials</option>
+                <option value="Signage" {% if category_filter == 'Signage' %}selected{% endif %}>Signage</option>
+                <option value="Apparel" {% if category_filter == 'Apparel' %}selected{% endif %}>Apparel</option>
+                <option value="Promotional Items" {% if category_filter == 'Promotional Items' %}selected{% endif %}>Promotional Items</option>
+                <option value="Packaging" {% if category_filter == 'Packaging' %}selected{% endif %}>Packaging</option>
             </select>
 
             <select name="status"
                 class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="all">All Status</option>
-                <option value="Active" {% if status_filter=='Active' %}selected{% endif %}>Active</option>
-                <option value="New" {% if status_filter=='New' %}selected{% endif %}>New</option>
-                <option value="Phasing Out" {% if status_filter=='Phasing Out' %}selected{% endif %}>Phasing Out
-                </option>
-                <option value="Retired" {% if status_filter=='Retired' %}selected{% endif %}>Retired</option>
+                <option value="Active" {% if status_filter == 'Active' %}selected{% endif %}>Active</option>
+                <option value="New" {% if status_filter == 'New' %}selected{% endif %}>New</option>
+                <option value="Phasing Out" {% if status_filter == 'Phasing Out' %}selected{% endif %}>Phasing Out</option>
+                <option value="Retired" {% if status_filter == 'Retired' %}selected{% endif %}>Retired</option>
             </select>
 
             <select name="tier"
                 class="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 <option value="all">All Tiers</option>
-                <option value="Non-Custom" {% if tier_filter=='Non-Custom' %}selected{% endif %}>Non-Custom</option>
-                <option value="Semi-Custom" {% if tier_filter=='Semi-Custom' %}selected{% endif %}>Semi-Custom</option>
-                <option value="Fully Custom" {% if tier_filter=='Fully Custom' %}selected{% endif %}>Fully Custom
-                </option>
+                <option value="Non-Custom" {% if tier_filter == 'Non-Custom' %}selected{% endif %}>Non-Custom</option>
+                <option value="Semi-Custom" {% if tier_filter == 'Semi-Custom' %}selected{% endif %}>Semi-Custom</option>
+                <option value="Fully Custom" {% if tier_filter == 'Fully Custom' %}selected{% endif %}>Fully Custom</option>
             </select>
         </form>
     </div>
@@ -97,8 +93,7 @@
                                 <span class="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">Featured</span>
                                 {% endif %}
                                 {% if product.bestseller %}
-                                <span
-                                    class="px-2 py-1 text-xs border border-gray-300 text-gray-700 rounded flex items-center gap-1">
+                                <span class="px-2 py-1 text-xs border border-gray-300 text-gray-700 rounded flex items-center gap-1">
                                     <i data-lucide="trending-up" class="w-3 h-3"></i>
                                     Bestseller
                                 </span>
@@ -109,19 +104,25 @@
                     </td>
                     <td class="py-3 px-4 text-sm text-gray-600">{{ product.category }}</td>
                     <td class="py-3 px-4">
-                        <span class="px-2 py-1 text-xs border border-gray-300 rounded">{{ product.customization_tier
-                            }}</span>
+                        <span class="px-2 py-1 text-xs border border-gray-300 rounded">{{ product.customization_tier }}</span>
                     </td>
-                    <td class="py-3 px-4 text-sm text-gray-900">KES {{ product.base_price|floatformat:0 }}</td>
+                    <td class="py-3 px-4 text-sm text-gray-900">
+                        {% if product.base_price %}
+                            KES {{ product.base_price|floatformat:2 }}
+                        {% elif product.pricing and product.pricing.base_cost %}
+                            KES {{ product.pricing.base_cost|floatformat:2 }} <span class="text-xs text-gray-400">(cost)</span>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </td>
                     <td class="py-3 px-4">
                         <div class="flex items-center gap-2">
-                            <p
-                                class="text-sm {% if product.margin >= 25 %}text-green-600{% elif product.margin >= 15 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                            <p class="text-sm {% if product.margin >= 25 %}text-green-600{% elif product.margin >= 15 %}text-yellow-600{% else %}text-red-600{% endif %}">
                                 {{ product.margin }}%
                             </p>
-                            {% if product.margin < 20 %} <i data-lucide="alert-circle" class="w-3 h-3 text-yellow-600">
-                                </i>
-                                {% endif %}
+                            {% if product.margin < 20 %}
+                            <i data-lucide="alert-circle" class="w-3 h-3 text-yellow-600"></i>
+                            {% endif %}
                         </div>
                     </td>
                     <td class="py-3 px-4">
@@ -157,7 +158,6 @@
                     </td>
                     <td class="py-3 px-4 text-right">
                         <div class="flex items-center justify-end gap-2">
-
                             <a href="{% url 'product_edit' product.id %}" class="p-2 hover:bg-gray-100 rounded">
                                 <i data-lucide="edit" class="w-4 h-4"></i>
                             </a>

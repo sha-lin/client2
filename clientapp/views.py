@@ -14,6 +14,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 from functools import wraps
 from django.contrib.auth.models import User, Group
 from .models import BrandAsset
@@ -36,6 +37,7 @@ from .models import (
     ComplianceDocument,
     Product,
     Quote,
+    QuoteLineItem,
     ActivityLog,
     ProductionUpdate,
     Notification,
@@ -748,16 +750,20 @@ def analytics(request):
 
 @group_required('Account Manager')
 def product_catalog(request):
-    """Product catalog view for account managers (read-only)"""
+    """Product catalog view for account managers (read-only) - returns only published products"""
 
     search = request.GET.get('search', '').strip()
     product_type = request.GET.get('product_type', 'all')
     availability = request.GET.get('availability', 'all')
 
-    products = Product.objects.filter(is_visible=True)
+    # Only show published and visible products
+    products = Product.objects.filter(
+        status='published',
+        is_visible=True
+    )
 
     if search:
-        products = products.filter(Q(name__icontains=search) | Q(sku__icontains=search))
+        products = products.filter(Q(name__icontains=search) | Q(internal_code__icontains=search))
 
     if product_type != 'all':
         products = products.filter(product_type=product_type)
@@ -773,7 +779,7 @@ def product_catalog(request):
         'availability': availability,
     }
     
-    return render(request, 'product_create_edit.html', context)
+    return render(request, 'product_catalog.html', context)
 
 
 
@@ -1392,13 +1398,18 @@ def create_quote(request):
     # GET — Render form
     clients = Client.objects.filter(status='Active').order_by('name')
     leads = Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('-created_at')
-    products = Product.objects.filter(is_active=True).order_by('name')
+    # Only show published and visible products for quote creation
+    products = Product.objects.filter(
+        status='published',
+        is_visible=True
+    ).order_by('name')
+    
     today = timezone.now().date()
     default_valid_until = today + timedelta(days=30)
     
     # Get account manager name
     account_manager_name = request.user.get_full_name() or request.user.username
-
+    
     context = {
         'clients': clients,
         'leads': leads,
@@ -1414,9 +1425,10 @@ def create_quote(request):
 
 @login_required
 @group_required('Account Manager')
-@transaction.atomic
 def quote_create(request):
     """Create multi-product quote with product customization logic"""
+    from clientapp.models import resolve_unit_price, QuoteLineItem
+    
     if request.method == 'POST':
         try:
             # 1. Get Core Form Data
@@ -1440,53 +1452,142 @@ def quote_create(request):
                 messages.error(request, "Please select a valid client or lead.")
                 return redirect('quote_create')
 
-            # 3. Parse Line Items (The Fix)
-            # request.POST.getlist matches the 'name' attribute in your HTML inputs
+            # 3. Parse Line Items
             product_ids = request.POST.getlist('product_id[]')
             quantities = request.POST.getlist('quantity[]')
-            unit_prices = []  # No unit_price input - PT will do the costing
+            rates = request.POST.getlist('rate[]')  # Unit prices from form
+            variable_amounts = request.POST.getlist('variable_amount[]', [])  # For semi-customizable products
 
             if not product_ids:
                 messages.error(request, 'Please add at least one product to the quote')
                 return redirect('quote_create')
 
-            # 4. Generate unique quote ID for the group
-            quote_group_id = f"Q-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+            # 4. Check if editing existing quote
+            existing_quote_id = request.POST.get('existing_quote_id', '').strip()
+            is_editing = bool(existing_quote_id)
             
-            # 5. Process and Save Quotes (Atomic transaction for safety)
+            # 5. Generate unique quote ID (only for new quotes)
+            if is_editing:
+                quote_group_id = existing_quote_id
+                # Get existing quote
+                existing_quote = Quote.objects.filter(quote_id=quote_group_id).first()
+                if not existing_quote:
+                    messages.error(request, f'Quote {quote_group_id} not found')
+                    return redirect('quotes_list')
+                
+                # Check if quote is locked (sent to PT for costing)
+                if existing_quote.status == 'Sent to PT' and request.user.groups.filter(name='Account Manager').exists():
+                    messages.error(request, f'Quote {quote_group_id} is locked. Production Team is currently costing this quote. Please wait for costing to complete before editing.')
+                    return redirect('quote_detail', quote_id=quote_group_id)
+            else:
+                quote_group_id = f"Q-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+            
+            # Initialize variables for email sending (if needed)
+            quote_pk = None
+            quote_id_for_redirect = quote_group_id
+            
+            # 6. Process and Save Quote with Line Items (Atomic transaction)
             with transaction.atomic():
+                if is_editing:
+                    # Update existing quote
+                    quote = existing_quote
+                    quote.client = client
+                    quote.lead = lead
+                    quote.valid_until = timezone.datetime.fromisoformat(valid_until).date() if valid_until else quote.valid_until
+                    quote.notes = special_instructions
+                    # Don't change created_by when editing
+                    # Delete existing line items - we'll recreate them
+                    QuoteLineItem.objects.filter(quote=quote).delete()
+                else:
+                    # Create new Quote record
+                    quote = Quote(
+                        quote_id=quote_group_id,
+                        client=client,
+                        lead=lead,
+                        product_name='',  # Will be set from line items
+                        quantity=1,  # Placeholder, actual quantity in line items
+                        unit_price=Decimal('0'),  # Will be calculated from line items
+                        total_amount=Decimal('0'),  # Will be calculated
+                        status='Draft',
+                        quote_date=timezone.now().date(),
+                        valid_until=timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date() + timedelta(days=30),
+                        notes=special_instructions,
+                        created_by=request.user
+                    )
+                
+                # ✅ SAVE THE QUOTE FIRST to get a primary key
+                # This MUST happen before creating any QuoteLineItem objects
+                quote.save()
+                
+                # Verify quote has a primary key
+                if not quote.pk:
+                    raise ValueError("Quote was not saved properly - no primary key assigned")
+                
+                # Now we can safely create line items - quote has a PK
+                
+                # Create line items with pricing snapshots
+                total_amount = Decimal('0')
+                has_fully_customizable = False
                 
                 for i in range(len(product_ids)):
                     product = Product.objects.get(id=product_ids[i])
                     qty = int(quantities[i]) if i < len(quantities) else 1
-
-                    # Create individual Quote records sharing the same quote_id
-                    # Price is 0 - PT will fill in the costing later
-                    quote_obj = Quote.objects.create(
-                        quote_id=quote_group_id,
-                        client=client,
-                        lead=lead,
-
+                    var_amount = Decimal(variable_amounts[i]) if i < len(variable_amounts) else Decimal('0')
+                    
+                    # Get unit price
+                    if i < len(rates) and rates[i]:
+                        try:
+                            unit_price = Decimal(rates[i])
+                        except (ValueError, TypeError):
+                            unit_price = resolve_unit_price(product)
+                    else:
+                        unit_price = resolve_unit_price(product)
+                    
+                    # ✅ NOW create line items - quote has a PK
+                    line_item = QuoteLineItem.objects.create(
+                        quote=quote,
+                        product=product,
                         product_name=product.name,
+                        customization_level_snapshot=product.customization_level,
+                        base_price_snapshot=product.base_price,
                         quantity=qty,
-                        unit_price=Decimal('0'),  # PT will cost this
-                        status='Draft',  # Default status
-                        quote_date=timezone.now().date(),
-                        valid_until=timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date(),
-                        notes=special_instructions,
-                        created_by=request.user
+                        unit_price=unit_price,
+                        variable_amount=var_amount,
+                        order=i
                     )
-
-                # 6. Finalize Status based on the Action button clicked
-                quotes = Quote.objects.filter(quote_id=quote_group_id)
+                    
+                    total_amount += line_item.line_total
+                    
+                    # Check if product is fully customizable
+                    if product.customization_level == 'fully_customizable':
+                        has_fully_customizable = True
                 
+                # Update quote totals
+                quote.product_name = f"{len(product_ids)} item(s)" if len(product_ids) > 1 else QuoteLineItem.objects.filter(quote=quote).first().product_name if QuoteLineItem.objects.filter(quote=quote).exists() else ''
+                quote.quantity = sum(item.quantity for item in QuoteLineItem.objects.filter(quote=quote))
+                quote.total_amount = total_amount
+                quote.save()
+
+                # 8. Finalize Status based on the Action button clicked
                 if action == 'save_draft':
-                    quotes.update(status='Draft')
-                    msg = f"💾 Quote {quote_group_id} saved as draft."
+                    quote.status = 'Draft'
+                    quote.save()
+                    if is_editing:
+                        msg = f"💾 Quote {quote_group_id} updated and saved as draft."
+                    else:
+                        msg = f"💾 Quote {quote_group_id} saved as draft."
                 
                 elif action == 'save_send_pt':
-                    # All quotes sent to PT need costing
-                    quotes.update(status='Pending PT Approval', production_status='pending')
+                    # Check if quote can be sent to PT
+                    can_send, error_msg = quote.can_send_to_pt()
+                    if not can_send:
+                        messages.error(request, error_msg)
+                        quote.delete()  # Clean up
+                        return redirect('quote_create')
+                    
+                    quote.status = 'Sent to PT'
+                    quote.production_status = 'pending'
+                    quote.save()
                     
                     # Notify Production Team
                     from django.contrib.auth.models import User
@@ -1500,19 +1601,60 @@ def quote_create(request):
                             link=f'/production/quote-costing-v2/{quote_group_id}/',
                             related_quote_id=quote_group_id
                         )
-                    msg = f"✅ Quote {quote_group_id} sent to PT for costing."
+                    if is_editing:
+                        msg = f"✅ Quote {quote_group_id} updated and sent to PT for costing."
+                    else:
+                        msg = f"✅ Quote {quote_group_id} sent to PT for costing."
+                
+                elif action == 'send_to_customer':
+                    # Check if quote can be sent to customer
+                    can_send, error_msg = quote.can_send_to_customer()
+                    if not can_send:
+                        messages.error(request, error_msg)
+                        return redirect('quote_detail', quote_id=quote_group_id)
+                    
+                    # Ensure quote is fully saved
+                    quote.save()
+                    
+                    # Store quote_id to fetch fresh instance after transaction commits
+                    # We'll handle email sending AFTER the transaction commits
+                    quote_pk = quote.pk
+                    quote_id_for_redirect = quote_group_id
+                    msg = f"💾 Quote {quote_group_id} prepared for sending."
                 
                 # Log the Activity (only if client exists - leads don't have activity logs)
                 if client:
                     ActivityLog.objects.create(
                         client=client,
-
                         activity_type='Quote',
                         title=f"Quote {quote_group_id} Created",
-                        description=f"Quote with {len(product_ids)} items created. Sent for PT costing.",
+                        description=f"Quote with {len(product_ids)} items created.",
                         created_by=request.user
                     )
 
+            # Transaction is now committed - all quote and line items are fully saved
+            
+            # After transaction commits, handle email sending if needed
+            if action == 'send_to_customer':
+                # Get a fresh instance from database (now fully committed)
+                # The transaction has committed, so the quote is fully saved
+                quote_for_email = Quote.objects.get(pk=quote_pk)
+                
+                # Use the send_quote view to handle email sending
+                from .quote_approval_services import QuoteApprovalService
+                result = QuoteApprovalService.send_quote_via_email(quote_for_email, request)
+                
+                if result['success']:
+                    # Update quote status
+                    quote_for_email.status = 'Sent to Customer'
+                    quote_for_email.production_status = 'sent_to_client'
+                    quote_for_email.save()
+                    messages.success(request, f"✅ Quote {quote_id_for_redirect} sent to customer via email.")
+                    return redirect('quote_detail', quote_id=quote_id_for_redirect)
+                else:
+                    messages.error(request, f"Error sending quote: {result.get('message', 'Unknown error')}")
+                    return redirect('quote_detail', quote_id=quote_id_for_redirect)
+            
             messages.success(request, msg)
             return redirect('quote_detail', quote_id=quote_group_id)
 
@@ -1520,11 +1662,25 @@ def quote_create(request):
             messages.error(request, f'Error: {str(e)}')
             return redirect('quote_create')
 
-    # GET request logic
+    # GET request logic - handle both new quotes and editing existing quotes
+    quote_id = request.GET.get('quote_id')
+    existing_quote = None
+    existing_line_items = []
+    
+    if quote_id:
+        # Load existing quote for editing
+        existing_quote = Quote.objects.filter(quote_id=quote_id).first()
+        if existing_quote:
+            existing_line_items = QuoteLineItem.objects.filter(quote=existing_quote).order_by('order', 'created_at')
+    
     context = {
         'clients': Client.objects.filter(status='Active').order_by('name'),
         'leads': Lead.objects.exclude(status__in=['Converted', 'Lost']).order_by('-created_at'),
-        'products': Product.objects.filter(is_visible=True).order_by('name'),
+        'products': Product.objects.filter(status='published', is_visible=True).order_by('name'),
+        'existing_quote': existing_quote,
+        'existing_quotes': existing_line_items,  # Template expects 'existing_quotes' for line items
+        'existing_line_items': existing_line_items,
+        'quote_id': quote_id,
     }
     return render(request, 'quote_create.html', context)
 
@@ -1719,32 +1875,58 @@ def update_quote_status(request):
 
 
 def quote_detail(request, quote_id):
-    """View detailed quote with all items"""
-    # Get all quotes with this quote_id
-    quotes = Quote.objects.filter(quote_id=quote_id).order_by('id')
+    """View detailed quote with all items - Zoho-style with proper button visibility"""
+    # Get quote (using quote_id, not pk)
+    quote = Quote.objects.filter(quote_id=quote_id).first()
     
-    if not quotes.exists():
+    if not quote:
         messages.error(request, 'Quote not found')
         return redirect('dashboard')
     
-    first_quote = quotes.first()
+    # Get line items (preferred) or fallback to old quote records
+    line_items = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
     
-    # Calculate totals
-    subtotal = sum(q.unit_price * q.quantity for q in quotes)
-    vat_amount = subtotal * Decimal('0.16') if first_quote.include_vat else Decimal('0')
+    # Calculate totals from line items
+    if line_items.exists():
+        subtotal = sum(item.line_total for item in line_items)
+        quotes = []  # Empty for backward compatibility
+    else:
+        # Fallback: use old quote records
+        quotes = Quote.objects.filter(quote_id=quote_id).order_by('id')
+        subtotal = sum(q.unit_price * q.quantity for q in quotes)
+        line_items = []
+    
+    vat_amount = subtotal * Decimal('0.16') if quote.include_vat else Decimal('0')
     total_amount = subtotal + vat_amount
     
+    # Button visibility logic (Zoho-like)
+    can_send_to_customer, send_to_customer_error = quote.can_send_to_customer()
+    can_send_to_pt, send_to_pt_error = quote.can_send_to_pt()
+    
+    # Check if quote is locked (sent to PT) - Account Managers cannot edit when sent to PT
+    is_locked = quote.status == 'Sent to PT' and request.user.groups.filter(name='Account Manager').exists()
+    
+    # Pass error message to template
     context = {
         'quote_id': quote_id,
-        'quotes': quotes,
-        'first_quote': first_quote,
-        'client': first_quote.client,
-        'lead': first_quote.lead,
+        'quote': quote,
+        'quotes': quotes,  # For backward compatibility
+        'line_items': line_items,
+        'first_quote': quote,  # Alias for template compatibility
+        'client': quote.client,
+        'lead': quote.lead,
         'subtotal': subtotal,
+        'can_send_to_customer': can_send_to_customer,
+        'can_send_to_pt': can_send_to_pt,
+        'send_to_customer_error': send_to_customer_error,
+        'send_to_pt_error': send_to_pt_error,
+        'is_locked': is_locked,
         'vat_amount': vat_amount,
         'total_amount': total_amount,
-        'production_updates': first_quote.production_updates.select_related('created_by').order_by('-created_at'),
+        'production_updates': ProductionUpdate.objects.filter(quote=quote).select_related('created_by').order_by('-created_at'),
     }
+    
+    return render(request, 'quote_detail.html', context)
     
     return render(request, 'quote_detail.html', context)
 
@@ -2708,22 +2890,57 @@ def update_quote_costing_v2(request, quote_id):
             # Get form data
             action = request.POST.get('action', 'save')
             
-            # Update each quote line item
-            for q in related_quotes:
-                # Get costs from form
-                production_cost = request.POST.get(f'production_cost_{q.id}')
-                vendor_id = request.POST.get(f'selected_vendor_{q.id}')
+            # Get line items (preferred) or fallback to old quote records
+            line_items = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
+            
+            if line_items.exists():
+                # Update QuoteLineItem prices with PT costing
+                total_amount = Decimal('0')
                 
-                if production_cost:
-                    q.production_cost = Decimal(production_cost)
+                for item in line_items:
+                    # Get costs from form (use line item ID)
+                    unit_price_key = f'unit_price_{item.id}'
+                    production_cost_key = f'production_cost_{item.id}'
+                    vendor_id_key = f'selected_vendor_{item.id}'
+                    
+                    # Update unit price if provided
+                    if unit_price_key in request.POST and request.POST[unit_price_key]:
+                        try:
+                            item.unit_price = Decimal(request.POST[unit_price_key])
+                            item.save()  # This will recalculate line_total
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    # Store production cost if provided
+                    if production_cost_key in request.POST and request.POST[production_cost_key]:
+                        try:
+                            quote.production_cost = Decimal(request.POST[production_cost_key])
+                        except (ValueError, TypeError):
+                            pass
+                    
+                    total_amount += item.line_total
                 
-                # Update status based on action
-                if action == 'approve':
-                    q.production_status = 'costed'
-                    q.status = 'Ready to Send'
-                    q.costed_by = request.user
-                
-                q.save()
+                # Update quote totals from line items
+                quote.total_amount = total_amount
+                if quote.include_vat:
+                    vat_amount = total_amount * Decimal('0.16')
+                    quote.total_amount = total_amount + vat_amount
+            else:
+                # Fallback: update old quote records
+                for q in related_quotes:
+                    production_cost = request.POST.get(f'production_cost_{q.id}')
+                    vendor_id = request.POST.get(f'selected_vendor_{q.id}')
+                    
+                    if production_cost:
+                        q.production_cost = Decimal(production_cost)
+                    q.save()
+            
+            # Update status based on action
+            if action == 'approve':
+                quote.production_status = 'costed'
+                quote.status = 'Costed'  # Use new status
+                quote.costed_by = request.user
+                quote.save()
             
             # Create production update
             ProductionUpdate.objects.create(
@@ -2742,17 +2959,17 @@ def update_quote_costing_v2(request, quote_id):
                     notification_type='quote_pt_approved',
                     title=f'✅ Quote {quote_id} Costed & Ready',
                     message=f'Production team has costed your quote. You can now send it to the client.',
-                    link=reverse('quote_create') + f'?quote_id={quote_id}',
+                    link=reverse('quote_detail', args=[quote_id]),
                     related_quote_id=quote_id,
-                    action_url=reverse('quote_create') + f'?quote_id={quote_id}',
-                    action_label='Send to Client'
+                    action_url=reverse('quote_detail', args=[quote_id]),
+                    action_label='View Quote'
                 )
                 
                 messages.success(request, f'✅ Quote {quote_id} costed and approved!')
             else:
                 messages.success(request, f'💾 Quote {quote_id} costing saved as draft.')
             
-            return redirect('my_quotes')
+            return redirect('production_quote_review')
             
         except Exception as e:
             messages.error(request, f'Error saving costing: {str(e)}')
@@ -2765,42 +2982,92 @@ def update_quote_costing_v2(request, quote_id):
     # Get all available processes
     processes = Process.objects.filter(status='active').order_by('process_name')
     
+    # Get line items (preferred) or fallback to old quote records
+    line_items_objs = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
+    
     # Prepare line items with process suggestions
     line_items = []
-    for q in related_quotes:
-        # Try to find matching process by product name
-        suggested_process = None
-        process_cost = None
-        available_vendors = []
-        
-        # Search for process by product name similarity
-        for process in processes:
-            if q.product_name.lower() in process.process_name.lower() or \
-               process.process_name.lower() in q.product_name.lower():
-                suggested_process = process
-                
-                # Get pricing based on quantity
-                if process.pricing_type == 'tier':
-                    # Find matching tier
-                    tier = process.tiers.filter(
-                        quantity_from__lte=q.quantity,
-                        quantity_to__gte=q.quantity
-                    ).first()
+    
+    if line_items_objs.exists():
+        # Use QuoteLineItem
+        for item in line_items_objs:
+            suggested_process = None
+            process_cost = None
+            available_vendors = []
+            
+            # Try to find matching process by product
+            if item.product and hasattr(item.product, 'pricing'):
+                pricing = item.product.pricing
+                if pricing.process:
+                    suggested_process = pricing.process
+                elif pricing.formula_process:
+                    suggested_process = pricing.formula_process
+                elif pricing.tier_process:
+                    suggested_process = pricing.tier_process
+            
+            # If no process linked, search by product name similarity
+            if not suggested_process:
+                for process in processes:
+                    if item.product_name.lower() in process.process_name.lower() or \
+                       process.process_name.lower() in item.product_name.lower():
+                        suggested_process = process
+                        break
+            
+            # Get pricing based on quantity
+            if suggested_process and suggested_process.pricing_type == 'tier':
+                tier = suggested_process.tiers.filter(
+                    quantity_from__lte=item.quantity,
+                    quantity_to__gte=item.quantity
+                ).first()
+                if tier:
+                    process_cost = tier.cost
+            
+            # Get vendors
+            if suggested_process:
+                available_vendors = suggested_process.process_vendors.all().order_by('-vps_score')
+            
+            line_items.append({
+                'line_item': item,
+                'quote': None,  # Not using old quote records
+                'suggested_process': suggested_process,
+                'process_cost': process_cost,
+                'available_vendors': available_vendors,
+                'current_cost': item.unit_price or Decimal('0'),
+            })
+    else:
+        # Fallback: use old quote records
+        for q in related_quotes:
+            suggested_process = None
+            process_cost = None
+            available_vendors = []
+            
+            # Search for process by product name similarity
+            for process in processes:
+                if q.product_name.lower() in process.process_name.lower() or \
+                   process.process_name.lower() in q.product_name.lower():
+                    suggested_process = process
                     
-                    if tier:
-                        process_cost = tier.cost
-                
-                # Get vendors
-                available_vendors = process.process_vendors.all().order_by('-vps_score')
-                break
-        
-        line_items.append({
-            'quote': q,
-            'suggested_process': suggested_process,
-            'process_cost': process_cost,
-            'available_vendors': available_vendors,
-            'current_cost': q.production_cost or Decimal('0'),
-        })
+                    # Get pricing based on quantity
+                    if process.pricing_type == 'tier':
+                        tier = process.tiers.filter(
+                            quantity_from__lte=q.quantity,
+                            quantity_to__gte=q.quantity
+                        ).first()
+                        if tier:
+                            process_cost = tier.cost
+                    
+                    # Get vendors
+                    available_vendors = process.process_vendors.all().order_by('-vps_score')
+                    break
+            
+            line_items.append({
+                'line_item': None,
+                'quote': q,
+                'suggested_process': suggested_process,
+                'process_cost': process_cost,
+                'available_vendors': available_vendors,
+                'current_cost': q.production_cost or Decimal('0'),
+            })
     
     context = {
         'quote_id': quote_id,
@@ -2825,7 +3092,7 @@ def production_catalog(request):
 
     # Apply filters
     if search:
-        products = products.filter(Q(name__icontains=search) | Q(sku__icontains=search))
+        products = products.filter(Q(name__icontains=search) | Q(internal_code__icontains=search))
     if product_type != 'all':
         products = products.filter(product_type=product_type)
     if availability != 'all':
@@ -3806,6 +4073,8 @@ def complete_job(request, pk):
 
 @login_required
 @group_required('Account Manager')
+@login_required
+@group_required('Account Manager')
 def send_quote(request, quote_id):
     """Send quote to client/lead via email"""
     if request.method == 'POST':
@@ -3863,17 +4132,128 @@ def quote_approval(request, token):
     """
     Public view for quote approval (no login required)
     Client clicks link from email
-    Uses QuoteApprovalService to handle the full approval flow
+    GET: Display quote details with approve/request discount options
+    POST: Handle approval or price reduction request
     """
+    if request.method == 'GET':
+        # Display quote details
+        result = QuoteApprovalService.get_quote_from_token(token)
+        
+        if not result['success']:
+            from django.http import HttpResponse
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to get quote from token: {token[:20]}..., error: {result.get('message', 'Unknown error')}")
+            
+            error_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Approval Failed</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+            </head>
+            <body class="bg-gray-50">
+                <div class="min-h-screen flex items-center justify-center px-4">
+                    <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                        <div class="text-6xl mb-4">❌</div>
+                        <h1 class="text-2xl font-bold text-gray-900 mb-4">Approval Failed</h1>
+                        <p class="text-gray-600 mb-6">{result['message']}</p>
+                        <p class="text-sm text-gray-500 mb-4">Please contact us at info@printduka.com for assistance.</p>
+                        <p class="text-xs text-gray-400">If you received this link via email, please check that you're using the complete link from the email.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            return HttpResponse(error_html)
+        
+        # Render quote approval page
+        quote = result['quote']
+        quote_items = result['quote_items']
+        totals = result['totals']
+        
+        context = {
+            'quote': quote,
+            'quote_items': quote_items,
+            'subtotal': totals['subtotal'],
+            'vat_amount': totals['vat_amount'],
+            'total_amount': totals['total_amount'],
+            'total': totals['total_amount'],
+            'token': token,
+            'token_valid': result['token_valid'],
+            'token_used': result['token_used'],
+        }
+        
+        return render(request, 'quote_approval.html', context)
     
-    
-    # Call the service to approve the quote
-    result = QuoteApprovalService.approve_quote(token)
-    
-    if not result['success']:
-        # Approval failed
-        from django.http import HttpResponse
-        error_html = f"""
+    elif request.method == 'POST':
+        # Handle approval or price reduction request
+        action = request.POST.get('action', 'approve')
+        
+        if action == 'approve':
+            # Call the service to approve the quote
+            result = QuoteApprovalService.approve_quote(token)
+        elif action == 'request_discount':
+            # Handle price reduction request
+            discount_notes = request.POST.get('discount_notes', '')
+            if not discount_notes:
+                from django.http import HttpResponse
+                error_html = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Request Failed</title>
+                    <script src="https://cdn.tailwindcss.com"></script>
+                </head>
+                <body class="bg-gray-50">
+                    <div class="min-h-screen flex items-center justify-center px-4">
+                        <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                            <div class="text-6xl mb-4">⚠️</div>
+                            <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Failed</h1>
+                            <p class="text-gray-600 mb-6">Please provide details about your price reduction request.</p>
+                            <a href="javascript:history.back()" class="text-blue-600 hover:underline">Go Back</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                return HttpResponse(error_html)
+            
+            result = QuoteApprovalService.request_price_reduction(token, discount_notes)
+        elif action == 'request_adjustment':
+            # Handle quote adjustment request
+            adjustment_notes = request.POST.get('adjustment_notes', '')
+            if not adjustment_notes:
+                from django.http import HttpResponse
+                error_html = """
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Request Failed</title>
+                    <script src="https://cdn.tailwindcss.com"></script>
+                </head>
+                <body class="bg-gray-50">
+                    <div class="min-h-screen flex items-center justify-center px-4">
+                        <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                            <div class="text-6xl mb-4">⚠️</div>
+                            <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Failed</h1>
+                            <p class="text-gray-600 mb-6">Please provide details about the adjustments you need.</p>
+                            <a href="javascript:history.back()" class="text-blue-600 hover:underline">Go Back</a>
+                        </div>
+                    </div>
+                </body>
+                </html>
+                """
+                return HttpResponse(error_html)
+            
+            result = QuoteApprovalService.request_quote_adjustment(token, adjustment_notes)
+        else:
+            result = {'success': False, 'message': 'Invalid action'}
+        
+        if not result['success']:
+            # Approval failed
+            from django.http import HttpResponse
+            error_html = f"""
         <!DOCTYPE html>
         <html>
         <head>
@@ -3923,17 +4303,19 @@ def quote_approval(request, token):
             </div>
         </body>
         </html>
-        """
-        return HttpResponse(error_html)
-    
-    # Success! Get the quote details
-    quote = result['quote']
-    lpo = result.get('lpo')
-    job = result.get('job')
-    
-    # Return success page
-    from django.http import HttpResponse
-    success_html = f"""
+            """
+            return HttpResponse(error_html)
+        
+        # Success! Handle different action results
+        if action == 'approve':
+            # Approval success
+            quote = result['quote']
+            lpo = result.get('lpo')
+            job = result.get('job')
+            
+            # Return success page
+            from django.http import HttpResponse
+            success_html = f"""
     <!DOCTYPE html>
     <html>
     <head>
@@ -4049,7 +4431,53 @@ def quote_approval(request, token):
     </html>
     """
     
-    return HttpResponse(success_html)
+            return HttpResponse(success_html)
+        elif action == 'request_discount':
+            # Price reduction request success
+            from django.http import HttpResponse
+            discount_success_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Request Submitted</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+            </head>
+            <body class="bg-gray-50">
+                <div class="min-h-screen flex items-center justify-center px-4">
+                    <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                        <div class="text-6xl mb-4">✅</div>
+                        <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Submitted</h1>
+                        <p class="text-gray-600 mb-6">{result['message']}</p>
+                        <p class="text-sm text-gray-500">We will review your request and get back to you shortly.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            return HttpResponse(discount_success_html)
+        elif action == 'request_adjustment':
+            # Quote adjustment request success
+            from django.http import HttpResponse
+            adjustment_success_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Request Submitted</title>
+                <script src="https://cdn.tailwindcss.com"></script>
+            </head>
+            <body class="bg-gray-50">
+                <div class="min-h-screen flex items-center justify-center px-4">
+                    <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
+                        <div class="text-6xl mb-4">✅</div>
+                        <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Submitted</h1>
+                        <p class="text-gray-600 mb-6">{result['message']}</p>
+                        <p class="text-sm text-gray-500">We will review your request and send you an updated quote shortly.</p>
+                    </div>
+                </div>
+            </body>
+            </html>
+            """
+            return HttpResponse(adjustment_success_html)
 
 
 
@@ -4066,6 +4494,7 @@ from django.db import transaction
 from django.http import JsonResponse
 from django.utils.text import slugify
 from decimal import Decimal
+import decimal
 import json
 
 from .models import (
@@ -4088,7 +4517,7 @@ from .product_forms import (
 
 from django.db import models
 
-def group_required(group_name):
+def group_required_production(group_name):
     """Decorator to require Production Team group membership"""
     def decorator(view_func):
         def wrapped(request, *args, **kwargs):
@@ -4142,7 +4571,7 @@ def product_catalog(request):
 
 def _get_product_form_context(product, general_form=None):
     """Build context for product create/edit form"""
-    from clientapp.forms import ProductGeneralInfoForm
+    from clientapp.product_forms import ProductGeneralInfoForm
     
     if general_form is None:
         if product:
@@ -4173,9 +4602,21 @@ def _get_product_form_context(product, general_form=None):
         'product': product,
         'is_edit': product is not None,
         'general_form': general_form,
+        'pricing_form': ProductPricingForm(instance=product.pricing if product and hasattr(product, 'pricing') else None),
+        'seo_form': ProductSEOForm(instance=product.seo if product and hasattr(product, 'seo') else None),
+        'shipping_form': ProductShippingForm(instance=product.shipping if product and hasattr(product, 'shipping') else None),
+        'legal_form': ProductLegalForm(instance=product.legal if product and hasattr(product, 'legal') else None),
+        'production_form': ProductProductionForm(instance=product.production if product and hasattr(product, 'production') else None),
         'processes': processes,
         'vendors': vendors,
         'existing_variables_json': existing_variables_json,
+        'primary_image': product.images.filter(is_primary=True).first() if product else None,
+        'existing_images': product.images.filter(is_primary=False).order_by('display_order') if product else [],
+        'categories': ProductCategory.objects.all().order_by('name'),
+        'subcategories': ProductSubCategory.objects.all().order_by('name'),
+        'families': ProductFamily.objects.all().order_by('name'),
+        'all_tags': ProductTag.objects.all().order_by('name'),
+        'history': product.change_history.all().order_by('-changed_at') if product else [],
     }
     
     return context
@@ -4214,42 +4655,59 @@ def _get_product_form_context(product, general_form=None):
 
 
 def _handle_shipping_tab(request, product):
-    """Handle shipping configuration"""
-    product.weight = Decimal(request.POST.get('weight', '0') or '0')
-    product.weight_unit = request.POST.get('weight_unit', 'kg')
-    product.save()
+    """Handle shipping tab"""
+    from clientapp.product_forms import ProductShippingForm
+    
+    # Get or create shipping instance
+    shipping, created = ProductShipping.objects.get_or_create(product=product)
+    
+    shipping_form = ProductShippingForm(request.POST, instance=shipping)
+    if shipping_form.is_valid():
+        shipping = shipping_form.save(commit=False)
+        shipping.product = product
+        shipping.save()
+    else:
+        # Fallback
+        shipping.shipping_weight = Decimal(request.POST.get('shipping_weight', '0') or '0')
+        shipping.shipping_weight_unit = request.POST.get('shipping_weight_unit', 'kg')
+        shipping.save()
 
 
 def _handle_legal_tab(request, product):
-    """Handle legal/compliance data"""
-    product.warranty = request.POST.get('warranty', '')
-    product.country_of_origin = request.POST.get('country_of_origin', 'kenya')
-    product.save()
+    """Handle legal tab"""
+    from clientapp.product_forms import ProductLegalForm
+    
+    # Get or create legal instance
+    legal, created = ProductLegal.objects.get_or_create(product=product)
+    
+    legal_form = ProductLegalForm(request.POST, instance=legal)
+    if legal_form.is_valid():
+        legal = legal_form.save(commit=False)
+        legal.product = product
+        legal.save()
 
 
 def _handle_production_tab(request, product):
-    """Handle production settings"""
-    from clientapp.models import ProductPricing
+    """Handle production tab - COMPLETE VERSION"""
+    from clientapp.product_forms import ProductProductionForm
     
-    pricing, created = ProductPricing.objects.get_or_create(product=product)
+    # Get or create production instance
+    production, created = ProductProduction.objects.get_or_create(product=product)
     
-    # Lead time
-    lead_time_value = int(request.POST.get('lead_time_value', '3') or '3')
-    lead_time_unit = request.POST.get('lead_time_unit', 'days')
-    pricing.lead_time = f"{lead_time_value} {lead_time_unit}"
-    
-    # Rush production
-    pricing.rush_available = request.POST.get('rush_available') == 'on'
-    if pricing.rush_available:
-        rush_value = int(request.POST.get('rush_lead_time_value', '1') or '1')
-        rush_unit = request.POST.get('rush_lead_time_unit', 'days')
-        pricing.rush_lead_time = f"{rush_value} {rush_unit}"
-        pricing.rush_upcharge = Decimal(request.POST.get('rush_upcharge', '50') or '50')
-    
-    pricing.minimum_quantity = int(request.POST.get('minimum_quantity', '1') or '1')
-    pricing.production_method = request.POST.get('production_method', '')
-    
-    pricing.save()
+    production_form = ProductProductionForm(request.POST, instance=production)
+    if production_form.is_valid():
+        production = production_form.save(commit=False)
+        production.product = product
+        production.save()
+    else:
+        # Fallback to manual saving if form fails for some reason
+        production.production_method_detail = request.POST.get('production_method_detail', '')
+        production.machine_equipment = request.POST.get('machine_equipment', '')
+        production.checklist_artwork = request.POST.get('checklist_artwork') == 'on'
+        production.checklist_preflight = request.POST.get('checklist_preflight') == 'on'
+        production.checklist_material = request.POST.get('checklist_material') == 'on'
+        production.checklist_proofs = request.POST.get('checklist_proofs') == 'on'
+        production.save()
 
 # ==================== PRODUCT MANAGEMENT VIEWS ====================
 # Complete product creation and editing with all tabs
@@ -4270,7 +4728,39 @@ def product_create(request):
             next_tab = request.POST.get('next_tab', '')
             
             # TAB 1: GENERAL INFO
-            general_form = ProductGeneralInfoForm(request.POST)
+            # Create a filtered POST data dict without base_price (it's handled in pricing tab)
+            # QueryDict needs special handling - create a new dict excluding base_price
+            from django.http import QueryDict
+            general_post_data = QueryDict(mutable=True)
+            for key in request.POST.keys():
+                if key != 'base_price':  # Exclude base_price - handled in pricing tab
+                    values = request.POST.getlist(key)
+                    for value in values:
+                        general_post_data.appendlist(key, value)
+            
+            try:
+                general_form = ProductGeneralInfoForm(general_post_data)
+            except (KeyError, AttributeError, ValueError) as e:
+                # If error is about base_price, try again with filtered data
+                error_str = str(e).lower()
+                if 'base_price' in error_str or 'no field named' in error_str:
+                    # Create a completely clean QueryDict without base_price
+                    from django.http import QueryDict
+                    clean_data = QueryDict(mutable=True)
+                    for key in request.POST.keys():
+                        if key != 'base_price':
+                            values = request.POST.getlist(key)
+                            for value in values:
+                                clean_data.appendlist(key, value)
+                    general_form = ProductGeneralInfoForm(clean_data)
+                else:
+                    raise
+            except Exception as e:
+                # Log the error for debugging
+                import traceback
+                print(f"Unexpected error in ProductGeneralInfoForm: {e}")
+                print(traceback.format_exc())
+                raise
             
             if not general_form.is_valid():
                 messages.error(request, 'Please correct the errors in General Info tab')
@@ -4284,13 +4774,20 @@ def product_create(request):
             product.created_by = request.user
             product.updated_by = request.user
             
+            # Set customization_level from form (if not already set by form)
+            customization_level = request.POST.get('customization_level', 'non_customizable')
+            if customization_level:
+                product.customization_level = customization_level
+            
             # Set status based on action
             if action == 'publish':
                 product.status = 'published'
             else:
                 product.status = 'draft'
             
-            product.save()
+            # Save product first (skip validation since base_price will be set in pricing tab)
+            # We need the product ID before we can save related objects
+            product.save(skip_validation=True)
             general_form.save_m2m()
             
             # Handle dynamic tags
@@ -4312,13 +4809,62 @@ def product_create(request):
                     product.unit_of_measure_custom = custom_unit
                     product.save()
             
-            # Handle all tabs
-            _handle_pricing_tab(request, product)
-            _handle_images_tab(request, product)
-            _handle_seo_tab(request, product)
-            _handle_shipping_tab(request, product)
-            _handle_legal_tab(request, product)
-            _handle_production_tab(request, product)
+            # Handle all tabs (this will set base_price properly)
+            try:
+                _handle_pricing_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving pricing: {str(e)}')
+            
+            try:
+                _handle_images_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving images: {str(e)}')
+            
+            try:
+                _handle_seo_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving SEO: {str(e)}')
+            
+            try:
+                _handle_shipping_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving shipping: {str(e)}')
+            
+            try:
+                _handle_legal_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving legal: {str(e)}')
+            
+            try:
+                _handle_production_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving production: {str(e)}')
+            
+            # Now that all tabs are handled, save again with full validation
+            try:
+                product.full_clean()  # Validate with proper base_price
+                product.save()  # Save with validation
+            except ValidationError as e:
+                # If validation fails, show errors
+                if action == 'publish':
+                    product.status = 'draft'
+                    product.save(skip_validation=True)
+                for field, errors in e.error_dict.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+                context = _get_product_form_context(product)
+                return render(request, 'product_create_edit.html', context)
+            
+            # Validate product before publishing
+            if action == 'publish':
+                # Additional validation for costing processes
+                can_publish, error_msg = product.can_be_published()
+                if not can_publish:
+                    messages.error(request, f'Cannot publish product: {error_msg}')
+                    product.status = 'draft'
+                    product.save(skip_validation=True)
+                    context = _get_product_form_context(product)
+                    return render(request, 'product_create_edit.html', context)
             
             # Create history
             ProductChangeHistory.objects.create(
@@ -4369,7 +4915,25 @@ def product_edit(request, pk):
             next_tab = request.POST.get('next_tab', '')
             
             # Update general info
-            general_form = ProductGeneralInfoForm(request.POST, instance=product)
+            # Create a filtered POST data dict without base_price (it's handled in pricing tab)
+            # QueryDict needs special handling - create a new dict excluding base_price
+            from django.http import QueryDict
+            general_post_data = QueryDict(mutable=True)
+            for key in request.POST.keys():
+                if key != 'base_price':  # Exclude base_price - handled in pricing tab
+                    values = request.POST.getlist(key)
+                    for value in values:
+                        general_post_data.appendlist(key, value)
+            
+            try:
+                general_form = ProductGeneralInfoForm(general_post_data, instance=product)
+            except Exception as e:
+                # If error is about base_price, create form without data and add error manually
+                if 'base_price' in str(e).lower():
+                    general_form = ProductGeneralInfoForm(instance=product)
+                    messages.warning(request, 'Note: base_price is handled in Pricing & Variables tab')
+                else:
+                    raise
             
             if not general_form.is_valid():
                 messages.error(request, 'Please correct the errors in General Info tab')
@@ -4381,6 +4945,11 @@ def product_edit(request, pk):
             
             product = general_form.save(commit=False)
             product.updated_by = request.user
+            
+            # Update customization_level from form
+            customization_level = request.POST.get('customization_level', 'non_customizable')
+            if customization_level:
+                product.customization_level = customization_level
             
             # Update status if publishing
             if action == 'publish':
@@ -4396,7 +4965,8 @@ def product_edit(request, pk):
                         new_value='published'
                     )
             
-            product.save()
+            # Save product first (skip validation since base_price will be set in pricing tab)
+            product.save(skip_validation=True)
             general_form.save_m2m()
             
             # Handle dynamic tags
@@ -4416,15 +4986,64 @@ def product_edit(request, pk):
                 custom_unit = request.POST.get('unit_of_measure_custom', '').strip()
                 if custom_unit:
                     product.unit_of_measure_custom = custom_unit
-                    product.save()
+                    product.save(skip_validation=True)
             
-            # Update all tabs
-            _handle_pricing_tab(request, product)
-            _handle_images_tab(request, product)
-            _handle_seo_tab(request, product)
-            _handle_shipping_tab(request, product)
-            _handle_legal_tab(request, product)
-            _handle_production_tab(request, product)
+            # Update all tabs (this will set base_price properly)
+            try:
+                _handle_pricing_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving pricing: {str(e)}')
+            
+            try:
+                _handle_images_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving images: {str(e)}')
+            
+            try:
+                _handle_seo_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving SEO: {str(e)}')
+            
+            try:
+                _handle_shipping_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving shipping: {str(e)}')
+            
+            try:
+                _handle_legal_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving legal: {str(e)}')
+            
+            try:
+                _handle_production_tab(request, product)
+            except Exception as e:
+                messages.warning(request, f'Error saving production: {str(e)}')
+            
+            # Now that all tabs are handled, save again with full validation
+            try:
+                product.full_clean()  # Validate with proper base_price
+                product.save()  # Save with validation
+            except ValidationError as e:
+                # If validation fails, show errors
+                if action == 'publish':
+                    product.status = 'draft'
+                    product.save(skip_validation=True)
+                for field, errors in e.error_dict.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+                context = _get_product_form_context(product)
+                return render(request, 'product_create_edit.html', context)
+            
+            # Validate product before publishing
+            if action == 'publish':
+                # Additional validation for costing processes
+                can_publish, error_msg = product.can_be_published()
+                if not can_publish:
+                    messages.error(request, f'Cannot publish product: {error_msg}')
+                    product.status = 'draft'
+                    product.save(skip_validation=True)
+                    context = _get_product_form_context(product)
+                    return render(request, 'product_create_edit.html', context)
             
             # Create change history
             ProductChangeHistory.objects.create(
@@ -4458,7 +5077,6 @@ def product_edit(request, pk):
     return render(request, 'product_create_edit.html', context)
 
 
-# Duplicate function removed - using the complete version at line 4954
 # ========== HELPER FUNCTIONS ==========
 
 def _get_product_form_context(product, general_form=None):
@@ -4591,7 +5209,74 @@ def _handle_pricing_tab(request, product):
     pricing.enable_conditional_logic = request.POST.get('enable_conditional_logic') == 'on'
     pricing.enable_conflict_detection = request.POST.get('enable_conflict_detection') == 'on'
     
+    # Handle tier and formula processes
+    tier_process_id = request.POST.get('tier_process', '').strip()
+    if tier_process_id:
+        try:
+            pricing.tier_process = Process.objects.get(id=tier_process_id)
+        except Process.DoesNotExist:
+            pass
+    else:
+        pricing.tier_process = None
+    
+    formula_process_id = request.POST.get('formula_process', '').strip()
+    if formula_process_id:
+        try:
+            pricing.formula_process = Process.objects.get(id=formula_process_id)
+        except Process.DoesNotExist:
+            pass
+    else:
+        pricing.formula_process = None
+    
     pricing.save()
+    
+    # Handle Product.base_price based on customization_level
+    customization_level = product.customization_level
+    base_price_str = request.POST.get('base_price', '').strip()
+    
+    if customization_level == 'non_customizable':
+        # Non-customizable: base_price is REQUIRED
+        if not base_price_str:
+            # Calculate from base_cost + margin if base_price not provided
+            if pricing.base_cost and pricing.return_margin:
+                margin = pricing.return_margin / Decimal('100')
+                product.base_price = pricing.base_cost * (Decimal('1') + margin)
+            else:
+                # Use default calculation
+                product.base_price = pricing.base_cost * Decimal('1.30')  # 30% default margin
+        else:
+            try:
+                product.base_price = Decimal(base_price_str)
+            except (ValueError, decimal.InvalidOperation):
+                # Fallback to calculated price
+                if pricing.base_cost and pricing.return_margin:
+                    margin = pricing.return_margin / Decimal('100')
+                    product.base_price = pricing.base_cost * (Decimal('1') + margin)
+                else:
+                    product.base_price = pricing.base_cost * Decimal('1.30')
+    elif customization_level == 'semi_customizable':
+        # Semi-customizable: base_price is REQUIRED
+        if not base_price_str:
+            # Calculate from base_cost + margin if base_price not provided
+            if pricing.base_cost and pricing.return_margin:
+                margin = pricing.return_margin / Decimal('100')
+                product.base_price = pricing.base_cost * (Decimal('1') + margin)
+            else:
+                product.base_price = pricing.base_cost * Decimal('1.30')
+        else:
+            try:
+                product.base_price = Decimal(base_price_str)
+            except (ValueError, decimal.InvalidOperation):
+                if pricing.base_cost and pricing.return_margin:
+                    margin = pricing.return_margin / Decimal('100')
+                    product.base_price = pricing.base_cost * (Decimal('1') + margin)
+                else:
+                    product.base_price = pricing.base_cost * Decimal('1.30')
+    else:  # fully_customizable
+        # Fully customizable: base_price must be NULL
+        product.base_price = None
+    
+    product.save(update_fields=['base_price'])
     
     # Handle alternative vendors (many-to-many)
     alt_vendor_ids = request.POST.getlist('alternative_vendors')
@@ -4975,43 +5660,6 @@ def _handle_production_tab(request, product):
     production.checklist_proofs = request.POST.get('checklist_proofs') == 'on'
     
     production.save()
-@login_required
-@group_required('Production Team')
-def product_update_image_metadata(request, image_pk):
-    """Update image metadata via AJAX"""
-    if request.method == 'POST':
-        try:
-            image = get_object_or_404(ProductImage, pk=image_pk)
-            
-            image.alt_text = request.POST.get('alt_text', image.alt_text)
-            image.caption = request.POST.get('caption', '')
-            image.image_type = request.POST.get('image_type', image.image_type)
-            
-            # Handle variable associations if provided
-            var_id = request.POST.get('associated_variable')
-            opt_id = request.POST.get('associated_option')
-            
-            if var_id:
-                image.associated_variable_id = var_id
-            if opt_id:
-                image.associated_option_id = opt_id
-            
-            image.save()
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Image updated successfully'
-            })
-        except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'message': str(e)
-            })
-    
-    return JsonResponse({'success': False, 'message': 'Invalid request'})
-
-
-
 
 def _handle_shipping_tab(request, product):
     """Handle shipping tab"""
@@ -5039,9 +5687,6 @@ def _handle_legal_tab(request, product):
         legal = legal_form.save(commit=False)
         legal.product = product
         legal.save()
-
-
-
 
 
 # ========== AJAX ENDPOINTS ==========
@@ -6087,7 +6732,12 @@ def vendor_profile(request, vendor_id):
 @login_required
 def vendor_list(request):
     """Vendor management page - list all vendors and their process links."""
+    from clientapp.models import Process
+    
     vendors = Vendor.objects.all().order_by('-vps_score_value', 'name')
+    
+    # Get all active processes for the services section
+    processes = Process.objects.filter(status='active').order_by('process_name')
     
     process_links = (
         ProcessVendor.objects.select_related('process')
@@ -6106,6 +6756,7 @@ def vendor_list(request):
     context = {
         'current_view': 'vendor_list',
         'vendors': vendors,
+        'processes': processes,
         'process_links': process_links,
     }
     return render(request, 'vendors_list.html', context)
@@ -6471,7 +7122,7 @@ def ajax_calculate_margin(request):
 @login_required
 @require_POST
 def ajax_create_vendor(request):
-    """Create a new Vendor and return it for dropdowns."""
+    """Create or update a Vendor and return it for dropdowns."""
     try:
         payload = json.loads(request.body.decode('utf-8'))
         
@@ -6498,37 +7149,101 @@ def ajax_create_vendor(request):
                 'message': 'Phone is required.'
             }, status=400)
         
-        # Get optional fields with defaults
-        address = (payload.get('address') or '').strip()
+        # Check if editing existing vendor
+        vendor_id = payload.get('vendor_id')
+        is_editing = vendor_id and str(vendor_id).strip()
+        
+        # Get all vendor fields from payload
+        contact_person = (payload.get('contact_person') or '').strip()
+        business_address = (payload.get('business_address') or payload.get('address') or '').strip()
+        tax_pin = (payload.get('tax_pin') or '').strip()
+        payment_terms = payload.get('payment_terms', '')
+        payment_method = payload.get('payment_method', '')
+        services = payload.get('services', '')  # Comma-separated string
+        specialization = (payload.get('specialization') or '').strip()
+        minimum_order = float(payload.get('minimum_order', 0) or 0)
+        lead_time = (payload.get('lead_time') or '').strip()
+        rush_capable = payload.get('rush_capable', False)
+        quality_rating = payload.get('quality_rating', '')
+        reliability_rating = payload.get('reliability_rating', '')
         vps_score = payload.get('vps_score', 'B')
         vps_score_value = float(payload.get('vps_score_value', 5.0))
         rating = float(payload.get('rating', 4.0))
         recommended = payload.get('recommended', False)
         
-        # Create vendor
-        vendor = Vendor.objects.create(
-            name=name,
-            email=email,
-            phone=phone,
-            address=address,
-            vps_score=vps_score,
-            vps_score_value=vps_score_value,
-            rating=rating,
-            recommended=recommended,
-            active=True,
-        )
-        
-        logger.info(f"✅ Vendor '{vendor.name}' created successfully by {request.user.username}")
-        
-        return JsonResponse({
-            'success': True,
-            'id': vendor.id,
-            'name': vendor.name,
-            'vps_score_value': str(vendor.vps_score_value),
-            'vps_score': vendor.vps_score,
-            'rating': str(vendor.rating),
-            'message': f'Vendor "{vendor.name}" created successfully!'
-        })
+        if is_editing:
+            # Update existing vendor
+            try:
+                vendor = Vendor.objects.get(id=vendor_id)
+                vendor.name = name
+                vendor.contact_person = contact_person
+                vendor.email = email
+                vendor.phone = phone
+                vendor.business_address = business_address
+                vendor.tax_pin = tax_pin
+                vendor.payment_terms = payment_terms
+                vendor.payment_method = payment_method
+                vendor.services = services
+                vendor.specialization = specialization
+                vendor.minimum_order = minimum_order
+                vendor.lead_time = lead_time
+                vendor.rush_capable = rush_capable
+                vendor.quality_rating = quality_rating
+                vendor.reliability_rating = reliability_rating
+                vendor.vps_score = vps_score
+                vendor.vps_score_value = vps_score_value
+                vendor.rating = rating
+                vendor.recommended = recommended
+                vendor.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'id': vendor.id,
+                    'name': vendor.name,
+                    'vps_score_value': str(vendor.vps_score_value),
+                    'vps_score': vendor.vps_score,
+                    'rating': str(vendor.rating),
+                    'message': f'Vendor "{vendor.name}" updated successfully!'
+                })
+            except Vendor.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Vendor not found.'
+                }, status=404)
+        else:
+            # Create new vendor
+            vendor = Vendor.objects.create(
+                name=name,
+                contact_person=contact_person,
+                email=email,
+                phone=phone,
+                business_address=business_address,
+                tax_pin=tax_pin,
+                payment_terms=payment_terms,
+                payment_method=payment_method,
+                services=services,
+                specialization=specialization,
+                minimum_order=minimum_order,
+                lead_time=lead_time,
+                rush_capable=rush_capable,
+                quality_rating=quality_rating,
+                reliability_rating=reliability_rating,
+                vps_score=vps_score,
+                vps_score_value=vps_score_value,
+                rating=rating,
+                recommended=recommended,
+                active=True,
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'id': vendor.id,
+                'name': vendor.name,
+                'vps_score_value': str(vendor.vps_score_value),
+                'vps_score': vendor.vps_score,
+                'rating': str(vendor.rating),
+                'message': f'Vendor "{vendor.name}" created successfully!'
+            })
         
     except json.JSONDecodeError:
         return JsonResponse({
@@ -6543,7 +7258,6 @@ def ajax_create_vendor(request):
     except Exception as e:
         import traceback
         traceback.print_exc()
-        logger.error(f"Error creating vendor: {str(e)}")
         return JsonResponse({
             'success': False, 
             'message': str(e)
@@ -6556,34 +7270,90 @@ def delivery_list(request):
 
 
 @login_required
+@group_required('Account Manager')
 def get_product_price(request, product_id):
-    """API endpoint to get product price"""
+    """API endpoint to get product price using centralized pricing resolver"""
+    from clientapp.models import resolve_unit_price
+    from decimal import Decimal
+    
     try:
         product = Product.objects.get(id=product_id)
         
-        # Get the base price from the product
-        # Adjust this based on your Product model structure
-        if hasattr(product, 'base_price'):
-            price = product.base_price
-        elif hasattr(product, 'price'):
-            price = product.price
-        elif hasattr(product, 'unit_price'):
-            price = product.unit_price
-        else:
-            # Fallback: try to get from pricing tiers or return 0
-            price = 0
+        # Use centralized pricing resolver (this already handles fallback to ProductPricing)
+        unit_price = resolve_unit_price(product)
+        
+        # Get base_price for display (use resolved price if base_price is not set)
+        base_price = product.base_price
+        if (base_price is None or base_price == 0) and hasattr(product, 'pricing'):
+            # If base_price not set, calculate from ProductPricing.base_cost with margin
+            if product.pricing.base_cost:
+                cost = product.pricing.base_cost
+                margin = product.pricing.return_margin if hasattr(product.pricing, 'return_margin') else Decimal('30')
+                base_price = cost * (Decimal('1') + (margin / Decimal('100')))
         
         return JsonResponse({
             'success': True,
-            'price': float(price),
-            'product_name': product.name,
-            'sku': product.sku if hasattr(product, 'sku') else ''
+            'id': product.id,
+            'name': product.name,
+            'internal_code': product.internal_code,
+            'customization_level': product.customization_level,
+            'base_price': float(base_price) if base_price else None,
+            'unit_price': float(unit_price) if unit_price else 0,
+            'has_costing_process': product.has_costing_process(),
+            'is_published': product.status == 'published' and product.is_visible
         })
     except Product.DoesNotExist:
         return JsonResponse({
             'success': False,
             'error': 'Product not found'
         }, status=404)
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=400)
+
+
+@login_required
+@group_required('Account Manager')
+def api_product_catalog(request):
+    """Product catalog API endpoint for Account Managers - returns pricing metadata"""
+    from clientapp.models import resolve_unit_price
+    
+    try:
+        # Return all active products (not archived) - production team may add products that aren't published yet
+        # Account Managers should see all products added by production team
+        products = Product.objects.filter(
+            status__in=['draft', 'published']  # Include both draft and published, exclude archived
+        ).select_related('pricing').order_by('name')
+        
+        # Apply search filter if provided
+        search = request.GET.get('search', '').strip()
+        if search:
+            products = products.filter(
+                Q(name__icontains=search) | 
+                Q(internal_code__icontains=search)
+            )
+        
+        # Build response with pricing metadata
+        results = []
+        for product in products:
+            unit_price = resolve_unit_price(product)
+            results.append({
+                'id': product.id,
+                'name': product.name,
+                'internal_code': product.internal_code,
+                'customization_level': product.customization_level,
+                'base_price': float(product.base_price) if product.base_price else None,
+                'unit_price': float(unit_price),
+                'has_costing_process': product.has_costing_process(),
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'count': len(results),
+            'products': results
+        })
     except Exception as e:
         return JsonResponse({
             'success': False,

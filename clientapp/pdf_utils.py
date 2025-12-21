@@ -4,6 +4,7 @@ PDF Generation Utilities using xhtml2pdf (pure Python, no GTK required)
 from io import BytesIO
 from django.http import HttpResponse
 from django.template.loader import render_to_string
+from django.utils import timezone
 from xhtml2pdf import pisa
 import logging
 
@@ -28,29 +29,108 @@ class QuotePDFGenerator:
         from clientapp.models import Quote
         
         try:
-            # Get all quote items with this quote_id
-            quotes = Quote.objects.filter(quote_id=quote_id).select_related('client', 'lead')
+            from clientapp.models import QuoteLineItem
             
-            if not quotes.exists():
+            # Get quote
+            quote = Quote.objects.filter(quote_id=quote_id).select_related('client', 'lead').first()
+            
+            if not quote:
                 raise ValueError(f"Quote {quote_id} not found")
             
-            first_quote = quotes.first()
+            # Get line items (preferred) or fallback to old quote records
+            line_items = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
             
-            # Calculate totals
-            subtotal = sum(q.total_amount for q in quotes)
-            vat_amount = subtotal * 0.16 if first_quote.include_vat else 0
+            # Calculate totals from line items (using snapshot prices)
+            if line_items.exists():
+                subtotal = sum(float(item.line_total) for item in line_items)
+                quotes = []  # Empty for backward compatibility
+            else:
+                # Fallback: use old quote records
+                quotes = Quote.objects.filter(quote_id=quote_id).select_related('client', 'lead')
+                subtotal = sum(float(q.total_amount) for q in quotes)
+                line_items = []
+            
+            vat_amount = subtotal * 0.16 if quote.include_vat else 0
             total_amount = subtotal + vat_amount
+            
+            # Prepare recipient information
+            if quote.client:
+                recipient_name = quote.client.company or quote.client.name
+                recipient_email = quote.client.email
+                recipient_phone = quote.client.phone
+            elif quote.lead:
+                recipient_name = quote.lead.name
+                recipient_email = quote.lead.email
+                recipient_phone = quote.lead.phone
+            else:
+                recipient_name = 'N/A'
+                recipient_email = ''
+                recipient_phone = ''
+            
+            # Prepare quote items for PDF template
+            quote_items = []
+            if line_items.exists():
+                for item in line_items:
+                    quote_items.append({
+                        'product_name': item.product_name,
+                        'quantity': item.quantity,
+                        'unit_price': float(item.unit_price),
+                        'total_amount': float(item.line_total),
+                    })
+            else:
+                # Fallback to old quote records
+                for q in quotes:
+                    quote_items.append({
+                        'product_name': q.product_name,
+                        'quantity': q.quantity,
+                        'unit_price': float(q.unit_price),
+                        'total_amount': float(q.total_amount),
+                    })
+            
+            # Get company logo if available (from settings or static files)
+            from django.conf import settings
+            import os
+            logo_path = None
+            if hasattr(settings, 'COMPANY_LOGO_PATH') and settings.COMPANY_LOGO_PATH:
+                logo_path = settings.COMPANY_LOGO_PATH
+            else:
+                # Try to find logo in static files
+                static_root = getattr(settings, 'STATIC_ROOT', None)
+                if static_root:
+                    logo_path = os.path.join(static_root, 'logo.png')
+                    if not os.path.exists(logo_path):
+                        logo_path = os.path.join(static_root, 'logo.jpg')
+                        if not os.path.exists(logo_path):
+                            logo_path = None
             
             # Prepare context for template
             context = {
                 'quote_id': quote_id,
-                'quotes': quotes,
-                'first_quote': first_quote,
-                'client': first_quote.client,
-                'lead': first_quote.lead,
+                'quote': quote,
+                'quotes': quotes,  # For backward compatibility
+                'line_items': line_items,  # Preferred - uses snapshot prices
+                'quote_items': quote_items,  # Formatted for PDF template
+                'first_quote': quote,
+                'client': quote.client,
+                'lead': quote.lead,
+                'recipient_name': recipient_name,
+                'recipient_email': recipient_email,
+                'recipient_phone': recipient_phone,
+                'created_by': quote.created_by.get_full_name() if quote.created_by else 'System',
+                'quote_date': quote.quote_date,
+                'valid_until': quote.valid_until,
                 'subtotal': subtotal,
                 'vat_amount': vat_amount,
                 'total_amount': total_amount,
+                'total': total_amount,  # Alias for template
+                'include_vat': quote.include_vat,
+                'notes': quote.notes,
+                'company_name': getattr(settings, 'COMPANY_NAME', 'PrintDuka'),
+                'company_email': getattr(settings, 'COMPANY_EMAIL', 'info@printduka.com'),
+                'company_phone': getattr(settings, 'COMPANY_PHONE', '+254 XXX XXX XXX'),
+                'company_address': getattr(settings, 'COMPANY_ADDRESS', ''),
+                'company_logo_path': logo_path,
+                'generated_at': timezone.now(),
             }
             
             # Render HTML template

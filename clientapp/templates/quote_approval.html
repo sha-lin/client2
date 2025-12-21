@@ -1,4 +1,3 @@
-<!-- Create: clientapp/templates/quote_approval.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,130 +5,247 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quote Approval - {{ quote.quote_id }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+    </style>
 </head>
-<body class="bg-gray-50">
-    <div class="min-h-screen py-12 px-4 sm:px-6 lg:px-8">
-        <div class="max-w-3xl mx-auto">
-            <!-- Header -->
+<body class="bg-gradient-to-br from-gray-50 to-gray-100">
+    <div class="min-h-screen py-8 px-4 sm:px-6 lg:px-8">
+        <div class="max-w-4xl mx-auto">
+            <!-- Header with Logo -->
             <div class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-gray-900">Quote Approval</h1>
-                <p class="mt-2 text-gray-600">Review and approve your quote</p>
+                <div class="inline-block bg-white rounded-lg shadow-sm px-6 py-3 mb-4">
+                    <h1 class="text-3xl font-bold text-gray-900">Quote Approval</h1>
+                </div>
+                <p class="text-gray-600 text-sm">Review and approve your quotation</p>
             </div>
 
             <!-- Quote Card -->
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden">
-                <!-- Quote Header -->
-                <div class="bg-blue-600 px-6 py-4">
-                    <h2 class="text-2xl font-bold text-white">Quote #{{ quote.quote_id }}</h2>
-                    <p class="text-blue-100 mt-1">
-                        Valid until: {{ quote.valid_until|date:"F d, Y" }}
-                    </p>
+            <div class="bg-white rounded-xl shadow-xl overflow-hidden border border-gray-200">
+                <!-- Quote Header - Zoho Books Style -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-8 py-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold text-white mb-1">Quote #{{ quote.quote_id }}</h2>
+                            <p class="text-blue-100 text-sm">
+                                Valid until: {{ quote.valid_until|date:"F d, Y" }}
+                            </p>
+                        </div>
+                        <div class="text-right">
+                            <div class="bg-white/20 backdrop-blur-sm rounded-lg px-4 py-2">
+                                <div class="text-white text-sm font-medium">Total Amount</div>
+                                <div class="text-white text-2xl font-bold">KES {{ total|floatformat:2 }}</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Client Info -->
-                <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-2">Prepared For:</h3>
-                    {% if quote.client %}
-                        <p class="text-gray-700">{{ quote.client.company|default:quote.client.name }}</p>
-                        <p class="text-gray-600 text-sm">{{ quote.client.email }}</p>
-                    {% elif quote.lead %}
-                        <p class="text-gray-700">{{ quote.lead.name }}</p>
-                        <p class="text-gray-600 text-sm">{{ quote.lead.email }}</p>
-                    {% endif %}
+                <div class="px-8 py-6 border-b border-gray-200 bg-gray-50">
+                    <div class="grid grid-cols-2 gap-6">
+                        <div>
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Bill To</h3>
+                            {% if quote.client %}
+                                <p class="text-gray-900 font-medium">{{ quote.client.company|default:quote.client.name }}</p>
+                                <p class="text-gray-600 text-sm mt-1">{{ quote.client.email }}</p>
+                                {% if quote.client.phone %}<p class="text-gray-600 text-sm">{{ quote.client.phone }}</p>{% endif %}
+                            {% elif quote.lead %}
+                                <p class="text-gray-900 font-medium">{{ quote.lead.name }}</p>
+                                <p class="text-gray-600 text-sm mt-1">{{ quote.lead.email }}</p>
+                                {% if quote.lead.phone %}<p class="text-gray-600 text-sm">{{ quote.lead.phone }}</p>{% endif %}
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Quote Details</h3>
+                            <p class="text-gray-900 text-sm"><span class="font-medium">Date:</span> {{ quote.quote_date|date:"F d, Y" }}</p>
+                            <p class="text-gray-900 text-sm"><span class="font-medium">Expires:</span> {{ quote.valid_until|date:"F d, Y" }}</p>
+                            <p class="text-gray-900 text-sm"><span class="font-medium">Prepared by:</span> {{ quote.created_by.get_full_name|default:"System" }}</p>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- Quote Items -->
-                <div class="px-6 py-6">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Quote Details</h3>
+                <!-- Quote Items Table - Professional Style -->
+                <div class="px-8 py-6">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">Items</h3>
                     
-                    <div class="space-y-4">
-                        {% for item in quote_items %}
-                        <div class="flex justify-between items-start border-b border-gray-100 pb-4">
-                            <div class="flex-1">
-                                <h4 class="font-medium text-gray-900">{{ item.product_name }}</h4>
-                                <p class="text-sm text-gray-600 mt-1">
-                                    Quantity: {{ item.quantity }} @ KES {{ item.unit_price|floatformat:2 }} each
-                                </p>
-                            </div>
-                            <div class="text-right ml-4">
-                                <p class="font-semibold text-gray-900">
-                                    KES {{ item.unit_price|floatformat:2 }}
-                                </p>
-                                <p class="text-sm text-gray-600 mt-1">
-                                    Total: KES {% widthratio item.unit_price 1 item.quantity %}
-                                </p>
-                            </div>
-                        </div>
-                        {% endfor %}
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200">
+                                    <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Item</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Quantity</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Unit Price</th>
+                                    <th class="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                {% for item in quote_items %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-4">
+                                        <div class="font-medium text-gray-900">{{ item.product_name }}</div>
+                                    </td>
+                                    <td class="px-4 py-4 text-right text-gray-700">{{ item.quantity }}</td>
+                                    <td class="px-4 py-4 text-right text-gray-700">KES {{ item.unit_price|floatformat:2 }}</td>
+                                    <td class="px-4 py-4 text-right font-semibold text-gray-900">KES {{ item.total_amount|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
                     </div>
 
                     <!-- Totals -->
-                    <div class="mt-6 space-y-2">
-                        <div class="flex justify-between text-gray-700">
-                            <span>Subtotal:</span>
-                            <span>KES {{ subtotal|floatformat:2 }}</span>
+                    <div class="mt-6 flex justify-end">
+                        <div class="w-full max-w-md">
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-gray-700 py-2">
+                                    <span class="font-medium">Subtotal:</span>
+                                    <span class="font-semibold">KES {{ subtotal|floatformat:2 }}</span>
+                                </div>
+                                
+                                {% if quote.include_vat %}
+                                <div class="flex justify-between text-gray-700 py-2">
+                                    <span class="font-medium">VAT (16%):</span>
+                                    <span class="font-semibold">KES {{ vat_amount|floatformat:2 }}</span>
+                                </div>
+                                {% endif %}
+                                
+                                <div class="flex justify-between text-xl font-bold text-gray-900 pt-4 border-t-2 border-gray-300">
+                                    <span>Total:</span>
+                                    <span class="text-blue-600">KES {{ total|floatformat:2 }}</span>
+                                </div>
+                            </div>
                         </div>
-                        
-                        {% if quote.include_vat %}
-                        <div class="flex justify-between text-gray-700">
-                            <span>VAT (16%):</span>
-                            <span>KES {{ vat_amount|floatformat:2 }}</span>
+                    </div>
+                </div>
+
+                <!-- Payment Terms & Notes -->
+                {% if quote.payment_terms or quote.notes %}
+                <div class="px-8 py-6 bg-gray-50 border-t border-gray-200">
+                    <div class="grid grid-cols-2 gap-6">
+                        {% if quote.payment_terms %}
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Payment Terms</h4>
+                            <p class="text-gray-900 text-sm">{{ quote.payment_terms }}</p>
                         </div>
                         {% endif %}
-                        
-                        <div class="flex justify-between text-xl font-bold text-gray-900 pt-2 border-t-2 border-gray-200">
-                            <span>Total:</span>
-                            <span>KES {{ total|floatformat:2 }}</span>
+                        {% if quote.notes %}
+                        <div>
+                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Notes</h4>
+                            <p class="text-gray-900 text-sm">{{ quote.notes|linebreaks }}</p>
                         </div>
+                        {% endif %}
                     </div>
                 </div>
-
-                <!-- Payment Terms -->
-                <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-700">Payment Terms</h4>
-                            <p class="text-gray-900">{{ quote.payment_terms }}</p>
-                        </div>
-                        <div>
-                            <h4 class="text-sm font-semibold text-gray-700">Quote Date</h4>
-                            <p class="text-gray-900">{{ quote.quote_date|date:"F d, Y" }}</p>
-                        </div>
-                    </div>
-                    
-                    {% if quote.notes %}
-                    <div class="mt-4">
-                        <h4 class="text-sm font-semibold text-gray-700">Notes</h4>
-                        <p class="text-gray-900 mt-1">{{ quote.notes }}</p>
-                    </div>
-                    {% endif %}
-                </div>
+                {% endif %}
 
                 <!-- Approval Section -->
-                <div class="px-6 py-6 bg-blue-50 border-t border-blue-100">
-                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Ready to approve?</h3>
-                    <p class="text-gray-700 mb-4">
-                        By clicking "Approve Quote", you confirm that you accept the terms and are ready to proceed with this order.
-                    </p>
+                {% if token_used %}
+                <div class="px-8 py-8 bg-green-50 border-t border-green-200">
+                    <div class="text-center">
+                        <div class="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">Quote Already Processed</h3>
+                        <p class="text-gray-600">This quote has already been approved or processed.</p>
+                    </div>
+                </div>
+                {% else %}
+                <div class="px-8 py-8 bg-gradient-to-br from-blue-50 to-indigo-50 border-t border-blue-200">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-6 text-center">What would you like to do?</h3>
                     
-                    <form method="POST" action="{% url 'quote_approval' token %}">
+                    <!-- Approve Button - Prominent -->
+                    <form method="POST" action="{% url 'quote_approval' token %}" class="mb-6">
                         {% csrf_token %}
+                        <input type="hidden" name="action" value="approve">
                         <button 
                             type="submit" 
-                            class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+                            class="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white font-semibold py-4 px-6 rounded-lg transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                            onclick="return confirm('Are you sure you want to approve this quote? This will create an order and notify the production team.');"
                         >
-                            ✓ Approve Quote
+                            <span class="flex items-center justify-center">
+                                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                                Approve Quote
+                            </span>
                         </button>
                     </form>
                     
-                    <p class="text-xs text-gray-600 text-center mt-4">
-                        Need changes? Contact us at [your-email@printduka.com]
-                    </p>
+                    <!-- Request Adjustments Section -->
+                    <div class="space-y-4">
+                        <div class="text-center">
+                            <p class="text-sm text-gray-600 mb-4">Need to make changes? Request adjustments below:</p>
+                        </div>
+                        
+                        <!-- Request Price Reduction -->
+                        <div class="bg-white rounded-lg p-5 border border-orange-200 shadow-sm">
+                            <h5 class="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                Request Price Reduction
+                            </h5>
+                            <p class="text-xs text-gray-600 mb-3">
+                                If you'd like to request a price reduction, please provide details below.
+                            </p>
+                            <form method="POST" action="{% url 'quote_approval' token %}" id="discountForm">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="request_discount">
+                                <textarea 
+                                    name="discount_notes" 
+                                    rows="3" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 mb-3 text-sm resize-none"
+                                    placeholder="Please explain why you're requesting a price reduction..."
+                                    required
+                                ></textarea>
+                                <button 
+                                    type="submit" 
+                                    class="w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm shadow-md hover:shadow-lg"
+                                >
+                                    Request Price Reduction
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <!-- Request Quote Adjustments -->
+                        <div class="bg-white rounded-lg p-5 border border-blue-200 shadow-sm">
+                            <h5 class="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                                <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                                Request Quote Adjustments
+                            </h5>
+                            <p class="text-xs text-gray-600 mb-3">
+                                Need to modify quantities, add products, or change other details? Let us know what changes you'd like.
+                            </p>
+                            <form method="POST" action="{% url 'quote_approval' token %}" id="adjustmentForm">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="request_adjustment">
+                                <textarea 
+                                    name="adjustment_notes" 
+                                    rows="4" 
+                                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 mb-3 text-sm resize-none"
+                                    placeholder="Please describe the adjustments you'd like (e.g., change quantity, add products, modify specifications, update delivery date, etc.)..."
+                                    required
+                                ></textarea>
+                                <button 
+                                    type="submit" 
+                                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors text-sm shadow-md hover:shadow-lg"
+                                >
+                                    Request Adjustments
+                                </button>
+                            </form>
+                        </div>
+                    </div>
                 </div>
+                {% endif %}
             </div>
 
             <!-- Footer -->
-            <div class="text-center mt-8 text-gray-600 text-sm">
+            <div class="text-center mt-8 text-gray-500 text-sm">
                 <p>© 2025 PrintDuka. All rights reserved.</p>
                 <p class="mt-1">This quote will expire on {{ quote.valid_until|date:"F d, Y" }}</p>
             </div>

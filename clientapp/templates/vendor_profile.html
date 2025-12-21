@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load custom_filters %}
 
 {% block title %}{{ vendor.name }} - Vendor Profile{% endblock %}
 
@@ -439,17 +440,17 @@
                 </div>
             </div>
             <div class="metric-item">
-                <div class="metric-value">95%</div>
+                <div class="metric-value">—</div>
                 <div class="metric-label">On-Time Delivery</div>
                 <div class="metric-bar">
-                    <div class="metric-bar-fill" style="width: 95%; background-color: #1f2937;"></div>
+                    <div class="metric-bar-fill" style="width: 0%; background-color: #1f2937;"></div>
                 </div>
             </div>
             <div class="metric-item">
-                <div class="metric-value">92%</div>
+                <div class="metric-value">—</div>
                 <div class="metric-label">Quality Score</div>
                 <div class="metric-bar">
-                    <div class="metric-bar-fill" style="width: 92%; background-color: #4b5563;"></div>
+                    <div class="metric-bar-fill" style="width: 0%; background-color: #4b5563;"></div>
                 </div>
             </div>
         </div>
@@ -536,7 +537,7 @@
         
         {% if vendor.services %}
         <div class="services-list">
-            {% for service in vendor.services %}
+            {% for service in vendor.services|split:"," %}
             <span class="service-tag">{{ service }}</span>
             {% endfor %}
         </div>
@@ -613,19 +614,19 @@
         </h2>
         <div class="statistics">
             <div class="stat-item">
-                <div class="stat-value">47</div>
+                <div class="stat-value">—</div>
                 <div class="stat-label">Total Jobs</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">This Month</div>
-                <div class="stat-label">—</div>
+                <div class="stat-value">—</div>
+                <div class="stat-label">This Month</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">285k</div>
+                <div class="stat-value">—</div>
                 <div class="stat-label">Total Spend (KES)</div>
             </div>
             <div class="stat-item">
-                <div class="stat-value">Nov 25</div>
+                <div class="stat-value">—</div>
                 <div class="stat-label">Last Order</div>
             </div>
         </div>

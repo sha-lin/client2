@@ -111,16 +111,38 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        {% for quote in quotes %}
-                        <tr>
-                            <td class="py-3 px-4">
-                                <div class="font-medium text-sm">{{ quote.product_name }}</div>
-                            </td>
-                            <td class="py-3 px-4 text-right text-sm">{{ quote.quantity }}</td>
-                            <td class="py-3 px-4 text-right text-sm font-medium">KES {{ quote.unit_price|floatformat:2 }}</td>
-                            <td class="py-3 px-4 text-right text-sm font-bold">KES {{ quote.total_amount|floatformat:2 }}</td>
-                        </tr>
-                        {% endfor %}
+                        {% if line_items %}
+                            {% for item in line_items %}
+                            <tr>
+                                <td class="py-3 px-4">
+                                    <div class="font-medium text-sm">{{ item.product_name }}</div>
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {% if item.customization_level_snapshot == 'fully_customizable' %}
+                                            <span class="text-blue-600">Fully Customizable</span>
+                                        {% elif item.customization_level_snapshot == 'semi_customizable' %}
+                                            <span class="text-orange-600">Semi-Customizable</span>
+                                        {% else %}
+                                            <span class="text-gray-600">Non-Customizable</span>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="py-3 px-4 text-right text-sm">{{ item.quantity }}</td>
+                                <td class="py-3 px-4 text-right text-sm font-medium">KES {{ item.unit_price|floatformat:2 }}</td>
+                                <td class="py-3 px-4 text-right text-sm font-bold">KES {{ item.line_total|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            {% for quote in quotes %}
+                            <tr>
+                                <td class="py-3 px-4">
+                                    <div class="font-medium text-sm">{{ quote.product_name }}</div>
+                                </td>
+                                <td class="py-3 px-4 text-right text-sm">{{ quote.quantity }}</td>
+                                <td class="py-3 px-4 text-right text-sm font-medium">KES {{ quote.unit_price|floatformat:2 }}</td>
+                                <td class="py-3 px-4 text-right text-sm font-bold">KES {{ quote.total_amount|floatformat:2 }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
@@ -167,40 +189,86 @@
                 </div>
             </div>
             {% endif %}
-                        <!-- AM Actions Section - Send to Client (visible when quote is costed) -->
-            {% if first_quote.production_status == 'costed' %}
+            <!-- AM Actions Section - Zoho-like button visibility rules -->
+            {% if request.user.groups.all.0.name == 'Account Manager' %}
             <div class="border-t border-gray-200 pt-6 mt-6">
                 <h3 class="text-sm font-semibold text-gray-600 mb-3">ACTIONS</h3>
-                <div class="bg-green-50 border border-green-200 rounded-lg p-6">
-                    <p class="text-gray-700 mb-4">
-                        <strong>✅ Quote is costed and ready!</strong> Production team has completed the costing. You can now send this quote to the client for approval.
-                    </p>
-                    
-                    <div class="flex gap-3 flex-wrap">
-                        <!-- Send to Client via Email -->
-                        <button type="button" onclick="sendQuoteToClient('email')" 
-                            class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors shadow-md flex items-center gap-2">
-                            ✉️ Send to Client via Email
-                        </button>
-                        
-                        <!-- Send via WhatsApp -->
-                        <button type="button" onclick="sendQuoteToClient('whatsapp')" 
-                            class="px-6 py-3 bg-emerald-600 text-white font-semibold rounded-lg hover:bg-emerald-700 transition-colors shadow-md flex items-center gap-2">
-                            📱 Send via WhatsApp
-                        </button>
-                        
-                        <!-- Download PDF -->
-                        <a href="{% url 'download_quote_pdf' quote_id %}" 
+                
+                <!-- All 3 buttons always visible -->
+                <div class="flex gap-3 flex-wrap mb-4">
+                    <!-- Save as Draft - Always enabled -->
+                    <form method="POST" action="{% url 'quote_create' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="quote_id" value="{{ quote_id }}">
+                        <button type="submit" name="action" value="save_draft"
                             class="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors shadow-md flex items-center gap-2">
-                            📄 Download PDF
-                        </a>
-                    </div>
+                            💾 Save as Draft
+                        </button>
+                    </form>
                     
-                    <p class="text-sm text-gray-500 mt-4">
-                        <strong>Note:</strong> An email will be sent to 
-                        {% if client %}{{ client.email }}{% elif lead %}{{ lead.email }}{% endif %} 
-                        with an approval link.
+                    <!-- Send to PT for Costing - Enabled if has customizable products -->
+                    <form method="POST" action="{% url 'quote_create' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="quote_id" value="{{ quote_id }}">
+                        <button type="submit" name="action" value="save_send_pt"
+                            class="px-6 py-3 {% if can_send_to_pt %}bg-blue-600 hover:bg-blue-700{% else %}bg-gray-400 cursor-not-allowed{% endif %} text-white font-semibold rounded-lg transition-colors shadow-md flex items-center gap-2"
+                            {% if not can_send_to_pt %}disabled title="Quote must have customizable products (semi or fully) to send to PT"{% endif %}>
+                            📋 Send to PT for Costing
+                        </button>
+                    </form>
+                    
+                    <!-- Email Client - Enabled only if costed -->
+                    <button type="button" onclick="sendQuoteToClient('email')" 
+                        class="px-6 py-3 {% if can_send_to_customer %}bg-green-600 hover:bg-green-700{% else %}bg-gray-400 cursor-not-allowed{% endif %} text-white font-semibold rounded-lg transition-colors shadow-md flex items-center gap-2"
+                        {% if not can_send_to_customer %}disabled title="{% if send_to_customer_error %}{{ send_to_customer_error }}{% else %}Quote must be costed before sending to customer{% endif %}"{% endif %}>
+                        ✉️ Email Client
+                    </button>
+                </div>
+                
+                <!-- Status Messages -->
+                {% if not can_send_to_customer and first_quote.production_status != 'costed' %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-yellow-800">
+                        ⚠️ Quote must be costed by Production Team before sending to customer.
                     </p>
+                </div>
+                {% elif not can_send_to_customer and send_to_customer_error %}
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-yellow-800">
+                        ⚠️ {{ send_to_customer_error }}
+                    </p>
+                </div>
+                {% endif %}
+                
+                {% if not can_send_to_pt %}
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-blue-800">
+                        ℹ️ Send to PT is only available for quotes with customizable products (semi or fully customizable).
+                    </p>
+                </div>
+                {% endif %}
+                
+                <!-- Locked Message -->
+                {% if is_locked %}
+                <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4">
+                    <p class="text-sm text-gray-700">
+                        🔒 Quote is locked. Production Team is currently costing this quote. Editing is disabled.
+                    </p>
+                </div>
+                {% endif %}
+                
+                <!-- Download PDF and Edit Quote - Always available -->
+                <div class="flex gap-3 flex-wrap">
+                    <a href="{% url 'download_quote_pdf' quote_id %}" 
+                        class="px-6 py-3 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-700 transition-colors shadow-md flex items-center gap-2">
+                        📄 Download PDF
+                    </a>
+                    {% if not is_locked %}
+                    <a href="{% url 'quote_create' %}?quote_id={{ quote_id }}" 
+                        class="px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors shadow-md flex items-center gap-2">
+                        ✏️ Edit Quote
+                    </a>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}

@@ -19,3 +19,23 @@ def length_is(value, arg):
         return len(value) == int(arg)
     except (ValueError, TypeError, AttributeError):
         return False
+
+@register.filter
+def split(value, delimiter=','):
+    """
+    Split a string by delimiter and return a list.
+    Usage: {% for item in string|split:"," %}
+    
+    Args:
+        value: String to split
+        delimiter: Delimiter to split by (default: ',')
+        
+    Returns:
+        list: List of strings
+    """
+    if not value:
+        return []
+    try:
+        return [item.strip() for item in str(value).split(delimiter) if item.strip()]
+    except (ValueError, TypeError, AttributeError):
+        return []

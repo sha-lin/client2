@@ -556,7 +556,82 @@ class Product(models.Model):
     def __str__(self):
         return f"{self.internal_code} - {self.name}"
     
+    def clean(self):
+        """Validate product pricing rules based on customization level"""
+        super().clean()
+        
+        # Map customization levels to simpler names for validation
+        level_map = {
+            'non_customizable': 'non',
+            'semi_customizable': 'semi',
+            'fully_customizable': 'full'
+        }
+        level = level_map.get(self.customization_level, 'non')
+        
+        # Non/Semi products must have base_price
+        if level in ['non', 'semi']:
+            if self.base_price is None:
+                raise ValidationError({
+                    'base_price': f'{self.get_customization_level_display()} products must have a base price.'
+                })
+            if self.base_price <= 0:
+                raise ValidationError({
+                    'base_price': 'Base price must be greater than zero.'
+                })
+        
+        # Fully customizable products must have base_price as NULL
+        if level == 'full':
+            if self.base_price is not None:
+                raise ValidationError({
+                    'base_price': 'Fully customizable products must not have a base price (must be NULL).'
+                })
+    
+    def has_costing_process(self):
+        """Check if product has at least one costing process"""
+        if hasattr(self, 'pricing'):
+            # Check if product has any linked process (main, tier, or formula)
+            return (
+                self.pricing.process is not None or
+                self.pricing.tier_process is not None or
+                self.pricing.formula_process is not None
+            )
+        return False
+    
+    def can_be_published(self):
+        """Check if product can be published based on pricing rules"""
+        level_map = {
+            'non_customizable': 'non',
+            'semi_customizable': 'semi',
+            'fully_customizable': 'full'
+        }
+        level = level_map.get(self.customization_level, 'non')
+        
+        if level in ['non', 'semi']:
+            # Must have base_price
+            if self.base_price is None or self.base_price <= 0:
+                return False, "Non/Semi-customizable products must have a valid base price."
+        
+        if level == 'full':
+            # Must have costing process
+            if not self.has_costing_process():
+                return False, "Fully customizable products must have at least one costing process."
+        
+        return True, None
+    
     def save(self, *args, **kwargs):
+        # Skip validation if skip_validation is set (used during multi-tab form saves)
+        skip_validation = kwargs.pop('skip_validation', False)
+        
+        if not skip_validation:
+            # Validate before saving
+            self.clean()
+            
+            # Prevent publishing invalid products
+            if self.status == 'published':
+                can_publish, error_msg = self.can_be_published()
+                if not can_publish:
+                    raise ValidationError(error_msg)
+        
         if self.auto_generate_code or not self.internal_code:
             # Generate code based on product name
             name_words = self.name.split()
@@ -645,6 +720,13 @@ class ProductPricing(models.Model):
     # Process Integration
     process = models.ForeignKey('Process', on_delete=models.SET_NULL, null=True, blank=True, related_name='products', help_text='Select the costing process for this product')
     use_process_costs = models.BooleanField(default=True, help_text='Use costs from linked process, or override with custom values')
+    
+    # Separate Tier and Formula Process Integration
+    tier_process = models.ForeignKey('Process', on_delete=models.SET_NULL, null=True, blank=True, related_name='tier_products', help_text='Tier-based pricing process (quantity discounts)')
+    formula_process = models.ForeignKey('Process', on_delete=models.SET_NULL, null=True, blank=True, related_name='formula_products', help_text='Formula-based pricing process (customization pricing)')
+    
+    # Return margin (explicit field for form compatibility)
+    return_margin = models.DecimalField(max_digits=5, decimal_places=2, default=30, validators=[MinValueValidator(0), MaxValueValidator(100)], help_text="Margin percentage for this product")
     
     # Production & Vendor Information
     lead_time_value = models.IntegerField(default=3)
@@ -1208,11 +1290,12 @@ class ProductChangeHistory(models.Model):
 # Updated Quote Model - Replace in your models.py
 
 class Quote(models.Model):
-    """Quote/Proposal model - Simplified pricing"""
+    """Quote/Proposal model - Zoho-style quoting with proper status machine"""
     STATUS_CHOICES = [
         ('Draft', 'Draft'),
-        ('Quoted', 'Quoted'),
-        ('Client Review', 'Client Review'),
+        ('Sent to PT', 'Sent to PT'),
+        ('Costed', 'Costed'),
+        ('Sent to Customer', 'Sent to Customer'),
         ('Approved', 'Approved'),
         ('Lost', 'Lost'),
     ]
@@ -1239,6 +1322,7 @@ class Quote(models.Model):
     quote_id = models.CharField(max_length=20, editable=False, db_index=True)
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='quotes', null=True, blank=True)
     lead = models.ForeignKey(Lead, on_delete=models.SET_NULL, null=True, blank=True, related_name='quotes')
+    product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='quotes')
     
     # Product Details
     product_name = models.CharField(max_length=200)
@@ -1323,19 +1407,56 @@ class Quote(models.Model):
         if not self.valid_until:
             self.valid_until = timezone.now().date() + timedelta(days=30)
 
+        # Enforce status transitions (Zoho-like behavior)
+        self._enforce_status_transitions()
+        
         # Update production status transitions automatically
-        if self.status in ['Quoted', 'Client Review'] and self.production_status == 'pending':
+        if self.status == 'Costed' and self.production_status == 'pending':
             self.production_status = 'costed'
+        if self.status == 'Sent to Customer':
+            self.production_status = 'sent_to_client'
         if self.status == 'Approved' and self.production_status not in ['in_production', 'completed']:
             self.production_status = 'in_production'
         if self.status == 'Lost':
             self.production_status = 'completed'
         
+        # ✅ CRITICAL: Call super().save() to actually save the object to the database
+        super().save(*args, **kwargs)
+    
+    def _enforce_status_transitions(self):
+        """Enforce valid status transitions (Zoho-like strict state machine)"""
+        if not self.pk:  # New quote, allow any initial status
+            return
+        
+        try:
+            old_quote = Quote.objects.get(pk=self.pk)
+            old_status = old_quote.status
+            new_status = self.status
+            
+            # Define valid transitions
+            valid_transitions = {
+                'Draft': ['Sent to PT', 'Sent to Customer'],  # Can skip PT if no fully customizable products
+                'Sent to PT': ['Costed', 'Draft'],  # Can go back to draft
+                'Costed': ['Sent to Customer', 'Draft'],
+                'Sent to Customer': ['Approved', 'Lost', 'Draft'],
+                'Approved': ['Lost'],  # Once approved, can only be lost
+                'Lost': [],  # Terminal state
+            }
+            
+            # Check if transition is valid
+            if old_status != new_status:
+                allowed_next = valid_transitions.get(old_status, [])
+                if new_status not in allowed_next:
+                    raise ValidationError(
+                        f"Invalid status transition from '{old_status}' to '{new_status}'. "
+                        f"Allowed transitions: {', '.join(allowed_next) if allowed_next else 'None'}"
+                    )
+        except Quote.DoesNotExist:
+            pass  # New quote, no validation needed
+        
         # Handle Lead to Client conversion when approved
         if self.status == 'Approved' and self.lead and not self.lead.converted_to_client:
             self.convert_lead_to_client()
-        
-        super().save(*args, **kwargs)
     
     def convert_lead_to_client(self):
         """Convert lead to client when quote is approved"""
@@ -1396,6 +1517,144 @@ class Quote(models.Model):
         """Calculate days until expiry"""
         delta = self.valid_until - timezone.now().date()
         return delta.days
+    
+    def has_fully_customizable_products(self):
+        """Check if quote has any fully customizable products"""
+        # Check line items first (preferred method)
+        if hasattr(self, 'line_items') and self.line_items.exists():
+            return self.line_items.filter(
+                customization_level_snapshot='fully_customizable'
+            ).exists()
+        # Fallback to product field (backward compatibility)
+        if self.product:
+            return self.product.customization_level == 'fully_customizable'
+        return False
+    
+    def can_send_to_customer(self):
+        """Check if quote can be sent to customer - no costed requirement"""
+        # Quotes can be sent to customers at any time (no costed requirement)
+        # Basic validation: quote must have at least one line item or product
+        has_items = False
+        if hasattr(self, 'line_items') and self.line_items.exists():
+            has_items = True
+        elif self.product:
+            has_items = True
+        
+        if not has_items:
+            return False, "Quote must have at least one item before sending to customer."
+        
+        return True, None
+    
+    def has_customizable_products(self):
+        """Check if quote has any customizable products (semi or fully)"""
+        # Check line items first (preferred method)
+        if hasattr(self, 'line_items') and self.line_items.exists():
+            return self.line_items.filter(
+                customization_level_snapshot__in=['semi_customizable', 'fully_customizable']
+            ).exists()
+        # Fallback to product field (backward compatibility)
+        if self.product:
+            return self.product.customization_level in ['semi_customizable', 'fully_customizable']
+        return False
+    
+    def can_send_to_pt(self):
+        """Check if quote can be sent to Production Team"""
+        # Must have at least one customizable product (semi or fully)
+        if not self.has_customizable_products():
+            return False, "Only quotes with customizable products (semi or fully) can be sent to Production Team."
+        
+        return True, None
+
+
+class QuoteLineItem(models.Model):
+    """Line items for quotes - stores product pricing snapshots"""
+    
+    quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name='line_items')
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='quote_line_items')
+    
+    # Product snapshot at time of quote creation
+    product_name = models.CharField(max_length=200)
+    customization_level_snapshot = models.CharField(max_length=30)
+    base_price_snapshot = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    
+    # Line item details
+    quantity = models.IntegerField(validators=[MinValueValidator(1)])
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Variable pricing (for semi-customizable products)
+    variable_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Additional cost from variables")
+    
+    # Ordering
+    order = models.PositiveIntegerField(default=0)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['order', 'created_at']
+        indexes = [
+            models.Index(fields=['quote']),
+        ]
+    
+    def __str__(self):
+        return f"{self.quote.quote_id} - {self.product_name} (x{self.quantity})"
+    
+    def save(self, *args, **kwargs):
+        # Calculate line total
+        self.line_total = (self.unit_price + self.variable_amount) * self.quantity
+        super().save(*args, **kwargs)
+
+
+# Centralized Pricing Resolver Function
+def resolve_unit_price(product, variables=None, quantity=1):
+    """
+    Centralized pricing resolver - single source of truth for product pricing.
+    
+    Args:
+        product: Product instance
+        variables: Decimal amount for variable pricing (semi-customizable)
+        quantity: Quantity for tier-based pricing (future use)
+    
+    Returns:
+        Decimal: Unit price for the product
+    """
+    if not product:
+        return Decimal('0')
+    
+    level_map = {
+        'non_customizable': 'non',
+        'semi_customizable': 'semi',
+        'fully_customizable': 'full'
+    }
+    level = level_map.get(product.customization_level, 'non')
+    
+    # Non-customizable: return base_price (or fallback to ProductPricing.base_cost with margin)
+    if level == 'non':
+        if product.base_price is not None and product.base_price > 0:
+            return product.base_price
+        # Fallback: try to get from ProductPricing.base_cost if available
+        # Note: base_cost is vendor cost, so we apply margin to get selling price
+        if hasattr(product, 'pricing') and product.pricing.base_cost:
+            cost = product.pricing.base_cost
+            margin = product.pricing.return_margin if hasattr(product.pricing, 'return_margin') else Decimal('30')
+            # Calculate price: cost * (1 + margin%)
+            return cost * (Decimal('1') + (margin / Decimal('100')))
+        return Decimal('0')
+    
+    # Semi-customizable: base_price (variables added later in quote line items)
+    if level == 'semi':
+        base = product.base_price or Decimal('0')
+        # Variables are handled separately in QuoteLineItem.variable_amount
+        # Initial price is just base_price
+        return base
+    
+    # Fully customizable: return 0 (PT will cost it)
+    if level == 'full':
+        return Decimal('0')
+    
+    return Decimal('0')
 
 
 class ActivityLog(models.Model):
@@ -2548,6 +2807,9 @@ class Notification(models.Model):
         ('quote_reminder', 'Quote Creation Reminder'),
         ('quote_approved', 'Quote Approved by Client'),
         ('quote_sent_pt', 'Quote Sent to PT for Approval'),
+        ('quote_pt_approved', 'Quote Costed by PT'),
+        ('quote_discount_request', 'Price Reduction Requested'),
+        ('quote_adjustment_request', 'Quote Adjustments Requested'),
         ('convert_lead', 'Convert Lead to Client'),
         ('delivery_ready', 'Delivery Ready for AM'),
         ('job_completed', 'Job Completed'),

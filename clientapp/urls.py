@@ -123,6 +123,7 @@ urlpatterns = [
     # Self-Quote Interface (Customer-facing)
     path('self-quote/', views.self_quote, name='self_quote'),
      path('api/product-price/<int:product_id>/', views.get_product_price, name='get_product_price'),
+     path('api/product-catalog/', views.api_product_catalog, name='api_product_catalog'),
     
     # API endpoints for AJAX operations
     # path('api/products/search/', views.api_product_search, name='api_product_search'),

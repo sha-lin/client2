@@ -312,8 +312,10 @@
                 <td>{{ product.primary_category|default:"—" }}</td>
                 <td>{{ product.get_product_type_display }}</td>
                 <td class="price">
-                    {% if product.pricing %}
-                        KES {{ product.pricing.base_cost|floatformat:2 }}
+                    {% if product.base_price %}
+                        KES {{ product.base_price|floatformat:2 }}
+                    {% elif product.pricing and product.pricing.base_cost %}
+                        KES {{ product.pricing.base_cost|floatformat:2 }} <span class="text-xs text-gray-400">(cost)</span>
                     {% else %}
                         —
                     {% endif %}

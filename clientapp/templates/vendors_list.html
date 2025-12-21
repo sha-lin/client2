@@ -25,6 +25,7 @@
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rating</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                     <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                 </tr>
             </thead>
             <tbody class="bg-white divide-y divide-gray-200">
@@ -62,10 +63,38 @@
                     <td class="px-4 py-3 text-sm text-gray-500">
                         {{ vendor.created_at|date:"M d, Y" }}
                     </td>
+                    <td class="px-4 py-3 text-sm">
+                        <button type="button" 
+                           class="inline-flex items-center gap-1 px-2 py-1 text-sm text-blue-600 hover:bg-blue-50 rounded transition-colors edit-vendor-btn"
+                           data-vendor-id="{{ vendor.id }}"
+                           data-vendor-name="{{ vendor.name|escapejs }}"
+                           data-vendor-contact-person="{{ vendor.contact_person|escapejs }}"
+                           data-vendor-email="{{ vendor.email|escapejs }}"
+                           data-vendor-phone="{{ vendor.phone|escapejs }}"
+                           data-vendor-business-address="{{ vendor.business_address|escapejs }}"
+                           data-vendor-tax-pin="{{ vendor.tax_pin|escapejs }}"
+                           data-vendor-payment-terms="{{ vendor.payment_terms|escapejs }}"
+                           data-vendor-payment-method="{{ vendor.payment_method|escapejs }}"
+                           data-vendor-services="{{ vendor.services|escapejs }}"
+                           data-vendor-specialization="{{ vendor.specialization|escapejs }}"
+                           data-vendor-minimum-order="{{ vendor.minimum_order }}"
+                           data-vendor-lead-time="{{ vendor.lead_time|escapejs }}"
+                           data-vendor-rush-capable="{{ vendor.rush_capable|yesno:'true,false' }}"
+                           data-vendor-quality-rating="{{ vendor.quality_rating|escapejs }}"
+                           data-vendor-reliability-rating="{{ vendor.reliability_rating|escapejs }}"
+                           data-vendor-vps-score="{{ vendor.vps_score|escapejs }}"
+                           data-vendor-vps-score-value="{{ vendor.vps_score_value }}"
+                           data-vendor-rating="{{ vendor.rating }}"
+                           data-vendor-recommended="{{ vendor.recommended|yesno:'true,false' }}"
+                           title="Edit Vendor">
+                            <i data-lucide="edit" class="w-4 h-4"></i>
+                            Edit
+                        </button>
+                    </td>
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="6" class="px-4 py-6 text-center text-sm text-gray-500">
+                    <td colspan="7" class="px-4 py-6 text-center text-sm text-gray-500">
                         No vendors have been added yet. Add a vendor from the Process editor, or via the admin.
                     </td>
                 </tr>
@@ -82,12 +111,13 @@
 <div id="add-vendor-modal" style="display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5);">
     <div style="background-color: white; margin: 5% auto; padding: 2rem; border-radius: 8px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-            <h2 style="font-size: 1.5rem; font-weight: 600; color: #1f2937;">Add New Vendor</h2>
+            <h2 style="font-size: 1.5rem; font-weight: 600; color: #1f2937;" id="modal-title">Add New Vendor</h2>
             <button type="button" id="close-modal" style="font-size: 1.5rem; color: #6b7280; background: none; border: none; cursor: pointer;">&times;</button>
         </div>
         
         <form id="vendor-form" method="POST" action="{% url 'ajax_create_vendor' %}">
             {% csrf_token %}
+            <input type="hidden" id="vendor-id" name="vendor_id" value="">
             
             <!-- BASIC INFORMATION -->
             <div style="margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 2px solid #e5e7eb;">
@@ -184,39 +214,17 @@
                 <div style="font-weight: 600; color: #1f2937; margin-bottom: 1rem; font-size: 14px;">SERVICES</div>
                 <label style="display: block; font-weight: 500; margin-bottom: 0.75rem; color: #374151;">What services does this vendor provide?</label>
                 
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;" id="process-services-container">
+                    {% for process in processes %}
                     <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Embroidery" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Embroidery</span>
+                        <input type="checkbox" name="services" value="{{ process.process_name }}" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
+                        <span style="color: #374151; font-size: 14px;">{{ process.process_name }}</span>
                     </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Digital Print" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Digital Print</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Screen Printing" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Screen Printing</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Large Format" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Large Format</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Signage" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Signage</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Materials Supply" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Materials Supply</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Financing" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Financing</span>
-                    </label>
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" name="services" value="Other" style="width: 1.125rem; height: 1.125rem; margin-right: 0.5rem;">
-                        <span style="color: #374151; font-size: 14px;">Other</span>
-                    </label>
+                    {% empty %}
+                    <div style="grid-column: 1 / -1; color: #6b7280; font-size: 14px; font-style: italic;">
+                        No processes have been created yet. Create processes first to assign them to vendors.
+                    </div>
+                    {% endfor %}
                 </div>
                 
                 <div style="margin-top: 1rem;">
@@ -358,7 +366,7 @@
                 </button>
                 <button type="submit" id="save-vendor-btn"
                     style="padding: 0.75rem 1.5rem; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1rem; font-weight: 500;">
-                    Save Vendor
+                    <span id="save-btn-text">Save Vendor</span>
                 </button>
             </div>
         </form>
@@ -373,16 +381,167 @@ const closeModalBtn = document.getElementById('close-modal');
 const cancelBtn = document.getElementById('cancel-vendor-btn');
 const vendorForm = document.getElementById('vendor-form');
 
-// Open modal
+// Function to load vendor data into form
+function loadVendorData(vendorData) {
+    const elements = {
+        'vendor-id': vendorData.vendorId || '',
+        'vendor-name': vendorData.name || '',
+        'vendor-contact-person': vendorData.contactPerson || '',
+        'vendor-email': vendorData.email || '',
+        'vendor-phone': vendorData.phone || '',
+        'vendor-business-address': vendorData.businessAddress || '',
+        'vendor-tax-pin': vendorData.taxPin || '',
+        'vendor-payment-terms': vendorData.paymentTerms || '',
+        'vendor-payment-method': vendorData.paymentMethod || '',
+        'vendor-specialization': vendorData.specialization || '',
+        'vendor-minimum-order': vendorData.minimumOrder || '0',
+        'vendor-lead-time': vendorData.leadTime || '',
+        'vendor-vps-score': vendorData.vpsScore || 'B',
+        'vendor-vps-value': vendorData.vpsScoreValue || '5.0',
+        'vendor-rating': vendorData.rating || '4.0'
+    };
+    
+    // Set text input values
+    Object.keys(elements).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = elements[id];
+        }
+    });
+    
+    // Set checkbox values
+    const rushCapableEl = document.getElementById('vendor-rush-capable');
+    if (rushCapableEl) {
+        rushCapableEl.checked = vendorData.rushCapable === 'true';
+    }
+    
+    const recommendedEl = document.getElementById('vendor-recommended');
+    if (recommendedEl) {
+        recommendedEl.checked = vendorData.recommended === 'true';
+    }
+    
+    // Handle quality rating radio buttons
+    if (vendorData.qualityRating) {
+        const qualityRadio = document.querySelector(`input[name="quality_rating"][value="${vendorData.qualityRating}"]`);
+        if (qualityRadio) qualityRadio.checked = true;
+    }
+    
+    // Handle reliability rating radio buttons
+    if (vendorData.reliabilityRating) {
+        const reliabilityRadio = document.querySelector(`input[name="reliability_rating"][value="${vendorData.reliabilityRating}"]`);
+        if (reliabilityRadio) reliabilityRadio.checked = true;
+    }
+    
+    // Handle services checkboxes
+    document.querySelectorAll('input[name="services"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    if (vendorData.services) {
+        const servicesList = vendorData.services.split(',').map(s => s.trim());
+        servicesList.forEach(serviceName => {
+            const checkbox = document.querySelector(`input[name="services"][value="${serviceName}"]`);
+            if (checkbox) checkbox.checked = true;
+        });
+    }
+}
+
+// Function to reset form
+function resetVendorForm() {
+    document.getElementById('vendor-form').reset();
+    document.getElementById('vendor-id').value = '';
+    document.querySelectorAll('input[name="services"]').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.querySelectorAll('input[name="quality_rating"]').forEach(radio => {
+        radio.checked = false;
+    });
+    document.querySelectorAll('input[name="reliability_rating"]').forEach(radio => {
+        radio.checked = false;
+    });
+}
+
+// Open modal for adding new vendor
 addVendorBtn.addEventListener('click', function() {
     modal.style.display = 'block';
+    document.getElementById('modal-title').textContent = 'Add New Vendor';
+    document.getElementById('save-btn-text').textContent = 'Save Vendor';
+    resetVendorForm();
     document.getElementById('vendor-name').focus();
+    // Initialize lucide icons for edit icon - only if elements exist
+    if (typeof lucide !== 'undefined') {
+        try {
+            setTimeout(() => {
+                try {
+                    const lucideElements = document.querySelectorAll('[data-lucide]');
+                    if (lucideElements.length > 0) {
+                        lucide.createIcons();
+                    }
+                } catch (e) {
+                    console.warn('Error initializing lucide icons:', e);
+                }
+            }, 100);
+        } catch (e) {
+            console.warn('Error setting up lucide icons:', e);
+        }
+    }
+});
+
+// Open modal for editing existing vendor
+document.querySelectorAll('.edit-vendor-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const vendorData = {
+            vendorId: this.dataset.vendorId,
+            name: this.dataset.vendorName,
+            contactPerson: this.dataset.vendorContactPerson,
+            email: this.dataset.vendorEmail,
+            phone: this.dataset.vendorPhone,
+            businessAddress: this.dataset.vendorBusinessAddress,
+            taxPin: this.dataset.vendorTaxPin,
+            paymentTerms: this.dataset.vendorPaymentTerms,
+            paymentMethod: this.dataset.vendorPaymentMethod,
+            services: this.dataset.vendorServices,
+            specialization: this.dataset.vendorSpecialization,
+            minimumOrder: this.dataset.vendorMinimumOrder,
+            leadTime: this.dataset.vendorLeadTime,
+            rushCapable: this.dataset.vendorRushCapable,
+            qualityRating: this.dataset.vendorQualityRating,
+            reliabilityRating: this.dataset.vendorReliabilityRating,
+            vpsScore: this.dataset.vendorVpsScore,
+            vpsScoreValue: this.dataset.vendorVpsScoreValue,
+            rating: this.dataset.vendorRating,
+            recommended: this.dataset.vendorRecommended
+        };
+        
+        modal.style.display = 'block';
+        document.getElementById('modal-title').textContent = 'Edit Vendor';
+        document.getElementById('save-btn-text').textContent = 'Update Vendor';
+        loadVendorData(vendorData);
+        document.getElementById('vendor-name').focus();
+        
+        // Initialize lucide icons - only if elements exist
+        if (typeof lucide !== 'undefined') {
+            try {
+                setTimeout(() => {
+                    try {
+                        const lucideElements = document.querySelectorAll('[data-lucide]');
+                        if (lucideElements.length > 0) {
+                            lucide.createIcons();
+                        }
+                    } catch (e) {
+                        console.warn('Error initializing lucide icons:', e);
+                    }
+                }, 100);
+            } catch (e) {
+                console.warn('Error setting up lucide icons:', e);
+            }
+        }
+    });
 });
 
 // Close modal
 function closeModal() {
     modal.style.display = 'none';
-    vendorForm.reset();
+    resetVendorForm();
 }
 
 closeModalBtn.addEventListener('click', closeModal);
@@ -400,7 +559,19 @@ vendorForm.addEventListener('submit', function(e) {
     e.preventDefault();
     
     const saveBtn = document.getElementById('save-vendor-btn');
-    saveBtn.textContent = 'Creating...';
+    const saveBtnText = document.getElementById('save-btn-text');
+    const vendorIdField = document.getElementById('vendor-id');
+    
+    if (!saveBtn || !saveBtnText || !vendorIdField) {
+        console.error('Required form elements not found');
+        alert('Error: Form elements not found. Please refresh the page.');
+        return;
+    }
+    
+    const vendorId = vendorIdField.value;
+    const isEditing = vendorId && vendorId !== '';
+    
+    saveBtnText.textContent = isEditing ? 'Updating...' : 'Creating...';
     saveBtn.disabled = true;
     
     const formData = new FormData(vendorForm);
@@ -412,6 +583,7 @@ vendorForm.addEventListener('submit', function(e) {
     });
     
     const data = {
+        vendor_id: vendorId || null,
         name: formData.get('name'),
         contact_person: formData.get('contact_person') || '',
         email: formData.get('email'),
@@ -434,7 +606,16 @@ vendorForm.addEventListener('submit', function(e) {
         address: formData.get('business_address') || ''  // For backward compatibility
     };
     
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (!csrfTokenElement) {
+        console.error('CSRF token not found');
+        alert('Error: CSRF token not found. Please refresh the page.');
+        saveBtnText.textContent = 'Save Vendor';
+        saveBtn.disabled = false;
+        return;
+    }
+    
+    const csrfToken = csrfTokenElement.value;
     
     fetch('/ajax/create-vendor/', {
         method: 'POST',
@@ -444,25 +625,60 @@ vendorForm.addEventListener('submit', function(e) {
         },
         body: JSON.stringify(data)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(result => {
         if (result.success) {
-            alert(`✅ Vendor "${result.name}" created successfully!`);
+            alert(`✅ Vendor "${result.name}" ${isEditing ? 'updated' : 'created'} successfully!`);
             closeModal();
-            location.reload(); // Reload to show new vendor in list
+            location.reload(); // Reload to show updated vendor in list
         } else {
-            alert('Error: ' + (result.message || 'Failed to create vendor'));
-            saveBtn.textContent = 'Save Vendor';
-            saveBtn.disabled = false;
+            alert('Error: ' + (result.message || `Failed to ${isEditing ? 'update' : 'create'} vendor`));
+            if (saveBtnText) saveBtnText.textContent = 'Save Vendor';
+            if (saveBtn) saveBtn.disabled = false;
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error creating vendor: ' + error.message);
-        saveBtn.textContent = 'Save Vendor';
-        saveBtn.disabled = false;
+        alert('Error ' + (isEditing ? 'updating' : 'creating') + ' vendor: ' + (error.message || 'Unknown error'));
+        if (saveBtnText) saveBtnText.textContent = 'Save Vendor';
+        if (saveBtn) saveBtn.disabled = false;
     });
 });
+
+// Initialize lucide icons after page load - only on existing elements
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof lucide !== 'undefined') {
+        try {
+            // Only initialize icons on elements that exist
+            const lucideElements = document.querySelectorAll('[data-lucide]');
+            if (lucideElements.length > 0) {
+                lucide.createIcons();
+            }
+        } catch (e) {
+            console.warn('Error initializing lucide icons on page load:', e);
+        }
+    }
+});
+
+// Also initialize icons immediately if DOM is already loaded
+if (typeof lucide !== 'undefined' && document.readyState === 'loading') {
+    // DOM is still loading, wait for DOMContentLoaded
+} else if (typeof lucide !== 'undefined') {
+    // DOM is already loaded
+    try {
+        const lucideElements = document.querySelectorAll('[data-lucide]');
+        if (lucideElements.length > 0) {
+            lucide.createIcons();
+        }
+    } catch (e) {
+        console.warn('Error initializing lucide icons:', e);
+    }
+}
 </script>
 {% endblock %}
 

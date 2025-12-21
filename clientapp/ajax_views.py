@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from .models import Process, ProcessTier, ProcessVariable, ProcessVariableRange, ProductImage
 import json
 from decimal import Decimal
-
+import decimal
 
 def ajax_process_tiers(request, process_id):
     """Get tier pricing for a process"""
@@ -112,55 +112,76 @@ def ajax_calculate_pricing(request, process_id):
         # Parse variables from request
         data = json.loads(request.body)
         variables = data.get('variables', {})
-        quantity = data.get('quantity', 1)
+        quantity = int(data.get('quantity', 1))
 
         print(f"DEBUG: ajax_calculate_pricing called for process {process_id}")
         print(f"DEBUG: Received variables: {variables}")
         print(f"DEBUG: Quantity: {quantity}")
 
-        total_cost = Decimal('0')
+        # Start with process base cost
+        total_cost = process.base_cost * quantity
         breakdown = []
+        
+        if process.base_cost > 0:
+            breakdown.append({
+                'component': 'Base Process Cost',
+                'calculation': f'{process.base_cost} × {quantity}',
+                'amount': float(process.base_cost * quantity)
+            })
 
         # Calculate for each variable
         for var_name, var_value in variables.items():
-            try:
-                var_value = Decimal(str(var_value))
-            except:
-                continue
-
-            print(f"DEBUG: Processing variable '{var_name}' with value {var_value}")
-
             # Find the variable
             try:
                 variable = ProcessVariable.objects.get(
                     process=process,
                     variable_name=var_name
                 )
-                print(f"DEBUG: Found variable: {variable.variable_name} (ID: {variable.pk})")
+                print(f"DEBUG: Found variable: {variable.variable_name} (Type: {variable.variable_type})")
             except ProcessVariable.DoesNotExist:
                 print(f"DEBUG: Variable '{var_name}' not found in process {process_id}")
                 continue
 
-            # Find applicable range
-            applicable_range = ProcessVariableRange.objects.filter(
-                variable=variable,
-                min_value__lte=var_value,
-                max_value__gte=var_value
-            ).first()
+            cost = Decimal('0')
+            calc_str = ""
 
-            if applicable_range:
-                # Calculate cost: (price * rate) * quantity
-                cost = (applicable_range.price * applicable_range.rate) * quantity
+            if variable.variable_type == 'alphanumeric':
+                # Alphanumeric variables use the fixed price and rate on the variable
+                cost = (variable.price * variable.rate) * quantity
+                calc_str = f'{variable.price} × {variable.rate} × {quantity}'
+                print(f"DEBUG: Alphanumeric variable '{var_name}' cost: {cost}")
+            else:
+                # Numeric variables
+                try:
+                    num_value = Decimal(str(var_value))
+                except (ValueError, TypeError, decimal.InvalidOperation):
+                    print(f"DEBUG: Could not convert '{var_value}' to Decimal for variable '{var_name}'")
+                    continue
+
+                # Find applicable range
+                applicable_range = ProcessVariableRange.objects.filter(
+                    variable=variable,
+                    min_value__lte=num_value,
+                    max_value__gte=num_value
+                ).first()
+
+                if applicable_range:
+                    cost = (applicable_range.price * applicable_range.rate) * quantity
+                    calc_str = f'{applicable_range.price} × {applicable_range.rate} × {quantity}'
+                    print(f"DEBUG: Found range for '{var_name}': {cost}")
+                else:
+                    # Fallback to variable's own price/rate if no range found
+                    cost = (variable.price * variable.rate) * quantity
+                    calc_str = f'{variable.price} × {variable.rate} × {quantity} (Fixed)'
+                    print(f"DEBUG: No range found for '{var_name}', using fixed: {cost}")
+
+            if cost > 0:
                 total_cost += cost
-
                 breakdown.append({
                     'component': f'{var_name} Cost',
-                    'calculation': f'{applicable_range.price} × {applicable_range.rate} × {quantity}',
+                    'calculation': calc_str,
                     'amount': float(cost)
                 })
-                print(f"DEBUG: Added cost for {var_name}: {cost}")
-            else:
-                print(f"DEBUG: No applicable range found for {var_name} = {var_value}")
 
         print(f"DEBUG: Final breakdown: {breakdown}")
         print(f"DEBUG: Total cost: {total_cost}")
@@ -172,14 +193,16 @@ def ajax_calculate_pricing(request, process_id):
         })
 
     except Exception as e:
+        import traceback
         print(f"DEBUG: Error in ajax_calculate_pricing: {str(e)}")
+        print(traceback.format_exc())
         return JsonResponse({
             'success': False,
             'error': str(e)
         })
 
 
-# Image management endpoints (placeholders - implement as needed)
+# Image management endpoints
 def ajax_get_product_image(request, image_id):
     """Get product image metadata"""
     try:

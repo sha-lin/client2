@@ -18,20 +18,121 @@ class QuoteApprovalService:
     """Service for handling quote approvals"""
     
     @staticmethod
+    def get_quote_from_token(token):
+        """
+        Get quote details from approval token (for display purposes)
+        
+        Returns:
+            dict: {'success': bool, 'quote': Quote, 'line_items': list, 'totals': dict, 'message': str}
+        """
+        try:
+            from clientapp.models import QuoteApprovalToken, QuoteLineItem
+            from decimal import Decimal
+            
+            # Validate token
+            try:
+                approval_token = QuoteApprovalToken.objects.get(
+                    token=token,
+                    expires_at__gt=timezone.now()
+                )
+            except QuoteApprovalToken.DoesNotExist:
+                return {
+                    'success': False,
+                    'message': 'Invalid or expired approval link'
+                }
+            
+            quote = approval_token.quote
+            
+            # Get line items
+            line_items = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
+            
+            # Calculate totals
+            if line_items.exists():
+                subtotal = sum(float(item.line_total) for item in line_items)
+            else:
+                # Fallback to quote total
+                subtotal = float(quote.total_amount or 0)
+            
+            vat_amount = subtotal * 0.16 if quote.include_vat else 0
+            total_amount = subtotal + vat_amount
+            
+            # Format line items for display
+            quote_items = []
+            if line_items.exists():
+                for item in line_items:
+                    quote_items.append({
+                        'product_name': item.product_name,
+                        'quantity': item.quantity,
+                        'unit_price': float(item.unit_price),
+                        'total_amount': float(item.line_total),
+                    })
+            else:
+                # Fallback - use quote itself
+                quote_items.append({
+                    'product_name': quote.product_name,
+                    'quantity': quote.quantity,
+                    'unit_price': float(quote.unit_price or 0),
+                    'total_amount': float(quote.total_amount or 0),
+                })
+            
+            return {
+                'success': True,
+                'quote': quote,
+                'line_items': line_items,
+                'quote_items': quote_items,
+                'totals': {
+                    'subtotal': subtotal,
+                    'vat_amount': vat_amount,
+                    'total_amount': total_amount,
+                },
+                'token_valid': not approval_token.used,
+                'token_used': approval_token.used,
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting quote from token: {e}")
+            return {
+                'success': False,
+                'message': f'Error loading quote: {str(e)}'
+            }
+    
+    @staticmethod
     def generate_approval_token(quote):
         """Generate unique approval token for quote"""
-        from clientapp.models import QuoteApprovalToken
+        from clientapp.models import QuoteApprovalToken, Quote
+        
+        # Ensure we have a quote ID (primary key)
+        if not quote.pk:
+            quote.save()
+        
+        quote_id = quote.pk
+        
+        # Verify quote exists in database (this ensures it's committed)
+        try:
+            Quote.objects.get(pk=quote_id)
+        except Quote.DoesNotExist:
+            raise ValueError(f"Quote with pk={quote_id} does not exist in database")
         
         token = str(uuid.uuid4())
         
-        # Create or update token
-        QuoteApprovalToken.objects.update_or_create(
-            quote=quote,
+        # Create or update token - use quote_id to ensure we're using the saved quote
+        # Reset used status and extend expiration when updating
+        approval_token, created = QuoteApprovalToken.objects.update_or_create(
+            quote_id=quote_id,  # Use quote_id instead of quote object
             defaults={
                 'token': token,
-                'expires_at': timezone.now() + timezone.timedelta(days=30)
+                'expires_at': timezone.now() + timezone.timedelta(days=30),
+                'used': False,  # Reset used status if updating
+                'used_at': None  # Clear used_at if updating
             }
         )
+        
+        # Verify the token was saved correctly
+        if not approval_token.token == token:
+            logger.error(f"Token mismatch! Expected {token[:10]}..., got {approval_token.token[:10]}...")
+            raise ValueError("Token was not saved correctly")
+        
+        logger.info(f"Generated approval token for quote {quote.quote_id} (pk={quote_id}): {token[:10]}... (created={created}, expires_at={approval_token.expires_at})")
         
         return token
     
@@ -39,6 +140,7 @@ class QuoteApprovalService:
     def send_quote_via_email(quote, request=None):
         """
         Send quote to client/lead via email with approval link and PDF attachment
+        Quotes can be sent to customers at any time (no costed requirement)
         
         Args:
             quote: Quote instance
@@ -47,6 +149,26 @@ class QuoteApprovalService:
         Returns:
             dict: {'success': bool, 'message': str}
         """
+        from clientapp.models import Quote
+        
+        # Ensure quote is saved
+        if not quote.pk:
+            quote.save()
+        
+        quote_id = quote.pk
+        
+        # Get a fresh instance from database (ensures it's committed)
+        quote = Quote.objects.get(pk=quote_id)
+        
+        # Check if quote can be sent to customer
+        can_send, error_msg = quote.can_send_to_customer()
+        if not can_send:
+            logger.warning(f"Cannot send quote {quote.quote_id}: {error_msg}")
+            return {
+                'success': False,
+                'message': error_msg
+            }
+        
         try:
             from django.core.mail import EmailMessage
             from clientapp.pdf_utils import QuotePDFGenerator
@@ -67,12 +189,48 @@ class QuoteApprovalService:
             recipient_email = quote.client.email if quote.client else quote.lead.email
             recipient_name = quote.client.name if quote.client else quote.lead.name
             
+            # Get line items for email display
+            from clientapp.models import QuoteLineItem
+            from decimal import Decimal
+            
+            line_items = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
+            
+            # Calculate totals
+            if line_items.exists():
+                subtotal = sum(float(item.line_total) for item in line_items)
+                quote_items = [{
+                    'product_name': item.product_name,
+                    'quantity': item.quantity,
+                    'unit_price': float(item.unit_price),
+                    'total_amount': float(item.line_total),
+                } for item in line_items]
+            else:
+                # Fallback to quote totals
+                subtotal = float(quote.total_amount or 0)
+                quote_items = [{
+                    'product_name': quote.product_name,
+                    'quantity': quote.quantity,
+                    'unit_price': float(quote.unit_price or 0),
+                    'total_amount': float(quote.total_amount or 0),
+                }]
+            
+            vat_amount = subtotal * 0.16 if quote.include_vat else 0
+            total_amount = subtotal + vat_amount
+            
             # Prepare context
             context = {
                 'quote': quote,
+                'quote_id': quote.quote_id,
                 'recipient_name': recipient_name,
+                'client_name': recipient_name,
                 'approval_url': approval_url,
-                'company_name': 'PrintDuka',  # Your company name
+                'company_name': 'PrintDuka',
+                'quote_items': quote_items,
+                'subtotal': subtotal,
+                'vat': vat_amount,
+                'vat_amount': vat_amount,
+                'total': total_amount,
+                'total_amount': total_amount,
             }
             
             # Render email
@@ -107,8 +265,9 @@ class QuoteApprovalService:
             # Send email
             email.send(fail_silently=False)
             
-            # Update quote status
-            quote.status = 'Client Review'
+            # Update quote status to "Sent to Customer"
+            quote.status = 'Sent to Customer'
+            quote.production_status = 'sent_to_client'
             quote.save()
             
             logger.info(f"Quote {quote.quote_id} sent to {recipient_email}")
@@ -181,6 +340,148 @@ Thank you for choosing PrintDuka!
             }
     
     @staticmethod
+    def request_price_reduction(token, discount_notes):
+        """
+        Request price reduction for a quote
+        
+        Args:
+            token: Approval token
+            discount_notes: Notes from customer about the discount request
+            
+        Returns:
+            dict: {'success': bool, 'message': str}
+        """
+        try:
+            from clientapp.models import QuoteApprovalToken, ActivityLog, Notification
+            
+            # Validate token - check if it exists first, then check expiration
+            try:
+                approval_token = QuoteApprovalToken.objects.get(token=token)
+            except QuoteApprovalToken.DoesNotExist:
+                logger.warning(f"Token not found in database: {token[:10]}...")
+                return {
+                    'success': False,
+                    'message': 'Invalid approval link. Please contact us for a new link.'
+                }
+            
+            # Check if token is expired
+            if approval_token.expires_at <= timezone.now():
+                logger.warning(f"Token expired: {token[:10]}..., expires_at: {approval_token.expires_at}, now: {timezone.now()}")
+                return {
+                    'success': False,
+                    'message': 'This approval link has expired. Please contact us for a new link.'
+                }
+            
+            quote = approval_token.quote
+            
+            # Create activity log
+            if quote.client:
+                ActivityLog.objects.create(
+                    client=quote.client,
+                    activity_type='Quote',
+                    title=f"Price Reduction Requested - Quote {quote.quote_id}",
+                    description=f"Customer requested price reduction: {discount_notes}",
+                    related_quote=quote,
+                    created_by=None  # Customer request
+                )
+            
+            # Notify Account Manager
+            if quote.created_by:
+                Notification.objects.create(
+                    recipient=quote.created_by,
+                    notification_type='quote_discount_request',
+                    title=f'💰 Price Reduction Request - Quote {quote.quote_id}',
+                    message=f'Customer has requested a price reduction. Notes: {discount_notes}',
+                    link=reverse('quote_detail', args=[quote.quote_id]),
+                    related_quote_id=quote.quote_id,
+                    action_url=reverse('quote_detail', args=[quote.quote_id]),
+                    action_label='Review Request'
+                )
+            
+            return {
+                'success': True,
+                'message': 'Your price reduction request has been submitted. We will review it and get back to you shortly.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error requesting price reduction: {e}")
+            return {
+                'success': False,
+                'message': f'Error submitting request: {str(e)}'
+            }
+    
+    @staticmethod
+    def request_quote_adjustment(token, adjustment_notes):
+        """
+        Request adjustments to a quote (quantities, products, specifications, etc.)
+        
+        Args:
+            token: Approval token
+            adjustment_notes: Notes from customer about the adjustments needed
+            
+        Returns:
+            dict: {'success': bool, 'message': str}
+        """
+        try:
+            from clientapp.models import QuoteApprovalToken, ActivityLog, Notification
+            
+            # Validate token - check if it exists first, then check expiration
+            try:
+                approval_token = QuoteApprovalToken.objects.get(token=token)
+            except QuoteApprovalToken.DoesNotExist:
+                logger.warning(f"Token not found in database: {token[:10]}...")
+                return {
+                    'success': False,
+                    'message': 'Invalid approval link. Please contact us for a new link.'
+                }
+            
+            # Check if token is expired
+            if approval_token.expires_at <= timezone.now():
+                logger.warning(f"Token expired: {token[:10]}..., expires_at: {approval_token.expires_at}, now: {timezone.now()}")
+                return {
+                    'success': False,
+                    'message': 'This approval link has expired. Please contact us for a new link.'
+                }
+            
+            quote = approval_token.quote
+            
+            # Create activity log
+            if quote.client:
+                ActivityLog.objects.create(
+                    client=quote.client,
+                    activity_type='Quote',
+                    title=f"Quote Adjustments Requested - Quote {quote.quote_id}",
+                    description=f"Customer requested adjustments: {adjustment_notes}",
+                    related_quote=quote,
+                    created_by=None  # Customer request
+                )
+            
+            # Notify Account Manager
+            if quote.created_by:
+                Notification.objects.create(
+                    recipient=quote.created_by,
+                    notification_type='quote_adjustment_request',
+                    title=f'✏️ Quote Adjustments Requested - Quote {quote.quote_id}',
+                    message=f'Customer has requested adjustments to the quote. Details: {adjustment_notes}',
+                    link=reverse('quote_detail', args=[quote.quote_id]),
+                    related_quote_id=quote.quote_id,
+                    action_url=reverse('quote_detail', args=[quote.quote_id]),
+                    action_label='Review & Edit Quote'
+                )
+            
+            return {
+                'success': True,
+                'message': 'Your adjustment request has been submitted. We will review it and get back to you shortly with an updated quote.'
+            }
+            
+        except Exception as e:
+            logger.error(f"Error requesting quote adjustment: {e}")
+            return {
+                'success': False,
+                'message': f'Error submitting request: {str(e)}'
+            }
+    
+    @staticmethod
     def approve_quote(token):
         """
         Approve quote using token
@@ -192,17 +493,30 @@ Thank you for choosing PrintDuka!
         try:
             from clientapp.models import QuoteApprovalToken, LPO, LPOLineItem, Job, Quote, ActivityLog
             
-            # Validate token
+            # Validate token - check if it exists first, then check expiration and usage
             try:
-                approval_token = QuoteApprovalToken.objects.get(
-                    token=token,
-                    used=False,
-                    expires_at__gt=timezone.now()
-                )
+                approval_token = QuoteApprovalToken.objects.get(token=token)
             except QuoteApprovalToken.DoesNotExist:
+                logger.warning(f"Token not found in database: {token[:10]}...")
                 return {
                     'success': False,
-                    'message': 'Invalid or expired approval link'
+                    'message': 'Invalid approval link. Please contact us for a new link.'
+                }
+            
+            # Check if token is expired
+            if approval_token.expires_at <= timezone.now():
+                logger.warning(f"Token expired: {token[:10]}..., expires_at: {approval_token.expires_at}, now: {timezone.now()}")
+                return {
+                    'success': False,
+                    'message': 'This approval link has expired. Please contact us for a new link.'
+                }
+            
+            # Check if token is already used
+            if approval_token.used:
+                logger.warning(f"Token already used: {token[:10]}...")
+                return {
+                    'success': False,
+                    'message': 'This approval link has already been used. Please contact us if you need assistance.'
                 }
             
             quote = approval_token.quote
