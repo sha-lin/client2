@@ -1420,7 +1420,7 @@ class Quote(models.Model):
         if not self.valid_until:
             self.valid_until = timezone.now().date() + timedelta(days=30)
 
-        # Enforce status transitions (Zoho-like behavior) unless explicitly skipped
+        # Enforce status transitions 
         if not getattr(self, '_skip_status_validation', False):
             self._enforce_status_transitions()
         
@@ -1434,7 +1434,7 @@ class Quote(models.Model):
         if self.status == 'Lost':
             self.production_status = 'completed'
         
-        # ✅ CRITICAL: Call super().save() to actually save the object to the database
+        # Call super().save() to actually save the object to the database
         super().save(*args, **kwargs)
     
     def _enforce_status_transitions(self):
@@ -1843,7 +1843,7 @@ class Notification(models.Model):
     def __str__(self):
         return f"Notification for {self.recipient.username} - {self.title}"
 
-#  Add this to your models.py - Enhanced Job model
+
 from datetime import date
 class Job(models.Model):
     STATUS_CHOICES = [
@@ -1925,7 +1925,7 @@ class Job(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.job_number:
-            # Generate job number: JOB-YYYY-XXX
+            # Generate job number:
             year = timezone.now().year
             last_job = Job.objects.filter(
                 job_number__startswith=f'JOB-{year}-'
@@ -1968,13 +1968,7 @@ class JobAttachment(models.Model):
     def __str__(self):
         return f"{self.file_name} - {self.job.job_number}"
 
-# ===== PRODUCT MANAGEMENT MODELS =====
-
-# Old Product models removed to avoid duplication
-
-
-# Duplicate ProductImage class removed - using the definition at lines 726-761 which has image_type, caption, etc.
-
+# ===== PRODUCT MANAGEMENT MODELS 
 
 class PropertyType(models.Model):
     """Types of properties like Size, Finish, Paper Stock, Corners, etc."""
@@ -2191,14 +2185,14 @@ class LPO(models.Model):
     
     def sync_to_quickbooks(self, user=None):
         """Sync this LPO to QuickBooks as an invoice"""
-        # FIX: Changed import from .utils to .helpers and function name
+        
         from quickbooks_integration.helpers import get_qb_client
         from quickbooks.objects.invoice import Invoice
         from quickbooks.objects.detailline import DetailLine, SalesItemLineDetail
         from quickbooks.objects.customer import Customer
         
         try:
-            # FIX: Pass the user to get_qb_client
+            
             if not user:
                 return {'success': False, 'message': 'User required for QuickBooks sync'}
                 
@@ -2236,8 +2230,7 @@ class LPO(models.Model):
                 sales_item = SalesItemLineDetail()
                 sales_item.Qty = item.quantity
                 sales_item.UnitPrice = float(item.unit_price)
-                # Note: Usually need ItemRef here, but maybe it works without for ad-hoc items? 
-                # If not, we might need a default service item.
+                
                 
                 line.SalesItemLineDetail = sales_item
                 lines.append(line)
@@ -2265,7 +2258,7 @@ class LPO(models.Model):
                     created_by=user
                 )
             except ImportError:
-                pass # Skip logging if model not found
+                pass 
             
             return {'success': True, 'message': f"Successfully synced to QuickBooks as Invoice #{invoice.DocNumber}"}
             
@@ -2339,7 +2332,7 @@ class SystemAlert(models.Model):
     dismissed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='dismissed_alerts')
     dismissed_at = models.DateTimeField(null=True, blank=True)
     
-    # Related objects (optional)
+    # Related objects 
     related_client = models.ForeignKey('Client', on_delete=models.CASCADE, null=True, blank=True)
     related_quote = models.ForeignKey('Quote', on_delete=models.CASCADE, null=True, blank=True)
     related_lpo = models.ForeignKey('LPO', on_delete=models.CASCADE, null=True, blank=True)
@@ -2365,9 +2358,7 @@ class SystemAlert(models.Model):
         self.save()
 
 
-# =============================================================================
 # JOB VENDOR STAGE - Track job progress through different vendors
-# =============================================================================
 class JobVendorStage(models.Model):
     """Track job progress through different vendor stages"""
     STATUS_CHOICES = [
@@ -2381,7 +2372,7 @@ class JobVendorStage(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='vendor_stages')
     vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='job_stages')
     stage_order = models.PositiveIntegerField(default=1)  # 1, 2, 3... for multiple vendors
-    stage_name = models.CharField(max_length=100)  # e.g., "Printing", "Lamination", "Cutting"
+    stage_name = models.CharField(max_length=100)  # e.g., "Printing"
     
     # Status tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -2515,12 +2506,12 @@ class Vendor(models.Model):
     payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
     
     # Services & Specialization
-    services = models.TextField(blank=True, null=True)  # Comma-separated list
+    services = models.TextField(blank=True, null=True)  
     specialization = models.TextField(blank=True, null=True)
     
     # Capacity
     minimum_order = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    lead_time = models.CharField(max_length=100, blank=True, null=True)  # e.g., "5 days"
+    lead_time = models.CharField(max_length=100, blank=True, null=True)  
     rush_capable = models.BooleanField(default=False)
     
     # Ratings
@@ -2741,11 +2732,6 @@ class Delivery(models.Model):
         return Decimal('0')
 
 
-# ============================================
-# ADD THESE MODELS TO clientapp/models.py
-# ============================================
-
-
 
 class ProcessVendor(models.Model):
     """Vendors linked to a process"""
@@ -2763,7 +2749,7 @@ class ProcessVendor(models.Model):
                                     help_text="Vendor Performance Score")
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='alternative')
     
-    # Pricing (stored as JSON for flexibility)
+    # Pricing 
     tier_costs = models.JSONField(null=True, blank=True)
     formula_rates = models.JSONField(null=True, blank=True)
     
@@ -3043,9 +3029,9 @@ class ProcessVariableRange(models.Model):
         return self.min_value <= Decimal(str(value)) <= self.max_value
 
 
-# ============================================
+
 # COSTING PROCESS SYSTEM MODELS
-# ============================================
+
 
 
 
