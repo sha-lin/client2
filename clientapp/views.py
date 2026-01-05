@@ -1038,6 +1038,31 @@ def client_onboarding(request):
                     messages.error(request, 'Phone is required')
                     return redirect('client_onboarding')
                 
+                # validating phone formats
+                import re
+                phone_cleaned = re.sub(r'[\s\-\(\)]', '', phone)
+                kenyans_patterns = [
+                    r'^\+254[17]\d{8}$',
+                    r'^254[17]\d{8}$',
+                    r'^0[17]\d{8}$',
+                ]
+                is_valid_phone = any(re.match(pattern, phone_cleaned) for pattern in kenyan_patterns)
+
+                if not is_valid_phone:
+                    messages.error(request, 'Please enter a valid Kenya n phone number(+254)')
+                    return redirect('client_onboarding')
+                
+                # standardize phone
+                if phone_cleaned.startswith('0'):
+                    phone_cleaned = '+254' + phone_cleaned[1:]
+                elif phone_cleaned.startswith('254'):
+                    phone_cleaned = '+' + phone_cleaned
+
+                # checking for duplicate phone
+                if Client.objects.filter(phone=phone_cleaned).exists():
+                    messages.error(request, f'A client with this phone {phone_cleaned} already exists')
+
+                
                 # Check for duplicate email only if provided
                 if email and Client.objects.filter(email=email).exists():
                     messages.error(request, f'A client with email {email} already exists')
@@ -1205,6 +1230,7 @@ def client_onboarding(request):
             import traceback
             print(traceback.format_exc())
             return redirect('client_onboarding')
+        phone = phone_cleaned
     
     # GET request - show form
     form = ClientForm(initial=prefilled_data) if prefilled_data else ClientForm()
