@@ -5098,7 +5098,6 @@ def _get_product_form_context(product, general_form=None):
         'families': ProductFamily.objects.all().order_by('name'),
         'vendors': Vendor.objects.filter(active=True).order_by('name'),
         'all_tags': ProductTag.objects.all().order_by('name'),
-        # NEW: Add processes for process selection dropdown
         'processes': Process.objects.filter(status='active').order_by('process_name'),
     }
     
@@ -5214,7 +5213,7 @@ def _handle_pricing_tab(request, product):
     base_price_str = request.POST.get('base_price', '').strip()
     
     if customization_level == 'non_customizable':
-        # Non-customizable: base_price is REQUIRED
+        # Non-customizable: base_price is required
         if not base_price_str:
             # Calculate from base_cost + margin if base_price not provided
             if pricing.base_cost and pricing.return_margin:
@@ -5222,7 +5221,7 @@ def _handle_pricing_tab(request, product):
                 product.base_price = pricing.base_cost * (Decimal('1') + margin)
             else:
                 # Use default calculation
-                product.base_price = pricing.base_cost * Decimal('1.30')  # 30% default margin
+                product.base_price = pricing.base_cost * Decimal('1.30')  
         else:
             try:
                 product.base_price = Decimal(base_price_str)
@@ -5310,21 +5309,21 @@ def _handle_pricing_tab(request, product):
         except json.JSONDecodeError as e:
             messages.warning(request, f"Error processing variables: {str(e)}")
 
-# Add this to your views.py - Update the _handle_images_tab function
+
 
 def _handle_images_tab(request, product):
     """Handle images and media tab - COMPLETE WORKING VERSION"""
     
-    # ===== PRIMARY IMAGE =====
+    # Pri IMage
     primary_image = request.FILES.get('primary_image')
     if primary_image:
         # Validate file
         if not primary_image.content_type.startswith('image/'):
             messages.warning(request, 'Primary image must be an image file')
-        elif primary_image.size > 2 * 1024 * 1024:  # 2MB limit
+        elif primary_image.size > 2 * 1024 * 1024:  
             messages.warning(request, 'Primary image must be less than 2MB')
         else:
-            # Remove old primary
+            
             ProductImage.objects.filter(product=product, is_primary=True).delete()
             # Create new primary
             ProductImage.objects.create(
@@ -5336,7 +5335,7 @@ def _handle_images_tab(request, product):
                 image_type='product-photo'
             )
     
-    # ===== GALLERY IMAGES =====
+    #Images
     gallery_images = request.FILES.getlist('gallery_images')
     if gallery_images:
         # Get max display order
@@ -5361,17 +5360,16 @@ def _handle_images_tab(request, product):
                 image_type='product-photo'
             )
     
-    # ===== HANDLE IMAGE DELETIONS =====
+    # Image Deletion
     delete_image_ids = request.POST.getlist('delete_images[]')
     if delete_image_ids:
         ProductImage.objects.filter(
             product=product,
             id__in=delete_image_ids,
-            is_primary=False  # Don't allow deleting primary via this method
+            is_primary=False  
         ).delete()
     
-    # ===== PRODUCT VIDEOS =====
-    # Update existing videos
+    # Product Videos
     for video in product.videos.all():
         video_url = request.POST.get(f'video_url_{video.pk}', '').strip()
         if video_url:
@@ -5399,14 +5397,13 @@ def _handle_images_tab(request, product):
                 'display_order': product.videos.count() + idx
             }
             
-            # Add thumbnail if provided
+            # Thumbnails
             if idx < len(new_video_thumbnails):
                 video_data['thumbnail'] = new_video_thumbnails[idx]
             
             ProductVideo.objects.create(**video_data)
     
-    # ===== DOWNLOADABLE FILES =====
-    # Update existing files
+    # Existing files
     for file_obj in product.downloadable_files.all():
         file_name = request.POST.get(f'file_name_{file_obj.pk}', '').strip()
         if file_name:
@@ -5585,8 +5582,7 @@ def _handle_production_tab(request, product):
     production.production_method_detail = request.POST.get('production_method_detail', '')
     production.machine_equipment = request.POST.get('machine_equipment', '')
     
-    # Additional production fields (add these to your ProductProduction model if not present)
-    # For now, we'll store in production_notes as JSON
+    # Additional production fields 
     production_data = {
         'print_layout': request.POST.get('print_layout', ''),
         'color_profile': request.POST.get('color_profile', ''),
@@ -5747,7 +5743,7 @@ def calculate_pricing(request):
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
-# ========== ADMIN DASHBOARD AJAX ENDPOINTS ==========
+# ADMIN AJAX
 
 @login_required
 def dismiss_alert(request, alert_id):
@@ -5801,9 +5797,6 @@ def export_dashboard_report(request, report_type):
     return response
 
 
-# Views for the 4 HTML templates
-
-from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 
 
@@ -5923,14 +5916,14 @@ def quote_action(request, quote_id):
                 production_status='approved',
                 status='Ready to Send',
                 costed_by=request.user
-                # Removed costed_at - field doesn't exist
+                
             )
             
             # Notify the AM who created it
             Notification.objects.create(
                 recipient=first_quote.created_by,
                 notification_type='quote_pt_approved',
-                title=f'✅ Quote {quote_id} Approved by PT',
+                title=f' Quote {quote_id} Approved by PT',
                 message=f'You can now send this quote to the client!',
                 link=f'/create/quote?quote_id={quote_id}',
                 related_quote_id=quote_id,
@@ -5938,7 +5931,7 @@ def quote_action(request, quote_id):
                 action_label='Send to Client'
             )
             
-            messages.success(request, f'✅ Quote {quote_id} approved!')
+            messages.success(request, f' Quote {quote_id} approved!')
             
         elif action == 'reject':
             reason = request.POST.get('reason', 'No reason provided')
@@ -5954,7 +5947,7 @@ def quote_action(request, quote_id):
             Notification.objects.create(
                 recipient=first_quote.created_by,
                 notification_type='quote_pt_rejected',
-                title=f'❌ Quote {quote_id} Rejected by PT',
+                title=f' Quote {quote_id} Rejected by PT',
                 message=f'Reason: {reason}',
                 link=f'/create/quote?quote_id={quote_id}',
                 related_quote_id=quote_id
@@ -5964,11 +5957,11 @@ def quote_action(request, quote_id):
         
         return redirect('my_quotes')
     
-    # GET request - shouldn't happen
+    # GET request
     messages.error(request, 'Invalid request')
     return redirect('my_quotes')
 
-# ========== MY JOBS - UPDATED ==========
+# =Jobs
 @login_required
 @group_required('Production Team')
 def my_jobs(request):
@@ -6049,12 +6042,12 @@ def my_quotes(request):
     """Show quotes for Production Team approval/costing"""
     from django.db.models import Q, Count
     
-    # Get all quotes EXCEPT those that have been costed
-    # Only show quotes that need costing (pending, in_progress, or completed)
+    # Get all quotes except those that have been costed
+    
     quotes = Quote.objects.select_related(
         'client', 'lead', 'created_by'
     ).exclude(
-        production_status='costed'  # Hide costed quotes
+        production_status='costed' 
     ).order_by('-created_at')
     
     # Apply filters
@@ -6075,7 +6068,7 @@ def my_quotes(request):
             Q(product_name__icontains=search_query)
         )
     
-    # Calculate snapshot counts (exclude costed quotes)
+    # Calculate snapshot counts 
     active_quotes_count = Quote.objects.filter(
         production_status__in=['pending', 'in_progress']
     ).values('quote_id').distinct().count()
@@ -6094,7 +6087,7 @@ def my_quotes(request):
         updated_at__date=timezone.now().date()
     ).values('quote_id').distinct().count()
     
-    # Group quotes by quote_id and prepare for template
+    # Group quotes by quote_id 
     quotes_dict = {}
     for quote in quotes:
         if quote.quote_id not in quotes_dict:
@@ -6176,7 +6169,7 @@ def vendor_comparison(request, job_id):
             Q(vendor__specialties__name__icontains=search_query)
         ).distinct()
     
-    # Filter vendors based on VPS score if specified
+    # Filter vendors based on VPS score
     vps_filter = request.GET.get('vps_score', 'all')
     if vps_filter != 'all' and vps_filter in ['A', 'B', 'C']:
         vendor_quotes = vendor_quotes.filter(vendor__vps_score=vps_filter)
@@ -6186,7 +6179,7 @@ def vendor_comparison(request, job_id):
     if lead_time_filter != 'all':
         try:
             lead_time = int(lead_time_filter)
-            if lead_time == 5:  # 5+ days
+            if lead_time == 5: 
                 vendor_quotes = vendor_quotes.filter(lead_time__gte=5)
             else:
                 vendor_quotes = vendor_quotes.filter(lead_time=lead_time)
@@ -6204,12 +6197,11 @@ def vendor_comparison(request, job_id):
     
     return render(request, 'procurement/vendor_comparison.html', context)
 
-# Add these imports at the top
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import base64
 
-# QC Inspection View (WORKING VERSION)
+# QC Inspection View 
 @login_required
 @group_required('Production Team')
 def qc_inspection(request, inspection_id):
@@ -6233,7 +6225,7 @@ def qc_inspection(request, inspection_id):
         ).order_by('-created_at')[:3]
     
     # Calculate vendor's average QC score
-        # Calculate vendor's pass rate
+       
     if vendor:
         total_inspections = QCInspection.objects.filter(vendor=vendor).count()
         passed_inspections = QCInspection.objects.filter(vendor=vendor, status='passed').count()
@@ -6273,7 +6265,7 @@ def qc_inspection(request, inspection_id):
 @require_POST
 def submit_qc(request):
     """
-    AJAX endpoint to submit QC inspection results - FULLY FUNCTIONAL
+    AJAX endpoint to submit QC inspection results
     """
     try:
         data = json.loads(request.body)
@@ -6325,14 +6317,14 @@ def submit_qc(request):
         
         inspection.save()
         
-        # Update vendor VPS score based on decision
+        # Update vendor VPS 
         vendor = inspection.vendor
         if decision == 'pass':
             vendor.vps_score_value += 1.0
-            messages.success(request, f'✅ QC passed! Vendor VPS +1.0')
+            messages.success(request, f' QC passed! Vendor VPS +1.0')
         elif decision == 'fail':
             vendor.vps_score_value -= 2.0
-            messages.warning(request, f'❌ QC failed. Vendor VPS -2.0')
+            messages.warning(request, f' QC failed. Vendor VPS -2.0')
         
         # Recalculate VPS letter grade
         if vendor.vps_score_value >= 8.0:
@@ -6350,8 +6342,8 @@ def submit_qc(request):
             job.status = 'completed'
             job.actual_completion = timezone.now().date()
         elif decision == 'conditions':
-            job.status = 'completed'  # Still completed but with notes
-        else:  # fail
+            job.status = 'completed' 
+        else:  
             job.status = 'on_hold'
         
         job.save()
@@ -6359,9 +6351,9 @@ def submit_qc(request):
         # Create notification for AM
         if job.client and job.client.account_manager:
             notification_title = {
-                'pass': f'✅ Job {job.job_number} - QC Passed',
-                'conditions': f'⚠️ Job {job.job_number} - QC Passed with Conditions',
-                'fail': f'❌ Job {job.job_number} - QC Failed'
+                'pass': f' Job {job.job_number} - QC Passed',
+                'conditions': f' Job {job.job_number} - QC Passed with Conditions',
+                'fail': f' Job {job.job_number} - QC Failed'
             }
             
             notification_message = {
@@ -6415,7 +6407,7 @@ def submit_qc(request):
         }, status=500)
 
 
-# Delivery Handoff View (WORKING VERSION)
+# Delivery
 @login_required
 @group_required('Production Team')
 def delivery_handoff(request, job_id):
@@ -6432,7 +6424,7 @@ def delivery_handoff(request, job_id):
     
     # Calculate costs
     locked_evp = job.quote.production_cost if job.quote else Decimal('0')
-    actual_cost = locked_evp  # You can update this based on actual vendor invoice
+    actual_cost = locked_evp  
     
     # Add VAT
     locked_evp_with_vat = locked_evp * Decimal('1.16')
@@ -6521,7 +6513,7 @@ def submit_delivery_handoff(request):
             Notification.objects.create(
                 recipient=job.client.account_manager,
                 notification_type='delivery_ready',
-                title=f'📦 Job {job.job_number} Ready for Delivery',
+                title=f' Job {job.job_number} Ready for Delivery',
                 message=f'Staged at {delivery.get_staging_location_display()}. {delivery.notes_to_am[:100]}',
                 link=reverse('job_detail', kwargs={'pk': job.pk}),
                 related_job=job,
@@ -6642,7 +6634,7 @@ def select_vendor(request):
         
         vendor_quote = get_object_or_404(VendorQuote, id=vendor_quote_id)
         
-        # Mark this quote as selected
+        
         vendor_quote.selected = True
         vendor_quote.save()
         
@@ -6689,7 +6681,7 @@ def vendor_profile(request, vendor_id):
     """Detailed vendor profile page showing all vendor information."""
     vendor = get_object_or_404(Vendor, id=vendor_id)
     
-    # Get vendor's jobs/quotes
+    # Get vendor's jobs
     vendor_quotes = VendorQuote.objects.filter(vendor=vendor).select_related('job')
     job_stages = vendor.job_stages.all().select_related('job')
     
@@ -6741,10 +6733,6 @@ def vendor_list(request):
     return render(request, 'vendors_list.html', context)
 
 
-
-
-
-# views.py
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.db.models import Q
@@ -6753,13 +6741,13 @@ from .models import Process, ProcessTier, ProcessVariable, ProcessVendor, Vendor
 
 def process_list(request):
     """Display list of all processes with filtering"""
-    processes = Process.objects.all()  # Show all processes (active, draft, inactive)
+    processes = Process.objects.all()  
     
     # Search functionality
     search_query = request.GET.get('search', '')
     if search_query:
         processes = processes.filter(
-            Q(process_name__icontains=search_query) |  # ✅ NEW: process_name
+            Q(process_name__icontains=search_query) |  
             Q(process_id__icontains=search_query)
         )
     
@@ -6769,9 +6757,9 @@ def process_list(request):
         processes = processes.filter(category=category)
     
     # Filter by pricing type
-    pricing_type = request.GET.get('pricing_type')  # ✅ NEW: pricing_type
+    pricing_type = request.GET.get('pricing_type')
     if pricing_type:
-        processes = processes.filter(pricing_type=pricing_type)  # ✅ NEW
+        processes = processes.filter(pricing_type=pricing_type)  
     
     # Count by type
     total_processes = processes.count()
@@ -6805,7 +6793,7 @@ def process_create(request):
 
     vendors = Vendor.objects.filter(active=True).order_by('name')
     
-    # GET request - show empty form
+    # Empty form
     context = {
         'mode': 'create',
         'process': None,
@@ -6822,7 +6810,7 @@ def process_edit(request, process_id):
     if request.method == 'POST':
         return handle_process_save(request, process=process)
     
-    # GET request - show form with existing data
+    # Show form with existing data
     available_vendors = Vendor.objects.filter(active=True).order_by('name')
     context = {
         'mode': 'edit',
@@ -6831,7 +6819,7 @@ def process_edit(request, process_id):
         'variables': list(process.variables.all().values()),
         # Choices for the vendor dropdowns
         'vendors': available_vendors,
-        # Existing vendor links for this process (can be used to pre-populate cards)
+        # Existing vendor links for this process
         'process_vendors': process.process_vendors.all(),
     }
     return render(request, 'process_create.html', context)
@@ -6850,7 +6838,7 @@ def handle_process_save(request, process=None):
     logger = logging.getLogger(__name__)
     
     data = request.POST
-    action = data.get('action', 'draft')  # 'draft' or 'activate'
+    action = data.get('action', 'draft')  
 
     # Create or update main process
     if process is None:
@@ -6911,7 +6899,7 @@ def handle_process_save(request, process=None):
             var_name = data.get(f'variable{var_num}_name', '').strip()
 
             if var_name:
-                var_type = data.get(f'variable{var_num}_type', 'number')  # NEW
+                var_type = data.get(f'variable{var_num}_type', 'number') 
                 var_unit = data.get(f'variable{var_num}_unit', '').strip()
                 var_price = data.get(f'variable{var_num}_price', 0)
                 var_rate = data.get(f'variable{var_num}_rate', 1.0)
@@ -6937,10 +6925,10 @@ def handle_process_save(request, process=None):
 
             var_num += 1
 
-    # ===== SAVE VENDORS =====
+    #Save Vendors
     process.process_vendors.all().delete()
 
-    # Vendor 1 (Primary)
+    # Vendor 1 
     vendor_pk = data.get('vendor1_id')
     if vendor_pk:
         try:
@@ -6975,7 +6963,7 @@ def handle_process_save(request, process=None):
         except Vendor.DoesNotExist:
             pass
 
-    # Vendor 2 (Alternative)
+    # Vendor 2 
     vendor2_pk = data.get('vendor2_id')
     if vendor2_pk:
         try:
@@ -7004,7 +6992,7 @@ def handle_process_save(request, process=None):
         except Vendor.DoesNotExist:
             pass
 
-    # Vendor 3 (Backup)
+    # Vendor 3
     vendor3_pk = data.get('vendor3_id')
     if vendor3_pk:
         try:
@@ -7033,7 +7021,7 @@ def handle_process_save(request, process=None):
         except Vendor.DoesNotExist:
             pass
 
-    # ===== SUCCESS MESSAGE =====
+    #  SUCCESS MESSAGE
     if action == 'activate':
         messages.success(
             request,
@@ -7048,7 +7036,7 @@ def handle_process_save(request, process=None):
     return redirect('process_list')
 
 
-# ===== AJAX ENDPOINTS =====
+# AJAX ENDPOINTS
 
 @login_required
 def ajax_generate_process_id(request):
@@ -7138,7 +7126,7 @@ def ajax_create_vendor(request):
         tax_pin = (payload.get('tax_pin') or '').strip()
         payment_terms = payload.get('payment_terms', '')
         payment_method = payload.get('payment_method', '')
-        services = payload.get('services', '')  # Comma-separated string
+        services = payload.get('services', '')  
         specialization = (payload.get('specialization') or '').strip()
         minimum_order = float(payload.get('minimum_order', 0) or 0)
         lead_time = (payload.get('lead_time') or '').strip()
@@ -7300,13 +7288,12 @@ def api_product_catalog(request):
     from clientapp.models import resolve_unit_price
     
     try:
-        # Return all active products (not archived) - production team may add products that aren't published yet
-        # Account Managers should see all products added by production team
+        # Return all active products
         products = Product.objects.filter(
-            status__in=['draft', 'published']  # Include both draft and published, exclude archived
+            status__in=['draft', 'published']  # exclude archived
         ).select_related('pricing').order_by('name')
         
-        # Apply search filter if provided
+        # Apply search filter 
         search = request.GET.get('search', '').strip()
         if search:
             products = products.filter(
@@ -7357,15 +7344,15 @@ def ajax_create_vendor(request):
                 'message': 'Vendor name is required.'
             }, status=400)
 
-        # Create vendor with default VPS score
+        #vendor with default VPS score
         vendor = Vendor.objects.create(
             name=name,
             email=email,
             phone=phone,
             address=address,
-            vps_score='B',  # Default grade
-            vps_score_value=5.0,  # Default score
-            rating=4.0,  # Default rating
+            vps_score='B',  
+            vps_score_value=5.0, 
+            rating=4.0,  
             active=True,
         )
 
@@ -7390,7 +7377,8 @@ def ajax_create_vendor(request):
             'message': str(e)
         }, status=500)
 
-# ========== PROCESS-PRODUCT INTEGRATION HELPER FUNCTIONS ==========
+
+# Process Helpers
 
 def import_process_variables_to_product(process, product):
     """
@@ -7494,7 +7482,6 @@ def ajax_process_variables(request, process_id):
         }, status=404)
 
 
-# Add to clients/views.py
 
 from django.contrib.admin.views.decorators import staff_member_required
 from django.db.models import Count, Sum, Avg, Q
@@ -7577,7 +7564,7 @@ def admin_dashboard_index(request):
     revenue_labels = []
     for i in range(5, -1, -1):
         month_date = today.replace(day=1) - timedelta(days=i*30)
-        # Adjust to first day of that month
+        # First Day of the month
         m_start = month_date.replace(day=1)
         # End of that month
         if m_start.month == 12:
@@ -7594,7 +7581,7 @@ def admin_dashboard_index(request):
         revenue_trend_data.append(float(rev))
         revenue_labels.append(m_start.strftime('%b'))
 
-    # 2. Production by Category (Job Types)
+    # 2. Production by Category 
     job_types = Job.objects.values('job_type').annotate(count=Count('id')).order_by('-count')
     category_labels = [item['job_type'].replace('_', ' ').title() for item in job_types]
     category_data = [item['count'] for item in job_types]
@@ -7602,7 +7589,7 @@ def admin_dashboard_index(request):
         category_labels = ['No Data']
         category_data = [0]
 
-    # 3. Weekly Jobs Overview (Last 7 Days)
+    # 3. Weekly Jobs Overview 
     weekly_labels = []
     completed_data = []
     in_progress_data = []
@@ -7637,10 +7624,10 @@ def admin_dashboard_index(request):
         'total_clients': total_clients,
         'clients_growth': round(clients_growth, 1),
         'quotes_this_month': quotes_this_month,
-        'quotes_growth': 8,  # Calculate based on your logic
+        'quotes_growth': 8, 
         'jobs_in_production': jobs_in_production,
         'monthly_revenue': monthly_revenue,
-        'revenue_growth': 12,  # Calculate based on your logic
+        'revenue_growth': 12,  
         'pending_approvals': pending_approvals,
         'overdue_jobs': overdue_jobs,
         'overdue_change': -2,
@@ -7669,7 +7656,7 @@ def admin_dashboard_index(request):
     return render(request, 'admin/index.html', context)
 
 
-# Add CRUD views for each section
+# Add CRUD views 
 @staff_member_required
 def admin_clients_list(request):
     """List all clients with filters"""
@@ -7871,7 +7858,7 @@ def admin_analytics(request):
     return render(request, 'admin/analytics.html', context)
 
 
-# Add this import at the top with other models
+
 from .models import SystemSetting
 
 @staff_member_required
@@ -7894,7 +7881,7 @@ def admin_settings(request):
 
     if request.method == 'POST':
         try:
-            # Iterate through POST data and update settings
+            
             for key, value in request.POST.items():
                 if key in default_settings:
                     SystemSetting.objects.update_or_create(
@@ -7902,7 +7889,7 @@ def admin_settings(request):
                         defaults={'value': value}
                     )
             
-            # Handle checkboxes (unchecked checkboxes don't send POST data)
+            # Handle chrchboxes
             checkbox_settings = ['maintenance_mode', 'allow_registration', 'email_on_order', 'email_on_quote', 'daily_digest']
             for key in checkbox_settings:
                 if key not in request.POST:
@@ -7923,7 +7910,6 @@ def admin_settings(request):
     for setting in db_settings:
         current_settings[setting.key] = setting.value
 
-    # Convert boolean strings to actual booleans for the template
     def to_bool(val):
         return str(val).lower() == 'true'
 
@@ -8038,9 +8024,9 @@ def api_admin_dashboard_data(request):
         
         today = timezone.now().date()
         
-        # ===== REVENUE TREND (Last 6 Months) =====
+        # Revenue Trend
         revenue_trend = []
-        current_date = today.replace(day=1)  # Start of current month
+        current_date = today.replace(day=1) 
         
         for i in range(5, -1, -1):
             # Calculate month start and end
@@ -8048,7 +8034,7 @@ def api_admin_dashboard_data(request):
                 month_start = current_date
                 month_end = today
             else:
-                # Go back i months
+                # 
                 temp_date = current_date
                 for _ in range(i):
                     temp_date = temp_date - timedelta(days=1)
@@ -8074,7 +8060,7 @@ def api_admin_dashboard_data(request):
             monthly_total = float(quote_revenue or 0) + float(lpo_revenue or 0)
             revenue_trend.append(monthly_total)
         
-        # ===== PRODUCTION BY CATEGORY (Product distribution) =====
+       
         # Get product counts by category or type
         from .models import Product, ProductTag, JobProduct
         
@@ -8110,7 +8096,7 @@ def api_admin_dashboard_data(request):
         
         production_by_category = category_data if category_data else [1, 1, 1]
         
-        # ===== WEEKLY JOBS OVERVIEW (Last 6 days) =====
+        # Weekly JObs
         weekly_jobs = {
             'completed': [],
             'in_progress': [],
@@ -8144,7 +8130,7 @@ def api_admin_dashboard_data(request):
             weekly_jobs['in_progress'].append(in_progress_count)
             weekly_jobs['delayed'].append(overdue_count)
         
-        # ===== CALCULATE KPI STATS =====
+        # Calculate KPIs
         # Total clients
         total_clients = Client.objects.count()
         
@@ -8237,7 +8223,6 @@ from django.db.models import Count, Avg, Q, F
 from django.utils import timezone
 from datetime import timedelta
 
-# ... existing imports ...
 
 @login_required
 def production_settings(request):
