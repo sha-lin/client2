@@ -117,6 +117,8 @@ urlpatterns = [
     # path('quotes/create/', views.create_quote, name='create_quote'),
     path('create/quote', views.quote_create, name='quote_create'),
     path('quotes/<str:quote_id>/download/', views.download_quote_pdf, name='download_quote_pdf'),
+    path('quotes/<str:quote_id>/clone/', views.clone_quote, name='clone_quote'),
+    path('quotes/<str:quote_id>/convert-to-job/', views.convert_quote_to_job, name='convert_quote_to_job'),
     # path('quotes/<str:quote_id>/', views.quote_detail, name='quote_detail'),
     # path('quotes/<str:quote_id>/edit/', views.quote_edit, name='quote_edit'),
     
@@ -364,7 +366,8 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     
     # QC API endpoints
     path('api/qc/', admin_api.api_admin_qc_inspections, name='api_admin_qc_inspections'),
-    
+    path('api/product-price/<int:product_id>/', views.get_product_price, name='get_product_price'),
+    path('api/product-catalog/', views.api_product_catalog, name='api_product_catalog'),
     # ==================== DELIVERIES ====================
     # path('deliveries/', admin_views.admin_deliveries_list, name='admin_deliveries_list'),
     

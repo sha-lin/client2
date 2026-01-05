@@ -26,6 +26,16 @@
         border: 1px solid #3b82f6;
         outline: none;
     }
+
+    #inlineSearchResults {
+        max-height: 300px;
+        overflow-y: auto;
+        z-index: 100;
+    }
+
+    .search-result-item:hover {
+        background-color: #f3f4f6;
+    }
 </style>
 
 <div class="min-h-screen bg-white">
@@ -41,21 +51,21 @@
             <div class="flex items-center gap-3">
                 <button type="submit" form="quoteForm" name="action" value="save_draft"
                     class="px-5 py-2 bg-white border border-gray-300 text-gray-700 rounded hover:bg-gray-50 font-medium text-sm">
-                    💾 Save as Draft
+                     Save as Draft
                 </button>
                 <button type="submit" form="quoteForm" name="action" value="save_send_pt"
                     class="px-5 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 font-medium text-sm">
-                    📋 Send to PT for Costing
+                     Sen to PT for Costing
                 </button>
                 <button type="submit" form="quoteForm" name="action" value="send_to_customer"
                     class="px-5 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium text-sm">
-                    ✉️ Email Client
+                    Email Client
                 </button>
             </div>
         </div>
     </div>
 
-    <form method="POST" action="{% url 'quote_create' %}" id="quoteForm">
+    <form method="POST" action="{% url 'quote_create' %}" id="quoteForm" enctype="multipart/form-data">
         {% csrf_token %}
         <input type="hidden" name="client_id" id="client_id">
         <input type="hidden" name="lead_id" id="lead_id">
@@ -80,19 +90,22 @@
                                     <option value="">Select a Customer</option>
                                     <optgroup label="Clients">
                                         {% for client in clients %}
-                                        <option value="client-{{ client.id }}" {% if existing_quote and existing_quote.client_id == client.id %}selected{% endif %}>
-                                            {{ client.name }}
-                                        </option>
+                                        <option value="client-{{ client.id }}" {% if existing_quote.client_id == client.id %}selected{% endif %}>{{ client.name }}</option>
                                         {% endfor %}
                                     </optgroup>
                                     <optgroup label="Leads">
                                         {% for lead in leads %}
-                                        <option value="lead-{{ lead.id }}" {% if existing_quote and existing_quote.lead_id == lead.id %}selected{% endif %}>
-                                            {{ lead.name }}
-                                        </option>
+                                        <option value="lead-{{ lead.id }}" {% if existing_quote.lead_id == lead.id %}selected{% endif %}>{{ lead.name }}</option>
                                         {% endfor %}
                                     </optgroup>
                                 </select>
+                            </div>
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 mb-2">Reference Number</label>
+                                <input type="text" name="reference_number"
+                                    value="{% if existing_quote %}{{ existing_quote.reference_number }}{% endif %}"
+                                    placeholder="Client PO/LPO reference"
+                                    class="zoho-input w-full px-3 py-2 rounded text-sm focus:outline-none">
                             </div>
                         </div>
 
@@ -114,29 +127,24 @@
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1">Salesperson</label>
-                                <input type="text" name="account_manager" value="{% if existing_quote and existing_quote.created_by %}{{ existing_quote.created_by.get_full_name }}{% else %}{{ request.user.get_full_name }}{% endif %}"
+                                <input type="text" name="account_manager"
+                                    value="{% if existing_quote and existing_quote.created_by %}{{ existing_quote.created_by.get_full_name }}{% else %}{{ request.user.get_full_name }}{% endif %}"
                                     readonly class="zoho-input w-full px-3 py-2 rounded text-sm bg-gray-50">
                             </div>
                         </div>
                     </div>
 
                     <!-- Line Items Table -->
-                    <div class="border border-gray-200 rounded-lg overflow-hidden mb-6">
-                        <table class="w-full">
+                    <div class="border border-gray-200 rounded-lg mb-6">
+    <table class="w-full overflow-hidden rounded-lg">
                             <thead class="bg-gray-50">
                                 <tr>
-                                    <th class="text-left px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-6">#
-                                    </th>
-                                    <th class="text-left px-4 py-3 text-xs font-semibold text-gray-700 uppercase">Item
-                                        Details</th>
-                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-24">
-                                        Quantity</th>
-                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-32">
-                                        Rate</th>
-                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-28">
-                                        Discount</th>
-                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-32">
-                                        Amount</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-6">#</th>
+                                    <th class="text-left px-4 py-3 text-xs font-semibold text-gray-700 uppercase">Item Details</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-24">Quantity</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-32">Rate</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-28">Discount</th>
+                                    <th class="text-right px-4 py-3 text-xs font-semibold text-gray-700 uppercase w-32">Amount</th>
                                     <th class="w-10"></th>
                                 </tr>
                             </thead>
@@ -152,13 +160,30 @@
                             </tbody>
                         </table>
 
-                        <!-- Add Line Button -->
-                        <div class="bg-white border-t border-gray-200 px-4 py-3">
-                            <button type="button" id="addItemBtn"
-                                class="text-blue-600 hover:text-blue-700 text-sm font-medium inline-flex items-center gap-1">
-                                <i data-lucide="plus" class="w-4 h-4"></i>
-                                Add another line
-                            </button>
+                        <!-- Inline Search Row -->
+                        <div class="bg-gray-50 border-t border-gray-200 px-4 py-3 relative">
+                            <div class="flex items-center gap-3">
+                                <div class="relative flex-1">
+                                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <i data-lucide="search" class="w-4 h-4 text-gray-400"></i>
+                                    </div>
+                                    <input type="text" id="inlineProductSearch" 
+                                        placeholder="Type to search products (SKU, Name)..."
+                                        class="zoho-input w-full pl-10 pr-4 py-2 rounded text-sm focus:outline-none bg-white border-gray-300">
+                                    
+                                    <!-- Search Results Dropdown -->
+                                    <div id="inlineSearchResults" 
+     style="display: none;"
+     class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-xl max-h-80 overflow-y-auto">
+    <!-- Results will be injected here -->
+</div>
+                                </div>
+                                <button type="button" id="addLineBtn"
+                                    class="text-blue-600 hover:text-blue-700 text-sm font-medium inline-flex items-center gap-1">
+                                    <i data-lucide="plus" class="w-4 h-4"></i>
+                                    Add another line
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -176,7 +201,33 @@
                             <label class="block text-sm font-medium text-gray-700 mb-2">Terms & Conditions</label>
                             <textarea name="terms_conditions" rows="3"
                                 placeholder="Enter the terms and conditions of your business."
-                                class="zoho-input w-full px-3 py-2 rounded text-sm focus:outline-none resize-none"></textarea>
+                                class="zoho-input w-full px-3 py-2 rounded text-sm focus:outline-none resize-none">{% if existing_quote %}{{ existing_quote.custom_terms }}{% endif %}</textarea>
+                        </div>
+
+                        <!-- File Attachments -->
+                        <div class="pt-4 border-t border-gray-100">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
+                            <div class="flex items-center justify-center w-full">
+                                <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                                    <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                                        <i data-lucide="upload-cloud" class="w-8 h-8 text-gray-400 mb-2"></i>
+                                        <p class="mb-2 text-sm text-gray-500"><span class="font-semibold">Click to upload</span> or drag and drop</p>
+                                        <p class="text-xs text-gray-500">Briefs, Artwork, Specs (MAX. 10MB)</p>
+                                    </div>
+                                    <input type="file" name="attachments" multiple class="hidden" id="fileInput" />
+                                </label>
+                            </div>
+                            <div id="fileList" class="mt-3 space-y-2">
+                                <!-- Selected files will be listed here -->
+                                {% if existing_quote and existing_quote.attachments.all %}
+                                    {% for attachment in existing_quote.attachments.all %}
+                                        <div class="flex items-center justify-between p-2 bg-blue-50 rounded text-xs">
+                                            <span class="text-blue-700 font-medium">{{ attachment.filename }}</span>
+                                            <span class="text-gray-500">{{ attachment.file_size|filesizeformat }}</span>
+                                        </div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -200,15 +251,14 @@
                         <div class="pb-4 mb-4 border-b border-gray-300">
                             <div class="flex items-center justify-between mb-3">
                                 <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox" id="enableTax"
+                                    <input type="checkbox" id="enableTax" {% if existing_quote and existing_quote.tax_total > 0 %}checked{% endif %}
                                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                     <span>VAT (16%)</span>
                                 </label>
                             </div>
-                            <div id="taxSection" class="hidden">
+                            <div id="taxSection" class="{% if not existing_quote or existing_quote.tax_total == 0 %}hidden{% endif %}">
                                 <div class="flex items-center justify-between mb-2">
-                                    <input type="number" id="taxRate" name="tax_rate" value="16" step="0.01" min="0"
-                                        max="100"
+                                    <input type="number" id="taxRate" name="tax_rate" value="{% if existing_quote %}{{ existing_quote.tax_rate }}{% else %}16{% endif %}" step="0.01" min="0" max="100"
                                         class="zoho-input w-20 px-2 py-1 rounded text-sm text-right focus:outline-none">
                                     <span class="text-xs text-gray-600 ml-2">%</span>
                                 </div>
@@ -219,19 +269,38 @@
                             </div>
                         </div>
 
+                        <!-- Shipping Charges -->
+                        <div class="pb-4 mb-4 border-b border-gray-300">
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="flex items-center gap-2 text-sm text-gray-700">
+                                    <input type="checkbox" id="enableShipping" {% if existing_quote and existing_quote.shipping_charges > 0 %}checked{% endif %}
+                                        class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <span>Shipping Charges</span>
+                                </label>
+                            </div>
+                            <div id="shippingSection" class="{% if not existing_quote or existing_quote.shipping_charges == 0 %}hidden{% endif %} space-y-2">
+                                <input type="number" id="shippingCharges" name="shipping_charges" 
+                                    value="{% if existing_quote %}{{ existing_quote.shipping_charges }}{% else %}0.00{% endif %}"
+                                    step="0.01" class="zoho-input w-full px-3 py-2 rounded text-sm focus:outline-none">
+                            </div>
+                        </div>
+
                         <!-- Adjustment -->
                         <div class="pb-4 mb-4 border-b border-gray-300">
                             <div class="flex items-center justify-between mb-2">
                                 <label class="flex items-center gap-2 text-sm text-gray-700">
-                                    <input type="checkbox" id="enableAdjustment"
+                                    <input type="checkbox" id="enableAdjustment" {% if existing_quote and existing_quote.adjustment_amount != 0 %}checked{% endif %}
                                         class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                                     <span>Adjustment</span>
                                 </label>
                             </div>
-                            <div id="adjustmentSection" class="hidden space-y-2">
-                                <input type="number" id="adjustmentAmount" name="adjustment" placeholder="0.00"
+                            <div id="adjustmentSection" class="{% if not existing_quote or existing_quote.adjustment_amount == 0 %}hidden{% endif %} space-y-2">
+                                <input type="number" id="adjustmentAmount" name="adjustment_amount" 
+                                    value="{% if existing_quote %}{{ existing_quote.adjustment_amount }}{% else %}0.00{% endif %}"
                                     step="0.01" class="zoho-input w-full px-3 py-2 rounded text-sm focus:outline-none">
-                                <input type="text" id="adjustmentReason" name="adjustment_reason" placeholder="Reason"
+                                <input type="text" id="adjustmentReason" name="adjustment_reason" 
+                                    value="{% if existing_quote %}{{ existing_quote.adjustment_reason }}{% endif %}"
+                                    placeholder="Reason"
                                     class="zoho-input w-full px-3 py-2 rounded text-sm focus:outline-none">
                             </div>
                         </div>
@@ -250,248 +319,213 @@
     </form>
 </div>
 
-<!-- Product Modal -->
-<div id="productModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-    <div class="bg-white rounded-lg w-full max-w-4xl max-h-[85vh] flex flex-col m-4">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">Add Item</h3>
-            <button type="button" id="closeModal" class="text-gray-400 hover:text-gray-600">
-                <i data-lucide="x" class="w-6 h-6"></i>
-            </button>
-        </div>
-
-        <div class="p-6 overflow-y-auto">
-            <input type="text" id="productSearch" placeholder="Type to search items..."
-                class="zoho-input w-full px-4 py-2 rounded mb-4 focus:outline-none">
-
-            <div id="productList" class="grid grid-cols-1 gap-2">
-                <!-- Products will be loaded via API -->
-                <div class="text-center py-8 text-gray-500">
-                    <p>Loading products...</p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 {% endblock %}
-
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
+    lucide.createIcons();
+
+    // Set today's date if not already set
+    const dateInput = document.getElementById('todays_date');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+
+    let lineCounter = 0;
+    const tbody = document.getElementById('lineItemsBody');
+    const emptyRow = document.getElementById('emptyRow');
+    const inlineSearch = document.getElementById('inlineProductSearch');
+    const searchResults = document.getElementById('inlineSearchResults');
+    const addLineBtn = document.getElementById('addLineBtn');
+
+    // 1. Client/Lead selection logic
+    document.getElementById('client_select')?.addEventListener('change', function () {
+        const val = this.value;
+        document.getElementById('client_id').value = val.startsWith('client-') ? val.replace('client-', '') : '';
+        document.getElementById('lead_id').value = val.startsWith('lead-') ? val.replace('lead-', '') : '';
+    });
+
+    // Trigger change on load to set initial hidden IDs if pre-selected
+    document.getElementById('client_select')?.dispatchEvent(new Event('change'));
+
+    // MOVED OUTSIDE: Define renderSearchResults at the top level
+    function renderSearchResults(products) {
+        console.log('Rendering', products.length, 'products'); // Debug
+        
+        const html = products.map(p => `
+            <div class="search-result-item p-3 border-b border-gray-100 cursor-pointer flex items-center justify-between gap-3 hover:bg-gray-50" 
+                 data-id="${p.id}" 
+                 data-name="${p.name}" 
+                 data-sku="${p.internal_code || ''}" 
+                 data-customization="${p.customization_level}"
+                 data-price="${p.unit_price || p.base_price || 0}">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-gray-100 rounded flex items-center justify-center">
+                        <i data-lucide="package" class="w-4 h-4 text-gray-400"></i>
+                    </div>
+                    <div>
+                        <div class="text-sm font-medium text-gray-900">${p.name}</div>
+                        <div class="text-xs text-gray-500">${p.internal_code || 'No SKU'} | ${p.customization_level.replace(/_/g, ' ')}</div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm font-semibold text-blue-600">KSh ${Number(p.unit_price || p.base_price || 0).toLocaleString()}</div>
+                </div>
+            </div>
+        `).join('');
+        
+        searchResults.innerHTML = html;
+        searchResults.style.display = 'block'; // CHANGED: Use style.display instead of classList
+        
+        console.log('HTML length:', html.length); // Debug
+        console.log('Display style:', searchResults.style.display); // Debug
+        
         lucide.createIcons();
 
-        // Set today's date if not already set
-        const dateInput = document.getElementById('todays_date');
-        if (!dateInput.value) {
-            dateInput.value = new Date().toISOString().split('T')[0];
-        }
+        // Attach click listeners to search result items
+        document.querySelectorAll('.search-result-item').forEach(item => {
+            item.addEventListener('click', async function () {
+                const productId = this.dataset.id;
+                
+                try {
+                    const response = await fetch(`/api/product-price/${productId}/`);
+                    const data = await response.json();
 
-        let lineCounter = 0;
-        const tbody = document.getElementById('lineItemsBody');
-        const emptyRow = document.getElementById('emptyRow');
-        const modal = document.getElementById('productModal');
-
-        // Client/Lead selection
-        document.getElementById('client_select')?.addEventListener('change', function () {
-            const val = this.value;
-            document.getElementById('client_id').value = val.startsWith('client-') ? val.replace('client-', '') : '';
-            document.getElementById('lead_id').value = val.startsWith('lead-') ? val.replace('lead-', '') : '';
-        });
-
-        // Trigger change on load to set initial hidden IDs if pre-selected
-        document.getElementById('client_select')?.dispatchEvent(new Event('change'));
-
-        // Load products from API
-        function loadProducts(search = '') {
-            const productList = document.getElementById('productList');
-            productList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>Loading products...</p></div>';
-            
-            const url = `/api/product-catalog/${search ? '?search=' + encodeURIComponent(search) : ''}`;
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
                     if (data.success) {
-                        renderProducts(data.products);
+                        let price = 0;
+                        if (data.customization_level === 'non_customizable') {
+                            price = data.base_price || data.unit_price || 0;
+                        } else {
+                            price = data.base_price || 0;
+                        }
+
+                        addLine({
+                            id: data.id,
+                            name: data.name,
+                            sku: data.internal_code,
+                            desc: '',
+                            price: price,
+                            customization: data.customization_level
+                        });
+
+                        inlineSearch.value = '';
+                        searchResults.style.display = 'none'; // CHANGED: Use style.display
+                    }
+                } catch (error) {
+                    console.error('Error fetching product price:', error);
+                    alert('Failed to load product details. Please try again.');
+                }
+            });
+        });
+    }
+
+    // 2. Add Line Button - Show all products immediately
+    addLineBtn?.addEventListener('click', (e) => {
+        e.stopPropagation(); // Prevent the click from bubbling up
+        
+        if (inlineSearch) {
+            inlineSearch.value = '';
+            inlineSearch.focus();
+
+            searchResults.innerHTML = '<div class="p-4 text-sm text-gray-500">Loading products...</div>';
+            searchResults.style.display = 'block'; // CHANGED: Use style.display
+
+            fetch(`/api/product-catalog/`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                    }
+                    return res.json();
+                })
+                .then(data => {
+                    console.log('API Response:', data); // Debug log
+                    console.log('Products count:', data.products.length); // Debug log
+                    
+                    if (data.success && data.products && data.products.length > 0) {
+                        renderSearchResults(data.products);
+                        console.log('Products rendered, dropdown visible'); // Debug
                     } else {
-                        productList.innerHTML = '<div class="text-center py-8 text-red-500"><p>Error loading products</p></div>';
+                        searchResults.innerHTML = '<div class="p-4 text-sm text-gray-500">No products available</div>';
+                        searchResults.style.display = 'block'; // CHANGED: Use style.display
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading products:', error);
-                    productList.innerHTML = '<div class="text-center py-8 text-red-500"><p>Error loading products</p></div>';
+                    console.error('Error fetching products:', error);
+                    searchResults.innerHTML = '<div class="p-4 text-sm text-red-500">Error loading products. Please try again.</div>';
+                    searchResults.style.display = 'block'; // CHANGED: Use style.display
                 });
         }
-        
-        function renderProducts(products) {
-            const productList = document.getElementById('productList');
-            if (products.length === 0) {
-                productList.innerHTML = '<div class="text-center py-8 text-gray-500"><p>No products available</p></div>';
-                return;
-            }
-            
-            productList.innerHTML = products.map(product => {
-                const customizationLevel = product.customization_level || 'non_customizable';
-                let badgeText = '';
-                let badgeClass = '';
-                
-                if (customizationLevel === 'non_customizable') {
-                    badgeText = 'Price from backend';
-                    badgeClass = 'text-gray-400';
-                } else if (customizationLevel === 'semi_customizable') {
-                    badgeText = 'Base + Variables';
-                    badgeClass = 'text-blue-600';
-                } else {
-                    badgeText = 'PT Costing Required';
-                    badgeClass = 'text-blue-600';
-                }
-                
-                return `
-                    <div class="border border-gray-200 rounded hover:bg-blue-50 hover:border-blue-400 cursor-pointer p-3 product-card transition-all"
-                        data-id="${product.id}" 
-                        data-name="${product.name}" 
-                        data-sku="${product.internal_code || ''}"
-                        data-customization-level="${customizationLevel}">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                                <i data-lucide="package" class="w-5 h-5 text-gray-400"></i>
-                            </div>
-                            <div class="flex-1 min-w-0">
-                                <div class="font-medium text-sm text-gray-900">${product.name}</div>
-                                <div class="text-xs text-gray-500">${product.internal_code || 'N/A'} | <span class="capitalize">${customizationLevel.replace(/_/g, ' ')}</span></div>
-                            </div>
-                            <div class="text-sm font-semibold text-gray-900">
-                                <span class="${badgeClass} text-xs">${badgeText}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            // Re-initialize lucide icons
-            lucide.createIcons();
-            
-            // Add click handlers
-            document.querySelectorAll('.product-card').forEach(card => {
-                card.addEventListener('click', async function() {
-                    const productId = this.dataset.id;
-                    
-                    // Fetch product pricing from backend API
-                    try {
-                        const response = await fetch(`/api/product-price/${productId}/`);
-                        const data = await response.json();
-                        
-                        if (data.success) {
-                            // Determine the price to use
-                            let priceToUse = null;
-                            
-                            if (data.customization_level === 'non_customizable') {
-                                if (data.base_price !== null && data.base_price !== undefined && data.base_price > 0) {
-                                    priceToUse = data.base_price;
-                                } else if (data.unit_price !== null && data.unit_price !== undefined && data.unit_price > 0) {
-                                    priceToUse = data.unit_price;
-                                } else {
-                                    priceToUse = null;
-                                }
-                            } else if (data.customization_level === 'semi_customizable') {
-                                priceToUse = data.base_price !== null && data.base_price !== undefined ? data.base_price : 0;
-                            } else {
-                                priceToUse = 0;
-                            }
-                            
-                            addLine({
-                                id: data.id,
-                                name: data.name,
-                                sku: data.internal_code || this.dataset.sku,
-                                desc: '',
-                                price: priceToUse,
-                                customization: data.customization_level
-                            });
-                            closeModal();
-                        } else {
-                            alert('Error fetching product pricing: ' + (data.error || 'Unknown error'));
-                        }
-                    } catch (error) {
-                        console.error('Error fetching product price:', error);
-                        alert('Error loading product pricing. Please try again.');
+    });
+
+    // 3. Inline Search Logic
+    let searchTimeout;
+    inlineSearch?.addEventListener('input', function () {
+        clearTimeout(searchTimeout);
+        const query = this.value.trim();
+
+        if (query.length < 2) {
+            searchResults.style.display = 'none'; // CHANGED: Use style.display
+            return;
+        }
+
+        searchTimeout = setTimeout(() => {
+            fetch(`/api/product-catalog/?search=${encodeURIComponent(query)}`)
+                .then(res => {
+                    if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
                     }
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.success && data.products.length > 0) {
+                        renderSearchResults(data.products);
+                    } else {
+                        searchResults.innerHTML = '<div class="p-4 text-sm text-gray-500">No products found</div>';
+                        searchResults.style.display = 'block'; // CHANGED: Use style.display
+                    }
+                })
+                .catch(error => {
+                    console.error('Error searching products:', error);
+                    searchResults.innerHTML = '<div class="p-4 text-sm text-red-500">Search failed. Please try again.</div>';
+                    searchResults.style.display = 'block'; // CHANGED: Use style.display
                 });
-            });
+        }, 300);
+    });
+
+    // Close search results when clicking outside
+    document.addEventListener('click', (e) => {
+        // Don't close if clicking on the search input, results dropdown, or add line button
+        if (inlineSearch && 
+            !inlineSearch.contains(e.target) && 
+            !searchResults.contains(e.target) &&
+            !addLineBtn.contains(e.target)) {
+            searchResults.style.display = 'none'; // CHANGED: Use style.display
         }
-        
-        // Modal
-        function openModal() {
-            modal.classList.remove('hidden');
-            document.body.style.overflow = 'hidden';
-            loadProducts(); // Load products when modal opens
-            setTimeout(() => lucide.createIcons(), 0);
-        }
+    });
 
-        function closeModal() {
-            modal.classList.add('hidden');
-            document.body.style.overflow = 'auto';
-        }
+    // 4. Add Line Item Row logic
+    function addLine(prod, isCosted = false) {
+        if (emptyRow) emptyRow.style.display = 'none';
+        lineCounter++;
+        const isCustomizable = prod.customization !== 'non_customizable';
 
-        document.getElementById('addItemBtn')?.addEventListener('click', openModal);
-        document.getElementById('closeModal')?.addEventListener('click', closeModal);
-        modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        let rateValue = prod.price;
+        const rateReadonly = (prod.customization === 'non_customizable') ? 'readonly' :
+            (prod.customization === 'fully_customizable' && !isCosted) ? 'readonly' : '';
 
-        // Search
-        document.getElementById('productSearch')?.addEventListener('input', function () {
-            const search = this.value.trim();
-            if (search.length > 0) {
-                loadProducts(search);
-            } else {
-                loadProducts();
-            }
-        });
+        const customizationLabel = prod.customization.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 
-        // Product card click handlers are now added in renderProducts function
-
-        function addLine(prod, isCosted = false) {
-            if (emptyRow) emptyRow.style.display = 'none';
-            lineCounter++;
-            const isCustomizable = prod.customization !== 'non_customizable';
-            
-            // Handle price based on customization level
-            let rateValue = null;
-            
-            // Check if price was provided (including 0 as a valid value)
-            if (prod.price !== undefined && prod.price !== null && !isNaN(prod.price)) {
-                rateValue = parseFloat(prod.price);
-                
-                // Validate: non-customizable products should have a price > 0
-                if (prod.customization === 'non_customizable' && rateValue <= 0) {
-                    rateValue = null; // Show as missing price
-                }
-            } else {
-                // No price provided in API response
-                if (prod.customization === 'non_customizable') {
-                    rateValue = null; // Show error state - price missing
-                } else if (prod.customization === 'fully_customizable') {
-                    rateValue = 0; // Fully customizable starts at 0
-                } else if (prod.customization === 'semi_customizable') {
-                    rateValue = 0; // Semi-customizable starts at 0 (base price will be added)
-                } else {
-                    rateValue = 0; // Default to 0
-                }
-            }
-            
-            // Non-customizable: readonly, Semi: editable for variables, Fully: readonly until costed
-            const rateReadonly = (prod.customization === 'non_customizable') ? 'readonly' : 
-                                (prod.customization === 'fully_customizable' && !isCosted) ? 'readonly' : '';
-            const customizationLabel = prod.customization.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-
-            const tr = document.createElement('tr');
-            tr.className = 'border-b border-gray-100 hover:bg-gray-50 line-row';
-            tr.dataset.customizable = isCustomizable;
-            tr.innerHTML = `
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-100 hover:bg-gray-50 line-row';
+        tr.dataset.customizable = isCustomizable;
+        tr.innerHTML = `
             <td class="px-4 py-2 text-sm text-gray-500">${lineCounter}</td>
             <td class="px-4 py-2">
                 <input type="hidden" name="product_id[]" value="${prod.id}">
                 <input type="hidden" name="customization_level[]" value="${prod.customization}">
                 <div class="font-medium text-sm text-gray-900 mb-1">${prod.name}</div>
                 <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${customizationLabel}</div>
-                <input type="text" name="description[]" value="${prod.desc}" placeholder="Description"
+                <input type="text" name="description[]" value="${prod.desc || ''}" placeholder="Description"
                     class="table-input w-full text-xs text-gray-600 rounded">
             </td>
             <td class="px-4 py-2">
@@ -500,12 +534,8 @@
             </td>
             <td class="px-4 py-2">
                 <div class="relative">
-                    <input type="number" name="rate[]" value="${(rateValue !== null && rateValue !== undefined && !isNaN(rateValue) && rateValue >= 0) ? Number(rateValue).toFixed(2) : ''}" min="0" step="0.01" required ${rateReadonly}
-                        class="rate table-input w-full text-sm text-right rounded ${(isCustomizable && !isCosted) ? 'bg-gray-50 text-gray-400' : ''} ${rateValue === null && prod.customization === 'non_customizable' ? 'border-red-300 bg-red-50' : ''}"
-                        ${rateValue === null ? 'placeholder="Price not set"' : ''}>
-                    ${prod.customization === 'fully_customizable' && !isCosted ? '<div class="text-[9px] text-blue-600 text-right mt-1 font-medium">PT COSTING REQ.</div>' : ''}
-                    ${prod.customization === 'semi_customizable' ? '<div class="text-[9px] text-gray-500 text-right mt-1">Base + Variables</div>' : ''}
-                    ${rateValue === null && prod.customization === 'non_customizable' ? '<div class="text-[9px] text-red-600 text-right mt-1 font-medium">⚠️ Price Missing</div>' : ''}
+                    <input type="number" name="rate[]" value="${rateValue ? Number(rateValue).toFixed(2) : ''}" min="0" step="0.01" required ${rateReadonly}
+                        class="rate table-input w-full text-sm text-right rounded ${(isCustomizable && !isCosted) ? 'bg-gray-50 text-gray-400' : ''}">
                 </div>
             </td>
             <td class="px-4 py-2">
@@ -519,7 +549,7 @@
                 </div>
             </td>
             <td class="px-4 py-2 text-right">
-                <span class="amt text-sm font-semibold text-gray-900">KSh ${(rateValue !== null && rateValue !== undefined && !isNaN(rateValue) && rateValue >= 0) ? Number(rateValue).toFixed(2) : '0.00'}</span>
+                <span class="amt text-sm font-semibold text-gray-900">KSh ${rateValue ? Number(rateValue).toFixed(2) : '0.00'}</span>
             </td>
             <td class="px-4 py-2">
                 <button type="button" class="del text-gray-400 hover:text-red-600">
@@ -528,154 +558,141 @@
             </td>
         `;
 
-            tbody.appendChild(tr);
-            lucide.createIcons();
+        tbody.appendChild(tr);
+        lucide.createIcons();
 
-            // Add event listeners for calculations
-            tr.querySelectorAll('.qty, .rate, .disc, .disc-type').forEach(inp => {
-                inp.addEventListener('input', () => calcRow(tr));
-            });
-            
-            // Debug: Log the rate input value after creation
-            const rateInput = tr.querySelector('.rate');
-            if (rateInput) {
-                console.log(`Rate input created for "${prod.name}": value="${rateInput.value}", rateValue was: ${rateValue}`);
-                // Force set the value if it's empty but we have a valid rateValue
-                if (!rateInput.value && rateValue !== null && rateValue !== undefined && !isNaN(rateValue) && rateValue >= 0) {
-                    rateInput.value = Number(rateValue).toFixed(2);
-                    console.log(`Force-set rate input value to: ${rateInput.value}`);
-                }
-            }
-            
-            // Trigger initial calculation
-            calcRow(tr);
+        // Attach listeners for calculations
+        tr.querySelectorAll('.qty, .rate, .disc, .disc-type').forEach(inp => {
+            inp.addEventListener('input', () => calcRow(tr));
+        });
 
-            tr.querySelector('.del').addEventListener('click', () => {
-                tr.remove();
-                if (tbody.querySelectorAll('.line-row').length === 0 && emptyRow) emptyRow.style.display = '';
-                calcAll();
-                updateSubmitButtons();
-            });
-
+        tr.querySelector('.del').addEventListener('click', () => {
+            tr.remove();
+            if (tbody.querySelectorAll('.line-row').length === 0 && emptyRow) emptyRow.style.display = '';
             calcAll();
             updateSubmitButtons();
+        });
+
+        calcRow(tr);
+        updateSubmitButtons();
+    }
+
+    // 5. Submit Button UI logic
+    function updateSubmitButtons() {
+        const hasCustomizable = Array.from(document.querySelectorAll('.line-row')).some(tr => tr.dataset.customizable === 'true');
+        const sendBtn = document.querySelector('button[value="save_send_pt"]');
+        if (!sendBtn) return;
+
+        if (hasCustomizable) {
+            sendBtn.innerHTML = '📋 Save & Send to PT for Costing';
+            sendBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+            sendBtn.classList.add('bg-orange-600', 'hover:bg-orange-700');
+        } else {
+            sendBtn.innerHTML = '📋 Save & Send for Approval';
+            sendBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            sendBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
         }
+    }
 
-        function updateSubmitButtons() {
-            const hasCustomizable = Array.from(document.querySelectorAll('.line-row')).some(tr => tr.dataset.customizable === 'true');
-            const sendBtn = document.querySelector('button[value="save_send_pt"]');
+    // 6. Calculations
+    function calcRow(tr) {
+        const qty = parseFloat(tr.querySelector('.qty').value) || 0;
+        const rate = parseFloat(tr.querySelector('.rate').value) || 0;
+        const disc = parseFloat(tr.querySelector('.disc').value) || 0;
+        const type = tr.querySelector('.disc-type').value;
 
-            if (hasCustomizable) {
-                sendBtn.innerHTML = 'Save & Send to PT for Costing';
-                sendBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                sendBtn.classList.add('bg-orange-600', 'hover:bg-orange-700');
-            } else {
-                sendBtn.innerHTML = 'Save & Send for Approval';
-                sendBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                sendBtn.classList.remove('bg-orange-600', 'hover:bg-orange-700');
-            }
+        let total = qty * rate;
+        if (disc > 0) {
+            total -= (type === 'percent') ? (total * disc / 100) : disc;
         }
+        total = Math.max(0, total);
 
-        function calcRow(tr) {
+        tr.querySelector('.amt').textContent = `KSh ${total.toFixed(2)}`;
+        calcAll();
+    }
+
+    function calcAll() {
+        let sub = 0, discTotal = 0;
+
+        document.querySelectorAll('.line-row').forEach(tr => {
             const qty = parseFloat(tr.querySelector('.qty').value) || 0;
-            // Get rate value - if empty/null, use 0 for calculation but show warning
-            const rateInput = tr.querySelector('.rate');
-            const rate = parseFloat(rateInput.value) || 0;
+            const rate = parseFloat(tr.querySelector('.rate').value) || 0;
             const disc = parseFloat(tr.querySelector('.disc').value) || 0;
             const type = tr.querySelector('.disc-type').value;
 
-            let total = qty * rate;
+            const lineSub = qty * rate;
+            sub += lineSub;
+
             if (disc > 0) {
-                total -= (type === 'percent') ? (total * disc / 100) : disc;
+                discTotal += (type === 'percent') ? (lineSub * disc / 100) : disc;
             }
-            total = Math.max(0, total);
-
-            tr.querySelector('.amt').textContent = `KSh ${total.toFixed(2)}`;
-            calcAll();
-        }
-
-        function calcAll() {
-            let sub = 0, discTotal = 0;
-
-            document.querySelectorAll('.line-row').forEach(tr => {
-                const qty = parseFloat(tr.querySelector('.qty').value) || 0;
-                const rate = parseFloat(tr.querySelector('.rate').value) || 0;
-                const disc = parseFloat(tr.querySelector('.disc').value) || 0;
-                const type = tr.querySelector('.disc-type').value;
-
-                const lineSub = qty * rate;
-                sub += lineSub;
-
-                if (disc > 0) {
-                    discTotal += (type === 'percent') ? (lineSub * disc / 100) : disc;
-                }
-            });
-
-            const afterDisc = sub - discTotal;
-            let tax = 0;
-
-            if (document.getElementById('enableTax').checked) {
-                const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
-                tax = (afterDisc * taxRate / 100);
-            }
-
-            let adj = 0;
-            if (document.getElementById('enableAdjustment').checked) {
-                adj = parseFloat(document.getElementById('adjustmentAmount').value) || 0;
-            }
-
-            const total = afterDisc + tax + adj;
-
-            document.getElementById('summarySubtotal').textContent = `KSh ${sub.toFixed(2)}`;
-            document.getElementById('summaryDiscount').textContent = `KSh ${discTotal.toFixed(2)}`;
-            document.getElementById('summaryTax').textContent = `KSh ${tax.toFixed(2)}`;
-            document.getElementById('summaryTotal').textContent = total.toFixed(2);
-
-            document.getElementById('hiddenSubtotal').value = sub.toFixed(2);
-            document.getElementById('hiddenDiscount').value = discTotal.toFixed(2);
-            document.getElementById('hiddenTax').value = tax.toFixed(2);
-            document.getElementById('hiddenTotal').value = total.toFixed(2);
-        }
-
-        // Tax toggle
-        document.getElementById('enableTax').addEventListener('change', function () {
-            document.getElementById('taxSection').classList.toggle('hidden', !this.checked);
-            calcAll();
         });
 
-        document.getElementById('taxRate')?.addEventListener('input', calcAll);
+        const afterDisc = sub - discTotal;
+        let tax = 0;
 
-        // Adjustment toggle
-        document.getElementById('enableAdjustment').addEventListener('change', function () {
-            document.getElementById('adjustmentSection').classList.toggle('hidden', !this.checked);
-            calcAll();
+        if (document.getElementById('enableTax')?.checked) {
+            const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+            tax = (afterDisc * taxRate / 100);
+        }
+
+        let ship = 0;
+        if (document.getElementById('enableShipping')?.checked) {
+            ship = parseFloat(document.getElementById('shippingCharges').value) || 0;
+        }
+
+        let adj = 0;
+        if (document.getElementById('enableAdjustment')?.checked) {
+            adj = parseFloat(document.getElementById('adjustmentAmount').value) || 0;
+        }
+
+        const total = afterDisc + tax + ship + adj;
+
+        document.getElementById('summarySubtotal').textContent = `KSh ${sub.toFixed(2)}`;
+        document.getElementById('summaryDiscount').textContent = `KSh ${discTotal.toFixed(2)}`;
+        document.getElementById('summaryTax').textContent = `KSh ${tax.toFixed(2)}`;
+        document.getElementById('summaryTotal').textContent = total.toFixed(2);
+
+        document.getElementById('hiddenSubtotal').value = sub.toFixed(2);
+        document.getElementById('hiddenDiscount').value = discTotal.toFixed(2);
+        document.getElementById('hiddenTax').value = tax.toFixed(2);
+        document.getElementById('hiddenTotal').value = total.toFixed(2);
+    }
+
+    // 7. Sidebar Toggles
+    document.getElementById('enableTax')?.addEventListener('change', function () {
+        document.getElementById('taxSection')?.classList.toggle('hidden', !this.checked);
+        calcAll();
+    });
+    document.getElementById('taxRate')?.addEventListener('input', calcAll);
+
+    document.getElementById('enableShipping')?.addEventListener('change', function () {
+        document.getElementById('shippingSection')?.classList.toggle('hidden', !this.checked);
+        calcAll();
+    });
+    document.getElementById('shippingCharges')?.addEventListener('input', calcAll);
+
+    document.getElementById('enableAdjustment')?.addEventListener('change', function () {
+        document.getElementById('adjustmentSection')?.classList.toggle('hidden', !this.checked);
+        calcAll();
+    });
+    document.getElementById('adjustmentAmount')?.addEventListener('input', calcAll);
+
+    // 8. File list preview
+    document.getElementById('fileInput')?.addEventListener('change', function () {
+        const list = document.getElementById('fileList');
+        if (!list) return;
+        list.innerHTML = '';
+        Array.from(this.files).forEach(f => {
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between p-2 bg-gray-50 rounded text-xs';
+            div.innerHTML = `<span>${f.name}</span><span class="text-gray-400">${(f.size / 1024).toFixed(1)} KB</span>`;
+            list.appendChild(div);
         });
+    });
 
-        document.getElementById('adjustmentAmount')?.addEventListener('input', calcAll);
-
-        // Load existing items if any
-        {% for item in existing_line_items %}
-        addLine({
-            id: "{{ item.product.id|default:'' }}",
-            name: "{{ item.product_name|escapejs }}",
-            sku: "{{ item.product.internal_code|default:''|escapejs }}",
-            desc: "",
-            price: {% if item.unit_price %}{{ item.unit_price }}{% else %}null{% endif %},
-            customization: "{{ item.customization_level_snapshot|default:'non_customizable' }}"
-        }, {% if item.quote.production_status == 'costed' %}true{% else %}false{% endif %});
-
-        // Update quantity for the last added row
-        (function () {
-            const lastRow = tbody.lastElementChild;
-            if (lastRow) {
-                lastRow.querySelector('.qty').value = "{{ item.quantity }}";
-                calcRow(lastRow);
-            }
-        })();
-        {% endfor %}
-
-    // Form validation
-    document.getElementById('quoteForm').addEventListener('submit', function (e) {
+    // 10. Form validation
+    document.getElementById('quoteForm')?.addEventListener('submit', function (e) {
         const clientId = document.getElementById('client_id').value;
         const leadId = document.getElementById('lead_id').value;
 
@@ -691,6 +708,6 @@
             return false;
         }
     });
-    });
+});
 </script>
 {% endblock %}

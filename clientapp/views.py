@@ -529,11 +529,20 @@ def quote_management(request):
                 'quote': quote,
                 'items': [],
                 'total_amount': Decimal('0'),
-                'subtotal': Decimal('0')
+                'subtotal': Decimal('0'),
+                'discount_total': Decimal('0'),
+                'tax_total': Decimal('0'),
+                'shipping_charges': Decimal('0'),
+                'adjustment_amount': Decimal('0')
             }
         quotes_dict[quote.quote_id]['items'].append(quote)
-        quotes_dict[quote.quote_id]['total_amount'] += quote.total_amount
-        quotes_dict[quote.quote_id]['subtotal'] += (quote.unit_price * quote.quantity)
+        # Use stored totals from the Quote model
+        quotes_dict[quote.quote_id]['total_amount'] = quote.total_amount
+        quotes_dict[quote.quote_id]['subtotal'] = quote.subtotal
+        quotes_dict[quote.quote_id]['discount_total'] = quote.discount_total
+        quotes_dict[quote.quote_id]['tax_total'] = quote.tax_total
+        quotes_dict[quote.quote_id]['shipping_charges'] = quote.shipping_charges
+        quotes_dict[quote.quote_id]['adjustment_amount'] = quote.adjustment_amount
     
     quotes_list = list(quotes_dict.values())
     
@@ -546,7 +555,7 @@ def quote_management(request):
         'lost': Quote.objects.filter(status='Lost').values('quote_id').distinct().count(),
     }
     
-    # Calculate total values
+    # Calculate total values using stored totals
     total_value = sum(q['total_amount'] for q in quotes_list)
     approved_value = Quote.objects.filter(status='Approved').aggregate(
         total=Sum('total_amount')
@@ -560,10 +569,9 @@ def quote_management(request):
     total_revenue_all = 0
     total_cost_all = 0
     for q_dict in quotes_list:
-        # Sum up for all items in this quote group
-        for item in q_dict['items']:
-            total_revenue_all += item.total_amount
-            total_cost_all += (item.production_cost or Decimal('0'))
+        quote = q_dict['quote']
+        total_revenue_all += quote.total_amount
+        total_cost_all += (quote.production_cost or Decimal('0'))
             
     avg_margin = 0
     if total_revenue_all > 0:
@@ -1438,6 +1446,14 @@ def quote_create(request):
             special_instructions = request.POST.get('special_instructions', '')
             action = request.POST.get('action', 'save_draft')
             
+            # Zoho-style additional fields
+            reference_number = request.POST.get('reference_number', '').strip()
+            shipping_charges = Decimal(request.POST.get('shipping_charges', '0') or '0')
+            adjustment_amount = Decimal(request.POST.get('adjustment_amount', '0') or '0')
+            adjustment_reason = request.POST.get('adjustment_reason', '').strip()
+            tax_rate = Decimal(request.POST.get('tax_rate', '16') or '16')
+            custom_terms = request.POST.get('terms_conditions', '').strip()
+            
             client_id = request.POST.get('client_id')
             lead_id = request.POST.get('lead_id')
 
@@ -1457,6 +1473,8 @@ def quote_create(request):
             quantities = request.POST.getlist('quantity[]')
             rates = request.POST.getlist('rate[]')  # Unit prices from form
             variable_amounts = request.POST.getlist('variable_amount[]', [])  # For semi-customizable products
+            discount_amounts = request.POST.getlist('discount[]', [])  # Discount values
+            discount_types = request.POST.getlist('discount_type[]', [])  # Discount types (percent/fixed)
 
             if not product_ids:
                 messages.error(request, 'Please add at least one product to the quote')
@@ -1495,6 +1513,12 @@ def quote_create(request):
                     quote.lead = lead
                     quote.valid_until = timezone.datetime.fromisoformat(valid_until).date() if valid_until else quote.valid_until
                     quote.notes = special_instructions
+                    quote.reference_number = reference_number
+                    quote.shipping_charges = shipping_charges
+                    quote.adjustment_amount = adjustment_amount
+                    quote.adjustment_reason = adjustment_reason
+                    quote.tax_rate = tax_rate
+                    quote.custom_terms = custom_terms
                     # Don't change created_by when editing
                     # Delete existing line items - we'll recreate them
                     QuoteLineItem.objects.filter(quote=quote).delete()
@@ -1512,6 +1536,12 @@ def quote_create(request):
                         quote_date=timezone.now().date(),
                         valid_until=timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date() + timedelta(days=30),
                         notes=special_instructions,
+                        reference_number=reference_number,
+                        shipping_charges=shipping_charges,
+                        adjustment_amount=adjustment_amount,
+                        adjustment_reason=adjustment_reason,
+                        tax_rate=tax_rate,
+                        custom_terms=custom_terms,
                         created_by=request.user
                     )
                 
@@ -1526,13 +1556,18 @@ def quote_create(request):
                 # Now we can safely create line items - quote has a PK
                 
                 # Create line items with pricing snapshots
-                total_amount = Decimal('0')
+                subtotal = Decimal('0')
+                discount_total = Decimal('0')
                 has_fully_customizable = False
                 
                 for i in range(len(product_ids)):
                     product = Product.objects.get(id=product_ids[i])
                     qty = int(quantities[i]) if i < len(quantities) else 1
-                    var_amount = Decimal(variable_amounts[i]) if i < len(variable_amounts) else Decimal('0')
+                    var_amount = Decimal(variable_amounts[i]) if i < len(variable_amounts) and variable_amounts[i] else Decimal('0')
+                    
+                    # Get discount data
+                    disc_amount = Decimal(discount_amounts[i]) if i < len(discount_amounts) and discount_amounts[i] else Decimal('0')
+                    disc_type = discount_types[i] if i < len(discount_types) and discount_types[i] else 'percent'
                     
                     # Get unit price
                     if i < len(rates) and rates[i]:
@@ -1553,20 +1588,53 @@ def quote_create(request):
                         quantity=qty,
                         unit_price=unit_price,
                         variable_amount=var_amount,
+                        discount_amount=disc_amount,
+                        discount_type=disc_type,
                         order=i
                     )
                     
-                    total_amount += line_item.line_total
+                    # Calculate subtotal and discount for this line
+                    line_subtotal = (unit_price + var_amount) * qty
+                    line_discount = Decimal('0')
+                    if disc_amount > 0:
+                        if disc_type == 'percent':
+                            line_discount = line_subtotal * (disc_amount / Decimal('100'))
+                        else:
+                            line_discount = disc_amount
+                    
+                    subtotal += line_subtotal
+                    discount_total += line_discount
                     
                     # Check if product is fully customizable
                     if product.customization_level == 'fully_customizable':
                         has_fully_customizable = True
                 
+                # Calculate Tax
+                after_discount = subtotal - discount_total
+                tax_total = (after_discount * tax_rate / Decimal('100'))
+                
+                # Final Total
+                final_total = after_discount + tax_total + shipping_charges + adjustment_amount
+                
                 # Update quote totals
                 quote.product_name = f"{len(product_ids)} item(s)" if len(product_ids) > 1 else QuoteLineItem.objects.filter(quote=quote).first().product_name if QuoteLineItem.objects.filter(quote=quote).exists() else ''
                 quote.quantity = sum(item.quantity for item in QuoteLineItem.objects.filter(quote=quote))
-                quote.total_amount = total_amount
+                quote.subtotal = subtotal
+                quote.discount_total = discount_total
+                quote.tax_total = tax_total
+                quote.total_amount = final_total
                 quote.save()
+
+                # Handle File Attachments
+                files = request.FILES.getlist('attachments')
+                for f in files:
+                    QuoteAttachment.objects.create(
+                        quote=quote,
+                        file=f,
+                        filename=f.name,
+                        file_size=f.size,
+                        uploaded_by=request.user
+                    )
 
                 # 8. Finalize Status based on the Action button clicked
                 if action == 'save_draft':
@@ -1707,6 +1775,120 @@ def download_quote_pdf(request, quote_id):
         import traceback
         traceback.print_exc()
         return redirect('quotes_list')
+
+
+@login_required
+def clone_quote(request, quote_id):
+    """Clone an existing quote - creates a new quote with copied data"""
+    from clientapp.models import QuoteLineItem
+    
+    original_quote = get_object_or_404(Quote, quote_id=quote_id)
+    
+    # Generate new quote ID
+    new_quote_id = f"Q-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:8].upper()}"
+    
+    try:
+        with transaction.atomic():
+            # Create new quote with copied data
+            new_quote = Quote.objects.create(
+                quote_id=new_quote_id,
+                client=original_quote.client,
+                lead=original_quote.lead,
+                product_name=original_quote.product_name,
+                quantity=original_quote.quantity,
+                unit_price=original_quote.unit_price,
+                subtotal=original_quote.subtotal,
+                discount_total=original_quote.discount_total,
+                tax_total=original_quote.tax_total,
+                total_amount=original_quote.total_amount,
+                status='Draft',
+                quote_date=timezone.now().date(),
+                valid_until=timezone.now().date() + timedelta(days=30),
+                notes=original_quote.notes,
+                reference_number='',  # Clear reference for new quote
+                shipping_charges=original_quote.shipping_charges,
+                adjustment_amount=original_quote.adjustment_amount,
+                adjustment_reason=original_quote.adjustment_reason,
+                tax_rate=original_quote.tax_rate,
+                custom_terms=original_quote.custom_terms,
+                include_vat=original_quote.include_vat,
+                created_by=request.user
+            )
+            
+            # Clone line items
+            for item in QuoteLineItem.objects.filter(quote=original_quote).order_by('order'):
+                QuoteLineItem.objects.create(
+                    quote=new_quote,
+                    product=item.product,
+                    product_name=item.product_name,
+                    customization_level_snapshot=item.customization_level_snapshot,
+                    base_price_snapshot=item.base_price_snapshot,
+                    quantity=item.quantity,
+                    unit_price=item.unit_price,
+                    line_total=item.line_total,
+                    discount_amount=item.discount_amount,
+                    discount_type=item.discount_type,
+                    variable_amount=item.variable_amount,
+                    order=item.order
+                )
+            
+            messages.success(request, f'✅ Quote cloned successfully! New quote: {new_quote_id}')
+            return redirect('quote_detail', quote_id=new_quote_id)
+            
+    except Exception as e:
+        messages.error(request, f'Error cloning quote: {str(e)}')
+        return redirect('quote_detail', quote_id=quote_id)
+
+
+@login_required
+def convert_quote_to_job(request, quote_id):
+    """Convert an approved quote directly to a job"""
+    quote = get_object_or_404(Quote, quote_id=quote_id)
+    
+    # Validate quote status
+    if quote.status != 'Approved':
+        messages.error(request, 'Only approved quotes can be converted to jobs.')
+        return redirect('quote_detail', quote_id=quote_id)
+    
+    # Check if job already exists for this quote
+    existing_job = Job.objects.filter(quote=quote).first()
+    if existing_job:
+        messages.info(request, f'Job {existing_job.job_number} already exists for this quote.')
+        return redirect('job_detail', pk=existing_job.pk)
+    
+    try:
+        with transaction.atomic():
+            # Generate job number
+            job_number = f"JOB-{timezone.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:6].upper()}"
+            
+            # Create job from quote
+            job = Job.objects.create(
+                job_number=job_number,
+                quote=quote,
+                client=quote.client,
+                product_name=quote.product_name,
+                quantity=quote.quantity,
+                status='Pending',
+                priority='Medium',
+                created_by=request.user
+            )
+            
+            # Log activity
+            if quote.client:
+                ActivityLog.objects.create(
+                    client=quote.client,
+                    activity_type='Order',
+                    title=f"Job {job_number} Created from Quote {quote_id}",
+                    description=f"Quote converted to production job.",
+                    created_by=request.user
+                )
+            
+            messages.success(request, f'✅ Job {job_number} created successfully from quote {quote_id}.')
+            return redirect('job_detail', pk=job.pk)
+            
+    except Exception as e:
+        messages.error(request, f'Error converting quote to job: {str(e)}')
+        return redirect('quote_detail', quote_id=quote_id)
 
 def client_profile(request, pk):
     """Unified Client Profile View — includes jobs, quotes, activities, and financials"""
@@ -7330,10 +7512,10 @@ def api_product_catalog(request):
     from clientapp.models import resolve_unit_price
     
     try:
-        # Return all active products (not archived) - production team may add products that aren't published yet
-        # Account Managers should see all products added by production team
+        # Return only published and visible products for Account Managers
         products = Product.objects.filter(
-            status__in=['draft', 'published']  # Include both draft and published, exclude archived
+            status='published',
+            is_visible=True
         ).select_related('pricing').order_by('name')
         
         # Apply search filter if provided

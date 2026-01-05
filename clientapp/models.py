@@ -1287,7 +1287,7 @@ class ProductChangeHistory(models.Model):
         return f"{self.product.internal_code} - {self.change_type} at {self.changed_at}"
 
 
-# Updated Quote Model - Replace in your models.py
+
 
 class Quote(models.Model):
     """Quote/Proposal model - Zoho-style quoting with proper status machine"""
@@ -1331,6 +1331,19 @@ class Quote(models.Model):
     # Simplified Pricing - ONLY UNIT PRICE
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Zoho-style Additional Fields
+    reference_number = models.CharField(max_length=100, blank=True, help_text="Client PO/LPO reference")
+    shipping_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Delivery/shipping cost")
+    adjustment_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Final adjustment (+/-)")
+    adjustment_reason = models.CharField(max_length=255, blank=True, help_text="Reason for adjustment")
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=16, help_text="Tax percentage (default 16% VAT)")
+    custom_terms = models.TextField(blank=True, help_text="Custom terms & conditions for this quote")
+    
+    # Calculated Totals (Stored for data integrity and reporting)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
     # Quote Details
     payment_terms = models.CharField(max_length=20, choices=PAYMENT_TERMS_CHOICES, default='Prepaid')
@@ -1574,6 +1587,11 @@ class Quote(models.Model):
 class QuoteLineItem(models.Model):
     """Line items for quotes - stores product pricing snapshots"""
     
+    DISCOUNT_TYPE_CHOICES = [
+        ('percent', 'Percentage'),
+        ('fixed', 'Fixed Amount'),
+    ]
+    
     quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name='line_items')
     product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True, related_name='quote_line_items')
     
@@ -1586,6 +1604,10 @@ class QuoteLineItem(models.Model):
     quantity = models.IntegerField(validators=[MinValueValidator(1)])
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Discount fields (Zoho-style)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Discount value")
+    discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICES, default='percent', help_text="Discount type")
     
     # Variable pricing (for semi-customizable products)
     variable_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Additional cost from variables")
@@ -1607,9 +1629,32 @@ class QuoteLineItem(models.Model):
         return f"{self.quote.quote_id} - {self.product_name} (x{self.quantity})"
     
     def save(self, *args, **kwargs):
-        # Calculate line total
-        self.line_total = (self.unit_price + self.variable_amount) * self.quantity
+        # Calculate line total with discount
+        subtotal = (self.unit_price + self.variable_amount) * self.quantity
+        
+        # Apply discount
+        discount = Decimal('0')
+        if self.discount_amount > 0:
+            if self.discount_type == 'percent':
+                discount = subtotal * (self.discount_amount / Decimal('100'))
+            else:  # fixed
+                discount = self.discount_amount
+        
+        self.line_total = subtotal - discount
         super().save(*args, **kwargs)
+
+
+class QuoteAttachment(models.Model):
+    """File attachments for quotes (briefs, artwork, specs)"""
+    quote = models.ForeignKey(Quote, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='quote_attachments/%Y/%m/')
+    filename = models.CharField(max_length=255)
+    file_size = models.BigIntegerField(help_text="Size in bytes")
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.filename} ({self.quote.quote_id})"
 
 
 # Centralized Pricing Resolver Function
