@@ -133,7 +133,7 @@ def send_quote_email(quote_id, request):
         
         first_quote = quotes.first()
         
-        # ✅ Use the service to send the email (which generates the token properly)
+        # Sending email to generate token
         result = QuoteApprovalService.send_quote_via_email(first_quote, request)
         
         return result
@@ -249,7 +249,7 @@ def group_required(group_name, allow_superuser=False):
             if user.groups.filter(name=group_name).exists():
                 return view_func(request, *args, **kwargs)
 
-            # Graceful redirect instead of 403
+            #redirect instead of 403
             messages.warning(request, "You don't have access to that section.")
 
             # Determine best fallback based on user's groups
@@ -275,13 +275,12 @@ def dashboard(request):
     today = timezone.now().date()
     this_month_start = today.replace(day=1)
     thirty_days_ago = today - timedelta(days=30)
+  
     
-    # ========== CORE METRICS (matches your template) ==========
-    
-        # Total leads (Global)
+        # Total leads 
     total_leads = Lead.objects.all().count()
     
-    # Converted leads (Global)
+    # Converted leads 
     converted_leads = Lead.objects.filter(status='Converted').count()
     
     # Active clients
@@ -298,7 +297,7 @@ def dashboard(request):
     completed_jobs = Job.objects.filter(client__account_manager=request.user, status='completed').count()
     
     # ========== QUOTE METRICS ==========
-    # Total unique quotes
+    # Total quotes
     total_quotes = Quote.objects.filter(created_by=request.user).values('quote_id').distinct().count()
     
     # Draft quotes
@@ -322,7 +321,7 @@ def dashboard(request):
     # Conversion rate
     conversion_rate = round((approved_quotes / total_quotes * 100), 1) if total_quotes > 0 else 0
     
-    # ========== MY PERSONAL KPIs (This Month) ==========
+    # ========== MY PERSONAL KPIs ==========
     my_quotes_this_month = Quote.objects.filter(
         created_by=request.user,
         created_at__gte=this_month_start
@@ -347,7 +346,7 @@ def dashboard(request):
     
     my_win_rate = round((my_quotes_won / my_quotes_this_month * 100), 1) if my_quotes_this_month > 0 else 0
     
-    # Changes from last period (set to 0 for now, you can calculate later)
+    # Changes from last period
     quotes_change = 0
     clients_change = 0
     revenue_change = Decimal('0')
@@ -516,7 +515,7 @@ def quote_management(request):
     # Get all quotes with aggregations
     all_quotes = Quote.objects.select_related('client', 'lead', 'created_by').order_by('-created_at')
     
-    # Filter by status if provided
+    # Filter by status 
     status_filter = request.GET.get('status', 'All')
     if status_filter != 'All':
         all_quotes = all_quotes.filter(status=status_filter)
@@ -560,7 +559,7 @@ def quote_management(request):
     total_revenue_all = 0
     total_cost_all = 0
     for q_dict in quotes_list:
-        # Sum up for all items in this quote group
+        # Sum up for all items 
         for item in q_dict['items']:
             total_revenue_all += item.total_amount
             total_cost_all += (item.production_cost or Decimal('0'))
@@ -643,7 +642,7 @@ def create_multi_quote(request):
     return redirect('quote_management')
 
 
-# ========== STANDALONE VIEWS (NEW SIDEBAR ITEMS) ==========
+
 @login_required
 @group_required('Account Manager')
 def analytics(request):
@@ -722,7 +721,7 @@ def analytics(request):
     context = {
         'current_view': 'analytics',
         
-        # Chart data (convert to JSON for JavaScript)
+        # Chart data 
         'revenue_labels': json.dumps(labels),
         'revenue_data': json.dumps(revenue_data),
         'top_product_labels': json.dumps(top_product_labels),
@@ -791,7 +790,7 @@ def account_manager_jobs_list(request):
         client__account_manager=request.user
     ).exclude(status='completed').select_related('client').order_by('-created_at')
     
-    # Add custom status property for template
+    
     for job in jobs:
         # Check for delivery status
         try:
@@ -874,15 +873,12 @@ def account_manager_send_reminder(request, pk):
     
     if request.method == 'POST':
         # Create notification for production team
-        # Ideally we should notify the specific person in charge if they are a user
-        # But since person_in_charge is a CharField, we might try to find a user with that name
-        # Or just notify all production team members
-        
+                
         production_group = Group.objects.filter(name='Production Team').first()
         if production_group:
             recipients = production_group.user_set.all()
             
-            # Try to narrow down to person in charge if possible
+            
             if job.person_in_charge:
                 specific_user = User.objects.filter(
                     Q(username__iexact=job.person_in_charge) | 
@@ -896,7 +892,7 @@ def account_manager_send_reminder(request, pk):
                 Notification.objects.create(
                     recipient=recipient,
                     notification_type='job_reminder',
-                    title=f'⏰ Reminder: {job.job_name}',
+                    title=f' Reminder: {job.job_name}',
                     message=f'Reminder for job {job.job_number} ({job.client.name}). Due date: {job.expected_completion}. Please update status.',
                     link=f'/job/{job.pk}/', # Link to PT job detail
                     related_job=job
@@ -924,11 +920,11 @@ def lead_intake(request):
             lead.created_by = request.user
             lead.save()
             
-            # ✅ CREATE NOTIFICATION: Remind AM to create quote
+            #  CREATE NOTIFICATION: Remind AM to create quote
             Notification.objects.create(
                 recipient=request.user,
                 notification_type='quote_reminder',
-                title=f'📝 Create Quote for {lead.name}',
+                title=f' Create Quote for {lead.name}',
                 message=f'New lead created: {lead.name} ({lead.lead_id}). Remember to send them a quote.',
                 link=f'/create/quote?lead_id={lead.id}',
                 related_lead=lead,
@@ -948,7 +944,7 @@ def lead_intake(request):
                     related_lead=lead
                 )
             
-            messages.success(request, f'✅ Lead {lead.name} created! Check notifications for next steps.')
+            messages.success(request, f' Lead {lead.name} created! Check notifications for next steps.')
             return redirect('lead_intake')
         else:
             messages.error(request, 'Please fill in all required fields')
@@ -1019,7 +1015,7 @@ def client_onboarding(request):
         
         try:
             if client_type == 'B2C':
-                # ============ B2C SIMPLIFIED ONBOARDING - SINGLE STEP ============
+                # ============ B2C SIMPLIFIED ONBOARDING  ============
                 company = request.POST.get('company_b2c', '').strip()  # Optional
                 name = request.POST.get('name_b2c', '').strip()  # Required
                 email = request.POST.get('email_b2c', '').strip()  # Optional now
@@ -1263,7 +1259,7 @@ def check_duplicate_lead(request):
         })
     return JsonResponse({'duplicate': False})
 
-# ========= QUOTE CREATION / MANAGEMENT =========
+# ========= QUOTE CREATION =========
 
 
 @login_required
@@ -1486,7 +1482,7 @@ def quote_create(request):
             quote_pk = None
             quote_id_for_redirect = quote_group_id
             
-            # 6. Process and Save Quote with Line Items (Atomic transaction)
+            # 6. Process and Save Quote with Line Items
             with transaction.atomic():
                 if is_editing:
                     # Update existing quote
@@ -1495,8 +1491,7 @@ def quote_create(request):
                     quote.lead = lead
                     quote.valid_until = timezone.datetime.fromisoformat(valid_until).date() if valid_until else quote.valid_until
                     quote.notes = special_instructions
-                    # Don't change created_by when editing
-                    # Delete existing line items - we'll recreate them
+                    
                     QuoteLineItem.objects.filter(quote=quote).delete()
                 else:
                     # Create new Quote record
@@ -1515,17 +1510,16 @@ def quote_create(request):
                         created_by=request.user
                     )
                 
-                # ✅ SAVE THE QUOTE FIRST to get a primary key
-                # This MUST happen before creating any QuoteLineItem objects
+                
                 quote.save()
                 
                 # Verify quote has a primary key
                 if not quote.pk:
                     raise ValueError("Quote was not saved properly - no primary key assigned")
                 
-                # Now we can safely create line items - quote has a PK
+               
                 
-                # Create line items with pricing snapshots
+                # Create line items with pricing
                 total_amount = Decimal('0')
                 has_fully_customizable = False
                 
@@ -1543,7 +1537,7 @@ def quote_create(request):
                     else:
                         unit_price = resolve_unit_price(product)
                     
-                    # ✅ NOW create line items - quote has a PK
+                    # quote has a PK
                     line_item = QuoteLineItem.objects.create(
                         quote=quote,
                         product=product,
@@ -1568,14 +1562,14 @@ def quote_create(request):
                 quote.total_amount = total_amount
                 quote.save()
 
-                # 8. Finalize Status based on the Action button clicked
+                # 8. Finalize
                 if action == 'save_draft':
                     quote.status = 'Draft'
                     quote.save()
                     if is_editing:
-                        msg = f"💾 Quote {quote_group_id} updated and saved as draft."
+                        msg = f" Quote {quote_group_id} updated and saved as draft."
                     else:
-                        msg = f"💾 Quote {quote_group_id} saved as draft."
+                        msg = f" Quote {quote_group_id} saved as draft."
                 
                 elif action == 'save_send_pt':
                     # Check if quote can be sent to PT
@@ -1596,15 +1590,15 @@ def quote_create(request):
                         Notification.objects.create(
                             recipient=pt,
                             notification_type='quote_sent_pt',
-                            title=f'📋 Quote {quote_group_id} Needs Costing',
+                            title=f' Quote {quote_group_id} Needs Costing',
                             message=f'New quote from {request.user.get_full_name()} requires costing.',
                             link=f'/production/quote-costing-v2/{quote_group_id}/',
                             related_quote_id=quote_group_id
                         )
                     if is_editing:
-                        msg = f"✅ Quote {quote_group_id} updated and sent to PT for costing."
+                        msg = f" Quote {quote_group_id} updated and sent to PT for costing."
                     else:
-                        msg = f"✅ Quote {quote_group_id} sent to PT for costing."
+                        msg = f" Quote {quote_group_id} sent to PT for costing."
                 
                 elif action == 'send_to_customer':
                     # Check if quote can be sent to customer
@@ -1613,11 +1607,10 @@ def quote_create(request):
                         messages.error(request, error_msg)
                         return redirect('quote_detail', quote_id=quote_group_id)
                     
-                    # Ensure quote is fully saved
+                    # Save
                     quote.save()
                     
-                    # Store quote_id to fetch fresh instance after transaction commits
-                    # We'll handle email sending AFTER the transaction commits
+                    
                     quote_pk = quote.pk
                     quote_id_for_redirect = quote_group_id
                     msg = f"💾 Quote {quote_group_id} prepared for sending."
@@ -1632,12 +1625,11 @@ def quote_create(request):
                         created_by=request.user
                     )
 
-            # Transaction is now committed - all quote and line items are fully saved
+           
             
             # After transaction commits, handle email sending if needed
             if action == 'send_to_customer':
-                # Get a fresh instance from database (now fully committed)
-                # The transaction has committed, so the quote is fully saved
+                
                 quote_for_email = Quote.objects.get(pk=quote_pk)
                 
                 # Use the send_quote view to handle email sending
@@ -1649,7 +1641,7 @@ def quote_create(request):
                     quote_for_email.status = 'Sent to Customer'
                     quote_for_email.production_status = 'sent_to_client'
                     quote_for_email.save()
-                    messages.success(request, f"✅ Quote {quote_id_for_redirect} sent to customer via email.")
+                    messages.success(request, f" Quote {quote_id_for_redirect} sent to customer via email.")
                     return redirect('quote_detail', quote_id=quote_id_for_redirect)
                 else:
                     messages.error(request, f"Error sending quote: {result.get('message', 'Unknown error')}")
@@ -1712,10 +1704,10 @@ def client_profile(request, pk):
     """Unified Client Profile View — includes jobs, quotes, activities, and financials"""
     client = get_object_or_404(Client, pk=pk)
 
-    # ================= JOBS =================
+    #Jobs
     jobs = client.jobs.all().order_by('-created_at')
 
-    # ================= QUOTES =================
+    # Quotes
     all_quotes = client.quotes.all().order_by('-created_at')
 
     # Group quotes by quote_id (some quotes may have multiple line items)
@@ -1734,16 +1726,16 @@ def client_profile(request, pk):
 
     quotes_list = list(quotes_dict.values())
 
-    # ================= ACTIVITIES =================
+    #ACTIVITIES 
     activities = client.activities.all().order_by('-created_at')
     recent_activities = activities[:5]
     all_activities = activities
 
-    # ================= DOCUMENTS =================
+    # DOCUMENTS
     compliance_documents = ComplianceDocument.objects.filter(client=client)
     brand_assets = BrandAsset.objects.filter(client=client) if hasattr(client, 'brand_assets') else []
 
-    # ================= CONTACTS =================
+    # CONTACTS
     client_contacts = ClientContact.objects.filter(client=client)
 
     # ================= FINANCIAL METRICS =================
@@ -1764,7 +1756,7 @@ def client_profile(request, pk):
     # ================= CONTEXT =================
     context = {
         'client': client,
-        'client_quotes': all_quotes,  # For quotes tab table
+        'client_quotes': all_quotes,  
         'quotes': quotes_list,
         'client_jobs': jobs,
         'recent_activities': recent_activities,
@@ -1899,7 +1891,7 @@ def quote_detail(request, quote_id):
     vat_amount = subtotal * Decimal('0.16') if quote.include_vat else Decimal('0')
     total_amount = subtotal + vat_amount
     
-    # Button visibility logic (Zoho-like)
+    # Button visibility logic 
     can_send_to_customer, send_to_customer_error = quote.can_send_to_customer()
     can_send_to_pt, send_to_pt_error = quote.can_send_to_pt()
     
@@ -1910,9 +1902,9 @@ def quote_detail(request, quote_id):
     context = {
         'quote_id': quote_id,
         'quote': quote,
-        'quotes': quotes,  # For backward compatibility
+        'quotes': quotes, 
         'line_items': line_items,
-        'first_quote': quote,  # Alias for template compatibility
+        'first_quote': quote,  
         'client': quote.client,
         'lead': quote.lead,
         'subtotal': subtotal,
@@ -1967,7 +1959,7 @@ def handle_quote_approval(request, quote_id):
         # Update status
         quotes.update(status='Approved', approved_at=timezone.now())
         
-        # ✅ CREATE NOTIFICATIONS FOR ALL PORTALS
+        
         
         # 1. Notify the Account Manager who created the quote
         if first_quote.created_by:
@@ -1988,7 +1980,7 @@ def handle_quote_approval(request, quote_id):
             Notification.objects.create(
                 recipient=pt,
                 notification_type='quote_approved',
-                title=f'✅ Quote {quote_id} Approved',
+                title=f' Quote {quote_id} Approved',
                 message=f'New approved quote ready for production. Value: KES {first_quote.total_amount:,.0f}',
                 link=f'/quote-detail/{quote_id}/',
                 related_quote_id=quote_id
@@ -2068,9 +2060,9 @@ def quotes_list(request):
         if quote.status == 'Approved':
             quotes_dict[quote.quote_id]['approved_items'] += 1
         
-        # Calculate margin (simplified - you may want to adjust this)
+        # Calculate margin 
         if quote.unit_price > 0:
-            # Assuming 25% margin as default - adjust based on your business logic
+            
             quotes_dict[quote.quote_id]['margin'] = 25.0
         for q in quotes_dict.values():
             if q['total_value'] > 0:
@@ -2138,7 +2130,7 @@ def get_lead_details(request, lead_id):
             'name': lead.name,
             'email': lead.email,
             'phone': lead.phone,
-            'default_markup': 35,  # Default markup for leads
+            'default_markup': 35,  
             'payment_terms': 'Prepaid',
             'source': lead.source if hasattr(lead, 'source') else '',
         }
@@ -2382,13 +2374,13 @@ def job_detail(request, pk):
     elif job.status == 'completed':
         overall_progress = 100
     elif job.status == 'in_progress':
-        # Get from last production update if available
+        # Get from last production updatee
         last_update = production_updates.first()
         overall_progress = last_update.progress if last_update else 50
     else:
         overall_progress = 0
     
-    # Calculate deadline info
+    # Calculate deadline
     now = timezone.now()
     deadline = timezone.make_aware(
         timezone.datetime.combine(job.expected_completion, timezone.datetime.min.time())
@@ -2405,7 +2397,7 @@ def job_detail(request, pk):
         days_remaining = hours_remaining // 24
         deadline_text = f"{days_remaining} days remaining"
     
-    # Get primary vendor (from current stage or first stage)
+    # Get primary vendor
     primary_vendor = None
     if vendor_stages:
         current = current_stage or vendor_stages[0]
@@ -2425,18 +2417,18 @@ def job_detail(request, pk):
     elif job.status == 'in_progress':
         current_stage_text = "Vendor Production"
     
-    # Get job specs from quote if available
+    # Get job specs from quote
     specs = {}
     if job.quote:
         specs = {
             'product_type': job.quote.product_name or job.product,
             'colors': '4/4 (CMYK both sides)',  # Default, could be stored in quote
-            'size': 'A4 (210mm × 297mm)',  # Default
+            'size': 'A4 (210mm × 297mm)',  
             'finishing': 'Matt Lamination',  # Default
             'quantity': f"{job.quantity:,} pcs",
             'folding': 'Tri-fold',  # Default
-            'material': '150gsm Gloss Art Paper',  # Default
-            'binding': 'None',  # Default
+            'material': '150gsm Gloss Art Paper', 
+            'binding': 'None', 
         }
     else:
         specs = {
@@ -2723,12 +2715,12 @@ def qc_inspection_start(request, job_id):
     # Check if QC inspection already exists
     try:
         existing_qc = job.qc_inspection
-        # If exists, redirect to it
+        
         return redirect('qc_inspection', inspection_id=existing_qc.id)
     except:
         pass
     
-    # Allow QC inspection for jobs that are ready for QC (not just completed jobs)
+   
     
     # Create new QC inspection
     try:
@@ -2872,7 +2864,6 @@ def update_quote_costing(request, quote_id):
     return render(request, 'approve_quote.html', context)
 
 
-# Add this AFTER your existing update_quote_costing view (around line 1138)
 
 @login_required
 @group_required('Production Team')
@@ -2890,7 +2881,7 @@ def update_quote_costing_v2(request, quote_id):
             # Get form data
             action = request.POST.get('action', 'save')
             
-            # Get line items (preferred) or fallback to old quote records
+            # Get line items
             line_items = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
             
             if line_items.exists():
@@ -2907,7 +2898,7 @@ def update_quote_costing_v2(request, quote_id):
                     if unit_price_key in request.POST and request.POST[unit_price_key]:
                         try:
                             item.unit_price = Decimal(request.POST[unit_price_key])
-                            item.save()  # This will recalculate line_total
+                            item.save()  
                         except (ValueError, TypeError):
                             pass
                     
@@ -2926,7 +2917,7 @@ def update_quote_costing_v2(request, quote_id):
                     vat_amount = total_amount * Decimal('0.16')
                     quote.total_amount = total_amount + vat_amount
             else:
-                # Fallback: update old quote records
+                # Fallback
                 for q in related_quotes:
                     production_cost = request.POST.get(f'production_cost_{q.id}')
                     vendor_id = request.POST.get(f'selected_vendor_{q.id}')
@@ -2939,8 +2930,7 @@ def update_quote_costing_v2(request, quote_id):
             if action == 'approve':
                 quote.production_status = 'costed'
                 quote.costed_by = request.user
-                # Set status to 'Sent to PT' first if it's Draft, then to 'Costed'
-                # This ensures proper status transition
+                
                 if quote.status == 'Draft':
                     # Temporarily bypass validation to set intermediate status
                     quote._skip_status_validation = True
@@ -2966,7 +2956,7 @@ def update_quote_costing_v2(request, quote_id):
                 Notification.objects.create(
                     recipient=quote.created_by,
                     notification_type='quote_pt_approved',
-                    title=f'✅ Quote {quote_id} Costed & Ready',
+                    title=f' Quote {quote_id} Costed & Ready',
                     message=f'Production team has costed your quote. You can now send it to the client.',
                     link=reverse('quote_detail', args=[quote_id]),
                     related_quote_id=quote_id,
@@ -2974,9 +2964,9 @@ def update_quote_costing_v2(request, quote_id):
                     action_label='View Quote'
                 )
                 
-                messages.success(request, f'✅ Quote {quote_id} costed and approved!')
+                messages.success(request, f' Quote {quote_id} costed and approved!')
             else:
-                messages.success(request, f'💾 Quote {quote_id} costing saved as draft.')
+                messages.success(request, f' Quote {quote_id} costing saved as draft.')
             
             return redirect('production_quote_review')
             
@@ -2986,15 +2976,15 @@ def update_quote_costing_v2(request, quote_id):
             traceback.print_exc()
             return redirect('production_quote_costing_v2', quote_id=quote_id)
     
-    # GET request - prepare data for template
+    
     
     # Get all available processes
     processes = Process.objects.filter(status='active').order_by('process_name')
     
-    # Get line items (preferred) or fallback to old quote records
+    # Get line items 
     line_items_objs = QuoteLineItem.objects.filter(quote=quote).order_by('order', 'created_at')
     
-    # Prepare line items with process suggestions
+    # Prepare line items 
     line_items = []
     
     if line_items_objs.exists():
@@ -3037,7 +3027,7 @@ def update_quote_costing_v2(request, quote_id):
             
             line_items.append({
                 'line_item': item,
-                'quote': None,  # Not using old quote records
+                'quote': None,  
                 'suggested_process': suggested_process,
                 'process_cost': process_cost,
                 'available_vendors': available_vendors,
@@ -3154,9 +3144,8 @@ def production_catalog(request):
     return render(request, 'product_catalog.html', context)
 
 
-# ================================
+
 # PROCESS MANAGEMENT VIEWS (FORMULA-BASED PRICING)
-# ================================
 
 @login_required
 @require_POST
@@ -3480,7 +3469,7 @@ def production2_dashboard(request):
     # Get current user
     user = request.user
     
-    # ===== JOB COUNTS =====
+    
     total_jobs = Job.objects.count()
     completed_jobs = Job.objects.filter(status='completed').count()
     active_jobs = Job.objects.filter(status__in=['in_progress', 'pending']).count()
@@ -3498,7 +3487,7 @@ def production2_dashboard(request):
         | Q(expected_completion__lt=today, status__in=['pending', 'in_progress'])
     ).count()
     
-    # ===== URGENT JOBS =====
+   
     # Jobs due within 3 days
     three_days_from_now = today + timedelta(days=3)
     urgent_jobs = Job.objects.filter(
@@ -3517,8 +3506,8 @@ def production2_dashboard(request):
         else:
             job.urgency_label = f"{days_left} days left"
     
-    # ===== MY ACTIVE JOBS (for logged-in user) =====
-    # Show jobs created by user OR where user is person in charge
+    
+    # Show jobs created by user
     my_active_jobs = Job.objects.filter(
         Q(created_by=user) | 
         Q(person_in_charge__icontains=user.first_name) | 
@@ -3542,8 +3531,8 @@ def production2_dashboard(request):
             job.deadline_warning = False
             job.deadline_text = job.expected_completion.strftime("%b %d")
 
-    # ===== USER PERFORMANCE METRICS =====
-    # Jobs completed by this user (created by or assigned to)
+   
+    # Jobs completed byuser
     user_jobs_query = Q(created_by=user) | Q(person_in_charge__icontains=user.first_name) | Q(person_in_charge__icontains=user.username)
     
     user_jobs_total = Job.objects.filter(user_jobs_query).count()
@@ -3738,7 +3727,6 @@ def login_redirect(request):
     elif user.groups.filter(name='Account Manager').exists():
         return redirect('dashboard')
     else:
-        # User has no recognized group - show friendly error page instead of redirect loop
         from django.shortcuts import render
         return render(request, 'no_group_error.html', {
             'user': user,
@@ -3758,7 +3746,7 @@ def ajax_get_product_image(request, image_id):
             'image_url': image.image.url,
             'file_name': image.image.name.split('/')[-1],
             'file_size': f"{image.image.size / 1024:.1f} KB" if hasattr(image.image, 'size') else 'Unknown',
-            'dimensions': 'Unknown',  # You'd need to get actual dimensions
+            'dimensions': 'Unknown',  
             'alt_text': image.alt_text or '',
             'caption': image.caption or '',
             'image_type': image.image_type or 'product-photo'
@@ -3823,7 +3811,6 @@ def ajax_replace_product_image(request, image_id):
         return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
         
-# Add before the login_redirect function (around line 1859):
 @login_required
 @group_required('Production Team')
 def production_jobs(request):
@@ -3843,17 +3830,12 @@ def production_jobs(request):
     return render(request, 'production_jobs.html', context)
 
 
-# Add imports after existing imports:
 
-# Add finance decorator after group_required:
 def finance_required(view_func):
     """Require Finance group membership"""
     return group_required('Finance')(view_func)
 
-# Add finance dashboard view before login_redirect:
 
-
-# Add client-entity mapping view:
 @finance_required
 def finance_client_entity(request, client_id):
     """Map client to Django Ledger entity"""
@@ -3891,7 +3873,7 @@ def finance_client_entity(request, client_id):
     return render(request, 'finance_entity.html', {'entity': entity, 'current_view': 'finance_dashboard'})
 
 
-# ========== LPO MANAGEMENT VIEWS ==========
+#  LPO MANAGEMENT VIEWS
 
 @login_required
 @group_required('Production Team')
@@ -3968,7 +3950,7 @@ def lpo_detail(request, lpo_number):
         job = lpo.quote.job
         job_completed = job.status == 'completed'
     
-    # Allow sync when: user is production team, not already synced, and (LPO is completed OR job is completed)
+    # Allow sync when: user is production team, not already synced
     can_sync = (is_production or is_am) and not lpo.synced_to_quickbooks and (lpo.status == 'completed' or job_completed)
     
     context = {
@@ -4000,7 +3982,7 @@ def sync_to_quickbooks(request, lpo_number):
                     'message': 'LPO already synced to QuickBooks'
                 })
             
-            # Check if production is complete (either LPO status or related job)
+            # Check if production is complete
             job_completed = False
             if hasattr(lpo.quote, 'job') and lpo.quote.job:
                 job_completed = lpo.quote.job.status == 'completed'
@@ -4053,6 +4035,7 @@ def complete_job(request, pk):
                 lpo.save()
                 
                 # Create notification for AM to sync to QuickBooks
+                # production-
                 if job.client.account_manager:
                     Notification.objects.create(
                         recipient=job.client.account_manager,
@@ -4164,7 +4147,7 @@ def quote_approval(request, token):
             <body class="bg-gray-50">
                 <div class="min-h-screen flex items-center justify-center px-4">
                     <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-                        <div class="text-6xl mb-4">❌</div>
+                        <div class="text-6xl mb-4">N</div>
                         <h1 class="text-2xl font-bold text-gray-900 mb-4">Approval Failed</h1>
                         <p class="text-gray-600 mb-6">{result['message']}</p>
                         <p class="text-sm text-gray-500 mb-4">Please contact us at info@printduka.com for assistance.</p>
@@ -4217,7 +4200,7 @@ def quote_approval(request, token):
                 <body class="bg-gray-50">
                     <div class="min-h-screen flex items-center justify-center px-4">
                         <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-                            <div class="text-6xl mb-4">⚠️</div>
+                            <div class="text-6xl mb-4"></div>
                             <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Failed</h1>
                             <p class="text-gray-600 mb-6">Please provide details about your price reduction request.</p>
                             <a href="javascript:history.back()" class="text-blue-600 hover:underline">Go Back</a>
@@ -4244,7 +4227,7 @@ def quote_approval(request, token):
                 <body class="bg-gray-50">
                     <div class="min-h-screen flex items-center justify-center px-4">
                         <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-                            <div class="text-6xl mb-4">⚠️</div>
+                            <div class="text-6xl mb-4"></div>
                             <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Failed</h1>
                             <p class="text-gray-600 mb-6">Please provide details about the adjustments you need.</p>
                             <a href="javascript:history.back()" class="text-blue-600 hover:underline">Go Back</a>
@@ -4303,7 +4286,7 @@ def quote_approval(request, token):
         </head>
         <body>
             <div class="container">
-                <div class="error-icon">❌</div>
+                <div class="error-icon"></div>
                 <h1>Approval Failed</h1>
                 <p>{result['message']}</p>
                 <p style="margin-top: 2rem; font-size: 0.9rem; color: #9ca3af;">
@@ -4315,7 +4298,7 @@ def quote_approval(request, token):
             """
             return HttpResponse(error_html)
         
-        # Success! Handle different action results
+        
         if action == 'approve':
             # Approval success
             quote = result['quote']
@@ -4397,7 +4380,7 @@ def quote_approval(request, token):
     </head>
     <body>
         <div class="container">
-            <div class="success-icon">✅</div>
+            <div class="success-icon"></div>
             <h1>Quote Approved Successfully!</h1>
             <p class="quote-id">{quote.quote_id}</p>
             
@@ -4422,9 +4405,9 @@ def quote_approval(request, token):
             
             <p>Thank you for approving your quote! We have:</p>
             <ul style="text-align: left; color: #4b5563; line-height: 2;">
-                <li>✅ Generated your Local Purchase Order (LPO)</li>
-                <li>✅ Created a production job</li>
-                <li>✅ Notified our production team</li>
+                <li> Generated your Local Purchase Order (LPO)</li>
+                <li> Created a production job</li>
+                <li> Notified our production team</li>
             </ul>
             
             <p style="margin-top: 2rem;">
@@ -4454,7 +4437,7 @@ def quote_approval(request, token):
             <body class="bg-gray-50">
                 <div class="min-h-screen flex items-center justify-center px-4">
                     <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-                        <div class="text-6xl mb-4">✅</div>
+                        <div class="text-6xl mb-4"></div>
                         <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Submitted</h1>
                         <p class="text-gray-600 mb-6">{result['message']}</p>
                         <p class="text-sm text-gray-500">We will review your request and get back to you shortly.</p>
@@ -4477,7 +4460,7 @@ def quote_approval(request, token):
             <body class="bg-gray-50">
                 <div class="min-h-screen flex items-center justify-center px-4">
                     <div class="bg-white rounded-lg shadow-lg p-8 max-w-md text-center">
-                        <div class="text-6xl mb-4">✅</div>
+                        <div class="text-6xl mb-4"></div>
                         <h1 class="text-2xl font-bold text-gray-900 mb-4">Request Submitted</h1>
                         <p class="text-gray-600 mb-6">{result['message']}</p>
                         <p class="text-sm text-gray-500">We will review your request and send you an updated quote shortly.</p>
@@ -4490,7 +4473,7 @@ def quote_approval(request, token):
 
 
 
-# ===== PRODUCT CATALOG VIEWS =====
+#  PRODUCT CATALOG VIEWS 
 """
 Complete Product Management Views
 Handles all product creation and editing with multi-tab interface
@@ -4513,10 +4496,7 @@ from .models import (
     ProductDownloadableFile, ProductSEO, ProductReviewSettings,
     ProductFAQ, ProductShipping, ProductLegal, ProductProduction,
     ProductChangeHistory, ActivityLog,
-    # NEW: Process integration imports
-    Process, ProcessVariable, ProcessTier,
-    # Delivery handoff models
-    QCInspection, Delivery
+    Process, ProcessVariable, ProcessTier, QCInspection, Delivery
 )
 
 from .product_forms import (
@@ -4631,12 +4611,7 @@ def _get_product_form_context(product, general_form=None):
     return context
 
 
-# Duplicate function removed - using the complete version at line 4954
 
-# Duplicate function removed - using the complete version at line 5095
-
-
-# Duplicate function removed - using the complete version at line 5277
     
     # Review Settings
     review_settings, created = ProductReviewSettings.objects.get_or_create(product=product)
@@ -4718,8 +4693,8 @@ def _handle_production_tab(request, product):
         production.checklist_proofs = request.POST.get('checklist_proofs') == 'on'
         production.save()
 
-# ==================== PRODUCT MANAGEMENT VIEWS ====================
-# Complete product creation and editing with all tabs
+# PRODUCT MANAGEMENT VIEWS
+
 from django.utils.text import slugify
 from django.urls import reverse
 import json
@@ -4737,8 +4712,7 @@ def product_create(request):
             next_tab = request.POST.get('next_tab', '')
             
             # TAB 1: GENERAL INFO
-            # Create a filtered POST data dict without base_price (it's handled in pricing tab)
-            # QueryDict needs special handling - create a new dict excluding base_price
+            
             from django.http import QueryDict
             general_post_data = QueryDict(mutable=True)
             for key in request.POST.keys():
@@ -4750,7 +4724,7 @@ def product_create(request):
             try:
                 general_form = ProductGeneralInfoForm(general_post_data)
             except (KeyError, AttributeError, ValueError) as e:
-                # If error is about base_price, try again with filtered data
+                
                 error_str = str(e).lower()
                 if 'base_price' in error_str or 'no field named' in error_str:
                     # Create a completely clean QueryDict without base_price
@@ -4783,7 +4757,7 @@ def product_create(request):
             product.created_by = request.user
             product.updated_by = request.user
             
-            # Set customization_level from form (if not already set by form)
+            # Set customization_level from form 
             customization_level = request.POST.get('customization_level', 'non_customizable')
             if customization_level:
                 product.customization_level = customization_level
@@ -4794,8 +4768,7 @@ def product_create(request):
             else:
                 product.status = 'draft'
             
-            # Save product first (skip validation since base_price will be set in pricing tab)
-            # We need the product ID before we can save related objects
+           
             product.save(skip_validation=True)
             general_form.save_m2m()
             
@@ -4818,7 +4791,7 @@ def product_create(request):
                     product.unit_of_measure_custom = custom_unit
                     product.save()
             
-            # Handle all tabs (this will set base_price properly)
+            # Handle all tabs
             try:
                 _handle_pricing_tab(request, product)
             except Exception as e:
@@ -4849,12 +4822,12 @@ def product_create(request):
             except Exception as e:
                 messages.warning(request, f'Error saving production: {str(e)}')
             
-            # Now that all tabs are handled, save again with full validation
+            
             try:
                 product.full_clean()  # Validate with proper base_price
-                product.save()  # Save with validation
+                product.save() 
             except ValidationError as e:
-                # If validation fails, show errors
+                # If validation fails
                 if action == 'publish':
                     product.status = 'draft'
                     product.save(skip_validation=True)
@@ -4864,9 +4837,9 @@ def product_create(request):
                 context = _get_product_form_context(product)
                 return render(request, 'product_create_edit.html', context)
             
-            # Validate product before publishing
+            # Validate product
             if action == 'publish':
-                # Additional validation for costing processes
+                #validation for costing processes
                 can_publish, error_msg = product.can_be_published()
                 if not can_publish:
                     messages.error(request, f'Cannot publish product: {error_msg}')
@@ -4922,10 +4895,7 @@ def product_edit(request, pk):
         try:
             action = request.POST.get('action', 'save_draft')
             next_tab = request.POST.get('next_tab', '')
-            
-            # Update general info
-            # Create a filtered POST data dict without base_price (it's handled in pricing tab)
-            # QueryDict needs special handling - create a new dict excluding base_price
+           
             from django.http import QueryDict
             general_post_data = QueryDict(mutable=True)
             for key in request.POST.keys():
@@ -4937,7 +4907,7 @@ def product_edit(request, pk):
             try:
                 general_form = ProductGeneralInfoForm(general_post_data, instance=product)
             except Exception as e:
-                # If error is about base_price, create form without data and add error manually
+                
                 if 'base_price' in str(e).lower():
                     general_form = ProductGeneralInfoForm(instance=product)
                     messages.warning(request, 'Note: base_price is handled in Pricing & Variables tab')
@@ -4974,7 +4944,7 @@ def product_edit(request, pk):
                         new_value='published'
                     )
             
-            # Save product first (skip validation since base_price will be set in pricing tab)
+            # Save product first 
             product.save(skip_validation=True)
             general_form.save_m2m()
             
@@ -5028,7 +4998,7 @@ def product_edit(request, pk):
             except Exception as e:
                 messages.warning(request, f'Error saving production: {str(e)}')
             
-            # Now that all tabs are handled, save again with full validation
+            
             try:
                 product.full_clean()  # Validate with proper base_price
                 product.save()  # Save with validation
