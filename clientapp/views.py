@@ -822,7 +822,7 @@ def account_manager_jobs_list(request):
     }
     return render(request, 'account_manager/jobs_list.html', context)
 
-
+#Job management for account manager
 @login_required
 @group_required('Account Manager')
 def account_manager_job_detail(request, pk):
@@ -915,8 +915,6 @@ def account_manager_send_reminder(request, pk):
 
 
 
-# ========== PRODUCTION TEAM VIEWS (Keep existing) ==========
-
 @login_required
 @group_required('Account Manager')
 def lead_intake(request):
@@ -947,7 +945,7 @@ def lead_intake(request):
                 Notification.objects.create(
                     recipient=am,
                     notification_type='lead_created',
-                    title=f'👤 New Lead: {lead.name}',
+                    title=f' New Lead: {lead.name}',
                     message=f'{request.user.get_full_name() or request.user.username} created a new lead',
                     link='/leads/',
                     related_lead=lead
@@ -1664,7 +1662,7 @@ def quote_create(request):
                     
                     quote_pk = quote.pk
                     quote_id_for_redirect = quote_group_id
-                    msg = f"💾 Quote {quote_group_id} prepared for sending."
+                    msg = f" Quote {quote_group_id} prepared for sending."
                 
                 # Log the Activity (only if client exists - leads don't have activity logs)
                 if client:
@@ -1807,7 +1805,7 @@ def clone_quote(request, quote_id):
                     order=item.order
                 )
             
-            messages.success(request, f'✅ Quote cloned successfully! New quote: {new_quote_id}')
+            messages.success(request, f' Quote cloned successfully! New quote: {new_quote_id}')
             return redirect('quote_detail', quote_id=new_quote_id)
             
     except Exception as e:
@@ -1858,7 +1856,7 @@ def convert_quote_to_job(request, quote_id):
                     created_by=request.user
                 )
             
-            messages.success(request, f'✅ Job {job_number} created successfully from quote {quote_id}.')
+            messages.success(request, f' Job {job_number} created successfully from quote {quote_id}.')
             return redirect('job_detail', pk=job.pk)
             
     except Exception as e:
@@ -1946,7 +1944,7 @@ def update_quote_status(request):
         action = request.POST.get('action')
         
         try:
-            # Get the first quote with this quote_id (they're grouped)
+            # Get the first quote with this quote_id 
             quote = Quote.objects.filter(quote_id=quote_id).first()
             if not quote:
                 return JsonResponse({'success': False, 'error': 'Quote not found'})
@@ -1960,7 +1958,7 @@ def update_quote_status(request):
                     client=quote.client,
                     quote=quote,
                     job_name=f"Job for {quote.product_name}",
-                    job_type='printing',  # You can map this from product type
+                    job_type='printing',  
                     product=quote.product_name,
                     quantity=quote.quantity,
                     person_in_charge='Production Team',  # Default assignment
@@ -2084,8 +2082,6 @@ def quote_detail(request, quote_id):
     }
     
     return render(request, 'quote_detail.html', context)
-    
-    return render(request, 'quote_detail.html', context)
 
 
 
@@ -2131,7 +2127,7 @@ def handle_quote_approval(request, quote_id):
             Notification.objects.create(
                 recipient=first_quote.created_by,
                 notification_type='quote_approved',
-                title=f'🎉 Quote {quote_id} Approved!',
+                title=f' Quote {quote_id} Approved!',
                 message=f'Client approved your quote. Time to onboard them!',
                 link=f'/client-onboarding/?lead_id={lead.id}' if lead else '/clients/',
                 related_quote_id=quote_id,
@@ -2510,7 +2506,7 @@ def job_detail(request, pk):
     notes = job.job_notes.select_related('created_by').order_by('-created_at')
     production_updates = job.production_updates.select_related('created_by').order_by('-created_at')
     
-    # Get vendor stages if they exist
+    # Get vendor stages
     vendor_stages = job.vendor_stages.select_related('vendor').order_by('stage_order') if hasattr(job, 'vendor_stages') else []
     
     # Get QC inspection if exists
@@ -2610,7 +2606,7 @@ def job_detail(request, pk):
     # Check if user can manage
     can_manage = request.user.groups.filter(name='Production Team').exists()
     
-    # Get all jobs for the same client (for tabular view)
+    # Get all jobs for the same client
     client_jobs = []
     job_stats = {'total': 0, 'in_progress': 0, 'overdue': 0, 'completed': 0, 'pending': 0}
     
@@ -2857,7 +2853,7 @@ def add_vendor_stage(request, pk):
             vendor_cost=vendor_cost,
         )
         
-        # Update job status if first stage
+        # Update job status 
         if next_order == 1:
             job.status = 'in_progress'
             job.save()
@@ -2927,7 +2923,7 @@ def qc_inspection_start(request, job_id):
         messages.error(request, f'Error creating QC inspection: {str(e)}')
         return redirect('job_detail', pk=job_id)
 
-
+#sidebar
 @login_required
 @group_required('Account Manager')
 def base_view(request):
@@ -4000,7 +3996,7 @@ def finance_required(view_func):
     """Require Finance group membership"""
     return group_required('Finance')(view_func)
 
-
+# 
 @finance_required
 def finance_client_entity(request, client_id):
     """Map client to Django Ledger entity"""
@@ -4036,7 +4032,7 @@ def finance_client_entity(request, client_id):
     
     # Render within our theme using an iframe wrapper
     return render(request, 'finance_entity.html', {'entity': entity, 'current_view': 'finance_dashboard'})
-
+# No need for finance anymore
 
 #  LPO MANAGEMENT VIEWS
 
@@ -4682,7 +4678,7 @@ def group_required_production(group_name):
         return wrapped
     return decorator
 
-
+# Catalog
 @login_required
 @group_required('Production Team')
 def product_catalog(request):
@@ -5829,7 +5825,7 @@ def _handle_legal_tab(request, product):
         legal.save()
 
 
-# ========== AJAX ENDPOINTS ==========
+#  AJAX ENDPOINTS 
 
 @login_required
 @group_required('Production Team')
@@ -5861,7 +5857,7 @@ def product_delete_image(request, product_pk, image_pk):
     
     return JsonResponse({'success': False, 'message': 'Invalid request method'})
 
-
+# Pricing endpoint
 @login_required
 @group_required('Production Team')
 def calculate_pricing(request):
@@ -8383,7 +8379,7 @@ def admin_activity_list(request):
     }
     return render(request, 'admin/activity_list.html', context)
 
-
+# Production Team Settings
 from django.db.models import Count, Avg, Q, F
 from django.utils import timezone
 from datetime import timedelta
@@ -8425,7 +8421,7 @@ def production_analytics(request):
     on_time_rate = (on_time_jobs / completed_jobs * 100) if completed_jobs > 0 else 100
     
     # Calculate Average Lead Time
-    # This is a placeholder calculation
+   
     avg_lead_time = 3.5 # Days
     
     context = {
