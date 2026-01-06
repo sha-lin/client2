@@ -1,7 +1,4 @@
-"""
-Admin Dashboard Views - Django Admin-style CRUD operations
-All views follow Django admin conventions for consistency
-"""
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse, HttpResponse
@@ -629,11 +626,7 @@ def clean_data(data, model):
 
 
 
-"""
-Complete Admin CRUD Views
-Adds missing CRUD operations for Vendors and Processes
-Extends the existing admin_views.py file
-"""
+#CRUD operations for processes and vendors
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.admin.views.decorators import staff_member_required

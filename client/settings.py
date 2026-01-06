@@ -30,15 +30,16 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = config('SECRET_KEY')
 
-# SECURITY WARNING: don't run with debug turned on in production!
+# for production 
 # DEBUG = True
+# for development
 DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default=[], cast=Csv())
 
 # Application definition
 
 INSTALLED_APPS = [
-    'jazzmin',  # Must be before django.contrib.admin
+    'jazzmin', #might use it in the future
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -133,11 +134,11 @@ USE_I18N = True
 
 USE_TZ = True
 
-# Media files (for uploads)
+# Media files - responsible for uploads
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
-# Static files
+# Static files - responsible for static files
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
@@ -175,7 +176,7 @@ MESSAGE_TAGS = {
     messages.ERROR: 'error',
 }
 
-# DRF configuration (headless API defaults)
+# DRF configuration (headless API defaults)- drf yasg
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -222,9 +223,9 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10MB
 
 if not DEBUG:
-    # Fix for Render/Heroku SSL termination
+    # For render
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-    SECURE_SSL_REDIRECT = True  # Set to True to prevent mixed content loops
+    SECURE_SSL_REDIRECT = True  
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
@@ -234,15 +235,15 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
     
-    # Add your Render URL to trusted origins to prevent CSRF errors
+    # prevention of csrf errors
     CSRF_TRUSTED_ORIGINS = ['https://client2-o4ay.onrender.com'] 
 else:
-    # Development settings - ensure no HSTS forcing
+    #No HSTS forcing
     SECURE_HSTS_SECONDS = 0
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_PRELOAD = False
     
-# Email settings (for sending quotes)
+# Email settings -for sending quotes
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
@@ -265,6 +266,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ==================== JAZZMIN ADMIN CUSTOMIZATION ====================
 
+#Jazzmin admin customization- Maybe for future use
 JAZZMIN_SETTINGS = {
     "site_title": "PrintDuka Admin",
     "site_header": "PrintDuka",

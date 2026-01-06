@@ -44,7 +44,7 @@ def log_admin_action(request, action, model_obj, details=''):
             ip_address=ip
         )
     except Exception as e:
-        # Don't fail the request if logging fails
+        # if logging fails, print error message
         print(f"Audit log failed: {e}")
 
 
@@ -1234,7 +1234,7 @@ def admin_user_add(request):
             messages.success(request, f'User "{user.username}" created successfully')
             return redirect('admin_user_detail', pk=user.pk)
     
-    # Add checked attribute to each group (empty for new user)
+    # Add checked attribute to each group- but not for new users
     groups_with_checked = []
     for grp in all_groups:
         grp.checked = ''

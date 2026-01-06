@@ -1,5 +1,5 @@
 """
-PDF Generation Utilities using xhtml2pdf (pure Python, no GTK required)
+PDF Generation Utilities using xhtml2pdf 
 """
 from io import BytesIO
 from django.http import HttpResponse
@@ -43,7 +43,7 @@ class QuotePDFGenerator:
             # Calculate totals from line items (using snapshot prices)
             if line_items.exists():
                 subtotal = sum(float(item.line_total) for item in line_items)
-                quotes = []  # Empty for backward compatibility
+                quotes = []  # For backward compatibility
             else:
                 # Fallback: use old quote records
                 quotes = Quote.objects.filter(quote_id=quote_id).select_related('client', 'lead')
@@ -87,7 +87,7 @@ class QuotePDFGenerator:
                         'total_amount': float(q.total_amount),
                     })
             
-            # Get company logo if available (from settings or static files)
+            # Get company logo 
             from django.conf import settings
             import os
             logo_path = None
@@ -108,7 +108,7 @@ class QuotePDFGenerator:
                 'quote_id': quote_id,
                 'quote': quote,
                 'quotes': quotes,  # For backward compatibility
-                'line_items': line_items,  # Preferred - uses snapshot prices
+                'line_items': line_items,  
                 'quote_items': quote_items,  # Formatted for PDF template
                 'first_quote': quote,
                 'client': quote.client,

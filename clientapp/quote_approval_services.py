@@ -1,4 +1,4 @@
-# clientapp/services/quote_approval_service.py
+
 """
 Quote Approval Service - Handles quote sending, approval, and LPO generation
 """
@@ -107,7 +107,7 @@ class QuoteApprovalService:
         
         quote_id = quote.pk
         
-        # Verify quote exists in database (this ensures it's committed)
+        # Verify quote exists in database
         try:
             Quote.objects.get(pk=quote_id)
         except Quote.DoesNotExist:
@@ -118,12 +118,12 @@ class QuoteApprovalService:
         # Create or update token - use quote_id to ensure we're using the saved quote
         # Reset used status and extend expiration when updating
         approval_token, created = QuoteApprovalToken.objects.update_or_create(
-            quote_id=quote_id,  # Use quote_id instead of quote object
+            quote_id=quote_id, 
             defaults={
                 'token': token,
                 'expires_at': timezone.now() + timezone.timedelta(days=30),
-                'used': False,  # Reset used status if updating
-                'used_at': None  # Clear used_at if updating
+                'used': False, 
+                'used_at': None 
             }
         )
         
@@ -302,7 +302,7 @@ class QuoteApprovalService:
             
             # Format message
             message = f"""
-Hello! 👋
+Hello! 
 
 Your quote is ready for review:
 
@@ -319,7 +319,7 @@ To view and approve your quote, please visit:
 Thank you for choosing PrintDuka!
             """.strip()
             
-            # Create WhatsApp URL
+            # WhatsApp URL
             whatsapp_url = f"https://wa.me/{clean_phone}?text={message}"
             
             # Update quote status
@@ -382,7 +382,7 @@ Thank you for choosing PrintDuka!
                     title=f"Price Reduction Requested - Quote {quote.quote_id}",
                     description=f"Customer requested price reduction: {discount_notes}",
                     related_quote=quote,
-                    created_by=None  # Customer request
+                    created_by=None 
                 )
             
             # Notify Account Manager
@@ -390,7 +390,7 @@ Thank you for choosing PrintDuka!
                 Notification.objects.create(
                     recipient=quote.created_by,
                     notification_type='quote_discount_request',
-                    title=f'💰 Price Reduction Request - Quote {quote.quote_id}',
+                    title=f' Price Reduction Request - Quote {quote.quote_id}',
                     message=f'Customer has requested a price reduction. Notes: {discount_notes}',
                     link=reverse('quote_detail', args=[quote.quote_id]),
                     related_quote_id=quote.quote_id,
@@ -453,7 +453,7 @@ Thank you for choosing PrintDuka!
                     title=f"Quote Adjustments Requested - Quote {quote.quote_id}",
                     description=f"Customer requested adjustments: {adjustment_notes}",
                     related_quote=quote,
-                    created_by=None  # Customer request
+                    created_by=None  
                 )
             
             # Notify Account Manager
@@ -461,7 +461,7 @@ Thank you for choosing PrintDuka!
                 Notification.objects.create(
                     recipient=quote.created_by,
                     notification_type='quote_adjustment_request',
-                    title=f'✏️ Quote Adjustments Requested - Quote {quote.quote_id}',
+                    title=f' Quote Adjustments Requested - Quote {quote.quote_id}',
                     message=f'Customer has requested adjustments to the quote. Details: {adjustment_notes}',
                     link=reverse('quote_detail', args=[quote.quote_id]),
                     related_quote_id=quote.quote_id,
@@ -493,7 +493,7 @@ Thank you for choosing PrintDuka!
         try:
             from clientapp.models import QuoteApprovalToken, LPO, LPOLineItem, Job, Quote, ActivityLog
             
-            # Validate token - check if it exists first, then check expiration and usage
+            # Validate token 
             try:
                 approval_token = QuoteApprovalToken.objects.get(token=token)
             except QuoteApprovalToken.DoesNotExist:
@@ -672,7 +672,7 @@ Thank you for choosing PrintDuka!
                 Notification.objects.create(
                     recipient=user,
                     notification_type='quote_approved',
-                    title=f'✅ New Job: {job.job_number}',
+                    title=f' New Job: {job.job_number}',
                     message=f'Quote {quote.quote_id} approved. Job created for {quote.product_name} (x{quote.quantity}). Value: KES {quote.total_amount:,.0f}',
                     link=reverse('job_detail', kwargs={'pk': job.pk}),
                     related_quote_id=quote.quote_id,

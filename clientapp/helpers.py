@@ -41,7 +41,7 @@ def get_qb_client(user):
             print(f"Token refresh failed: {e}")
             raise
 
-    # Create QuickBooks client
+    # QuickBooks client
     client = QuickBooks(
         auth_client=auth_client,
         refresh_token=token.refresh_token,

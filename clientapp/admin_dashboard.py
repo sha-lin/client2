@@ -2,6 +2,7 @@
 Dashboard Analytics for PrintDuka Admin
 Provides metrics, charts, and reports for the admin dashboard
 """
+#Admin dashboard all reports
 
 from django.db.models import Count, Sum, Q, Avg, F
 from django.db.models.functions import TruncMonth

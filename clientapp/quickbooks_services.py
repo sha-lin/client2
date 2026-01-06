@@ -1,4 +1,3 @@
-# quickbooks_integration/quickbooks_service.py
 """
 QuickBooks Service - Handles all QuickBooks API interactions
 """
@@ -122,7 +121,6 @@ class QuickBooksService:
                 return items[0]
             
             # Get income account (required for items)
-            # You may need to adjust this based on your QB setup
             income_accounts = Account.filter(
                 AccountType='Income',
                 qb=self.client,
@@ -134,8 +132,8 @@ class QuickBooksService:
             
             # Create new item
             item = Item()
-            item.Name = product_name[:100]  # QB has char limits
-            item.Type = "Service"  # or "NonInventory" based on your needs
+            item.Name = product_name[:100] 
+            item.Type = "Service" 
             item.IncomeAccountRef = income_accounts[0].to_ref()
             item.UnitPrice = float(unit_price)
             
@@ -211,7 +209,7 @@ class QuickBooksService:
                 
                 # Tax code (if VAT included)
                 if item.include_vat:
-                    line.SalesItemLineDetail.TaxCodeRef = {'value': 'TAX'}  # Adjust based on your QB setup
+                    line.SalesItemLineDetail.TaxCodeRef = {'value': 'TAX'}  
                 
                 invoice.Line.append(line)
             
