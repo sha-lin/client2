@@ -22,12 +22,14 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
+from clientapp.api_views import RegisterView, ChangePasswordView
+
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Printshop API",
+        title="PrintDuka API",
         default_version="v1",
-        description="Headless API for Printshop",
+        description="Headless API for PrintDuka",
     ),
     public=True,
     permission_classes=[permissions.AllowAny],
@@ -43,6 +45,8 @@ urlpatterns = [
     path('api/auth/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/verify/', TokenVerifyView.as_view(), name='token_verify'),
+    path('api/auth/register/', RegisterView.as_view(), name='api_register'),
+    path('api/auth/change-password/', ChangePasswordView.as_view(), name='api_change_password'),
 
     # API Docs
     path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),

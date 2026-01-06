@@ -1317,12 +1317,28 @@ class Quote(models.Model):
         ('Net 30', 'Net 30 Days'),
         ('Net 60', 'Net 60 Days'),
     ]
+
+    CHANNEL_CHOICES = [
+        ('portal', 'Internal Portal'),
+        ('ecommerce', 'Ecommerce'),
+        ('api', 'API Integration'),
+    ]
+
+    CHECKOUT_STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('cart', 'Cart'),
+        ('submitted', 'Submitted'),
+        ('paid', 'Paid'),
+        ('cancelled', 'Cancelled'),
+    ]
     
     # Basic Info
     quote_id = models.CharField(max_length=20, editable=False, db_index=True)
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='quotes', null=True, blank=True)
     lead = models.ForeignKey(Lead, on_delete=models.SET_NULL, null=True, blank=True, related_name='quotes')
     product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True, related_name='quotes')
+    channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, default='portal', db_index=True)
+    checkout_status = models.CharField(max_length=20, choices=CHECKOUT_STATUS_CHOICES, default='draft')
     
     # Product Details
     product_name = models.CharField(max_length=200)
@@ -1370,6 +1386,7 @@ class Quote(models.Model):
     notes = models.TextField(blank=True)
     terms = models.TextField(blank=True)
     loss_reason = models.TextField(blank=True)
+    customer_notes = models.TextField(blank=True, help_text="Notes provided by customer (ecommerce/API)")
     
     # Tracking
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='quotes_created')
@@ -1873,6 +1890,12 @@ class Job(models.Model):
         ('delivery', 'Delivery'),
         ('courier', 'Courier'),
     ]
+
+    SOURCE_CHOICES = [
+        ('portal', 'Internal Portal'),
+        ('ecommerce', 'Ecommerce'),
+        ('api', 'API Integration'),
+    ]
     
     # Basic Info
     client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='jobs')
@@ -1881,6 +1904,7 @@ class Job(models.Model):
     job_name = models.CharField(max_length=255)
     job_type = models.CharField(max_length=50, choices=JOB_TYPE_CHOICES)
     priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='normal')
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='portal')
     
     # Product Info
     product = models.CharField(max_length=255)  # Main product

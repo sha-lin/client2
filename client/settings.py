@@ -83,7 +83,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
-                'clientapp.views.notification_count_processor',  # ← ADD THIS LINE
+                'clientapp.views.notification_count_processor',  
             ],
         },
     },

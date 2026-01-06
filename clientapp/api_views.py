@@ -1,7 +1,9 @@
 from django.utils import timezone
+from django.contrib.auth.models import User, Group
 from rest_framework import viewsets, status, decorators
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import (
     Lead,
@@ -18,6 +20,45 @@ from .models import (
     Payment,
     Notification,
     ActivityLog,
+    PropertyType,
+    PropertyValue,
+    ProductProperty,
+    QuantityPricing,
+    TurnAroundTime,
+    SystemSetting,
+    # Costing / process models
+    Process,
+    ProcessTier,
+    ProcessVariable,
+    ProductVariable,
+    ProductVariableOption,
+    ProcessVendor,
+    PricingTier,
+    VendorTierPricing,
+    ProcessVariableRange,
+    # Product metadata
+    ProductImage,
+    ProductVideo,
+    ProductDownloadableFile,
+    ProductSEO,
+    ProductReviewSettings,
+    ProductFAQ,
+    ProductShipping,
+    ProductLegal,
+    ProductProduction,
+    ProductChangeHistory,
+    ProductTemplate,
+    # Operations / QC / delivery / attachments
+    JobVendorStage,
+    JobNote,
+    JobAttachment,
+    VendorQuote,
+    QCInspection,
+    Delivery,
+    QuoteAttachment,
+    LPOLineItem,
+    SystemAlert,
+    resolve_unit_price,
 )
 from .api_serializers import (
     LeadSerializer,
@@ -34,6 +75,43 @@ from .api_serializers import (
     PaymentSerializer,
     NotificationSerializer,
     ActivityLogSerializer,
+    PropertyTypeSerializer,
+    PropertyValueSerializer,
+    ProductPropertySerializer,
+    QuantityPricingSerializer,
+    TurnAroundTimeSerializer,
+    SystemSettingSerializer,
+    ProcessSerializer,
+    ProcessTierSerializer,
+    ProcessVariableSerializer,
+    ProductVariableSerializer,
+    ProductVariableOptionSerializer,
+    ProcessVendorSerializer,
+    PricingTierSerializer,
+    VendorTierPricingSerializer,
+    ProcessVariableRangeSerializer,
+    ProductImageSerializer,
+    ProductVideoSerializer,
+    ProductDownloadableFileSerializer,
+    ProductSEOSerializer,
+    ProductReviewSettingsSerializer,
+    ProductFAQSerializer,
+    ProductShippingSerializer,
+    ProductLegalSerializer,
+    ProductProductionSerializer,
+    ProductChangeHistorySerializer,
+    ProductTemplateSerializer,
+    JobVendorStageSerializer,
+    JobNoteSerializer,
+    JobAttachmentSerializer,
+    VendorQuoteSerializer,
+    QCInspectionSerializer,
+    DeliverySerializer,
+    QuoteAttachmentSerializer,
+    LPOLineItemSerializer,
+    SystemAlertSerializer,
+    UserSerializer,
+    GroupSerializer,
 )
 from .permissions import (
     IsAdmin,
@@ -128,13 +206,85 @@ class ProductViewSet(viewsets.ModelViewSet):
     ordering_fields = ["created_at", "updated_at", "base_price"]
 
 
+class StorefrontProductViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Public storefront-safe product listing for ecommerce/landing pages.
+    Only returns visible, published products.
+    """
+
+    queryset = Product.objects.filter(status="published", is_visible=True)
+    serializer_class = ProductSerializer
+    permission_classes = [AllowAny]
+    filterset_fields = ["primary_category", "sub_category", "customization_level"]
+    search_fields = ["name", "short_description", "primary_category", "sub_category"]
+    ordering_fields = ["created_at", "base_price"]
+
+
 class QuoteViewSet(viewsets.ModelViewSet):
     queryset = Quote.objects.select_related("client", "lead", "created_by").prefetch_related("line_items")
     serializer_class = QuoteSerializer
     permission_classes = [IsAuthenticated, IsAccountManager | IsAdmin]
-    filterset_fields = ["status", "production_status", "client", "lead"]
+    filterset_fields = ["status", "production_status", "client", "lead", "channel", "checkout_status"]
     search_fields = ["quote_id", "product_name", "reference_number"]
     ordering_fields = ["created_at", "quote_date", "valid_until"]
+
+    @decorators.action(detail=False, methods=["post"], permission_classes=[AllowAny])
+    def ecommerce_create(self, request):
+        """
+        Lightweight public endpoint for ecommerce/landing-page checkout.
+        Creates a Lead + single-product Quote tagged as channel='ecommerce'.
+        """
+        data = request.data or {}
+        customer = data.get("customer", {})
+        product_id = data.get("product_id")
+        quantity = data.get("quantity") or 1
+        notes = data.get("notes", "")
+
+        if not product_id:
+            return Response({"detail": "product_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            product = Product.objects.get(pk=product_id)
+        except Product.DoesNotExist:
+            return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        name = customer.get("name") or "Online Customer"
+        email = customer.get("email", "")
+        phone = customer.get("phone", "")
+
+        # Create a simple lead for tracking
+        lead = None
+        if email or phone:
+            lead = Lead.objects.create(
+                name=name,
+                email=email or "",
+                phone=phone or "",
+                source="Website",
+                product_interest=product.name,
+                preferred_contact="Email",
+                created_by=None,
+            )
+
+        unit_price = resolve_unit_price(product, quantity=quantity)
+
+        quote = Quote.objects.create(
+            client=None,
+            lead=lead,
+            product=product,
+            product_name=product.name,
+            quantity=quantity,
+            unit_price=unit_price,
+            total_amount=unit_price * int(quantity),
+            include_vat=True,
+            payment_terms="Prepaid",
+            status="Draft",
+            channel="ecommerce",
+            checkout_status="cart",
+            customer_notes=notes,
+        )
+
+        serializer = self.get_serializer(quote)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
     @decorators.action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
@@ -159,6 +309,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
             product=quote.product_name,
             quantity=quote.quantity or 1,
             person_in_charge=request.user.get_full_name() or request.user.username,
+             source=quote.channel,
             created_by=request.user,
         )
         return Response({"detail": "Job created", "job_id": job.id})
@@ -216,6 +367,109 @@ class PaymentViewSet(viewsets.ModelViewSet):
     ordering_fields = ["payment_date", "amount"]
 
 
+class PropertyTypeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = PropertyType.objects.all()
+    serializer_class = PropertyTypeSerializer
+    permission_classes = [AllowAny]
+    filterset_fields = ["property_type", "affects_price"]
+    search_fields = ["name", "description"]
+
+
+class PropertyValueViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = PropertyValue.objects.select_related("property_type").all()
+    serializer_class = PropertyValueSerializer
+    permission_classes = [AllowAny]
+    filterset_fields = ["property_type", "is_active"]
+    search_fields = ["value", "description"]
+
+
+class ProductPropertyViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ProductProperty.objects.select_related("product", "property_value", "property_value__property_type").all()
+    serializer_class = ProductPropertySerializer
+    permission_classes = [AllowAny]
+    filterset_fields = ["product", "property_value__property_type", "is_available"]
+
+
+class QuantityPricingViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = QuantityPricing.objects.select_related("product").all()
+    serializer_class = QuantityPricingSerializer
+    permission_classes = [AllowAny]
+    filterset_fields = ["product"]
+
+
+class TurnAroundTimeViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TurnAroundTime.objects.select_related("product").all()
+    serializer_class = TurnAroundTimeSerializer
+    permission_classes = [AllowAny]
+    filterset_fields = ["product", "is_available", "is_default"]
+
+
+# ===== Costing / Process ViewSets =====
+
+class ProcessViewSet(viewsets.ModelViewSet):
+    queryset = Process.objects.all()
+    serializer_class = ProcessSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["pricing_type", "category", "status"]
+    search_fields = ["process_id", "process_name", "description"]
+
+
+class ProcessTierViewSet(viewsets.ModelViewSet):
+    queryset = ProcessTier.objects.select_related("process").all()
+    serializer_class = ProcessTierSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["process", "tier_number"]
+
+
+class ProcessVariableViewSet(viewsets.ModelViewSet):
+    queryset = ProcessVariable.objects.select_related("process").all()
+    serializer_class = ProcessVariableSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["process", "variable_type"]
+
+
+class ProductVariableViewSet(viewsets.ModelViewSet):
+    queryset = ProductVariable.objects.select_related("product").all()
+    serializer_class = ProductVariableSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["product", "variable_type", "pricing_type", "is_active"]
+
+
+class ProductVariableOptionViewSet(viewsets.ModelViewSet):
+    queryset = ProductVariableOption.objects.select_related("variable").all()
+    serializer_class = ProductVariableOptionSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["variable", "is_active", "is_default"]
+
+
+class ProcessVendorViewSet(viewsets.ModelViewSet):
+    queryset = ProcessVendor.objects.select_related("process").all()
+    serializer_class = ProcessVendorSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["process", "priority"]
+
+
+class PricingTierViewSet(viewsets.ModelViewSet):
+    queryset = PricingTier.objects.select_related("process").all()
+    serializer_class = PricingTierSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["process"]
+
+
+class VendorTierPricingViewSet(viewsets.ModelViewSet):
+    queryset = VendorTierPricing.objects.select_related("process_vendor").all()
+    serializer_class = VendorTierPricingSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["process_vendor"]
+
+
+class ProcessVariableRangeViewSet(viewsets.ModelViewSet):
+    queryset = ProcessVariableRange.objects.select_related("variable").all()
+    serializer_class = ProcessVariableRangeSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["variable"]
+
+
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.select_related("recipient").all()
     serializer_class = NotificationSerializer
@@ -248,6 +502,85 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     ordering_fields = ["created_at"]
 
 
+class SystemSettingViewSet(viewsets.ModelViewSet):
+    queryset = SystemSetting.objects.all()
+    serializer_class = SystemSettingSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+
+# ===== Product Metadata ViewSets =====
+
+class ProductImageViewSet(viewsets.ModelViewSet):
+    queryset = ProductImage.objects.select_related("product").all()
+    serializer_class = ProductImageSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["product", "image_type", "is_primary"]
+
+
+class ProductVideoViewSet(viewsets.ModelViewSet):
+    queryset = ProductVideo.objects.select_related("product").all()
+    serializer_class = ProductVideoSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["product", "video_type"]
+
+
+class ProductDownloadableFileViewSet(viewsets.ModelViewSet):
+    queryset = ProductDownloadableFile.objects.select_related("product").all()
+    serializer_class = ProductDownloadableFileSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["product", "file_type"]
+
+
+class ProductSEOViewSet(viewsets.ModelViewSet):
+    queryset = ProductSEO.objects.select_related("product").all()
+    serializer_class = ProductSEOSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+
+class ProductReviewSettingsViewSet(viewsets.ModelViewSet):
+    queryset = ProductReviewSettings.objects.select_related("product").all()
+    serializer_class = ProductReviewSettingsSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+
+class ProductFAQViewSet(viewsets.ModelViewSet):
+    queryset = ProductFAQ.objects.select_related("product").all()
+    serializer_class = ProductFAQSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["product", "is_active"]
+
+
+class ProductShippingViewSet(viewsets.ModelViewSet):
+    queryset = ProductShipping.objects.select_related("product").all()
+    serializer_class = ProductShippingSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+
+class ProductLegalViewSet(viewsets.ModelViewSet):
+    queryset = ProductLegal.objects.select_related("product").all()
+    serializer_class = ProductLegalSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+
+class ProductProductionViewSet(viewsets.ModelViewSet):
+    queryset = ProductProduction.objects.select_related("product").all()
+    serializer_class = ProductProductionSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+
+class ProductChangeHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ProductChangeHistory.objects.select_related("product", "changed_by").all()
+    serializer_class = ProductChangeHistorySerializer
+    permission_classes = [IsAuthenticated, IsAdmin | IsProductionTeam]
+    filterset_fields = ["product", "change_type"]
+
+
+class ProductTemplateViewSet(viewsets.ModelViewSet):
+    queryset = ProductTemplate.objects.select_related("product").all()
+    serializer_class = ProductTemplateSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+
 class QuickBooksSyncViewSet(viewsets.ViewSet):
     """
     Placeholder sync endpoints for QuickBooks integration.
@@ -266,4 +599,166 @@ class QuickBooksSyncViewSet(viewsets.ViewSet):
     @decorators.action(detail=False, methods=["post"])
     def push_invoices(self, request):
         return Response({"detail": "Invoice sync not yet implemented"}, status=status.HTTP_200_OK)
+
+
+# ===== QC, Delivery, Attachments, Notes, Alerts =====
+
+class JobVendorStageViewSet(viewsets.ModelViewSet):
+    queryset = JobVendorStage.objects.select_related("job", "vendor").all()
+    serializer_class = JobVendorStageSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["job", "vendor", "status"]
+
+
+class JobNoteViewSet(viewsets.ModelViewSet):
+    queryset = JobNote.objects.select_related("job", "created_by").all()
+    serializer_class = JobNoteSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["job", "note_type"]
+
+
+class JobAttachmentViewSet(viewsets.ModelViewSet):
+    queryset = JobAttachment.objects.select_related("job", "uploaded_by").all()
+    serializer_class = JobAttachmentSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["job"]
+
+
+class VendorQuoteViewSet(viewsets.ModelViewSet):
+    queryset = VendorQuote.objects.select_related("job", "vendor").all()
+    serializer_class = VendorQuoteSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["job", "vendor", "selected"]
+
+
+class QCInspectionViewSet(viewsets.ModelViewSet):
+    queryset = QCInspection.objects.select_related("job", "vendor", "inspector").all()
+    serializer_class = QCInspectionSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["job", "vendor", "status"]
+
+
+class DeliveryViewSet(viewsets.ModelViewSet):
+    queryset = Delivery.objects.select_related("job", "qc_inspection", "handoff_confirmed_by", "created_by").all()
+    serializer_class = DeliverySerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["job", "status", "staging_location"]
+
+
+class QuoteAttachmentViewSet(viewsets.ModelViewSet):
+    queryset = QuoteAttachment.objects.select_related("quote", "uploaded_by").all()
+    serializer_class = QuoteAttachmentSerializer
+    permission_classes = [IsAuthenticated, IsAccountManager | IsAdmin]
+    filterset_fields = ["quote"]
+
+
+class LPOLineItemViewSet(viewsets.ModelViewSet):
+    queryset = LPOLineItem.objects.select_related("lpo").all()
+    serializer_class = LPOLineItemSerializer
+    permission_classes = [IsAuthenticated, IsAdmin | IsAccountManager]
+    filterset_fields = ["lpo"]
+
+
+class SystemAlertViewSet(viewsets.ModelViewSet):
+    queryset = SystemAlert.objects.all()
+    serializer_class = SystemAlertSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+    filterset_fields = ["alert_type", "severity", "is_active", "is_dismissed"]
+
+
+# ===== User / Group Management =====
+
+class UserViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+    filterset_fields = ["is_active", "is_superuser"]
+    search_fields = ["username", "email", "first_name", "last_name"]
+
+
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+
+class RegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get("username")
+        email = request.data.get("email")
+        password = request.data.get("password")
+
+        if not username or not password:
+            return Response({"detail": "username and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        if User.objects.filter(username=username).exists():
+            return Response({"detail": "Username already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = User.objects.create_user(username=username, email=email, password=password)
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        old_password = request.data.get("old_password")
+        new_password = request.data.get("new_password")
+
+        if not old_password or not new_password:
+            return Response({"detail": "old_password and new_password are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = request.user
+        if not user.check_password(old_password):
+            return Response({"detail": "Old password is incorrect"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save()
+        return Response({"detail": "Password changed successfully"}, status=status.HTTP_200_OK)
+
+
+# ===== Dashboard / Analytics =====
+
+class DashboardViewSet(viewsets.ViewSet):
+    permission_classes = [IsAuthenticated, IsAdmin | IsAccountManager | IsProductionTeam]
+
+    def list(self, request):
+        """Return high-level metrics for dashboards."""
+        data = {
+            "leads": {
+                "total": Lead.objects.count(),
+                "new": Lead.objects.filter(status="New").count(),
+                "converted": Lead.objects.filter(status="Converted").count(),
+            },
+            "clients": {
+                "total": Client.objects.count(),
+                "b2b": Client.objects.filter(client_type="B2B").count(),
+                "b2c": Client.objects.filter(client_type="B2C").count(),
+            },
+            "quotes": {
+                "total": Quote.objects.count(),
+                "draft": Quote.objects.filter(status="Draft").count(),
+                "sent_to_customer": Quote.objects.filter(status="Sent to Customer").count(),
+                "approved": Quote.objects.filter(status="Approved").count(),
+                "lost": Quote.objects.filter(status="Lost").count(),
+                "ecommerce": Quote.objects.filter(channel="ecommerce").count(),
+            },
+            "jobs": {
+                "total": Job.objects.count(),
+                "pending": Job.objects.filter(status="pending").count(),
+                "in_progress": Job.objects.filter(status="in_progress").count(),
+                "on_hold": Job.objects.filter(status="on_hold").count(),
+                "completed": Job.objects.filter(status="completed").count(),
+            },
+            "lpos": {
+                "total": LPO.objects.count(),
+                "pending": LPO.objects.filter(status="pending").count(),
+                "approved": LPO.objects.filter(status="approved").count(),
+                "completed": LPO.objects.filter(status="completed").count(),
+            },
+        }
+        return Response(data, status=status.HTTP_200_OK)
 
