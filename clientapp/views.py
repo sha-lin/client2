@@ -1241,6 +1241,7 @@ def client_onboarding(request):
         'prefilled_lead': prefilled_data,
     }
     return render(request, 'client_onboarding.html', context)
+    
 def client_list(request):
     """Client list view with filters"""
     # Get filter parameters
