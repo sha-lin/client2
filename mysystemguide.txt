@@ -1,0 +1,23 @@
+# system workflow:
+
+# AM
+onboarding a lead
+quote creation for the lead- for their chosen products when being onbaorded
+lead conversion to a client once they approve sent quote- converted to b2b or b2c
+onboarding a client- b2b or b2c
+managing client profiles
+creation of multiproduct quotes for clients/leads
+dashboard
+analytics
+
+
+# PT
+cost a quote for semi and fully customizable products- from AM
+create products with their properties for product catalog
+create costing processes
+create and manage vendors
+track jobs- till completion
+track qc and delivery checklists for the jobs
+
+# Admin
+

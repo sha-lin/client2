@@ -78,7 +78,7 @@ class QuickBooksService:
             # Address
             if client_obj.address:
                 address = PhysicalAddress()
-                address.Line1 = client_obj.address[:500]  # QB has char limits
+                address.Line1 = client_obj.address[:500] 
                 customer.BillAddr = address
             
             # Payment terms mapping

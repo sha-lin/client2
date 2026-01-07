@@ -1,6 +1,7 @@
 from django.utils import timezone
 from django.contrib.auth.models import User, Group
-from rest_framework import viewsets, status, decorators
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework import viewsets, status, decorators, serializers
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -131,10 +132,21 @@ class LeadViewSet(viewsets.ModelViewSet):
 
     @decorators.action(detail=True, methods=["post"])
     def convert(self, request, pk=None):
-        """Convert a lead to a client (simple version)."""
+        """
+        Convert a lead to a client.
+        Allowed only if at least one approved quote exists for this lead.
+        """
         lead = self.get_object()
         if lead.converted_to_client:
             return Response({"detail": "Lead already converted."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Enforce rule: Lead converts only after an approved quote
+        has_approved_quote = Quote.objects.filter(lead=lead, status="Approved").exists()
+        if not has_approved_quote:
+            return Response(
+                {"detail": "Lead can only be converted after at least one approved quote."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         existing_client = Client.objects.filter(email=lead.email).first()
         if existing_client:
@@ -171,6 +183,22 @@ class ClientContactViewSet(viewsets.ModelViewSet):
     filterset_fields = ["client", "role", "is_primary"]
     search_fields = ["full_name", "email", "phone"]
 
+    def _ensure_b2b(self, client):
+        if client.client_type != "B2B":
+            raise serializers.ValidationError("Additional contacts are only allowed for B2B clients.")
+
+    def perform_create(self, serializer):
+        client = serializer.validated_data.get("client")
+        if client:
+            self._ensure_b2b(client)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        client = serializer.validated_data.get("client") or serializer.instance.client
+        if client:
+            self._ensure_b2b(client)
+        serializer.save()
+
 
 class ClientViewSet(viewsets.ModelViewSet):
     queryset = Client.objects.select_related("account_manager", "converted_from_lead").all()
@@ -188,6 +216,22 @@ class BrandAssetViewSet(viewsets.ModelViewSet):
     filterset_fields = ["client", "asset_type"]
     search_fields = ["description"]
 
+    def _ensure_b2b(self, client):
+        if client.client_type != "B2B":
+            raise serializers.ValidationError("Brand assets are only allowed for B2B clients.")
+
+    def perform_create(self, serializer):
+        client = serializer.validated_data.get("client")
+        if client:
+            self._ensure_b2b(client)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        client = serializer.validated_data.get("client") or serializer.instance.client
+        if client:
+            self._ensure_b2b(client)
+        serializer.save()
+
 
 class ComplianceDocumentViewSet(viewsets.ModelViewSet):
     queryset = ComplianceDocument.objects.select_related("client", "uploaded_by").all()
@@ -195,6 +239,22 @@ class ComplianceDocumentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsAccountManager | IsAdmin]
     filterset_fields = ["client", "document_type"]
     search_fields = ["notes"]
+
+    def _ensure_b2b(self, client):
+        if client.client_type != "B2B":
+            raise serializers.ValidationError("Compliance documents are only allowed for B2B clients.")
+
+    def perform_create(self, serializer):
+        client = serializer.validated_data.get("client")
+        if client:
+            self._ensure_b2b(client)
+        serializer.save()
+
+    def perform_update(self, serializer):
+        client = serializer.validated_data.get("client") or serializer.instance.client
+        if client:
+            self._ensure_b2b(client)
+        serializer.save()
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -286,13 +346,54 @@ class QuoteViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(quote)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @decorators.action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, IsAccountManager | IsAdmin])
+    def create_from_lead(self, request):
+        """
+        Create a draft quote from a lead, pre-filling product_name from product_interest.
+        """
+        lead_id = request.data.get("lead_id")
+        quantity = int(request.data.get("quantity") or 1)
+        if not lead_id:
+            return Response({"detail": "lead_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            lead = Lead.objects.get(pk=lead_id)
+        except Lead.DoesNotExist:
+            return Response({"detail": "Lead not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        product_name = lead.product_interest or "Custom Print Job"
+
+        quote = Quote.objects.create(
+            client=None,
+            lead=lead,
+            product=None,
+            product_name=product_name,
+            quantity=quantity,
+            unit_price=0,
+            total_amount=0,
+            include_vat=False,
+            payment_terms="Prepaid",
+            status="Draft",
+            channel="portal",
+            checkout_status="draft",
+            created_by=request.user,
+        )
+
+        serializer = self.get_serializer(quote)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
     @decorators.action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
+        """
+        Approve a quote, respecting the status machine in the model.
+        """
         quote = self.get_object()
-        quote._skip_status_validation = True
         quote.status = "Approved"
         quote.approved_at = timezone.now()
-        quote.save()
+        try:
+            quote.save()
+        except DjangoValidationError as exc:
+            return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
         return Response({"detail": "Quote approved"})
 
     @decorators.action(detail=True, methods=["post"])
@@ -583,8 +684,8 @@ class ProductTemplateViewSet(viewsets.ModelViewSet):
 
 class QuickBooksSyncViewSet(viewsets.ViewSet):
     """
-    Placeholder sync endpoints for QuickBooks integration.
-    Replace with real sync logic in quickbooks_services.py.
+    in quickbooks.py
+    Placeholder ViewSet for QuickBooks Online synchronization endpoints.
     """
 
     permission_classes = [IsAuthenticated, IsAdmin]

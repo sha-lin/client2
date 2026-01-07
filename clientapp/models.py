@@ -1,4 +1,3 @@
-# clients/models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator, MaxValueValidator
@@ -7,8 +6,13 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 from datetime import timedelta
 from decimal import Decimal
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.utils.text import slugify
+from django.contrib.auth import get_user_model
+from django import forms
+import json
+from datetime import date
 
+# Account manager tables
 class Lead(models.Model):
     """Lead model for prospect tracking"""
     STATUS_CHOICES = [
@@ -65,7 +69,7 @@ class Lead(models.Model):
     
     def save(self, *args, **kwargs):
         if not self.lead_id:
-            # Generate lead ID: LD-YYYY-XXX
+            # Generate lead ID: format-LD-YYYY-XX
             year = timezone.now().year
             last_lead = Lead.objects.filter(
                 lead_id__startswith=f'LD-{year}-'
@@ -144,7 +148,8 @@ class Client(models.Model):
 
     # Delivery Details
     delivery_address = models.CharField(max_length=200, blank=True, null=True)
-    delivery_instructions = models.TextField(blank=True, help_text="Specific delivery instructions (e.g., gate codes, contact person)")
+    # might use it later
+    delivery_instructions = models.TextField(blank=True, help_text="Specific delivery instructions (gate codes, contact person)")
     
     # Communication
     preferred_channel = models.CharField(max_length=20, choices=CHANNEL_CHOICES, default='Email')
@@ -217,7 +222,7 @@ class Client(models.Model):
                 self.status = 'Dormant'
         
         super().save(*args, **kwargs)
-    
+    # for profile
     def get_last_activity_display(self):
         """Get human-readable last activity"""
         if not self.last_activity:
@@ -292,7 +297,7 @@ class ClientContact(models.Model):
 
 
 class BrandAsset(models.Model):
-    """Brand assets library for clients"""
+    """Brand assets library for clients- B2B"""
     ASSET_TYPE_CHOICES = [
         ('Logo', 'Logo'),
         ('Brand Guide', 'Brand Guidelines'),
@@ -356,14 +361,10 @@ class ComplianceDocument(models.Model):
             return 0 < days_until_expiry <= 30
         return False
 
-from django.db import models
-from django.utils.text import slugify
-from django.core.validators import MinValueValidator, MaxValueValidator
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
-
+# PRODUCTION TEAM - PRODUCT MODELS
 class ProductCategory(models.Model):
     """Primary categories for products"""
     name = models.CharField(max_length=100)
@@ -376,7 +377,7 @@ class ProductCategory(models.Model):
     
     def __str__(self):
         return self.name
-from django import forms
+
 class ProductCategoryForm(forms.ModelForm):
     """Form for creating/editing product categories"""
     
@@ -498,16 +499,16 @@ class Product(models.Model):
     # Basic Product Information
     name = models.CharField(max_length=255, help_text="Customer-facing name")
     internal_code = models.CharField(max_length=50, unique=True, blank=True, help_text="Internal SKU/Code (auto-generated)")
-    auto_generate_code = models.BooleanField(default=True, editable=False)  # Always True, hidden from forms
+    auto_generate_code = models.BooleanField(default=True, editable=False)  
     short_description = models.CharField(max_length=150)
     long_description = models.TextField()
     technical_specs = models.TextField(blank=True)
     
     # Classification
-    primary_category = models.CharField(max_length=100, blank=True, help_text="e.g., Print Products, Signage, Apparel")
-    sub_category = models.CharField(max_length=100, blank=True, help_text="e.g., Business Cards, Flyers, Brochures")
+    primary_category = models.CharField(max_length=100, blank=True, help_text="Print Products, Signage, Apparel")
+    sub_category = models.CharField(max_length=100, blank=True, help_text="Business Cards, Flyers, Brochures")
     product_type = models.CharField(max_length=20, choices=PRODUCT_TYPE_CHOICES, default='physical')
-    product_family = models.CharField(max_length=100, blank=True, help_text="e.g., Business Cards Family")
+    product_family = models.CharField(max_length=100, blank=True, help_text="Business Cards Family")
 
     tags = models.ManyToManyField('ProductTag', blank=True, related_name='products')
     
@@ -619,7 +620,7 @@ class Product(models.Model):
         return True, None
     
     def save(self, *args, **kwargs):
-        # Skip validation if skip_validation is set (used during multi-tab form saves)
+        # Skip validation if skip_validation is set
         skip_validation = kwargs.pop('skip_validation', False)
         
         if not skip_validation:
@@ -649,7 +650,7 @@ class Product(models.Model):
             
             if last_product:
                 try:
-                    # Extract number from code like PRD-BC-001
+                    # Extract last number and increment- FROM product code name
                     last_num = int(last_product.internal_code.split('-')[-1])
                     new_num = last_num + 1
                 except (ValueError, IndexError):
@@ -752,10 +753,7 @@ class ProductPricing(models.Model):
     def __str__(self):
         return f"Pricing for {self.product.name}"
 
-from django.db import models
-from django.contrib.auth.models import User
-from django.core.validators import MinValueValidator, MaxValueValidator
-import json
+
 class Process(models.Model):
     """Main Process model - represents a production process with pricing logic"""
     
@@ -881,10 +879,10 @@ class ProcessVariable(models.Model):
     
     process = models.ForeignKey(Process, on_delete=models.CASCADE, related_name='variables')
     variable_name = models.CharField(max_length=100)
-    variable_type = models.CharField(max_length=20, choices=VARIABLE_TYPE_CHOICES, default='number')  # NEW
+    variable_type = models.CharField(max_length=20, choices=VARIABLE_TYPE_CHOICES, default='number') 
     unit = models.CharField(max_length=50, blank=True, help_text="e.g., stitches, m, cm")
     
-    # Single value fields (for number type)
+    # Single value fields -for number type
     variable_value = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
@@ -905,7 +903,7 @@ class ProcessVariable(models.Model):
         help_text="Multiplier rate for this variable"
     )
     
-    # Keep these for backward compatibility but make optional
+    # Backward compatibility fields - min, max, default
     min_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     max_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     default_value = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
@@ -941,7 +939,7 @@ class ProductVariable(models.Model):
     variable_type = models.CharField(max_length=20, choices=VARIABLE_TYPE_CHOICES, default='required')
     pricing_type = models.CharField(max_length=20, choices=PRICING_TYPE_CHOICES, default='fixed')
     
-    # ===== NEW: Link to Process Variable (Source Tracking) =====
+    # Source tracking
     source_process_variable = models.ForeignKey(
         'ProcessVariable',
         on_delete=models.SET_NULL,
@@ -950,7 +948,7 @@ class ProductVariable(models.Model):
         related_name='product_variables',
         help_text="Source variable from process (if auto-imported)"
     )
-    # ===== END NEW =====
+   
     
     # Conditional Logic
     show_when_variable = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='dependent_variables')
@@ -970,7 +968,7 @@ class ProductVariable(models.Model):
 class ProductVariableOption(models.Model):
     """Options for each product variable"""
     variable = models.ForeignKey(ProductVariable, on_delete=models.CASCADE, related_name='options')
-    name = models.CharField(max_length=100, help_text="e.g., 100pcs, 250gsm, Matte")
+    name = models.CharField(max_length=100, help_text="100pcs, 250gsm, Matte")
     display_order = models.IntegerField(default=0)
     is_default = models.BooleanField(default=False)
     
@@ -1273,7 +1271,7 @@ class ProductChangeHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='change_history')
     changed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     changed_at = models.DateTimeField(auto_now_add=True)
-    change_type = models.CharField(max_length=50)  # 'created', 'updated', 'published', etc.
+    change_type = models.CharField(max_length=50)  # 'created', 'updated', 'published', 
     field_changed = models.CharField(max_length=100, blank=True)
     old_value = models.TextField(blank=True)
     new_value = models.TextField(blank=True)
@@ -1290,7 +1288,7 @@ class ProductChangeHistory(models.Model):
 
 
 class Quote(models.Model):
-    """Quote/Proposal model - Zoho-style quoting with proper status machine"""
+    """Quote/Proposal model - Tryign"""
     STATUS_CHOICES = [
         ('Draft', 'Draft'),
         ('Sent to PT', 'Sent to PT'),
@@ -1348,7 +1346,6 @@ class Quote(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     
-    # Zoho-style Additional Fields
     reference_number = models.CharField(max_length=100, blank=True, help_text="Client PO/LPO reference")
     shipping_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Delivery/shipping cost")
     adjustment_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Final adjustment (+/-)")
@@ -1356,7 +1353,7 @@ class Quote(models.Model):
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=16, help_text="Tax percentage (default 16% VAT)")
     custom_terms = models.TextField(blank=True, help_text="Custom terms & conditions for this quote")
     
-    # Calculated Totals (Stored for data integrity and reporting)
+    # Calculated Totals 
     subtotal = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     discount_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     tax_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
@@ -1433,7 +1430,7 @@ class Quote(models.Model):
         else:
             self.total_amount = subtotal
         
-        # Set valid_until if not set (default 30 days)
+        # Set valid_until if not set
         if not self.valid_until:
             self.valid_until = timezone.now().date() + timedelta(days=30)
 
@@ -1456,7 +1453,7 @@ class Quote(models.Model):
     
     def _enforce_status_transitions(self):
         """Enforce valid status transitions (Zoho-like strict state machine)"""
-        if not self.pk:  # New quote, allow any initial status
+        if not self.pk:  # New quote, no previous status to compare
             return
         
         try:
@@ -1506,7 +1503,7 @@ class Quote(models.Model):
                 name=lead.name,
                 email=lead.email,
                 phone=lead.phone,
-                client_type='B2C',  # Default to B2C, can be changed later
+                client_type='B2C',
                 lead_source=lead.source if hasattr(lead, 'source') else '',
                 preferred_channel=lead.preferred_contact if hasattr(lead, 'preferred_contact') else 'Email',
                 status='Active',
@@ -1555,19 +1552,19 @@ class Quote(models.Model):
     
     def has_fully_customizable_products(self):
         """Check if quote has any fully customizable products"""
-        # Check line items first (preferred method)
+        # Check line items first
         if hasattr(self, 'line_items') and self.line_items.exists():
             return self.line_items.filter(
                 customization_level_snapshot='fully_customizable'
             ).exists()
-        # Fallback to product field (backward compatibility)
+        # Fallback to product field-backward compatibility
         if self.product:
             return self.product.customization_level == 'fully_customizable'
         return False
     
     def can_send_to_customer(self):
         """Check if quote can be sent to customer - no costed requirement"""
-        # Quotes can be sent to customers at any time (no costed requirement)
+        # Quotes can be sent to customers
         # Basic validation: quote must have at least one line item or product
         has_items = False
         if hasattr(self, 'line_items') and self.line_items.exists():
@@ -1861,7 +1858,7 @@ class Notification(models.Model):
         return f"Notification for {self.recipient.username} - {self.title}"
 
 
-from datetime import date
+
 class Job(models.Model):
     STATUS_CHOICES = [
         ('pending', 'Pending'),
@@ -1907,7 +1904,7 @@ class Job(models.Model):
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default='portal')
     
     # Product Info
-    product = models.CharField(max_length=255)  # Main product
+    product = models.CharField(max_length=255) 
     quantity = models.PositiveIntegerField()
     
     # Assignment
@@ -1992,7 +1989,7 @@ class JobAttachment(models.Model):
     def __str__(self):
         return f"{self.file_name} - {self.job.job_number}"
 
-# ===== PRODUCT MANAGEMENT MODELS 
+# PRODUCT MANAGEMENT MODELS 
 
 class PropertyType(models.Model):
     """Types of properties like Size, Finish, Paper Stock, Corners, etc."""
@@ -2396,7 +2393,7 @@ class JobVendorStage(models.Model):
     job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='vendor_stages')
     vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='job_stages')
     stage_order = models.PositiveIntegerField(default=1)  # 1, 2, 3... for multiple vendors
-    stage_name = models.CharField(max_length=100)  # e.g., "Printing"
+    stage_name = models.CharField(max_length=100)  # "Printing"
     
     # Status tracking
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -2478,10 +2475,6 @@ class Payment(models.Model):
         return f"Payment {self.reference_number} - KES {self.amount}"
 
 
-
-from django.db import models
-from django.contrib.auth.models import User
-from django.utils import timezone
 
 
 class Vendor(models.Model):
@@ -2649,8 +2642,7 @@ class QCInspection(models.Model):
         return f"QC for {self.job.job_number} - {self.get_status_display()}"
 
 
-
-# Add Delivery model
+#DELIVERY MODEL- for handoff from Production to Account Management
 class Delivery(models.Model):
     """Delivery handoff from PT to AM"""
     STATUS_CHOICES = [
@@ -2689,7 +2681,7 @@ class Delivery(models.Model):
     # }
     
     # Photos
-    package_photos = models.JSONField(default=list, blank=True)  # List of photo URLs/paths
+    package_photos = models.JSONField(default=list, blank=True)  # List of photo paths
     
     # Notes
     notes_to_am = models.TextField(blank=True)
@@ -2891,7 +2883,7 @@ class Notification(models.Model):
     
     # Action button data
     action_url = models.CharField(max_length=500, blank=True, null=True)
-    action_label = models.CharField(max_length=100, blank=True, null=True)  # e.g., "Convert to Client", "Create Quote"
+    action_label = models.CharField(max_length=100, blank=True, null=True)  # "Convert to Client", "Create Quote"
     
     class Meta:
         ordering = ['-created_at']

@@ -76,6 +76,34 @@ class ClientSerializer(serializers.ModelSerializer):
         model = Client
         fields = "__all__"
 
+    def validate(self, attrs):
+        """
+        Enforce different field rules for B2B vs B2C clients.
+        """
+        client_type = attrs.get("client_type")
+        if self.instance and not client_type:
+            client_type = self.instance.client_type
+
+        if client_type == "B2C":
+            # Fields that should not be set for B2C clients
+            b2b_only_fields = [
+                "company",
+                "vat_tax_id",
+                "kra_pin",
+                "industry",
+                "credit_limit",
+                "default_markup",
+                "risk_rating",
+                "is_reseller",
+            ]
+            invalid_fields = [f for f in b2b_only_fields if attrs.get(f)]
+            if invalid_fields:
+                raise serializers.ValidationError(
+                    {"detail": f"Fields {', '.join(invalid_fields)} are only allowed for B2B clients."}
+                )
+
+        return super().validate(attrs)
+
 
 class BrandAssetSerializer(serializers.ModelSerializer):
     class Meta:
