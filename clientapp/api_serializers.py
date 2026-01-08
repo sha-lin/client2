@@ -54,6 +54,21 @@ from .models import (
     QuoteAttachment,
     LPOLineItem,
     SystemAlert,
+    ProductionUpdate,
+    # Storefront models
+    Customer,
+    CustomerAddress,
+    Cart,
+    CartItem,
+    Order,
+    OrderItem,
+    Coupon,
+    TaxConfiguration,
+    DesignTemplate,
+    DesignState,
+    ProductReview,
+    ShippingMethod,
+    PaymentTransaction,
 )
 
 
@@ -170,6 +185,9 @@ class QuoteSerializer(serializers.ModelSerializer):
 
 
 class JobSerializer(serializers.ModelSerializer):
+    person_in_charge_name = serializers.CharField(source='person_in_charge.get_full_name', read_only=True)
+    person_in_charge_email = serializers.EmailField(source='person_in_charge.email', read_only=True)
+    
     class Meta:
         model = Job
         fields = "__all__"
@@ -393,6 +411,29 @@ class SystemAlertSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class ProductionUpdateSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    job_number = serializers.CharField(source='job.job_number', read_only=True)
+    quote_id = serializers.CharField(source='quote.quote_id', read_only=True)
+    
+    class Meta:
+        model = ProductionUpdate
+        fields = "__all__"
+    
+    def validate(self, attrs):
+        """Ensure either job or quote is provided"""
+        job = attrs.get('job') or (self.instance.job if self.instance else None)
+        quote = attrs.get('quote') or (self.instance.quote if self.instance else None)
+        
+        if not job and not quote:
+            raise serializers.ValidationError("Either job or quote must be provided.")
+        
+        if job and quote:
+            raise serializers.ValidationError("Cannot provide both job and quote.")
+        
+        return attrs
+
+
 # ===== User / Group Serializers =====
 
 class UserSerializer(serializers.ModelSerializer):
@@ -405,4 +446,136 @@ class GroupSerializer(serializers.ModelSerializer):
     class Meta:
         model = Group
         fields = ["id", "name"]
+
+
+# ============================================================================
+# STOREFRONT ECOMMERCE SERIALIZERS
+# ============================================================================
+
+class CustomerSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source='get_full_name', read_only=True)
+    matched_client_name = serializers.CharField(source='matched_client.name', read_only=True)
+    
+    class Meta:
+        model = Customer
+        fields = "__all__"
+        extra_kwargs = {
+            'email': {'required': True},
+            'first_name': {'required': True},
+            'last_name': {'required': True},
+        }
+
+
+class CustomerAddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomerAddress
+        fields = "__all__"
+
+
+class CartItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_image = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CartItem
+        fields = "__all__"
+    
+    def get_product_image(self, obj):
+        # Get first product image if available
+        first_image = obj.product.product_images.first()
+        if first_image:
+            return first_image.image.url if hasattr(first_image.image, 'url') else ''
+        return ''
+
+
+class CartSerializer(serializers.ModelSerializer):
+    items = CartItemSerializer(many=True, read_only=True)
+    item_count = serializers.IntegerField(read_only=True)
+    subtotal = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    total = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    customer_email = serializers.CharField(source='customer.email', read_only=True)
+    
+    class Meta:
+        model = Cart
+        fields = "__all__"
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    
+    class Meta:
+        model = OrderItem
+        fields = "__all__"
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    items = OrderItemSerializer(many=True, read_only=True)
+    customer_email = serializers.CharField(source='customer.email', read_only=True)
+    customer_name = serializers.CharField(source='customer.get_full_name', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_status_display = serializers.CharField(source='get_payment_status_display', read_only=True)
+    
+    class Meta:
+        model = Order
+        fields = "__all__"
+        read_only_fields = ['order_number', 'created_at', 'updated_at']
+
+
+class CouponSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Coupon
+        fields = "__all__"
+
+
+class TaxConfigurationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TaxConfiguration
+        fields = "__all__"
+
+
+class DesignTemplateSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    
+    class Meta:
+        model = DesignTemplate
+        fields = "__all__"
+
+
+class DesignStateSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    template_name = serializers.CharField(source='template.name', read_only=True)
+    
+    class Meta:
+        model = DesignState
+        fields = "__all__"
+
+
+class ProductReviewSerializer(serializers.ModelSerializer):
+    customer_name = serializers.CharField(source='customer.get_full_name', read_only=True)
+    customer_email = serializers.CharField(source='customer.email', read_only=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    rating_display = serializers.CharField(source='get_rating_display', read_only=True)
+    
+    class Meta:
+        model = ProductReview
+        fields = "__all__"
+        read_only_fields = ['created_at', 'updated_at', 'helpful_count']
+
+
+class ShippingMethodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ShippingMethod
+        fields = "__all__"
+
+
+class PaymentTransactionSerializer(serializers.ModelSerializer):
+    order_number = serializers.CharField(source='order.order_number', read_only=True)
+    customer_email = serializers.CharField(source='customer.email', read_only=True)
+    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    payment_method_display = serializers.CharField(source='get_payment_method_display', read_only=True)
+    
+    class Meta:
+        model = PaymentTransaction
+        fields = "__all__"
+        read_only_fields = ['created_at', 'updated_at', 'initiated_at']
 

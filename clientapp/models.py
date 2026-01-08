@@ -1908,7 +1908,14 @@ class Job(models.Model):
     quantity = models.PositiveIntegerField()
     
     # Assignment
-    person_in_charge = models.CharField(max_length=255)
+    person_in_charge = models.ForeignKey(
+        'auth.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assigned_jobs',
+        help_text="Production Team member assigned to this job"
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
     # Dates
@@ -2557,6 +2564,78 @@ class Vendor(models.Model):
     class Meta:
         ordering = ['-vps_score_value', 'name']
     
+    def calculate_vps(self):
+        """
+        Dynamically calculate Vendor Performance Score based on:
+        - QC pass rate (70% weight)
+        - On-time delivery rate (20% weight)
+        - Cost competitiveness (10% weight)
+        
+        Returns: Updated vps_score and vps_score_value
+        """
+        from django.db.models import Count, Q, Avg
+        from datetime import timedelta
+        from decimal import Decimal
+        
+        # Get QC inspections for this vendor (last 90 days)
+        ninety_days_ago = timezone.now() - timedelta(days=90)
+        qc_inspections = QCInspection.objects.filter(
+            vendor=self,
+            created_at__gte=ninety_days_ago
+        )
+        
+        total_qc = qc_inspections.count()
+        passed_qc = qc_inspections.filter(status='passed').count()
+        qc_pass_rate = (passed_qc / total_qc * 100) if total_qc > 0 else 100
+        
+        # Get vendor stages for on-time delivery (last 90 days)
+        vendor_stages = JobVendorStage.objects.filter(
+            vendor=self,
+            created_at__gte=ninety_days_ago,
+            status='completed',
+            expected_completion__isnull=False,
+            actual_completion__isnull=False
+        )
+        
+        total_stages = vendor_stages.count()
+        on_time_stages = 0
+        for stage in vendor_stages:
+            if stage.actual_completion and stage.expected_completion:
+                if stage.actual_completion <= stage.expected_completion:
+                    on_time_stages += 1
+        on_time_rate = (on_time_stages / total_stages * 100) if total_stages > 0 else 100
+        
+        # Cost competitiveness (simplified - compare average vendor cost vs market average)
+        # For now, we'll use a default score if no data
+        cost_score = 80  # Default
+        
+        # Calculate weighted VPS score (0-100)
+        vps_value = (
+            (qc_pass_rate * 0.70) +
+            (on_time_rate * 0.20) +
+            (cost_score * 0.10)
+        )
+        
+        # Convert to letter grade
+        if vps_value >= 90:
+            vps_letter = 'A'
+        elif vps_value >= 75:
+            vps_letter = 'B'
+        else:
+            vps_letter = 'C'
+        
+        # Update fields
+        self.vps_score = vps_letter
+        self.vps_score_value = Decimal(str(round(vps_value, 2)))
+        self.save(update_fields=['vps_score', 'vps_score_value', 'updated_at'])
+        
+        return {
+            'vps_score': vps_letter,
+            'vps_score_value': float(vps_value),
+            'qc_pass_rate': round(qc_pass_rate, 1),
+            'on_time_rate': round(on_time_rate, 1),
+        }
+    
     def __str__(self):
         return f"{self.name} (VPS: {self.vps_score})"
 
@@ -2896,63 +2975,6 @@ class Notification(models.Model):
         return f"{self.title} - {self.recipient.username}"
 
 
-class Delivery(models.Model):
-    """Delivery tracking for completed jobs"""
-    STAGING_LOCATION_CHOICES = [
-        ('shelf-a', 'Shelf A'),
-        ('shelf-b', 'Shelf B'),
-        ('shelf-c', 'Shelf C'),
-        ('counter', 'Counter'),
-        ('warehouse', 'Warehouse'),
-    ]
-    
-    STATUS_CHOICES = [
-        ('pending', 'Pending'),
-        ('staged', 'Staged for Pickup'),
-        ('in_transit', 'In Transit'),
-        ('delivered', 'Delivered'),
-    ]
-    
-    job = models.OneToOneField(Job, on_delete=models.CASCADE, related_name='delivery')
-    
-    # Staging
-    staging_location = models.CharField(max_length=50, choices=STAGING_LOCATION_CHOICES, default='shelf-b')
-    notes_to_am = models.TextField(blank=True)
-    
-    # Packaging verification (stored as JSON)
-    packaging_verified = models.JSONField(default=dict, blank=True)
-    
-    # Costs
-    locked_evp = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    actual_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    
-    # Handoff confirmation
-    handoff_confirmed = models.BooleanField(default=False)
-    handoff_confirmed_at = models.DateTimeField(null=True, blank=True)
-    handoff_confirmed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='handoffs_confirmed')
-    
-    # Notification settings
-    notify_am = models.BooleanField(default=True)
-    notify_via_email = models.BooleanField(default=True)
-    mark_urgent = models.BooleanField(default=False)
-    
-    # Status
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    
-    # Tracking
-    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='deliveries_created')
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['-created_at']
-        verbose_name_plural = "Deliveries"
-    
-    def __str__(self):
-        return f"Delivery for {self.job.job_number}"
-    
-    def get_staging_location_display(self):
-        return dict(self.STAGING_LOCATION_CHOICES).get(self.staging_location, self.staging_location)
 
 
 class AuditLog(models.Model):
@@ -3049,14 +3071,753 @@ class ProcessVariableRange(models.Model):
 # COSTING PROCESS SYSTEM MODELS
 
 
+# ============================================================================
+# STOREFRONT ECOMMERCE MODELS
+# ============================================================================
+
+class Customer(models.Model):
+    """
+    Storefront Customer Profile - Separate from internal Client model
+    Handles identity matching and customer accounts for ecommerce
+    """
+    # Link to Django User (optional - for authenticated customers)
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='customer_profile'
+    )
+    
+    # Identity Information
+    email = models.EmailField(unique=True, db_index=True)
+    phone = models.CharField(max_length=20, blank=True)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    
+    # Account Status
+    is_guest = models.BooleanField(default=True, help_text="True if no account created")
+    is_active = models.BooleanField(default=True)
+    email_verified = models.BooleanField(default=False)
+    phone_verified = models.BooleanField(default=False)
+    
+    # Preferences
+    preferred_currency = models.CharField(max_length=3, default='KES')
+    preferred_language = models.CharField(max_length=10, default='en')
+    marketing_consent = models.BooleanField(default=False)
+    
+    # Link to existing Client (if matched)
+    matched_client = models.ForeignKey(
+        'Client',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='customer_profiles',
+        help_text="Auto-matched to existing Client if email/phone matches"
+    )
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_login_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['email']),
+            models.Index(fields=['phone']),
+            models.Index(fields=['is_guest']),
+        ]
+    
+    def __str__(self):
+        return f"{self.email} ({'Guest' if self.is_guest else 'Account'})"
+    
+    def get_full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+    
+    def match_to_existing_client(self):
+        """Auto-match customer to existing Client by email or phone"""
+        if self.matched_client:
+            return self.matched_client
+        
+        # Try to match by email
+        try:
+            client = Client.objects.get(email=self.email)
+            self.matched_client = client
+            self.save(update_fields=['matched_client'])
+            return client
+        except Client.DoesNotExist:
+            pass
+        
+        # Try to match by phone
+        if self.phone:
+            try:
+                client = Client.objects.get(phone=self.phone)
+                self.matched_client = client
+                self.save(update_fields=['matched_client'])
+                return client
+            except Client.DoesNotExist:
+                pass
+        
+        return None
 
 
+class CustomerAddress(models.Model):
+    """Address Book for Customers - Multiple addresses per customer"""
+    ADDRESS_TYPE_CHOICES = [
+        ('billing', 'Billing Address'),
+        ('shipping', 'Shipping Address'),
+        ('both', 'Both'),
+    ]
+    
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='addresses')
+    address_type = models.CharField(max_length=10, choices=ADDRESS_TYPE_CHOICES, default='both')
+    
+    # Address Details
+    full_name = models.CharField(max_length=200)
+    phone = models.CharField(max_length=20)
+    address_line_1 = models.CharField(max_length=255)
+    address_line_2 = models.CharField(max_length=255, blank=True)
+    city = models.CharField(max_length=100)
+    state_province = models.CharField(max_length=100, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    country = models.CharField(max_length=100, default='Kenya')
+    
+    # Flags
+    is_default_billing = models.BooleanField(default=False)
+    is_default_shipping = models.BooleanField(default=False)
+    
+    # Additional Info
+    delivery_instructions = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-is_default_shipping', '-is_default_billing', '-created_at']
+        verbose_name_plural = "Customer Addresses"
+    
+    def __str__(self):
+        return f"{self.customer.email} - {self.city} ({self.address_type})"
 
 
+class Cart(models.Model):
+    """Shopping Cart for Storefront Customers"""
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.CASCADE,
+        related_name='carts',
+        null=True,
+        blank=True
+    )
+    session_key = models.CharField(
+        max_length=40,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="For guest carts"
+    )
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    is_abandoned = models.BooleanField(default=False)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(fields=['customer', 'is_active']),
+            models.Index(fields=['session_key', 'is_active']),
+        ]
+    
+    def __str__(self):
+        identifier = self.customer.email if self.customer else f"Guest-{self.session_key[:8]}"
+        return f"Cart-{self.id} ({identifier})"
+    
+    @property
+    def item_count(self):
+        return self.items.count()
+    
+    @property
+    def subtotal(self):
+        return sum(item.line_total for item in self.items.all())
+    
+    @property
+    def total(self):
+        # Subtotal + shipping + tax - discounts
+        return self.subtotal  # Will be enhanced with tax/shipping/discounts
 
 
+class CartItem(models.Model):
+    """Individual items in a shopping cart"""
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    
+    # Product Details (snapshot at time of adding to cart)
+    product_name = models.CharField(max_length=255)
+    product_sku = models.CharField(max_length=100, blank=True)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    quantity = models.IntegerField(validators=[MinValueValidator(1)])
+    
+    # Customization (for design products)
+    design_state_json = models.JSONField(null=True, blank=True, help_text="Stored design configuration")
+    design_file_url = models.URLField(blank=True, help_text="Link to uploaded design file")
+    
+    # Calculated
+    line_total = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+        unique_together = [['cart', 'product', 'design_state_json']]
+    
+    def __str__(self):
+        return f"{self.quantity}x {self.product_name} in Cart-{self.cart.id}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-calculate line_total
+        self.line_total = self.unit_price * self.quantity
+        super().save(*args, **kwargs)
 
 
+class Order(models.Model):
+    """
+    Ecommerce Order Model - Separate from Quote
+    Orders are created after payment confirmation
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending Payment'),
+        ('paid', 'Paid'),
+        ('processing', 'Processing'),
+        ('in_production', 'In Production'),
+        ('shipped', 'Shipped'),
+        ('delivered', 'Delivered'),
+        ('cancelled', 'Cancelled'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    PAYMENT_STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    # Order Identification
+    order_number = models.CharField(max_length=50, unique=True, editable=False, db_index=True)
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='orders')
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS_CHOICES, default='pending')
+    
+    # Pricing
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    shipping_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Addresses
+    billing_address = models.ForeignKey(
+        CustomerAddress,
+        on_delete=models.PROTECT,
+        related_name='billing_orders',
+        null=True
+    )
+    shipping_address = models.ForeignKey(
+        CustomerAddress,
+        on_delete=models.PROTECT,
+        related_name='shipping_orders',
+        null=True
+    )
+    
+    # Payment
+    payment_method = models.CharField(max_length=50, blank=True)  # mpesa, stripe, pesapal
+    payment_transaction_id = models.CharField(max_length=255, blank=True)
+    payment_receipt_url = models.URLField(blank=True)
+    
+    # Coupon/Discount
+    coupon_code = models.CharField(max_length=50, blank=True)
+    coupon = models.ForeignKey('Coupon', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Shipping
+    shipping_method = models.ForeignKey('ShippingMethod', on_delete=models.SET_NULL, null=True, blank=True)
+    tracking_number = models.CharField(max_length=100, blank=True)
+    estimated_delivery = models.DateField(null=True, blank=True)
+    
+    # Link to Quote (if converted from quote)
+    quote = models.ForeignKey('Quote', on_delete=models.SET_NULL, null=True, blank=True, related_name='orders')
+    
+    # Link to Job (created after order confirmation)
+    job = models.ForeignKey('Job', on_delete=models.SET_NULL, null=True, blank=True, related_name='storefront_orders')
+    
+    # Customer Notes
+    customer_notes = models.TextField(blank=True)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order_number']),
+            models.Index(fields=['customer', 'status']),
+            models.Index(fields=['payment_status']),
+        ]
+    
+    def __str__(self):
+        return f"Order {self.order_number} - {self.customer.email}"
+    
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            # Generate order number: ORD-YYYY-XXX
+            year = timezone.now().year
+            last_order = Order.objects.filter(
+                order_number__startswith=f'ORD-{year}-'
+            ).order_by('order_number').last()
+            
+            if last_order:
+                last_num = int(last_order.order_number.split('-')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+            
+            self.order_number = f'ORD-{year}-{new_num:05d}'
+        
+        super().save(*args, **kwargs)
+
+
+class OrderItem(models.Model):
+    """Individual items in an order"""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey('Product', on_delete=models.PROTECT)
+    
+    # Product Details (snapshot)
+    product_name = models.CharField(max_length=255)
+    product_sku = models.CharField(max_length=100, blank=True)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    quantity = models.IntegerField(validators=[MinValueValidator(1)])
+    
+    # Customization
+    design_state_json = models.JSONField(null=True, blank=True)
+    design_file_url = models.URLField(blank=True)
+    
+    # Pricing
+    line_total = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    class Meta:
+        ordering = ['id']
+    
+    def __str__(self):
+        return f"{self.quantity}x {self.product_name} in {self.order.order_number}"
+
+
+class Coupon(models.Model):
+    """Coupon/Discount Engine"""
+    TYPE_CHOICES = [
+        ('percentage', 'Percentage Off'),
+        ('fixed', 'Fixed Amount Off'),
+        ('free_shipping', 'Free Shipping'),
+        ('buy_x_get_y', 'Buy X Get Y'),
+    ]
+    
+    code = models.CharField(max_length=50, unique=True, db_index=True)
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    
+    # Discount Type
+    discount_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='percentage')
+    discount_value = models.DecimalField(max_digits=10, decimal_places=2, help_text="Percentage or fixed amount")
+    
+    # Buy X Get Y (for discount_type='buy_x_get_y')
+    buy_quantity = models.IntegerField(null=True, blank=True)
+    get_quantity = models.IntegerField(null=True, blank=True)
+    
+    # Conditions
+    minimum_order_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    maximum_discount_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    applicable_products = models.ManyToManyField('Product', blank=True, help_text="Leave empty for all products")
+    
+    # Usage Limits
+    usage_limit = models.IntegerField(null=True, blank=True, help_text="Total times coupon can be used")
+    usage_count = models.IntegerField(default=0)
+    usage_limit_per_customer = models.IntegerField(default=1, help_text="Times per customer")
+    
+    # Validity
+    valid_from = models.DateTimeField()
+    valid_until = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+    
+    def is_valid(self, customer=None, order_amount=0):
+        """Check if coupon is valid for use"""
+        if not self.is_active:
+            return False, "Coupon is not active"
+        
+        if timezone.now() < self.valid_from or timezone.now() > self.valid_until:
+            return False, "Coupon is not valid at this time"
+        
+        if self.usage_limit and self.usage_count >= self.usage_limit:
+            return False, "Coupon usage limit reached"
+        
+        if order_amount < self.minimum_order_amount:
+            return False, f"Minimum order amount of {self.minimum_order_amount} required"
+        
+        if customer:
+            # Check per-customer usage limit
+            customer_usage = Order.objects.filter(
+                customer=customer,
+                coupon=self,
+                payment_status='completed'
+            ).count()
+            if customer_usage >= self.usage_limit_per_customer:
+                return False, "You have already used this coupon"
+        
+        return True, "Valid"
+    
+    def calculate_discount(self, order_amount, items=None):
+        """Calculate discount amount for an order"""
+        if self.discount_type == 'percentage':
+            discount = order_amount * (self.discount_value / 100)
+            if self.maximum_discount_amount:
+                discount = min(discount, self.maximum_discount_amount)
+            return discount
+        elif self.discount_type == 'fixed':
+            return min(self.discount_value, order_amount)
+        elif self.discount_type == 'free_shipping':
+            return Decimal('0')  # Applied separately
+        elif self.discount_type == 'buy_x_get_y':
+            # Complex logic for BOGO
+            return Decimal('0')  # Placeholder
+        return Decimal('0')
+
+
+class TaxConfiguration(models.Model):
+    """Tax Engine - Region-based tax calculation"""
+    REGION_TYPE_CHOICES = [
+        ('country', 'Country'),
+        ('state', 'State/Province'),
+        ('city', 'City'),
+        ('postal_code', 'Postal Code'),
+    ]
+    
+    TAX_TYPE_CHOICES = [
+        ('vat', 'VAT'),
+        ('gst', 'GST'),
+        ('sales_tax', 'Sales Tax'),
+        ('exempt', 'Tax Exempt'),
+    ]
+    
+    name = models.CharField(max_length=200)
+    tax_type = models.CharField(max_length=20, choices=TAX_TYPE_CHOICES, default='vat')
+    rate = models.DecimalField(max_digits=5, decimal_places=2, help_text="Tax rate percentage")
+    
+    # Region Targeting
+    region_type = models.CharField(max_length=20, choices=REGION_TYPE_CHOICES, default='country')
+    country = models.CharField(max_length=100, default='Kenya')
+    state_province = models.CharField(max_length=100, blank=True)
+    city = models.CharField(max_length=100, blank=True)
+    postal_code = models.CharField(max_length=20, blank=True)
+    
+    # Conditions
+    is_active = models.BooleanField(default=True)
+    applies_to_b2b = models.BooleanField(default=True)
+    applies_to_b2c = models.BooleanField(default=True)
+    
+    # Exemptions
+    exempt_product_categories = models.JSONField(default=list, blank=True, help_text="List of category names")
+    exempt_business_types = models.JSONField(default=list, blank=True, help_text="List of business types")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['country', 'state_province', 'city']
+        verbose_name_plural = "Tax Configurations"
+    
+    def __str__(self):
+        return f"{self.name} ({self.rate}%) - {self.country}"
+    
+    def applies_to(self, address, customer=None):
+        """Check if this tax configuration applies to given address/customer"""
+        if not self.is_active:
+            return False
+        
+        if address.country != self.country:
+            return False
+        
+        if self.region_type == 'state' and address.state_province != self.state_province:
+            return False
+        
+        if self.region_type == 'city' and address.city != self.city:
+            return False
+        
+        if self.region_type == 'postal_code' and address.postal_code != self.postal_code:
+            return False
+        
+        # Check customer type
+        if customer and customer.matched_client:
+            client_type = customer.matched_client.client_type
+            if client_type == 'B2B' and not self.applies_to_b2b:
+                return False
+            if client_type == 'B2C' and not self.applies_to_b2c:
+                return False
+        
+        return True
+    
+    def calculate_tax(self, subtotal):
+        """Calculate tax amount for given subtotal"""
+        if self.tax_type == 'exempt':
+            return Decimal('0')
+        return subtotal * (self.rate / 100)
+
+
+class DesignTemplate(models.Model):
+    """Pre-made Design Templates for Design Studio"""
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    
+    # Template Files
+    thumbnail_url = models.URLField(blank=True)
+    template_file_url = models.URLField(blank=True, help_text="High-res template file")
+    preview_url = models.URLField(blank=True)
+    
+    # Product Association
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='design_templates')
+    product_category = models.CharField(max_length=100, blank=True)
+    
+    # Template Metadata
+    template_json = models.JSONField(default=dict, help_text="Template structure/configuration")
+    is_premium = models.BooleanField(default=False)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    is_featured = models.BooleanField(default=False)
+    
+    # Usage Stats
+    usage_count = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-is_featured', '-usage_count', 'name']
+    
+    def __str__(self):
+        return f"{self.name} ({self.product.name})"
+
+
+class DesignState(models.Model):
+    """Stores user's design state (JSON recipe) for custom products"""
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='design_states', null=True, blank=True)
+    session_key = models.CharField(max_length=40, null=True, blank=True, help_text="For guest designs")
+    
+    # Design Data
+    product = models.ForeignKey('Product', on_delete=models.CASCADE)
+    design_json = models.JSONField(default=dict, help_text="Complete design state/configuration")
+    design_preview_url = models.URLField(blank=True)
+    
+    # Source
+    template = models.ForeignKey(DesignTemplate, on_delete=models.SET_NULL, null=True, blank=True)
+    is_from_template = models.BooleanField(default=False)
+    
+    # Status
+    is_saved = models.BooleanField(default=False)
+    is_archived = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_accessed_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-last_accessed_at']
+        indexes = [
+            models.Index(fields=['customer', 'is_saved']),
+            models.Index(fields=['session_key', 'is_saved']),
+        ]
+    
+    def __str__(self):
+        identifier = self.customer.email if self.customer else f"Guest-{self.session_key[:8]}"
+        return f"Design-{self.id} ({identifier})"
+
+
+class ProductReview(models.Model):
+    """Product Reviews and Ratings"""
+    RATING_CHOICES = [
+        (1, '1 Star'),
+        (2, '2 Stars'),
+        (3, '3 Stars'),
+        (4, '4 Stars'),
+        (5, '5 Stars'),
+    ]
+    
+    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='reviews')
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='reviews')
+    order = models.ForeignKey(Order, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviews')
+    
+    # Review Content
+    rating = models.IntegerField(choices=RATING_CHOICES)
+    title = models.CharField(max_length=200)
+    review_text = models.TextField()
+    
+    # Photos
+    review_photos = models.JSONField(default=list, blank=True, help_text="List of photo URLs")
+    
+    # Moderation
+    is_approved = models.BooleanField(default=False)
+    is_verified_purchase = models.BooleanField(default=False)
+    
+    # Helpfulness
+    helpful_count = models.IntegerField(default=0)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [['product', 'customer', 'order']]
+        indexes = [
+            models.Index(fields=['product', 'is_approved']),
+            models.Index(fields=['rating']),
+        ]
+    
+    def __str__(self):
+        return f"{self.rating}★ - {self.product.name} by {self.customer.email}"
+
+
+class ShippingMethod(models.Model):
+    """Shipping Methods and Rates"""
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    
+    # Carrier
+    carrier = models.CharField(max_length=100, blank=True, help_text="G4S, DHL, Sendy, etc.")
+    carrier_api_enabled = models.BooleanField(default=False, help_text="Use carrier API for real-time rates")
+    carrier_api_config = models.JSONField(default=dict, blank=True, help_text="API credentials/config")
+    
+    # Pricing
+    pricing_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('flat', 'Flat Rate'),
+            ('weight_based', 'Weight Based'),
+            ('price_based', 'Price Based'),
+            ('api', 'API Calculated'),
+        ],
+        default='flat'
+    )
+    flat_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    weight_rate_per_kg = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    price_rate_percentage = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    
+    # Coverage
+    available_countries = models.JSONField(default=list, blank=True)
+    available_regions = models.JSONField(default=list, blank=True)
+    
+    # Delivery Time
+    estimated_days_min = models.IntegerField(default=1)
+    estimated_days_max = models.IntegerField(default=3)
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    is_default = models.BooleanField(default=False)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['is_default', 'name']
+        verbose_name_plural = "Shipping Methods"
+    
+    def __str__(self):
+        return f"{self.name} ({self.carrier or 'Custom'})"
+    
+    def calculate_shipping_cost(self, weight=None, order_amount=None, destination=None):
+        """Calculate shipping cost based on method"""
+        if self.pricing_type == 'flat':
+            return self.flat_rate or Decimal('0')
+        elif self.pricing_type == 'weight_based' and weight:
+            return (weight * self.weight_rate_per_kg) if self.weight_rate_per_kg else Decimal('0')
+        elif self.pricing_type == 'price_based' and order_amount:
+            return order_amount * (self.price_rate_percentage / 100) if self.price_rate_percentage else Decimal('0')
+        elif self.pricing_type == 'api':
+            # Placeholder - would call carrier API
+            return Decimal('0')
+        return Decimal('0')
+
+
+class PaymentTransaction(models.Model):
+    """Payment Gateway Transaction Tracking"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('cancelled', 'Cancelled'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    PAYMENT_METHOD_CHOICES = [
+        ('mpesa', 'M-Pesa'),
+        ('stripe', 'Stripe'),
+        ('pesapal', 'Pesapal'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('cash', 'Cash on Delivery'),
+    ]
+    
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='payment_transactions')
+    customer = models.ForeignKey(Customer, on_delete=models.PROTECT, related_name='payment_transactions')
+    
+    # Payment Details
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHOD_CHOICES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    currency = models.CharField(max_length=3, default='KES')
+    
+    # Gateway Response
+    transaction_id = models.CharField(max_length=255, unique=True, db_index=True)
+    gateway_response = models.JSONField(default=dict, blank=True, help_text="Full gateway response")
+    receipt_url = models.URLField(blank=True)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    failure_reason = models.TextField(blank=True)
+    
+    # Timestamps
+    initiated_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['transaction_id']),
+            models.Index(fields=['order', 'status']),
+        ]
+    
+    def __str__(self):
+        return f"{self.payment_method.upper()} - {self.transaction_id} ({self.status})"
 
 
 

@@ -5,6 +5,7 @@ from rest_framework import viewsets, status, decorators, serializers
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from decimal import Decimal
 
 from .models import (
     Lead,
@@ -59,7 +60,22 @@ from .models import (
     QuoteAttachment,
     LPOLineItem,
     SystemAlert,
+    ProductionUpdate,
     resolve_unit_price,
+    # Storefront models
+    Customer,
+    CustomerAddress,
+    Cart,
+    CartItem,
+    Order,
+    OrderItem,
+    Coupon,
+    TaxConfiguration,
+    DesignTemplate,
+    DesignState,
+    ProductReview,
+    ShippingMethod,
+    PaymentTransaction,
 )
 from .api_serializers import (
     LeadSerializer,
@@ -97,6 +113,20 @@ from .api_serializers import (
     ProductSEOSerializer,
     ProductReviewSettingsSerializer,
     ProductFAQSerializer,
+    # Storefront serializers
+    CustomerSerializer,
+    CustomerAddressSerializer,
+    CartSerializer,
+    CartItemSerializer,
+    OrderSerializer,
+    OrderItemSerializer,
+    CouponSerializer,
+    TaxConfigurationSerializer,
+    DesignTemplateSerializer,
+    DesignStateSerializer,
+    ProductReviewSerializer,
+    ShippingMethodSerializer,
+    PaymentTransactionSerializer,
     ProductShippingSerializer,
     ProductLegalSerializer,
     ProductProductionSerializer,
@@ -111,6 +141,7 @@ from .api_serializers import (
     QuoteAttachmentSerializer,
     LPOLineItemSerializer,
     SystemAlertSerializer,
+    ProductionUpdateSerializer,
     UserSerializer,
     GroupSerializer,
 )
@@ -133,8 +164,30 @@ class LeadViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"])
     def convert(self, request, pk=None):
         """
-        Convert a lead to a client.
-        Allowed only if at least one approved quote exists for this lead.
+        Convert a lead to a client with full B2B onboarding support.
+        Supports:
+        - B2B client creation with company details
+        - Multiple contacts (contacts array in request data)
+        - Compliance documents (compliance_documents array)
+        - Brand assets (brand_assets array)
+        
+        Request body example:
+        {
+            "client_type": "B2B",  // or "B2C"
+            "company": "Company Name",
+            "vat_tax_id": "VAT123",
+            "kra_pin": "PIN123",
+            "industry": "Printing",
+            "contacts": [
+                {"full_name": "John Doe", "email": "john@example.com", "phone": "123", "role": "Manager", "is_primary": true}
+            ],
+            "compliance_documents": [
+                {"document_type": "Certificate", "notes": "Business registration"}
+            ],
+            "brand_assets": [
+                {"asset_type": "Logo", "description": "Company logo"}
+            ]
+        }
         """
         lead = self.get_object()
         if lead.converted_to_client:
@@ -156,24 +209,90 @@ class LeadViewSet(viewsets.ModelViewSet):
             lead.save(update_fields=["converted_to_client", "converted_at", "status", "updated_at"])
             return Response({"detail": "Lead marked converted; client already exists.", "client_id": existing_client.id})
 
-        client = Client.objects.create(
-            name=lead.name,
-            email=lead.email,
-            phone=lead.phone,
-            client_type="B2C",
-            lead_source=lead.source if hasattr(lead, "source") else "",
-            preferred_channel=lead.preferred_contact if hasattr(lead, "preferred_contact") else "Email",
-            status="Active",
-            converted_from_lead=lead,
-            onboarded_by=request.user,
-            account_manager=request.user,
-        )
+        # Get client type from request (default to B2C)
+        client_type = request.data.get("client_type", "B2C")
+        
+        # Create client
+        client_data = {
+            "name": lead.name,
+            "email": lead.email,
+            "phone": lead.phone,
+            "client_type": client_type,
+            "lead_source": lead.source if hasattr(lead, "source") else "",
+            "preferred_channel": lead.preferred_contact if hasattr(lead, "preferred_contact") else "Email",
+            "status": "Active",
+            "converted_from_lead": lead,
+            "onboarded_by": request.user,
+            "account_manager": request.user,
+        }
+        
+        # Add B2B-specific fields if provided
+        if client_type == "B2B":
+            if "company" in request.data:
+                client_data["company"] = request.data["company"]
+            if "vat_tax_id" in request.data:
+                client_data["vat_tax_id"] = request.data["vat_tax_id"]
+            if "kra_pin" in request.data:
+                client_data["kra_pin"] = request.data["kra_pin"]
+            if "industry" in request.data:
+                client_data["industry"] = request.data["industry"]
+            if "credit_limit" in request.data:
+                client_data["credit_limit"] = request.data["credit_limit"]
+        
+        client = Client.objects.create(**client_data)
+        
+        # Create contacts if provided (B2B)
+        if client_type == "B2B" and "contacts" in request.data:
+            for contact_data in request.data["contacts"]:
+                ClientContact.objects.create(
+                    client=client,
+                    full_name=contact_data.get("full_name", ""),
+                    email=contact_data.get("email", ""),
+                    phone=contact_data.get("phone", ""),
+                    role=contact_data.get("role", ""),
+                    is_primary=contact_data.get("is_primary", False),
+                )
+        
+        # Create compliance documents if provided (B2B)
+        if client_type == "B2B" and "compliance_documents" in request.data:
+            for doc_data in request.data["compliance_documents"]:
+                ComplianceDocument.objects.create(
+                    client=client,
+                    document_type=doc_data.get("document_type", "Other"),
+                    notes=doc_data.get("notes", ""),
+                    uploaded_by=request.user,
+                )
+        
+        # Create brand assets if provided (B2B)
+        if client_type == "B2B" and "brand_assets" in request.data:
+            for asset_data in request.data["brand_assets"]:
+                BrandAsset.objects.create(
+                    client=client,
+                    asset_type=asset_data.get("asset_type", "Other"),
+                    description=asset_data.get("description", ""),
+                    uploaded_by=request.user,
+                )
+        
+        # Update lead
         lead.converted_to_client = True
         lead.converted_at = timezone.now()
         lead.status = "Converted"
         lead.save(update_fields=["converted_to_client", "converted_at", "status", "updated_at"])
-
-        return Response({"detail": "Lead converted", "client_id": client.id})
+        
+        # Create activity log
+        ActivityLog.objects.create(
+            client=client,
+            activity_type="Note",
+            title=f"Client Converted from Lead {lead.lead_id}",
+            description=f"Lead converted to {client_type} client with full onboarding.",
+            created_by=request.user,
+        )
+        
+        serializer = ClientSerializer(client)
+        return Response({
+            "detail": "Lead converted successfully",
+            "client": serializer.data
+        })
 
 
 class ClientContactViewSet(viewsets.ModelViewSet):
@@ -385,22 +504,118 @@ class QuoteViewSet(viewsets.ModelViewSet):
     @decorators.action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         """
-        Approve a quote, respecting the status machine in the model.
+        Approve a quote, automatically generating LPO and Job.
+        Optional: user_id to assign a specific Production Team member to the job.
         """
         quote = self.get_object()
+        
+        # Check if already approved
+        if quote.status == "Approved":
+            existing_lpo = LPO.objects.filter(quote=quote).first()
+            existing_job = Job.objects.filter(quote=quote).first()
+            return Response({
+                "detail": "Quote already approved",
+                "lpo_id": existing_lpo.id if existing_lpo else None,
+                "job_id": existing_job.id if existing_job else None,
+            })
+        
+        # Approve quote
         quote.status = "Approved"
         quote.approved_at = timezone.now()
+        quote.production_status = "in_production"
         try:
             quote.save()
         except DjangoValidationError as exc:
             return Response({"detail": exc.message}, status=status.HTTP_400_BAD_REQUEST)
-        return Response({"detail": "Quote approved"})
+        
+        # Generate LPO using QuoteApprovalService
+        from .quote_approval_services import QuoteApprovalService
+        lpo = QuoteApprovalService.generate_lpo(quote)
+        
+        # Get optional person_in_charge from request
+        person_in_charge = None
+        user_id = request.data.get("user_id")
+        if user_id:
+            try:
+                assigned_user = User.objects.get(pk=user_id)
+                # Verify user is in Production Team
+                if not assigned_user.groups.filter(name="Production Team").exists():
+                    return Response(
+                        {"detail": "User must be in Production Team group"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                person_in_charge = assigned_user
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": "User not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
+        # Create Job
+        job = Job.objects.create(
+            client=quote.client,
+            quote=quote,
+            job_name=f"Job for {quote.product_name}",
+            job_type="printing",
+            product=quote.product_name,
+            quantity=quote.quantity or 1,
+            person_in_charge=person_in_charge,
+            status="pending",
+            expected_completion=quote.valid_until,
+            created_by=quote.created_by,
+        )
+        
+        # Send notifications
+        QuoteApprovalService.send_approval_notifications(quote, lpo, job)
+        
+        # Create activity log
+        if quote.client:
+            ActivityLog.objects.create(
+                client=quote.client,
+                activity_type="Quote",
+                title=f"Quote {quote.quote_id} Approved",
+                description=f"Quote approved. LPO {lpo.lpo_number} and Job {job.job_number} created.",
+                related_quote=quote,
+                created_by=request.user,
+            )
+        
+        return Response({
+            "detail": "Quote approved, LPO and Job created",
+            "lpo_id": lpo.id,
+            "lpo_number": lpo.lpo_number,
+            "job_id": job.id,
+            "job_number": job.job_number,
+        })
 
     @decorators.action(detail=True, methods=["post"])
     def send_to_production(self, request, pk=None):
+        """
+        Send quote to production by creating a job.
+        Optional: user_id to assign a specific Production Team member.
+        """
         quote = self.get_object()
         if hasattr(quote, "job"):
             return Response({"detail": "Job already exists", "job_id": quote.job.id})
+        
+        # Get optional person_in_charge from request
+        person_in_charge = None
+        user_id = request.data.get("user_id")
+        if user_id:
+            try:
+                assigned_user = User.objects.get(pk=user_id)
+                # Verify user is in Production Team
+                if not assigned_user.groups.filter(name="Production Team").exists():
+                    return Response(
+                        {"detail": "User must be in Production Team group"}, 
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                person_in_charge = assigned_user
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": "User not found"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+        
         job = Job.objects.create(
             client=quote.client,
             quote=quote,
@@ -409,11 +624,23 @@ class QuoteViewSet(viewsets.ModelViewSet):
             priority="normal",
             product=quote.product_name,
             quantity=quote.quantity or 1,
-            person_in_charge=request.user.get_full_name() or request.user.username,
-             source=quote.channel,
+            person_in_charge=person_in_charge,
+            source=quote.channel,
             created_by=request.user,
         )
-        return Response({"detail": "Job created", "job_id": job.id})
+        
+        # Create notification if user assigned
+        if person_in_charge:
+            Notification.objects.create(
+                recipient=person_in_charge,
+                notification_type="job_assigned",
+                title=f"New Job {job.job_number} Assigned",
+                message=f"You have been assigned to job {job.job_number}: {job.job_name}",
+                link=f"/job/{job.pk}/",
+            )
+        
+        serializer = JobSerializer(job)
+        return Response({"detail": "Job created", "job": serializer.data})
 
 
 class QuoteLineItemViewSet(viewsets.ModelViewSet):
@@ -425,12 +652,39 @@ class QuoteLineItemViewSet(viewsets.ModelViewSet):
 
 
 class JobViewSet(viewsets.ModelViewSet):
-    queryset = Job.objects.select_related("client", "quote", "created_by").all()
+    queryset = Job.objects.select_related("client", "quote", "created_by", "person_in_charge").all()
     serializer_class = JobSerializer
-    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
-    filterset_fields = ["status", "client", "quote"]
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ["status", "client", "quote", "person_in_charge"]
     search_fields = ["job_number", "job_name", "product"]
     ordering_fields = ["created_at", "start_date", "expected_completion"]
+
+    def get_queryset(self):
+        """Add deadline filtering support"""
+        queryset = super().get_queryset()
+        
+        # Filter by deadline status
+        deadline_filter = self.request.query_params.get('deadline_status', None)
+        if deadline_filter:
+            from datetime import date
+            today = date.today()
+            
+            if deadline_filter == 'overdue':
+                queryset = queryset.filter(
+                    expected_completion__lt=today,
+                    status__in=['pending', 'in_progress']
+                )
+            elif deadline_filter == 'approaching':
+                # Jobs due in next 3 days
+                from datetime import timedelta
+                three_days_later = today + timedelta(days=3)
+                queryset = queryset.filter(
+                    expected_completion__gte=today,
+                    expected_completion__lte=three_days_later,
+                    status__in=['pending', 'in_progress']
+                )
+        
+        return queryset
 
     @decorators.action(detail=True, methods=["post"])
     def advance(self, request, pk=None):
@@ -442,6 +696,170 @@ class JobViewSet(viewsets.ModelViewSet):
         job.save(update_fields=["status", "updated_at"])
         return Response({"detail": "Status updated", "status": job.status})
 
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAccountManager | IsAdmin])
+    def assign(self, request, pk=None):
+        """
+        Assign or reassign a job to a specific Production Team member.
+        Requires: user_id in request data
+        """
+        job = self.get_object()
+        user_id = request.data.get("user_id")
+        
+        if not user_id:
+            return Response(
+                {"detail": "user_id is required"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            assigned_user = User.objects.get(pk=user_id)
+            # Verify user is in Production Team
+            if not assigned_user.groups.filter(name="Production Team").exists():
+                return Response(
+                    {"detail": "User must be in Production Team group"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            job.person_in_charge = assigned_user
+            job.save(update_fields=["person_in_charge", "updated_at"])
+            
+            # Create notification for assigned user
+            Notification.objects.create(
+                recipient=assigned_user,
+                notification_type="job_assigned",
+                title=f"Job {job.job_number} Assigned",
+                message=f"You have been assigned to job {job.job_number}: {job.job_name}",
+                link=f"/job/{job.pk}/",
+            )
+            
+            # Log activity
+            ActivityLog.objects.create(
+                client=job.client,
+                activity_type="Job",
+                title=f"Job {job.job_number} Assigned",
+                description=f"Job assigned to {assigned_user.get_full_name() or assigned_user.username}",
+                created_by=request.user,
+            )
+            
+            serializer = self.get_serializer(job)
+            return Response({
+                "detail": "Job assigned successfully",
+                "job": serializer.data
+            })
+            
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAccountManager | IsAdmin])
+    def remind(self, request, pk=None):
+        """
+        Send a reminder notification to the assigned Production Team member.
+        """
+        job = self.get_object()
+        
+        if not job.person_in_charge:
+            return Response(
+                {"detail": "No user assigned to this job"}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Create notification for assigned user
+        Notification.objects.create(
+            recipient=job.person_in_charge,
+            notification_type="job_reminder",
+            title=f"Reminder: {job.job_name}",
+            message=f"Reminder for job {job.job_number} ({job.client.name}). Due date: {job.expected_completion}. Please update status.",
+            link=f"/job/{job.pk}/",
+        )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=job.client,
+            activity_type="Job",
+            title=f"Reminder Sent for Job {job.job_number}",
+            description=f"Reminder sent to {job.person_in_charge.get_full_name() or job.person_in_charge.username}",
+            created_by=request.user,
+        )
+        
+        return Response({
+            "detail": "Reminder sent successfully",
+            "recipient": job.person_in_charge.get_full_name() or job.person_in_charge.username
+        })
+
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def send_to_vendor(self, request, pk=None):
+        """
+        Send job specifications to a vendor.
+        Packages job attachments and specs into a vendor-ready format.
+        """
+        job = self.get_object()
+        vendor_id = request.data.get("vendor_id")
+        stage_name = request.data.get("stage_name", "Production")
+        expected_days = int(request.data.get("expected_days", 3))
+        
+        if not vendor_id:
+            return Response(
+                {"detail": "vendor_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            vendor = Vendor.objects.get(pk=vendor_id, active=True)
+        except Vendor.DoesNotExist:
+            return Response(
+                {"detail": "Vendor not found or inactive"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Create vendor stage
+        last_stage = job.vendor_stages.order_by('-stage_order').first()
+        next_order = (last_stage.stage_order + 1) if last_stage else 1
+        
+        from datetime import timedelta
+        vendor_stage = JobVendorStage.objects.create(
+            job=job,
+            vendor=vendor,
+            stage_order=next_order,
+            stage_name=stage_name,
+            expected_completion=timezone.now() + timedelta(days=expected_days),
+            status='sent_to_vendor',
+        )
+        
+        # Get job attachments
+        attachments = job.attachments.all()
+        attachment_list = [{
+            "file_name": att.file_name,
+            "file_size": att.file_size,
+            "uploaded_at": att.uploaded_at,
+        } for att in attachments]
+        
+        # Create notification for vendor (if vendor has user account)
+        # For now, we'll create an activity log
+        ActivityLog.objects.create(
+            client=job.client,
+            activity_type="Job",
+            title=f"Job {job.job_number} Sent to Vendor",
+            description=f"Job sent to {vendor.name} for {stage_name}. Expected completion: {vendor_stage.expected_completion.date()}",
+            created_by=request.user,
+        )
+        
+        # Update job status if first stage
+        if next_order == 1:
+            job.status = 'in_progress'
+            job.save()
+        
+        return Response({
+            "detail": "Job sent to vendor successfully",
+            "vendor_stage_id": vendor_stage.id,
+            "vendor_name": vendor.name,
+            "expected_completion": vendor_stage.expected_completion,
+            "attachments_count": len(attachment_list),
+            "attachments": attachment_list,
+        })
+
 
 class VendorViewSet(viewsets.ModelViewSet):
     queryset = Vendor.objects.all()
@@ -449,6 +867,21 @@ class VendorViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
     filterset_fields = ["vps_score", "active"]
     search_fields = ["name", "email", "phone", "services"]
+
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def recalculate_vps(self, request, pk=None):
+        """
+        Recalculate Vendor Performance Score based on QC and Delivery data.
+        """
+        vendor = self.get_object()
+        result = vendor.calculate_vps()
+        
+        serializer = self.get_serializer(vendor)
+        return Response({
+            "detail": "VPS recalculated successfully",
+            "vendor": serializer.data,
+            "calculation_details": result,
+        })
 
 
 class LPOViewSet(viewsets.ModelViewSet):
@@ -513,6 +946,62 @@ class ProcessViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
     filterset_fields = ["pricing_type", "category", "status"]
     search_fields = ["process_id", "process_name", "description"]
+
+    @decorators.action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def bulk_update_pricing(self, request):
+        """
+        Bulk update pricing for processes.
+        
+        Request body:
+        {
+            "process_ids": [1, 2, 3],  # Optional: specific processes
+            "category": "printing",  # Optional: filter by category
+            "adjustment_type": "percentage",  # "percentage" or "fixed"
+            "adjustment_value": 10,  # 10% increase or fixed amount
+            "apply_to": "tiers"  # "tiers", "base_cost", or "both"
+        }
+        """
+        from decimal import Decimal
+        
+        process_ids = request.data.get("process_ids", [])
+        category = request.data.get("category")
+        adjustment_type = request.data.get("adjustment_type", "percentage")
+        adjustment_value = Decimal(str(request.data.get("adjustment_value", 0)))
+        apply_to = request.data.get("apply_to", "tiers")
+        
+        # Build queryset
+        queryset = Process.objects.all()
+        if process_ids:
+            queryset = queryset.filter(id__in=process_ids)
+        if category:
+            queryset = queryset.filter(category=category)
+        
+        updated_count = 0
+        
+        for process in queryset:
+            if apply_to in ["tiers", "both"]:
+                # Update tiers
+                for tier in process.tiers.all():
+                    if adjustment_type == "percentage":
+                        tier.cost = tier.cost * (1 + adjustment_value / 100)
+                    else:
+                        tier.cost = tier.cost + adjustment_value
+                    tier.save()
+            
+            if apply_to in ["base_cost", "both"] and hasattr(process, 'base_cost'):
+                # Update base cost
+                if adjustment_type == "percentage":
+                    process.base_cost = process.base_cost * (1 + adjustment_value / 100)
+                else:
+                    process.base_cost = process.base_cost + adjustment_value
+                process.save()
+            
+            updated_count += 1
+        
+        return Response({
+            "detail": f"Updated pricing for {updated_count} process(es)",
+            "updated_count": updated_count,
+        })
 
 
 class ProcessTierViewSet(viewsets.ModelViewSet):
@@ -737,6 +1226,14 @@ class QCInspectionViewSet(viewsets.ModelViewSet):
     serializer_class = QCInspectionSerializer
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
     filterset_fields = ["job", "vendor", "status"]
+    
+    def perform_update(self, serializer):
+        """Auto-recalculate VPS when QC status changes"""
+        instance = serializer.save()
+        
+        # If QC is completed and has a vendor, recalculate VPS
+        if instance.vendor and instance.status in ['passed', 'failed']:
+            instance.vendor.calculate_vps()
 
 
 class DeliveryViewSet(viewsets.ModelViewSet):
@@ -744,6 +1241,24 @@ class DeliveryViewSet(viewsets.ModelViewSet):
     serializer_class = DeliverySerializer
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
     filterset_fields = ["job", "status", "staging_location"]
+    
+    def perform_update(self, serializer):
+        """Auto-recalculate VPS when delivery is completed"""
+        instance = serializer.save()
+        
+        # If delivery is completed, check vendor stages and recalculate VPS
+        if instance.status == 'completed' and instance.job:
+            # Get vendor stages for this job
+            vendor_stages = JobVendorStage.objects.filter(
+                job=instance.job,
+                status='completed'
+            )
+            # Recalculate VPS for all vendors involved
+            vendors_updated = set()
+            for stage in vendor_stages:
+                if stage.vendor and stage.vendor.id not in vendors_updated:
+                    stage.vendor.calculate_vps()
+                    vendors_updated.add(stage.vendor.id)
 
 
 class QuoteAttachmentViewSet(viewsets.ModelViewSet):
@@ -767,6 +1282,36 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
     filterset_fields = ["alert_type", "severity", "is_active", "is_dismissed"]
 
 
+class ProductionUpdateViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for Production Team to post granular progress updates.
+    Allows tracking detailed progress (e.g., "Printing 50% complete", "Waiting for material").
+    """
+    queryset = ProductionUpdate.objects.select_related('job', 'quote', 'created_by').all()
+    serializer_class = ProductionUpdateSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ["update_type", "status", "job", "quote", "created_by"]
+    ordering_fields = ["created_at", "progress"]
+    search_fields = ["notes", "job__job_number", "quote__quote_id"]
+    
+    def perform_create(self, serializer):
+        """Set created_by to current user"""
+        serializer.save(created_by=self.request.user)
+        
+        # Create notification if job update
+        instance = serializer.instance
+        if instance.job and instance.job.client:
+            # Notify Account Manager
+            if instance.job.client.account_manager:
+                Notification.objects.create(
+                    recipient=instance.job.client.account_manager,
+                    notification_type="job_update",
+                    title=f"Job {instance.job.job_number} Update",
+                    message=f"Progress: {instance.progress}% - {instance.notes[:50]}",
+                    link=f"/job/{instance.job.pk}/",
+                )
+
+
 # ===== User / Group Management =====
 
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
@@ -775,6 +1320,20 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, IsAdmin]
     filterset_fields = ["is_active", "is_superuser"]
     search_fields = ["username", "email", "first_name", "last_name"]
+
+    @decorators.action(detail=False, methods=["get"], permission_classes=[IsAuthenticated, IsAccountManager | IsAdmin])
+    def production_team(self, request):
+        """
+        List all users in the Production Team group.
+        Available to Account Managers for job assignment.
+        """
+        production_group = Group.objects.filter(name="Production Team").first()
+        if not production_group:
+            return Response({"detail": "Production Team group not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+        users = production_group.user_set.filter(is_active=True).order_by("first_name", "last_name", "username")
+        serializer = self.get_serializer(users, many=True)
+        return Response(serializer.data)
 
 
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
@@ -862,4 +1421,973 @@ class DashboardViewSet(viewsets.ViewSet):
             },
         }
         return Response(data, status=status.HTTP_200_OK)
+
+
+class AnalyticsViewSet(viewsets.ViewSet):
+    """
+    Expose rich analytics from admin_dashboard.py for Account Manager portal.
+    """
+    permission_classes = [IsAuthenticated, IsAccountManager | IsAdmin]
+
+    def list(self, request):
+        """Return comprehensive analytics data."""
+        from .admin_dashboard import (
+            get_dashboard_stats,
+            get_sales_performance_trend,
+            get_top_selling_products,
+            get_conversion_metrics,
+            get_average_order_value,
+            get_revenue_by_category,
+            get_profit_margin_data,
+            get_time_based_insights,
+        )
+        from decimal import Decimal
+        import json
+
+        # Get all analytics
+        dashboard_stats = get_dashboard_stats()
+        sales_trend = get_sales_performance_trend(months=6)
+        top_products = get_top_selling_products(limit=10)
+        conversion_metrics = get_conversion_metrics()
+        avg_order_value = get_average_order_value()
+        revenue_by_category = get_revenue_by_category()
+        profit_margins = get_profit_margin_data()
+        time_insights = get_time_based_insights()
+
+        # Format sales trend for JSON serialization
+        formatted_sales_trend = []
+        for item in sales_trend:
+            formatted_sales_trend.append({
+                "month": item["month"].strftime("%Y-%m") if hasattr(item["month"], "strftime") else str(item["month"]),
+                "revenue": float(item["revenue"]) if isinstance(item["revenue"], Decimal) else item["revenue"],
+                "orders": item["orders"],
+            })
+
+        return Response({
+            "dashboard_stats": dashboard_stats,
+            "sales_performance_trend": formatted_sales_trend,
+            "top_products": top_products,
+            "conversion_metrics": conversion_metrics,
+            "average_order_value": float(avg_order_value) if isinstance(avg_order_value, Decimal) else avg_order_value,
+            "revenue_by_category": revenue_by_category,
+            "profit_margins": {
+                k: float(v) if isinstance(v, Decimal) else v
+                for k, v in profit_margins.items()
+            },
+            "time_insights": {
+                k: float(v) if isinstance(v, Decimal) else v
+                for k, v in time_insights.items()
+            },
+        }, status=status.HTTP_200_OK)
+
+
+class SearchViewSet(viewsets.ViewSet):
+    """
+    Unified search endpoint for searching across Leads, Clients, Quotes, and Jobs.
+    """
+    permission_classes = [IsAuthenticated, IsAccountManager | IsAdmin]
+
+    def list(self, request):
+        """Search across multiple models."""
+        query = request.query_params.get("q", "").strip()
+        if not query:
+            return Response(
+                {"detail": "Query parameter 'q' is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from django.db.models import Q
+
+        results = {
+            "leads": [],
+            "clients": [],
+            "quotes": [],
+            "jobs": [],
+        }
+
+        # Search Leads
+        leads = Lead.objects.filter(
+            Q(lead_id__icontains=query)
+            | Q(name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(phone__icontains=query)
+        )[:25]
+        results["leads"] = LeadSerializer(leads, many=True).data
+
+        # Search Clients
+        clients = Client.objects.filter(
+            Q(client_id__icontains=query)
+            | Q(name__icontains=query)
+            | Q(email__icontains=query)
+            | Q(phone__icontains=query)
+            | Q(company__icontains=query)
+        )[:25]
+        results["clients"] = ClientSerializer(clients, many=True).data
+
+        # Search Quotes
+        quotes = Quote.objects.filter(
+            Q(quote_id__icontains=query)
+            | Q(product_name__icontains=query)
+            | Q(reference_number__icontains=query)
+        ).select_related("client", "lead")[:25]
+        results["quotes"] = QuoteSerializer(quotes, many=True).data
+
+        # Search Jobs
+        jobs = Job.objects.filter(
+            Q(job_number__icontains=query)
+            | Q(job_name__icontains=query)
+            | Q(product__icontains=query)
+        ).select_related("client", "quote")[:25]
+        results["jobs"] = JobSerializer(jobs, many=True).data
+
+        # Summary
+        total_results = sum(len(v) for v in results.values())
+
+        return Response(
+            {
+                "query": query,
+                "total_results": total_results,
+                "results": results,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ===== Production Team Specific APIs =====
+
+class CostingEngineViewSet(viewsets.ViewSet):
+    """
+    Automated costing calculation engine.
+    Takes product properties and returns calculated production cost.
+    """
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+
+    @decorators.action(detail=False, methods=["post"])
+    def calculate_cost(self, request):
+        """
+        Calculate production cost for a quote line item or product.
+        
+        Request body:
+        {
+            "product_id": 123,
+            "quantity": 100,
+            "process_id": 5,  # Optional: specific process
+            "variables": {  # For formula-based processes
+                "square_footage": 50,
+                "paper_weight": 300
+            }
+        }
+        
+        Returns:
+        {
+            "suggested_cost": 5000.00,
+            "process_id": 5,
+            "process_name": "Offset Printing",
+            "cost_breakdown": {...},
+            "vendor_suggestions": [...]
+        }
+        """
+        from decimal import Decimal
+        from django.db.models import Q
+        
+        product_id = request.data.get("product_id")
+        quantity = int(request.data.get("quantity", 1))
+        process_id = request.data.get("process_id")
+        variables = request.data.get("variables", {})
+        
+        if not product_id:
+            return Response(
+                {"detail": "product_id is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            product = Product.objects.get(pk=product_id)
+        except Product.DoesNotExist:
+            return Response(
+                {"detail": "Product not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Try to find linked process
+        suggested_process = None
+        if process_id:
+            try:
+                suggested_process = Process.objects.get(pk=process_id, status='active')
+            except Process.DoesNotExist:
+                pass
+        
+        # If no process specified, try to find by product
+        if not suggested_process:
+            # Check if product has linked process via ProductProduction
+            if hasattr(product, 'production') and hasattr(product.production, 'process'):
+                suggested_process = product.production.process
+            else:
+                # Search by product name similarity
+                product_name_lower = product.name.lower()
+                for process in Process.objects.filter(status='active'):
+                    if product_name_lower in process.process_name.lower() or \
+                       process.process_name.lower() in product_name_lower:
+                        suggested_process = process
+                        break
+        
+        if not suggested_process:
+            return Response({
+                "detail": "No matching process found for this product",
+                "suggested_cost": None,
+            }, status=status.HTTP_200_OK)
+        
+        # Calculate cost based on process type
+        cost_breakdown = {
+            "process_id": suggested_process.id,
+            "process_name": suggested_process.process_name,
+            "pricing_type": suggested_process.pricing_type,
+        }
+        
+        suggested_cost = Decimal('0')
+        
+        if suggested_process.pricing_type == 'tier':
+            # Find matching tier
+            tier = ProcessTier.objects.filter(
+                process=suggested_process,
+                quantity_from__lte=quantity,
+                quantity_to__gte=quantity
+            ).first()
+            
+            if tier:
+                suggested_cost = tier.cost * quantity
+                cost_breakdown.update({
+                    "tier_number": tier.tier_number,
+                    "quantity_range": f"{tier.quantity_from}-{tier.quantity_to}",
+                    "cost_per_unit": float(tier.cost),
+                    "total_quantity": quantity,
+                })
+            else:
+                # Use base cost if no tier matches
+                suggested_cost = suggested_process.base_cost * quantity if hasattr(suggested_process, 'base_cost') else Decimal('0')
+        
+        elif suggested_process.pricing_type == 'formula':
+            # Formula-based calculation
+            base_cost = suggested_process.base_cost if hasattr(suggested_process, 'base_cost') else Decimal('0')
+            variable_cost = Decimal('0')
+            
+            for var_name, var_value in variables.items():
+                try:
+                    process_var = ProcessVariable.objects.get(
+                        process=suggested_process,
+                        variable_name=var_name
+                    )
+                    # Simple calculation: variable_value * variable_cost_per_unit
+                    if process_var.cost_per_unit:
+                        variable_cost += Decimal(str(var_value)) * process_var.cost_per_unit
+                except ProcessVariable.DoesNotExist:
+                    pass
+            
+            suggested_cost = base_cost + variable_cost
+            cost_breakdown.update({
+                "base_cost": float(base_cost),
+                "variable_cost": float(variable_cost),
+                "variables_used": variables,
+            })
+        
+        # Get vendor suggestions
+        vendor_suggestions = []
+        process_vendors = ProcessVendor.objects.filter(
+            process=suggested_process,
+            vendor__active=True
+        ).select_related('vendor').order_by('-vendor__vps_score_value')[:5]
+        
+        for pv in process_vendors:
+            vendor_suggestions.append({
+                "vendor_id": pv.vendor.id,
+                "vendor_name": pv.vendor.name,
+                "vps_score": pv.vendor.vps_score,
+                "vps_score_value": float(pv.vendor.vps_score_value),
+                "priority": pv.priority,
+            })
+        
+        return Response({
+            "suggested_cost": float(suggested_cost),
+            "process_id": suggested_process.id,
+            "process_name": suggested_process.process_name,
+            "cost_breakdown": cost_breakdown,
+            "vendor_suggestions": vendor_suggestions,
+        })
+
+
+class WorkloadViewSet(viewsets.ViewSet):
+    """
+    Workload management API for Production Team.
+    Shows team capacity and job distribution.
+    """
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+    @decorators.action(detail=False, methods=["get"])
+    def team_workload(self, request):
+        """
+        Get workload distribution across Production Team.
+        Returns: user, active_jobs, overdue_jobs, capacity
+        """
+        from datetime import date
+        from django.db.models import Count, Q
+        
+        production_group = Group.objects.filter(name="Production Team").first()
+        if not production_group:
+            return Response(
+                {"detail": "Production Team group not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        team_members = production_group.user_set.filter(is_active=True)
+        today = date.today()
+        
+        workload_data = []
+        for member in team_members:
+            # Get assigned jobs
+            assigned_jobs = Job.objects.filter(person_in_charge=member)
+            active_jobs = assigned_jobs.filter(status__in=['pending', 'in_progress']).count()
+            overdue_jobs = assigned_jobs.filter(
+                status__in=['pending', 'in_progress'],
+                expected_completion__lt=today
+            ).count()
+            completed_jobs = assigned_jobs.filter(status='completed').count()
+            
+            # Calculate capacity (assuming max 10 active jobs per person)
+            max_capacity = 10
+            capacity_percentage = (active_jobs / max_capacity * 100) if max_capacity > 0 else 0
+            
+            workload_data.append({
+                "user_id": member.id,
+                "user_name": member.get_full_name() or member.username,
+                "active_jobs": active_jobs,
+                "overdue_jobs": overdue_jobs,
+                "completed_jobs": completed_jobs,
+                "capacity_percentage": round(capacity_percentage, 1),
+                "is_overloaded": active_jobs >= max_capacity,
+            })
+        
+        # Sort by active jobs (descending)
+        workload_data.sort(key=lambda x: x['active_jobs'], reverse=True)
+        
+        return Response({
+            "team_workload": workload_data,
+            "total_active_jobs": sum(w['active_jobs'] for w in workload_data),
+            "total_overdue_jobs": sum(w['overdue_jobs'] for w in workload_data),
+        })
+
+
+class ProductionAnalyticsViewSet(viewsets.ViewSet):
+    """
+    Production-specific analytics for PT dashboard.
+    """
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+    def list(self, request):
+        """
+        Get production analytics including:
+        - Average turnaround time
+        - QC rejection rate
+        - Vendor reliability
+        - Team performance
+        """
+        from datetime import timedelta
+        from django.db.models import Avg, Count, Q, Sum
+        from decimal import Decimal
+        
+        # Time range (last 90 days)
+        ninety_days_ago = timezone.now() - timedelta(days=90)
+        
+        # Average Turnaround Time
+        completed_jobs = Job.objects.filter(
+            status='completed',
+            actual_completion__isnull=False,
+            created_at__gte=ninety_days_ago
+        )
+        
+        avg_turnaround_days = 0
+        if completed_jobs.exists():
+            turnaround_times = []
+            for job in completed_jobs:
+                if job.actual_completion and job.created_at:
+                    delta = job.actual_completion - job.created_at.date()
+                    turnaround_times.append(delta.days)
+            if turnaround_times:
+                avg_turnaround_days = sum(turnaround_times) / len(turnaround_times)
+        
+        # QC Rejection Rate
+        total_qc = QCInspection.objects.filter(created_at__gte=ninety_days_ago).count()
+        failed_qc = QCInspection.objects.filter(
+            created_at__gte=ninety_days_ago,
+            status='failed'
+        ).count()
+        qc_rejection_rate = (failed_qc / total_qc * 100) if total_qc > 0 else 0
+        
+        # Vendor Reliability (on-time delivery)
+        vendor_stages = JobVendorStage.objects.filter(
+            created_at__gte=ninety_days_ago,
+            status='completed',
+            expected_completion__isnull=False,
+            actual_completion__isnull=False
+        )
+        
+        on_time_count = 0
+        late_count = 0
+        for stage in vendor_stages:
+            if stage.actual_completion <= stage.expected_completion:
+                on_time_count += 1
+            else:
+                late_count += 1
+        
+        total_vendor_stages = on_time_count + late_count
+        vendor_on_time_rate = (on_time_count / total_vendor_stages * 100) if total_vendor_stages > 0 else 0
+        
+        # Team Performance
+        production_group = Group.objects.filter(name="Production Team").first()
+        team_performance = []
+        if production_group:
+            for member in production_group.user_set.filter(is_active=True):
+                member_jobs = Job.objects.filter(
+                    person_in_charge=member,
+                    created_at__gte=ninety_days_ago
+                )
+                completed = member_jobs.filter(status='completed').count()
+                total = member_jobs.count()
+                completion_rate = (completed / total * 100) if total > 0 else 0
+                
+                team_performance.append({
+                    "user_id": member.id,
+                    "user_name": member.get_full_name() or member.username,
+                    "total_jobs": total,
+                    "completed_jobs": completed,
+                    "completion_rate": round(completion_rate, 1),
+                })
+        
+        # Job Status Distribution
+        job_status_dist = Job.objects.filter(
+            created_at__gte=ninety_days_ago
+        ).values('status').annotate(count=Count('id'))
+        
+        return Response({
+            "average_turnaround_days": round(avg_turnaround_days, 1),
+            "qc_rejection_rate": round(qc_rejection_rate, 1),
+            "vendor_on_time_rate": round(vendor_on_time_rate, 1),
+            "team_performance": team_performance,
+            "job_status_distribution": list(job_status_dist),
+        })
+
+
+# ============================================================================
+# STOREFRONT ECOMMERCE VIEWSETS
+# ============================================================================
+
+class CustomerViewSet(viewsets.ModelViewSet):
+    """
+    Customer Management for Storefront
+    Handles identity matching and customer accounts
+    """
+    queryset = Customer.objects.select_related('user', 'matched_client').all()
+    serializer_class = CustomerSerializer
+    permission_classes = [AllowAny]  # Public registration
+    
+    filterset_fields = ['email', 'phone', 'is_guest', 'is_active']
+    search_fields = ['email', 'first_name', 'last_name', 'phone']
+    
+    def perform_create(self, serializer):
+        """Auto-match to existing Client on creation"""
+        customer = serializer.save()
+        # Auto-match to existing Client
+        customer.match_to_existing_client()
+    
+    @decorators.action(detail=False, methods=['post'])
+    def match_identity(self, request):
+        """Match customer to existing Client by email/phone"""
+        email = request.data.get('email')
+        phone = request.data.get('phone')
+        
+        if not email and not phone:
+            return Response(
+                {'error': 'Email or phone required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            customer = Customer.objects.get(email=email) if email else Customer.objects.get(phone=phone)
+            matched_client = customer.match_to_existing_client()
+            
+            return Response({
+                'customer_id': customer.id,
+                'matched': matched_client is not None,
+                'client_id': matched_client.id if matched_client else None,
+            })
+        except Customer.DoesNotExist:
+            return Response(
+                {'error': 'Customer not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class CustomerAddressViewSet(viewsets.ModelViewSet):
+    """Customer Address Book"""
+    queryset = CustomerAddress.objects.select_related('customer').all()
+    serializer_class = CustomerAddressSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['customer', 'address_type', 'is_default_billing', 'is_default_shipping']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        customer_id = self.request.query_params.get('customer_id')
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        return queryset
+
+
+class CartViewSet(viewsets.ModelViewSet):
+    """
+    Shopping Cart Management
+    Supports both authenticated customers and guest sessions
+    """
+    queryset = Cart.objects.prefetch_related('items', 'items__product').all()
+    serializer_class = CartSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['customer', 'session_key', 'is_active', 'is_abandoned']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        # Filter by customer or session
+        customer_id = self.request.query_params.get('customer_id')
+        session_key = self.request.query_params.get('session_key')
+        
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id, is_active=True)
+        elif session_key:
+            queryset = queryset.filter(session_key=session_key, is_active=True)
+        
+        return queryset
+    
+    @decorators.action(detail=True, methods=['post'])
+    def add_item(self, request, pk=None):
+        """Add item to cart"""
+        cart = self.get_object()
+        product_id = request.data.get('product_id')
+        quantity = int(request.data.get('quantity', 1))
+        design_state_json = request.data.get('design_state_json')
+        design_file_url = request.data.get('design_file_url', '')
+        
+        try:
+            product = Product.objects.get(id=product_id)
+            unit_price = resolve_unit_price(product, quantity) if hasattr(product, 'base_price') else product.base_price
+            
+            cart_item, created = CartItem.objects.get_or_create(
+                cart=cart,
+                product=product,
+                design_state_json=design_state_json,
+                defaults={
+                    'product_name': product.name,
+                    'product_sku': product.internal_code or '',
+                    'unit_price': unit_price,
+                    'quantity': quantity,
+                    'design_file_url': design_file_url,
+                }
+            )
+            
+            if not created:
+                cart_item.quantity += quantity
+                cart_item.save()
+            
+            return Response(CartItemSerializer(cart_item).data)
+        except Product.DoesNotExist:
+            return Response(
+                {'error': 'Product not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @decorators.action(detail=True, methods=['post'])
+    def remove_item(self, request, pk=None):
+        """Remove item from cart"""
+        cart = self.get_object()
+        item_id = request.data.get('item_id')
+        
+        try:
+            item = CartItem.objects.get(id=item_id, cart=cart)
+            item.delete()
+            return Response({'success': True})
+        except CartItem.DoesNotExist:
+            return Response(
+                {'error': 'Item not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @decorators.action(detail=True, methods=['post'])
+    def apply_coupon(self, request, pk=None):
+        """Apply coupon to cart"""
+        cart = self.get_object()
+        coupon_code = request.data.get('coupon_code')
+        
+        try:
+            coupon = Coupon.objects.get(code=coupon_code, is_active=True)
+            is_valid, message = coupon.is_valid(
+                customer=cart.customer,
+                order_amount=cart.subtotal
+            )
+            
+            if not is_valid:
+                return Response(
+                    {'error': message},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            return Response({
+                'coupon_code': coupon.code,
+                'discount_type': coupon.discount_type,
+                'discount_value': coupon.discount_value,
+                'message': 'Coupon applied successfully'
+            })
+        except Coupon.DoesNotExist:
+            return Response(
+                {'error': 'Invalid coupon code'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @decorators.action(detail=True, methods=['post'])
+    def checkout(self, request, pk=None):
+        """Convert cart to order"""
+        cart = self.get_object()
+        
+        if cart.items.count() == 0:
+            return Response(
+                {'error': 'Cart is empty'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Get addresses
+        billing_address_id = request.data.get('billing_address_id')
+        shipping_address_id = request.data.get('shipping_address_id')
+        
+        try:
+            billing_address = CustomerAddress.objects.get(id=billing_address_id) if billing_address_id else None
+            shipping_address = CustomerAddress.objects.get(id=shipping_address_id) if shipping_address_id else None
+            
+            # Calculate totals
+            subtotal = cart.subtotal
+            shipping_cost = Decimal('0')  # Will be calculated by shipping method
+            tax_amount = Decimal('0')  # Will be calculated by tax engine
+            discount_amount = Decimal('0')  # From coupon if applied
+            total_amount = subtotal + shipping_cost + tax_amount - discount_amount
+            
+            # Create order
+            order = Order.objects.create(
+                customer=cart.customer,
+                subtotal=subtotal,
+                shipping_cost=shipping_cost,
+                tax_amount=tax_amount,
+                discount_amount=discount_amount,
+                total_amount=total_amount,
+                billing_address=billing_address,
+                shipping_address=shipping_address,
+                status='pending',
+                payment_status='pending',
+            )
+            
+            # Create order items
+            for cart_item in cart.items.all():
+                OrderItem.objects.create(
+                    order=order,
+                    product=cart_item.product,
+                    product_name=cart_item.product_name,
+                    product_sku=cart_item.product_sku,
+                    unit_price=cart_item.unit_price,
+                    quantity=cart_item.quantity,
+                    design_state_json=cart_item.design_state_json,
+                    design_file_url=cart_item.design_file_url,
+                    line_total=cart_item.line_total,
+                )
+            
+            # Deactivate cart
+            cart.is_active = False
+            cart.save()
+            
+            return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
+        except CustomerAddress.DoesNotExist:
+            return Response(
+                {'error': 'Address not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class OrderViewSet(viewsets.ModelViewSet):
+    """Order Management"""
+    queryset = Order.objects.prefetch_related('items', 'items__product').select_related('customer').all()
+    serializer_class = OrderSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['customer', 'status', 'payment_status', 'order_number']
+    search_fields = ['order_number', 'customer__email']
+    ordering_fields = ['created_at', 'total_amount']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        customer_id = self.request.query_params.get('customer_id')
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        return queryset
+    
+    @decorators.action(detail=True, methods=['post'])
+    def calculate_shipping(self, request, pk=None):
+        """Calculate shipping cost for order"""
+        order = self.get_object()
+        shipping_method_id = request.data.get('shipping_method_id')
+        
+        try:
+            shipping_method = ShippingMethod.objects.get(id=shipping_method_id, is_active=True)
+            
+            # Calculate total weight (placeholder - would need product weight)
+            total_weight = Decimal('1.0')  # Placeholder
+            
+            shipping_cost = shipping_method.calculate_shipping_cost(
+                weight=total_weight,
+                order_amount=order.subtotal,
+                destination=order.shipping_address
+            )
+            
+            order.shipping_cost = shipping_cost
+            order.shipping_method = shipping_method
+            order.total_amount = order.subtotal + order.shipping_cost + order.tax_amount - order.discount_amount
+            order.save()
+            
+            return Response({
+                'shipping_cost': float(shipping_cost),
+                'total_amount': float(order.total_amount),
+            })
+        except ShippingMethod.DoesNotExist:
+            return Response(
+                {'error': 'Shipping method not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+    
+    @decorators.action(detail=True, methods=['post'])
+    def calculate_tax(self, request, pk=None):
+        """Calculate tax for order"""
+        order = self.get_object()
+        
+        if not order.shipping_address:
+            return Response(
+                {'error': 'Shipping address required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Find applicable tax configuration
+        tax_config = None
+        for config in TaxConfiguration.objects.filter(is_active=True):
+            if config.applies_to(order.shipping_address, order.customer):
+                tax_config = config
+                break
+        
+        if tax_config:
+            tax_amount = tax_config.calculate_tax(order.subtotal)
+            order.tax_amount = tax_amount
+            order.total_amount = order.subtotal + order.shipping_cost + tax_amount - order.discount_amount
+            order.save()
+            
+            return Response({
+                'tax_amount': float(tax_amount),
+                'tax_rate': float(tax_config.rate),
+                'total_amount': float(order.total_amount),
+            })
+        else:
+            return Response({
+                'tax_amount': 0,
+                'tax_rate': 0,
+                'total_amount': float(order.total_amount),
+            })
+    
+    @decorators.action(detail=True, methods=['post'])
+    def process_payment(self, request, pk=None):
+        """Process payment for order"""
+        order = self.get_object()
+        payment_method = request.data.get('payment_method')
+        transaction_id = request.data.get('transaction_id')
+        gateway_response = request.data.get('gateway_response', {})
+        
+        # Create payment transaction
+        payment_transaction = PaymentTransaction.objects.create(
+            order=order,
+            customer=order.customer,
+            payment_method=payment_method,
+            amount=order.total_amount,
+            transaction_id=transaction_id,
+            gateway_response=gateway_response,
+            status='processing',
+        )
+        
+        # Update order payment status
+        order.payment_method = payment_method
+        order.payment_transaction_id = transaction_id
+        order.payment_status = 'processing'
+        order.save()
+        
+        return Response({
+            'transaction_id': payment_transaction.transaction_id,
+            'status': payment_transaction.status,
+        })
+    
+    @decorators.action(detail=True, methods=['post'])
+    def confirm_payment(self, request, pk=None):
+        """Confirm payment completion"""
+        order = self.get_object()
+        transaction_id = request.data.get('transaction_id')
+        
+        try:
+            payment_transaction = PaymentTransaction.objects.get(
+                transaction_id=transaction_id,
+                order=order
+            )
+            
+            payment_transaction.status = 'completed'
+            payment_transaction.completed_at = timezone.now()
+            payment_transaction.save()
+            
+            order.payment_status = 'completed'
+            order.status = 'paid'
+            order.paid_at = timezone.now()
+            order.save()
+            
+            # TODO: Create Job from Order
+            # TODO: Send confirmation email
+            
+            return Response({
+                'success': True,
+                'order_number': order.order_number,
+                'status': order.status,
+            })
+        except PaymentTransaction.DoesNotExist:
+            return Response(
+                {'error': 'Payment transaction not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class CouponViewSet(viewsets.ReadOnlyModelViewSet):
+    """Coupon/Discount Engine"""
+    queryset = Coupon.objects.filter(is_active=True)
+    serializer_class = CouponSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['code', 'discount_type', 'is_active']
+    search_fields = ['code', 'name']
+    
+    @decorators.action(detail=False, methods=['get'])
+    def validate(self, request):
+        """Validate a coupon code"""
+        code = request.query_params.get('code')
+        customer_id = request.query_params.get('customer_id')
+        order_amount = Decimal(request.query_params.get('order_amount', 0))
+        
+        if not code:
+            return Response(
+                {'error': 'Coupon code required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            coupon = Coupon.objects.get(code=code, is_active=True)
+            customer = Customer.objects.get(id=customer_id) if customer_id else None
+            
+            is_valid, message = coupon.is_valid(customer=customer, order_amount=order_amount)
+            
+            if is_valid:
+                discount_amount = coupon.calculate_discount(order_amount)
+                return Response({
+                    'valid': True,
+                    'coupon': CouponSerializer(coupon).data,
+                    'discount_amount': float(discount_amount),
+                    'message': message,
+                })
+            else:
+                return Response({
+                    'valid': False,
+                    'message': message,
+                }, status=status.HTTP_400_BAD_REQUEST)
+        except Coupon.DoesNotExist:
+            return Response(
+                {'valid': False, 'message': 'Invalid coupon code'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class DesignTemplateViewSet(viewsets.ReadOnlyModelViewSet):
+    """Design Templates for Design Studio"""
+    queryset = DesignTemplate.objects.filter(is_active=True)
+    serializer_class = DesignTemplateSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['product', 'product_category', 'is_featured', 'is_premium']
+    search_fields = ['name', 'description']
+    ordering_fields = ['usage_count', 'created_at']
+
+
+class DesignStateViewSet(viewsets.ModelViewSet):
+    """Design State Storage"""
+    queryset = DesignState.objects.select_related('product', 'template', 'customer').all()
+    serializer_class = DesignStateSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['customer', 'product', 'is_saved', 'is_archived']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        customer_id = self.request.query_params.get('customer_id')
+        session_key = self.request.query_params.get('session_key')
+        
+        if customer_id:
+            queryset = queryset.filter(customer_id=customer_id)
+        elif session_key:
+            queryset = queryset.filter(session_key=session_key)
+        
+        return queryset
+
+
+class ProductReviewViewSet(viewsets.ModelViewSet):
+    """Product Reviews and Ratings"""
+    queryset = ProductReview.objects.filter(is_approved=True).select_related('product', 'customer', 'order')
+    serializer_class = ProductReviewSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['product', 'customer', 'rating', 'is_approved', 'is_verified_purchase']
+    ordering_fields = ['created_at', 'rating', 'helpful_count']
+    
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        product_id = self.request.query_params.get('product_id')
+        if product_id:
+            queryset = queryset.filter(product_id=product_id, is_approved=True)
+        return queryset
+    
+    @decorators.action(detail=True, methods=['post'])
+    def mark_helpful(self, request, pk=None):
+        """Mark review as helpful"""
+        review = self.get_object()
+        review.helpful_count += 1
+        review.save(update_fields=['helpful_count'])
+        return Response({'helpful_count': review.helpful_count})
+
+
+class ShippingMethodViewSet(viewsets.ReadOnlyModelViewSet):
+    """Shipping Methods"""
+    queryset = ShippingMethod.objects.filter(is_active=True)
+    serializer_class = ShippingMethodSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['carrier', 'pricing_type', 'is_active', 'is_default']
+    ordering_fields = ['is_default', 'name']
+
+
+class TaxConfigurationViewSet(viewsets.ReadOnlyModelViewSet):
+    """Tax Configuration"""
+    queryset = TaxConfiguration.objects.filter(is_active=True)
+    serializer_class = TaxConfigurationSerializer
+    permission_classes = [AllowAny]
+    
+    filterset_fields = ['country', 'state_province', 'city', 'tax_type', 'is_active']
 

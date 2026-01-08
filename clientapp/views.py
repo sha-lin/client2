@@ -1988,7 +1988,7 @@ def update_quote_status(request):
                     job_type='printing',  
                     product=quote.product_name,
                     quantity=quote.quantity,
-                    person_in_charge='Production Team',  # Default assignment
+                    person_in_charge=None,  # Can be assigned later via API
                     status='pending',
                     expected_completion=quote.valid_until,
                     created_by=request.user

@@ -550,6 +550,8 @@ Thank you for choosing PrintDuka!
             lpo = QuoteApprovalService.generate_lpo(quote)
             
             # ===== CREATE JOB FOR PRODUCTION =====
+            # Note: person_in_charge is now a ForeignKey, so we leave it null initially
+            # AM can assign later via API
             job = Job.objects.create(
                 client=quote.client,
                 quote=quote,
@@ -557,7 +559,7 @@ Thank you for choosing PrintDuka!
                 job_type='printing',
                 product=quote.product_name,
                 quantity=quote.quantity,
-                person_in_charge='Production Team',
+                person_in_charge=None,  # Can be assigned later via API
                 status='pending',
                 expected_completion=quote.valid_until,
                 created_by=quote.created_by

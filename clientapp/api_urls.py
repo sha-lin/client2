@@ -69,6 +69,26 @@ router.register("system-alerts", api_views.SystemAlertViewSet, basename="system-
 router.register("users", api_views.UserViewSet, basename="user")
 router.register("groups", api_views.GroupViewSet, basename="group")
 router.register("dashboard", api_views.DashboardViewSet, basename="dashboard")
+router.register("analytics", api_views.AnalyticsViewSet, basename="analytics")
+router.register("search", api_views.SearchViewSet, basename="search")
+
+# Production Team Specific APIs
+router.register("production-updates", api_views.ProductionUpdateViewSet, basename="production-update")
+router.register("costing-engine", api_views.CostingEngineViewSet, basename="costing-engine")
+router.register("workload", api_views.WorkloadViewSet, basename="workload")
+router.register("production-analytics", api_views.ProductionAnalyticsViewSet, basename="production-analytics")
+
+# Storefront Ecommerce APIs
+router.register("storefront/customers", api_views.CustomerViewSet, basename="storefront-customer")
+router.register("storefront/addresses", api_views.CustomerAddressViewSet, basename="storefront-address")
+router.register("storefront/carts", api_views.CartViewSet, basename="storefront-cart")
+router.register("storefront/orders", api_views.OrderViewSet, basename="storefront-order")
+router.register("storefront/coupons", api_views.CouponViewSet, basename="storefront-coupon")
+router.register("storefront/design-templates", api_views.DesignTemplateViewSet, basename="storefront-design-template")
+router.register("storefront/design-states", api_views.DesignStateViewSet, basename="storefront-design-state")
+router.register("storefront/reviews", api_views.ProductReviewViewSet, basename="storefront-review")
+router.register("storefront/shipping-methods", api_views.ShippingMethodViewSet, basename="storefront-shipping-method")
+router.register("storefront/tax-configurations", api_views.TaxConfigurationViewSet, basename="storefront-tax-config")
 
 urlpatterns = router.urls
 
