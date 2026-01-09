@@ -69,6 +69,20 @@ from .models import (
     ProductReview,
     ShippingMethod,
     PaymentTransaction,
+    #webhook and other models
+    ProductRule,
+    TimelineEvent,
+    DesignSession,
+    DesignVersion,
+    ProofApproval,
+    Shipment,
+    Promotion,
+    MaterialInventory,
+    Refund,
+    CreditNote,
+    Adjustment,
+    WebhookSubscription,
+    WebhookDelivery,
 )
 
 
@@ -579,3 +593,73 @@ class PaymentTransactionSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ['created_at', 'updated_at', 'initiated_at']
 
+
+
+class ProductRuleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProductRule
+        fields = "__all__"
+
+class TimelineEventSerializer(serializers.ModelSerializer):
+    actor_name = serializers.CharField(source='actor.get_full_name', read_only=True)
+    class Meta:
+        model = TimelineEvent
+        fields = "__all__"
+
+class DesignVersionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DesignVersion
+        fields = "__all__"
+
+class DesignSessionSerializer(serializers.ModelSerializer):
+    versions = DesignVersionSerializer(many=True, read_only=True)
+    class Meta:
+        model = DesignSession
+        fields = "__all__"
+
+class ProofApprovalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ProofApproval
+        fields = "__all__"
+
+class ShipmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Shipment
+        fields = "__all__"
+
+class PromotionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Promotion
+        fields = "__all__"
+
+class MaterialInventorySerializer(serializers.ModelSerializer):
+    available_stock = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    is_low_stock = serializers.BooleanField(read_only=True)
+    class Meta:
+        model = MaterialInventory
+        fields = "__all__"
+
+class RefundSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Refund
+        fields = "__all__"
+
+class CreditNoteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CreditNote
+        fields = "__all__"
+
+class AdjustmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Adjustment
+        fields = "__all__"
+
+class WebhookSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebhookSubscription
+        fields = "__all__"
+
+class WebhookDeliverySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebhookDelivery
+        fields = "__all__"

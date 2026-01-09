@@ -1,4 +1,5 @@
 from rest_framework.routers import DefaultRouter
+from django.urls import path
 
 from . import api_views
 
@@ -49,6 +50,10 @@ router.register("jobs", api_views.JobViewSet, basename="job")
 router.register("job-vendor-stages", api_views.JobVendorStageViewSet, basename="job-vendor-stage")
 router.register("job-notes", api_views.JobNoteViewSet, basename="job-note")
 router.register("job-attachments", api_views.JobAttachmentViewSet, basename="job-attachment")
+router.register("timeline", api_views.TimelineEventViewSet, basename="timeline")
+router.register("shipments", api_views.ShipmentViewSet, basename="shipment")
+
+
 
 # Vendors / Purchasing / Finance
 router.register("vendors", api_views.VendorViewSet, basename="vendor")
@@ -56,6 +61,11 @@ router.register("lpos", api_views.LPOViewSet, basename="lpo")
 router.register("payments", api_views.PaymentViewSet, basename="payment")
 router.register("vendor-quotes", api_views.VendorQuoteViewSet, basename="vendor-quote")
 router.register("lpo-line-items", api_views.LPOLineItemViewSet, basename="lpo-line-item")
+router.register("refunds", api_views.RefundViewSet, basename="refund")
+router.register("credit-notes", api_views.CreditNoteViewSet, basename="credit-note")
+router.register("adjustments", api_views.AdjustmentViewSet, basename="adjustment")
+
+
 
 # Notifications / Logs / Settings / Integrations / QC / Delivery / Users / Dashboard
 router.register("notifications", api_views.NotificationViewSet, basename="notification")
@@ -71,6 +81,11 @@ router.register("groups", api_views.GroupViewSet, basename="group")
 router.register("dashboard", api_views.DashboardViewSet, basename="dashboard")
 router.register("analytics", api_views.AnalyticsViewSet, basename="analytics")
 router.register("search", api_views.SearchViewSet, basename="search")
+router.register("product-rules", api_views.ProductRuleViewSet, basename="product-rule")
+router.register("material-inventory", api_views.MaterialInventoryViewSet, basename="material-inventory")
+router.register("webhook-subscriptions", api_views.WebhookSubscriptionViewSet, basename="webhook-subscription")
+router.register("webhook-deliveries", api_views.WebhookDeliveryViewSet, basename="webhook-delivery")
+
 
 # Production Team Specific APIs
 router.register("production-updates", api_views.ProductionUpdateViewSet, basename="production-update")
@@ -89,6 +104,18 @@ router.register("storefront/design-states", api_views.DesignStateViewSet, basena
 router.register("storefront/reviews", api_views.ProductReviewViewSet, basename="storefront-review")
 router.register("storefront/shipping-methods", api_views.ShippingMethodViewSet, basename="storefront-shipping-method")
 router.register("storefront/tax-configurations", api_views.TaxConfigurationViewSet, basename="storefront-tax-config")
+router.register("storefront/design-sessions", api_views.DesignSessionViewSet, basename="storefront-design-session")
+router.register("storefront/design-versions", api_views.DesignVersionViewSet, basename="storefront-design-version")
+router.register("storefront/proof-approvals", api_views.ProofApprovalViewSet, basename="storefront-proof-approval")
+router.register("storefront/promotions", api_views.PromotionViewSet, basename="storefront-promotion")
 
-urlpatterns = router.urls
+
+urlpatterns = router.urls + [
+    # Canonical Pricing Engine
+    path('pricing/calculate/', api_views.PricingEngineView.as_view(), name='pricing-calculate'),
+    # Product Configuration Rules Engine
+    path('product-configurations/validate/', api_views.ProductConfigurationValidationView.as_view(), name='product-config-validate'),
+    # Preflight Service
+    path('files/preflight/', api_views.PreflightView.as_view(), name='preflight'),
+]
 

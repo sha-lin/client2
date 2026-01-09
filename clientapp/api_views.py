@@ -76,6 +76,19 @@ from .models import (
     ProductReview,
     ShippingMethod,
     PaymentTransaction,
+    ProductRule,
+    TimelineEvent,
+    DesignSession,
+    DesignVersion,
+    ProofApproval,
+    Shipment,
+    Promotion,
+    MaterialInventory,
+    Refund,
+    CreditNote,
+    Adjustment,
+    WebhookSubscription,
+    WebhookDelivery,
 )
 from .api_serializers import (
     LeadSerializer,
@@ -144,6 +157,20 @@ from .api_serializers import (
     ProductionUpdateSerializer,
     UserSerializer,
     GroupSerializer,
+
+    ProductRuleSerializer,
+    TimelineEventSerializer,
+    DesignSessionSerializer,
+    DesignVersionSerializer,
+    ProofApprovalSerializer,
+    ShipmentSerializer,
+    PromotionSerializer,
+    MaterialInventorySerializer,
+    RefundSerializer,
+    CreditNoteSerializer,
+    AdjustmentSerializer,
+    WebhookSubscriptionSerializer,
+    WebhookDeliverySerializer,
 )
 from .permissions import (
     IsAdmin,
@@ -837,7 +864,7 @@ class JobViewSet(viewsets.ModelViewSet):
         } for att in attachments]
         
         # Create notification for vendor (if vendor has user account)
-        # For now, we'll create an activity log
+        # activity log
         ActivityLog.objects.create(
             client=job.client,
             activity_type="Job",
@@ -1553,7 +1580,7 @@ class SearchViewSet(viewsets.ViewSet):
         )
 
 
-# ===== Production Team Specific APIs =====
+# ===== Production Team APIs =====
 
 class CostingEngineViewSet(viewsets.ViewSet):
     """
@@ -2071,9 +2098,9 @@ class CartViewSet(viewsets.ModelViewSet):
             
             # Calculate totals
             subtotal = cart.subtotal
-            shipping_cost = Decimal('0')  # Will be calculated by shipping method
-            tax_amount = Decimal('0')  # Will be calculated by tax engine
-            discount_amount = Decimal('0')  # From coupon if applied
+            shipping_cost = Decimal('0')  #Calculated by shipping method
+            tax_amount = Decimal('0')  # Calculated by tax engine
+            discount_amount = Decimal('0')  # From coupon 
             total_amount = subtotal + shipping_cost + tax_amount - discount_amount
             
             # Create order
@@ -2391,3 +2418,180 @@ class TaxConfigurationViewSet(viewsets.ReadOnlyModelViewSet):
     
     filterset_fields = ['country', 'state_province', 'city', 'tax_type', 'is_active']
 
+
+# ==================== CANONICAL PRICING ENGINE ====================
+
+class PricingEngineView(APIView):
+    """
+    Canonical Pricing Engine Endpoint
+    POST /v1/pricing/calculate/
+    Deterministic, stateless pricing calculation
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from ..services.pricing_engine import PricingEngine
+        from rest_framework import serializers
+        
+        class PricingRequestSerializer(serializers.Serializer):
+            product_id = serializers.IntegerField(required=True)
+            quantity = serializers.IntegerField(required=True, min_value=1)
+            variables = serializers.DictField(required=False, allow_null=True)
+            turnaround_id = serializers.IntegerField(required=False, allow_null=True)
+            shipping_method_id = serializers.IntegerField(required=False, allow_null=True)
+            coupon_code = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+            customer_type = serializers.ChoiceField(choices=['B2C', 'B2B'], default='B2C')
+            currency = serializers.CharField(default='KES', max_length=3)
+            customer_id = serializers.IntegerField(required=False, allow_null=True)
+        
+        serializer = PricingRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            result = PricingEngine.calculate(**serializer.validated_data)
+            
+            # Convert Decimal to float for JSON serialization
+            return Response({
+                "base_price": float(result["base_price"]),
+                "variable_price": float(result["variable_price"]),
+                "turnaround_price": float(result["turnaround_price"]),
+                "discounts": float(result["discounts"]),
+                "tax": float(result["tax"]),
+                "shipping": float(result["shipping"]),
+                "subtotal": float(result["subtotal"]),
+                "total": float(result["total"]),
+                "margin": float(result["margin"]),
+                "currency": result["currency"],
+            })
+        except ValidationError as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {"error": f"Pricing calculation failed: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class ProductConfigurationValidationView(APIView):
+    """
+    Product Configuration Rules Engine
+    POST /v1/product-configurations/validate/
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from ..services.product_configuration import ProductConfigurationValidator
+        from rest_framework import serializers
+        
+        class ValidationRequestSerializer(serializers.Serializer):
+            product_id = serializers.IntegerField(required=True)
+            variables = serializers.DictField(required=True)
+        
+        serializer = ValidationRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = ProductConfigurationValidator.validate(
+            product_id=serializer.validated_data['product_id'],
+            variables=serializer.validated_data['variables']
+        )
+        
+        return Response(result)
+
+
+class PreflightView(APIView):
+    """
+    Design & Artwork Intelligence - Preflight Service
+    POST /v1/files/preflight/
+    """
+    permission_classes = [AllowAny]
+    
+    def post(self, request):
+        from ..services.preflight import PreflightService
+        from rest_framework import serializers
+        
+        class PreflightRequestSerializer(serializers.Serializer):
+            file_url = serializers.URLField(required=True)
+            product_id = serializers.IntegerField(required=True)
+            file_size = serializers.IntegerField(required=False, allow_null=True)
+            file_format = serializers.CharField(required=False, allow_null=True, allow_blank=True)
+        
+        serializer = PreflightRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        result = PreflightService.validate(**serializer.validated_data)
+        return Response(result)
+
+
+
+class ProductRuleViewSet(viewsets.ModelViewSet):
+    queryset = ProductRule.objects.all()
+    serializer_class = ProductRuleSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+class TimelineEventViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = TimelineEvent.objects.all()
+    serializer_class = TimelineEventSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['entity_type', 'entity_id', 'event_type']
+
+class DesignSessionViewSet(viewsets.ModelViewSet):
+    queryset = DesignSession.objects.all()
+    serializer_class = DesignSessionSerializer
+    permission_classes = [AllowAny]
+
+class DesignVersionViewSet(viewsets.ModelViewSet):
+    queryset = DesignVersion.objects.all()
+    serializer_class = DesignVersionSerializer
+    permission_classes = [AllowAny]
+
+class ProofApprovalViewSet(viewsets.ModelViewSet):
+    queryset = ProofApproval.objects.all()
+    serializer_class = ProofApprovalSerializer
+    permission_classes = [AllowAny]
+
+class ShipmentViewSet(viewsets.ModelViewSet):
+    queryset = Shipment.objects.all()
+    serializer_class = ShipmentSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['order', 'status', 'carrier']
+
+class PromotionViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Promotion.objects.filter(is_active=True)
+    serializer_class = PromotionSerializer
+    permission_classes = [AllowAny]
+
+class MaterialInventoryViewSet(viewsets.ModelViewSet):
+    queryset = MaterialInventory.objects.all()
+    serializer_class = MaterialInventorySerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+
+class RefundViewSet(viewsets.ModelViewSet):
+    queryset = Refund.objects.all()
+    serializer_class = RefundSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+class CreditNoteViewSet(viewsets.ModelViewSet):
+    queryset = CreditNote.objects.all()
+    serializer_class = CreditNoteSerializer
+    permission_classes = [IsAuthenticated]
+
+class AdjustmentViewSet(viewsets.ModelViewSet):
+    queryset = Adjustment.objects.all()
+    serializer_class = AdjustmentSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+class WebhookSubscriptionViewSet(viewsets.ModelViewSet):
+    queryset = WebhookSubscription.objects.all()
+    serializer_class = WebhookSubscriptionSerializer
+    permission_classes = [IsAuthenticated, IsAdmin]
+
+class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = WebhookDelivery.objects.all()
+    serializer_class = WebhookDeliverySerializer
+    permission_classes = [IsAuthenticated, IsAdmin]

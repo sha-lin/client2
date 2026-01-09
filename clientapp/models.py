@@ -1476,7 +1476,8 @@ class Quote(models.Model):
                 allowed_next = valid_transitions.get(old_status, [])
                 # Special case: Allow Draft -> Costed transition when costed_by is set (PT costing workflow)
                 if new_status == 'Costed' and old_status == 'Draft' and hasattr(self, 'costed_by') and self.costed_by:
-                    # This is a valid transition when PT is costing a draft quote
+                    
+                    #costing of a quote by PT
                     pass
                 elif new_status not in allowed_next:
                     raise ValidationError(
@@ -3820,5 +3821,618 @@ class PaymentTransaction(models.Model):
         return f"{self.payment_method.upper()} - {self.transaction_id} ({self.status})"
 
 
+# ==================== STOREFRONT BACKEND ENHANCEMENTS ====================
+
+class ProductRule(models.Model):
+    """
+    Product Configuration Rules Engine
+    Vistaprint's secret sauce - validates product variable combinations
+    """
+    RULE_TYPE_CHOICES = [
+        ('requires', 'Requires'),
+        ('excludes', 'Excludes'),
+        ('range', 'Range (Min/Max)'),
+        ('conditional', 'Conditional'),
+        ('turnaround_compatibility', 'Turnaround Compatibility'),
+    ]
+    
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='rules')
+    rule_type = models.CharField(max_length=30, choices=RULE_TYPE_CHOICES)
+    condition_json = models.JSONField(
+        default=dict,
+        help_text="Rule conditions (e.g., {'variable': 'paper', 'value': '300gsm', 'excludes': ['spot_uv']})"
+    )
+    message = models.CharField(
+        max_length=500,
+        help_text="Error message shown when rule is violated"
+    )
+    is_active = models.BooleanField(default=True)
+    priority = models.IntegerField(default=0, help_text="Higher priority rules checked first")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-priority', 'rule_type']
+        indexes = [
+            models.Index(fields=['product', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.product.name} - {self.get_rule_type_display()}"
+
+
+class TimelineEvent(models.Model):
+    """
+    Timeline & Event Bus - Append-only event log
+    Drives notifications, webhooks, and audit trails
+    """
+    EVENT_TYPE_CHOICES = [
+        # Quote events
+        ('quote.created', 'Quote Created'),
+        ('quote.sent', 'Quote Sent'),
+        ('quote.approved', 'Quote Approved'),
+        ('quote.rejected', 'Quote Rejected'),
+        ('quote.expired', 'Quote Expired'),
+        ('quote.cancelled', 'Quote Cancelled'),
+        # Order events
+        ('order.created', 'Order Created'),
+        ('order.paid', 'Order Paid'),
+        ('order.shipped', 'Order Shipped'),
+        ('order.delivered', 'Order Delivered'),
+        ('order.cancelled', 'Order Cancelled'),
+        # Job events
+        ('job.created', 'Job Created'),
+        ('job.assigned', 'Job Assigned'),
+        ('job.in_production', 'Job In Production'),
+        ('job.completed', 'Job Completed'),
+        # Payment events
+        ('payment.received', 'Payment Received'),
+        ('payment.refunded', 'Payment Refunded'),
+        # Vendor events
+        ('vendor.assigned', 'Vendor Assigned'),
+        ('vendor.failed', 'Vendor Failed'),
+        # SLA events
+        ('sla.breached', 'SLA Breached'),
+        ('sla.warning', 'SLA Warning'),
+        # Other
+        ('custom', 'Custom Event'),
+    ]
+    
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='timeline_events'
+    )
+    entity_type = models.CharField(max_length=50, db_index=True)  # 'quote', 'order', 'job', etc.
+    entity_id = models.IntegerField(db_index=True)
+    event_type = models.CharField(max_length=50, choices=EVENT_TYPE_CHOICES, db_index=True)
+    metadata = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        ordering = ['-timestamp']
+        indexes = [
+            models.Index(fields=['entity_type', 'entity_id']),
+            models.Index(fields=['event_type', 'timestamp']),
+        ]
+    
+    def __str__(self):
+        return f"{self.event_type} - {self.entity_type}#{self.entity_id} at {self.timestamp}"
+
+
+class DesignSession(models.Model):
+    """
+    Design Session - Tracks customer design sessions
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('in_progress', 'In Progress'),
+        ('completed', 'Completed'),
+        ('abandoned', 'Abandoned'),
+    ]
+    
+    customer = models.ForeignKey(
+        'Customer',
+        on_delete=models.CASCADE,
+        related_name='design_sessions',
+        null=True,
+        blank=True
+    )
+    session_key = models.CharField(max_length=40, null=True, blank=True, help_text="For guest sessions")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    current_version = models.ForeignKey(
+        'DesignVersion',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='active_sessions'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    last_accessed_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-last_accessed_at']
+        indexes = [
+            models.Index(fields=['customer', 'status']),
+            models.Index(fields=['session_key', 'status']),
+        ]
+    
+    def __str__(self):
+        identifier = self.customer.email if self.customer else f"Guest-{self.session_key[:8]}"
+        return f"DesignSession-{self.id} ({identifier})"
+
+
+class DesignVersion(models.Model):
+    """
+    Design Version - Every upload = new version
+    """
+    session = models.ForeignKey(DesignSession, on_delete=models.CASCADE, related_name='versions')
+    version_number = models.IntegerField()
+    
+    # Design files
+    design_file_url = models.URLField(help_text="Link to design file")
+    preview_url = models.URLField(blank=True)
+    thumbnail_url = models.URLField(blank=True)
+    
+    # Metadata
+    file_size = models.BigIntegerField(help_text="File size in bytes")
+    file_format = models.CharField(max_length=20, blank=True)  # PDF, PNG, etc.
+    design_json = models.JSONField(default=dict, blank=True, help_text="Design configuration/state")
+    
+    # Status
+    is_approved = models.BooleanField(default=False)
+    is_locked = models.BooleanField(default=False, help_text="Locked after approval")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-version_number']
+        unique_together = [['session', 'version_number']]
+    
+    def __str__(self):
+        return f"{self.session} - v{self.version_number}"
+
+
+class ProofApproval(models.Model):
+    """
+    Proof Approval - Customer approval/rejection of design proofs
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('revision_requested', 'Revision Requested'),
+    ]
+    
+    design_version = models.ForeignKey('DesignVersion', on_delete=models.CASCADE, related_name='proof_approvals')
+    quote = models.ForeignKey('Quote', on_delete=models.CASCADE, related_name='proof_approvals', null=True, blank=True)
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='proof_approvals', null=True, blank=True)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    comment = models.TextField(blank=True, help_text="Required for rejections")
+    approved_by_email = models.EmailField(blank=True, help_text="Email of approver (customer)")
+    approved_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"ProofApproval-{self.id} - {self.get_status_display()}"
+
+
+class Shipment(models.Model):
+    """
+    Shipment - Multi-carrier logistics with split-shipment support
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('preparing', 'Preparing'),
+        ('shipped', 'Shipped'),
+        ('in_transit', 'In Transit'),
+        ('delivered', 'Delivered'),
+        ('failed', 'Failed'),
+    ]
+    
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='shipments')
+    vendor = models.ForeignKey('Vendor', on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Shipment identification
+    shipment_number = models.CharField(max_length=50, unique=True, editable=False, db_index=True)
+    tracking_id = models.CharField(max_length=100, blank=True, db_index=True)
+    carrier = models.CharField(max_length=100, blank=True, help_text="G4S, DHL, Sendy, etc.")
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Line items in this shipment (subset of order items)
+    line_items = models.ManyToManyField('OrderItem', related_name='shipments')
+    
+    # Shipping details
+    shipping_address = models.ForeignKey(
+        'CustomerAddress',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True
+    )
+    shipping_method = models.ForeignKey(ShippingMethod, on_delete=models.SET_NULL, null=True, blank=True)
+    shipping_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Tracking
+    estimated_delivery = models.DateField(null=True, blank=True)
+    shipped_at = models.DateTimeField(null=True, blank=True)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+    
+    # Tracking updates (normalized from different carriers)
+    tracking_updates = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of tracking status updates from carrier API"
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', 'status']),
+            models.Index(fields=['tracking_id']),
+        ]
+    
+    def __str__(self):
+        return f"Shipment-{self.shipment_number} for {self.order.order_number}"
+    
+    def save(self, *args, **kwargs):
+        if not self.shipment_number:
+            year = timezone.now().year
+            last_shipment = Shipment.objects.filter(
+                shipment_number__startswith=f'SHIP-{year}-'
+            ).order_by('shipment_number').last()
+            
+            if last_shipment:
+                try:
+                    last_num = int(last_shipment.shipment_number.split('-')[-1])
+                    new_num = last_num + 1
+                except:
+                    new_num = 1
+            else:
+                new_num = 1
+            
+            self.shipment_number = f'SHIP-{year}-{new_num:05d}'
+        
+        super().save(*args, **kwargs)
+
+
+class Promotion(models.Model):
+    """
+    Advanced Promotions & Loyalty Engine
+    Beyond simple coupons - BOGO, tiered discounts, customer-segment pricing
+    """
+    PROMOTION_TYPE_CHOICES = [
+        ('bogo', 'Buy One Get One (BOGO)'),
+        ('tiered', 'Tiered Discount (Spend X, Get Y Off)'),
+        ('segment', 'Customer Segment Pricing'),
+        ('loyalty', 'Loyalty Points Discount'),
+        ('first_time', 'First-Time Customer Discount'),
+    ]
+    
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    promotion_type = models.CharField(max_length=20, choices=PROMOTION_TYPE_CHOICES)
+    
+    # BOGO settings
+    buy_quantity = models.IntegerField(null=True, blank=True)
+    get_quantity = models.IntegerField(null=True, blank=True)
+    get_product = models.ForeignKey(
+        Product,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bogo_promotions'
+    )
+    
+    # Tiered discount settings
+    tier_rules = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="[{'min_spend': 10000, 'discount_amount': 1000}, ...]"
+    )
+    
+    # Segment pricing
+    customer_segments = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of customer segment IDs or types"
+    )
+    segment_discount_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True
+    )
+    
+    # Eligibility
+    eligible_products = models.ManyToManyField(Product, blank=True, related_name='promotions')
+    eligible_categories = models.ManyToManyField('ProductCategory', blank=True)
+    minimum_order_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Validity
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    is_active = models.BooleanField(default=True)
+    
+    # Usage limits
+    usage_limit = models.IntegerField(null=True, blank=True)
+    usage_limit_per_customer = models.IntegerField(null=True, blank=True, default=1)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-starts_at']
+    
+    def __str__(self):
+        return f"{self.name} ({self.get_promotion_type_display()})"
+
+
+class MaterialInventory(models.Model):
+    """
+    Inventory & Material Commitment (Soft-Locks)
+    Virtual stock tracking for raw materials
+    """
+    # Link to ProductVariableOption (e.g., "300gsm Matte Paper")
+    product_variable_option = models.ForeignKey(
+        'ProductVariableOption',
+        on_delete=models.CASCADE,
+        related_name='inventory',
+        null=True,
+        blank=True
+    )
+    
+    # Or direct material specification
+    material_name = models.CharField(max_length=200, help_text="e.g., 300gsm Matte Paper")
+    material_code = models.CharField(max_length=100, blank=True)
+    
+    # Stock levels
+    virtual_stock = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Available stock (can be negative for backorders)"
+    )
+    reserved_stock = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Stock reserved by approved quotes/paid orders"
+    )
+    low_stock_threshold = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Alert when stock falls below this"
+    )
+    
+    # Unit
+    unit = models.CharField(max_length=20, default='pcs')
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['material_name']
+        indexes = [
+            models.Index(fields=['material_name', 'is_active']),
+        ]
+    
+    def __str__(self):
+        return f"{self.material_name} - Stock: {self.virtual_stock} {self.unit}"
+    
+    @property
+    def available_stock(self):
+        """Available stock = virtual_stock - reserved_stock"""
+        return self.virtual_stock - self.reserved_stock
+    
+    @property
+    def is_low_stock(self):
+        """Check if stock is below threshold"""
+        return self.available_stock <= self.low_stock_threshold
+
+
+class Refund(models.Model):
+    """
+    Refunds - Immutable payment corrections
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('processed', 'Processed'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    payment = models.ForeignKey(
+        'Payment',
+        on_delete=models.PROTECT,
+        related_name='refunds'
+    )
+    order = models.ForeignKey('Order', on_delete=models.PROTECT, related_name='refunds')
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Approval
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejection_reason = models.TextField(blank=True)
+    
+    # Processing
+    refund_transaction_id = models.CharField(max_length=255, blank=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Refund-{self.id} for {self.order.order_number} - {self.amount}"
+
+
+class CreditNote(models.Model):
+    """
+    Credit Notes - Store credit for future purchases
+    """
+    customer = models.ForeignKey('Customer', on_delete=models.CASCADE, related_name='credit_notes')
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name='credit_notes', null=True, blank=True)
+    refund = models.ForeignKey(Refund, on_delete=models.SET_NULL, null=True, blank=True, related_name='credit_notes')
+    
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    balance = models.DecimalField(max_digits=12, decimal_places=2, help_text="Remaining credit")
+    reason = models.TextField()
+    
+    expires_at = models.DateField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"CreditNote-{self.id} - {self.amount} for {self.customer.email}"
+
+
+class Adjustment(models.Model):
+    """
+    Adjustments - Manual price corrections
+    """
+    ADJUSTMENT_TYPE_CHOICES = [
+        ('discount', 'Discount'),
+        ('surcharge', 'Surcharge'),
+        ('correction', 'Correction'),
+    ]
+    
+    quote = models.ForeignKey(
+        'Quote',
+        on_delete=models.CASCADE,
+        related_name='adjustments',
+        null=True,
+        blank=True
+    )
+    order = models.ForeignKey(
+        'Order',
+        on_delete=models.CASCADE,
+        related_name='adjustments',
+        null=True,
+        blank=True
+    )
+    
+    adjustment_type = models.CharField(max_length=20, choices=ADJUSTMENT_TYPE_CHOICES)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.TextField()
+    
+    # Approval required
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='adjustments_created')
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        entity = self.quote.quote_id if self.quote else self.order.order_number
+        return f"Adjustment-{self.id} - {self.get_adjustment_type_display()} for {entity}"
+
+
+class WebhookSubscription(models.Model):
+    """
+    Webhook Subscriptions - External system integrations
+    """
+    EVENT_TYPE_CHOICES = [
+        ('quote.approved', 'Quote Approved'),
+        ('order.created', 'Order Created'),
+        ('order.paid', 'Order Paid'),
+        ('order.shipped', 'Order Shipped'),
+        ('job.completed', 'Job Completed'),
+        ('payment.received', 'Payment Received'),
+        ('payment.refunded', 'Payment Refunded'),
+    ]
+    
+    name = models.CharField(max_length=200)
+    url = models.URLField()
+    event_types = models.JSONField(
+        default=list,
+        help_text="List of event types to subscribe to"
+    )
+    secret_key = models.CharField(
+        max_length=255,
+        help_text="Secret key for signing payloads"
+    )
+    is_active = models.BooleanField(default=True)
+    
+    # Retry settings
+    max_retries = models.IntegerField(default=3)
+    retry_delay_seconds = models.IntegerField(default=60)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['name']
+    
+    def __str__(self):
+        return f"{self.name} - {self.url}"
+
+
+class WebhookDelivery(models.Model):
+    """
+    Webhook Delivery Log - Tracks webhook delivery attempts
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('failed', 'Failed'),
+        ('retrying', 'Retrying'),
+    ]
+    
+    subscription = models.ForeignKey('WebhookSubscription', on_delete=models.CASCADE, related_name='deliveries')
+    event = models.ForeignKey('TimelineEvent', on_delete=models.CASCADE, related_name='webhook_deliveries')
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    payload = models.JSONField(default=dict)
+    response_status = models.IntegerField(null=True, blank=True)
+    response_body = models.TextField(blank=True)
+    error_message = models.TextField(blank=True)
+    
+    attempt_number = models.IntegerField(default=1)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"WebhookDelivery-{self.id} - {self.status}"
 
 
