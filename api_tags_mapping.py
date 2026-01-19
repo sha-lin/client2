@@ -1,8 +1,8 @@
 # API ViewSet to Tags Mapping
-# This file defines which tags should be applied to each ViewSet
+# Shows tags for each view set for better organization in API documentation
 
 VIEWSET_TAGS = {
-    # ==================== ACCOUNT MANAGER ====================
+    # ACCOUNT MANAGER 
     "LeadViewSet": "Account Manager",
     "ClientViewSet": "Account Manager",
     "ClientContactViewSet": "Account Manager",
@@ -11,7 +11,7 @@ VIEWSET_TAGS = {
     "QuoteViewSet": "Account Manager",
     "QuoteLineItemViewSet": "Account Manager",
     
-    # ==================== PRODUCTION TEAM ====================
+    # PRODUCTION TEAM 
     "JobViewSet": "Production Team",
     "JobVendorStageViewSet": "Production Team",
     "JobNoteViewSet": "Production Team",
@@ -24,7 +24,7 @@ VIEWSET_TAGS = {
     "ProductionAnalyticsViewSet": "Production Team",
     "VendorQuoteViewSet": "Production Team",
     
-    # ==================== FINANCE/PURCHASING ====================
+    # FINANCE/PURCHASING
     "VendorViewSet": "Finance & Purchasing",
     "LPOViewSet": "Finance & Purchasing",
     "LPOLineItemViewSet": "Finance & Purchasing",
@@ -33,7 +33,7 @@ VIEWSET_TAGS = {
     "CreditNoteViewSet": "Finance & Purchasing",
     "AdjustmentViewSet": "Finance & Purchasing",
     
-    # ==================== PRODUCT CATALOG ====================
+    # PRODUCT CATALOG
     "ProductViewSet": "Product Catalog",
     "StorefrontProductViewSet": "Product Catalog",
     "ProductImageViewSet": "Product Catalog",
@@ -49,7 +49,7 @@ VIEWSET_TAGS = {
     "ProductTemplateViewSet": "Product Catalog",
     "ProductRuleViewSet": "Product Catalog",
     
-    # ==================== PRICING & COSTING ====================
+    # PRICING & COSTING 
     "ProcessViewSet": "Pricing & Costing",
     "ProcessTierViewSet": "Pricing & Costing",
     "ProcessVariableViewSet": "Pricing & Costing",
@@ -61,7 +61,7 @@ VIEWSET_TAGS = {
     "ProcessVariableRangeViewSet": "Pricing & Costing",
     "QuantityPricingViewSet": "Pricing & Costing",
     
-    # ==================== SYSTEM & CONFIGURATION ====================
+    #SYSTEM & CONFIGURATION 
     "PropertyTypeViewSet": "System & Configuration",
     "PropertyValueViewSet": "System & Configuration",
     "ProductPropertyViewSet": "System & Configuration",
@@ -71,25 +71,25 @@ VIEWSET_TAGS = {
     "UserViewSet": "System & Configuration",
     "GroupViewSet": "System & Configuration",
     
-    # ==================== NOTIFICATIONS & LOGGING ====================
+    # NOTIFICATIONS & LOGGING
     "NotificationViewSet": "Notifications & Logging",
     "ActivityLogViewSet": "Notifications & Logging",
     
-    # ==================== INTEGRATIONS ====================
+    # INTEGRATIONS
     "QuickBooksSyncViewSet": "Integrations",
     "WebhookSubscriptionViewSet": "Integrations",
     "WebhookDeliveryViewSet": "Integrations",
     
-    # ==================== DASHBOARD & ANALYTICS ====================
+    # DASHBOARD & ANALYTICS
     "DashboardViewSet": "Dashboard & Analytics",
     "AnalyticsViewSet": "Dashboard & Analytics",
     "SearchViewSet": "Dashboard & Analytics",
     
-    # ==================== TIMELINE & TRACKING ====================
+    # TIMELINE & TRACKING
     "TimelineEventViewSet": "Timeline & Tracking",
     "ShipmentViewSet": "Timeline & Tracking",
     
-    # ==================== DESIGN & ECOMMERCE ====================
+    # DESIGN & ECOMMERCE
     "DesignTemplateViewSet": "Design & Ecommerce",
     "DesignSessionViewSet": "Design & Ecommerce",
     "DesignVersionViewSet": "Design & Ecommerce",
@@ -108,7 +108,7 @@ VIEWSET_TAGS = {
     "PaymentTransactionViewSet": "Design & Ecommerce",
     "TaxConfigurationViewSet": "Design & Ecommerce",
     
-    # ==================== INVENTORY ====================
+    # INVENTORY MANAGEMENT
     "MaterialInventoryViewSet": "Inventory Management",
 }
 

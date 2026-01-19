@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from decimal import Decimal
 from drf_yasg.utils import swagger_auto_schema
 from django.utils.decorators import method_decorator
-
+from .quickbooks_services import QuickBooksService, QuickBooksAuthService
 
 
 from .models import (
@@ -24,6 +24,9 @@ from .models import (
     Vendor,
     LPO,
     Payment,
+    PurchaseOrder,
+    VendorInvoice,
+    QuickBooksToken,
     Notification,
     ActivityLog,
     PropertyType,
@@ -107,6 +110,8 @@ from .api_serializers import (
     VendorSerializer,
     LPOSerializer,
     PaymentSerializer,
+    PurchaseOrderDetailedSerializer,
+    VendorInvoiceDetailedSerializer,
     NotificationSerializer,
     ActivityLogSerializer,
     PropertyTypeSerializer,
@@ -693,6 +698,169 @@ class QuoteViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(quote)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAccountManager | IsAdmin])
+    def send_to_pt_for_review(self, request, pk=None):
+        """
+        Send quote to Production Team for costing review.
+        Quote status: Draft → Sent to PT
+        """
+        quote = self.get_object()
+        
+        if quote.status != "Draft":
+            return Response(
+                {"detail": f"Can only send Draft quotes to PT. Current status: {quote.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        quote.status = "Sent to PT"
+        quote.production_status = "pending"
+        quote.save()
+        
+        # Notify PT team
+        pt_group = Group.objects.filter(name="Production Team").first()
+        if pt_group:
+            for user in pt_group.user_set.all():
+                Notification.objects.create(
+                    recipient=user,
+                    notification_type='quote_sent_to_pt',
+                    title=f'Quote {quote.quote_id} Requires Costing',
+                    message=f'Quote {quote.quote_id} for {quote.client.name or "Lead"} is ready for costing review',
+                    link=f'/quotes/{quote.id}/',
+                )
+        
+        # Log activity
+        if quote.client:
+            ActivityLog.objects.create(
+                client=quote.client,
+                activity_type='Quote',
+                title=f'Quote {quote.quote_id} Sent to PT',
+                description='Quote sent to Production Team for costing review',
+                related_quote=quote,
+                created_by=request.user,
+            )
+        
+        serializer = self.get_serializer(quote)
+        return Response({
+            'detail': 'Quote sent to PT for review',
+            'quote': serializer.data
+        })
+    
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def cost(self, request, pk=None):
+        """
+        PT reviews and costs the quote.
+        Updates production_cost and moves to Costed status.
+        """
+        quote = self.get_object()
+        
+        if quote.status != "Sent to PT":
+            return Response(
+                {"detail": f"Can only cost quotes in 'Sent to PT' status. Current: {quote.status}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        production_cost = request.data.get('production_cost')
+        notes = request.data.get('notes', '')
+        
+        if production_cost is None:
+            return Response(
+                {"detail": "production_cost is required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            quote.production_cost = float(production_cost)
+            quote.production_notes = notes
+            quote.production_status = "costed"
+            quote.status = "Costed"
+            quote.costed_by = request.user
+            quote.save()
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "Invalid production_cost value"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Notify AM
+        if quote.created_by:
+            Notification.objects.create(
+                recipient=quote.created_by,
+                notification_type='quote_costed',
+                title=f'Quote {quote.quote_id} Costed',
+                message=f'Quote {quote.quote_id} has been costed by PT. Cost: {quote.production_cost}',
+                link=f'/quotes/{quote.id}/',
+            )
+        
+        # Log activity
+        if quote.client:
+            ActivityLog.objects.create(
+                client=quote.client,
+                activity_type='Quote',
+                title=f'Quote {quote.quote_id} Costed',
+                description=f'Production cost: {quote.production_cost}. Notes: {notes}',
+                related_quote=quote,
+                created_by=request.user,
+            )
+        
+        serializer = self.get_serializer(quote)
+        return Response({
+            'detail': 'Quote costed successfully',
+            'quote': serializer.data
+        })
+    
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAccountManager | IsAdmin])
+    def send_to_customer(self, request, pk=None):
+        """
+        Send costed/draft quote to customer for approval.
+        Quote can be sent from either Costed or Draft status.
+        """
+        quote = self.get_object()
+        
+        if quote.status not in ["Costed", "Draft", "Sent to PT"]:
+            return Response(
+                {"detail": f"Cannot send quote in {quote.status} status to customer"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # If PT costing is enabled and quote was sent to PT but not costed, reject
+        if quote.status == "Sent to PT":
+            return Response(
+                {"detail": "Quote must be costed by PT before sending to customer"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        quote.status = "Sent to Customer"
+        quote.production_status = "sent_to_client"
+        quote.save()
+        
+        # Send email via service
+        from .quote_approval_services import QuoteApprovalService
+        result = QuoteApprovalService.send_quote_via_email(quote, request)
+        
+        if not result['success']:
+            return Response(
+                {"detail": f"Failed to send quote email: {result['message']}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Log activity
+        if quote.client:
+            ActivityLog.objects.create(
+                client=quote.client,
+                activity_type='Quote',
+                title=f'Quote {quote.quote_id} Sent to Customer',
+                description='Quote sent to customer for approval',
+                related_quote=quote,
+                created_by=request.user,
+            )
+        
+        serializer = self.get_serializer(quote)
+        return Response({
+            'detail': 'Quote sent to customer successfully',
+            'quote': serializer.data,
+            'email_result': result
+        })
+
     @decorators.action(detail=True, methods=["post"])
     def approve(self, request, pk=None):
         """
@@ -1211,6 +1379,277 @@ class PaymentViewSet(viewsets.ModelViewSet):
     ordering_fields = ["payment_date", "amount"]
 
 
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+class PurchaseOrderViewSet(viewsets.ModelViewSet):
+    """
+    Purchase Order ViewSet - Manages POs created from approved quotes/jobs.
+    Vendors can view and accept their POs.
+    PT can manage, update, and block POs.
+    """
+    queryset = PurchaseOrder.objects.select_related('job', 'vendor', 'job__client').all()
+    serializer_class = PurchaseOrderDetailedSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ['vendor', 'status', 'milestone', 'job']
+    search_fields = ['po_number', 'product_type', 'job__job_number']
+    ordering_fields = ['created_at', 'required_by', 'status']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter POs based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        vendor_id = self.request.query_params.get('vendor_id', None)
+        if vendor_id:
+            queryset = queryset.filter(vendor_id=vendor_id)
+        
+        return queryset
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def accept(self, request, pk=None):
+        """Vendor accepts the purchase order"""
+        po = self.get_object()
+        
+        if po.vendor_accepted:
+            return Response(
+                {'detail': 'Purchase order already accepted'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        po.vendor_accepted = True
+        po.vendor_accepted_at = timezone.now()
+        po.status = 'ACCEPTED'
+        po.milestone = 'in_production'
+        po.save()
+        
+        # Create notification
+        if po.job.person_in_charge:
+            Notification.objects.create(
+                recipient=po.job.person_in_charge,
+                notification_type='po_accepted',
+                title=f'PO {po.po_number} Accepted',
+                message=f'{po.vendor.name} accepted PO {po.po_number}',
+                link=f'/purchase-orders/{po.id}/',
+            )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Purchase Order',
+            title=f'PO {po.po_number} Accepted',
+            description=f'{po.vendor.name} accepted the purchase order',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(po)
+        return Response({'detail': 'Purchase order accepted', 'po': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def update_milestone(self, request, pk=None):
+        """Update PO milestone (production stage)"""
+        po = self.get_object()
+        milestone = request.data.get('milestone')
+        notes = request.data.get('notes', '')
+        
+        if milestone not in dict(PurchaseOrder.MILESTONE_CHOICES):
+            return Response({'error': 'Invalid milestone'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        old_milestone = po.milestone
+        po.milestone = milestone
+        
+        milestone_status_map = {
+            'awaiting_acceptance': 'NEW',
+            'in_production': 'IN_PRODUCTION',
+            'quality_check': 'AWAITING_APPROVAL',
+            'completed': 'COMPLETED',
+        }
+        
+        po.status = milestone_status_map.get(milestone, po.status)
+        
+        if notes:
+            po.vendor_notes = notes
+        
+        if milestone == 'completed':
+            po.completed_at = timezone.now()
+            po.completed_on_time = po.required_by >= timezone.now().date()
+        
+        po.save()
+        
+        # Notify PT
+        if po.job.person_in_charge:
+            Notification.objects.create(
+                recipient=po.job.person_in_charge,
+                notification_type='po_milestone_update',
+                title=f'PO {po.po_number} Progress Update',
+                message=f'{po.vendor.name} updated PO to: {milestone.replace("_", " ").title()}',
+                link=f'/purchase-orders/{po.id}/',
+            )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Purchase Order',
+            title=f'PO {po.po_number} Milestone Updated',
+            description=f'Milestone: {old_milestone} → {milestone}. Notes: {notes}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(po)
+        return Response({'detail': 'Milestone updated', 'po': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def block(self, request, pk=None):
+        """Block PO due to issues"""
+        po = self.get_object()
+        reason = request.data.get('reason', '')
+        
+        po.is_blocked = True
+        po.blocked_reason = reason
+        po.blocked_at = timezone.now()
+        po.status = 'BLOCKED'
+        po.has_issues = True
+        po.save()
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Purchase Order',
+            title=f'PO {po.po_number} Blocked',
+            description=f'Reason: {reason}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(po)
+        return Response({'detail': 'Purchase order blocked', 'po': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def complete(self, request, pk=None):
+        """Mark PO as completed"""
+        po = self.get_object()
+        
+        po.status = 'COMPLETED'
+        po.milestone = 'completed'
+        po.completed_at = timezone.now()
+        po.completed_on_time = po.required_by >= timezone.now().date()
+        po.save()
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Purchase Order',
+            title=f'PO {po.po_number} Completed',
+            description=f'Completed on time: {po.completed_on_time}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(po)
+        return Response({'detail': 'Purchase order completed', 'po': serializer.data})
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+class VendorInvoiceViewSet(viewsets.ModelViewSet):
+    """
+    Vendor Invoice ViewSet - Vendors submit invoices, PT approves/rejects.
+    """
+    queryset = VendorInvoice.objects.select_related('purchase_order', 'vendor', 'job', 'job__client').all()
+    serializer_class = VendorInvoiceDetailedSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    filterset_fields = ['vendor', 'purchase_order', 'job', 'status']
+    search_fields = ['invoice_number', 'vendor_invoice_ref', 'job__job_number']
+    ordering_fields = ['created_at', 'invoice_date', 'due_date', 'status']
+    ordering = ['-created_at']
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def approve(self, request, pk=None):
+        """PT approves vendor invoice"""
+        invoice = self.get_object()
+        
+        if invoice.status == 'approved':
+            return Response({'detail': 'Invoice already approved'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        if invoice.status == 'paid':
+            return Response({'detail': 'Cannot approve paid invoice'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        invoice.status = 'approved'
+        invoice.save()
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=invoice.job.client,
+            activity_type='Vendor Invoice',
+            title=f'Invoice {invoice.invoice_number} Approved',
+            description=f'{invoice.vendor.name} invoice approved. Amount: {invoice.total_amount}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(invoice)
+        return Response({'detail': 'Invoice approved', 'invoice': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def reject(self, request, pk=None):
+        """PT rejects vendor invoice"""
+        invoice = self.get_object()
+        reason = request.data.get('reason', '')
+        
+        if invoice.status in ['approved', 'paid']:
+            return Response({'detail': f'Cannot reject {invoice.status} invoice'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        invoice.status = 'rejected'
+        invoice.save()
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=invoice.job.client,
+            activity_type='Vendor Invoice',
+            title=f'Invoice {invoice.invoice_number} Rejected',
+            description=f'Reason: {reason}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(invoice)
+        return Response({'detail': 'Invoice rejected', 'invoice': serializer.data, 'reason': reason})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def mark_paid(self, request, pk=None):
+        """Mark invoice as paid"""
+        invoice = self.get_object()
+        payment_date = request.data.get('payment_date', timezone.now().date())
+        payment_method = request.data.get('payment_method', '')
+        
+        if invoice.status != 'approved':
+            return Response({'detail': 'Can only mark approved invoices as paid'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        invoice.status = 'paid'
+        invoice.save()
+        
+        # Update PO
+        po = invoice.purchase_order
+        po.invoice_paid = True
+        po.save()
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=invoice.job.client,
+            activity_type='Vendor Invoice',
+            title=f'Invoice {invoice.invoice_number} Paid',
+            description=f'Payment method: {payment_method}. Amount: {invoice.total_amount}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(invoice)
+        return Response({'detail': 'Invoice marked as paid', 'invoice': serializer.data})
+
+
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['System & Configuration']))
 class PropertyTypeViewSet(viewsets.ReadOnlyModelViewSet):
@@ -1623,22 +2062,198 @@ class ProductTemplateViewSet(viewsets.ModelViewSet):
 
 class QuickBooksSyncViewSet(viewsets.ViewSet):
     """
-    in quickbooks.py
-    Placeholder ViewSet for QuickBooks Online synchronization endpoints.
+    QuickBooks Online synchronization endpoints.
+    Manages authentication, invoice sync, and status tracking.
     """
-
-    permission_classes = [IsAuthenticated, IsAdmin]
+    permission_classes = [IsAuthenticated, IsAdmin | IsProductionTeam]
 
     def list(self, request):
-        return Response({"detail": "QuickBooks sync endpoints"}, status=status.HTTP_200_OK)
-
-    @decorators.action(detail=False, methods=["post"])
-    def push_clients(self, request):
-        return Response({"detail": "Client sync not yet implemented"}, status=status.HTTP_200_OK)
-
-    @decorators.action(detail=False, methods=["post"])
-    def push_invoices(self, request):
-        return Response({"detail": "Invoice sync not yet implemented"}, status=status.HTTP_200_OK)
+        """Get QuickBooks connection status"""
+        try:
+            from .quickbooks_services import QuickBooksService
+            service = QuickBooksService(request.user)
+            status_info = service.get_sync_status()
+            return Response(status_info)
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['get'])
+    def auth_url(self, request):
+        """Get QuickBooks OAuth authorization URL"""
+        try:
+            from .quickbooks_services import QuickBooksAuthService
+            result = QuickBooksAuthService.get_auth_url(request)
+            return Response(result)
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'])
+    def connect(self, request):
+        """Complete QuickBooks OAuth connection"""
+        try:
+            from .quickbooks_services import QuickBooksAuthService
+            
+            auth_code = request.data.get('auth_code')
+            realm_id = request.data.get('realm_id')
+            
+            if not auth_code or not realm_id:
+                return Response(
+                    {'error': 'auth_code and realm_id are required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            result = QuickBooksAuthService.handle_oauth_callback(request, auth_code, realm_id)
+            return Response(result)
+        
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'])
+    def disconnect(self, request):
+        """Disconnect QuickBooks account"""
+        try:
+            from .quickbooks_services import QuickBooksAuthService
+            result = QuickBooksAuthService.disconnect(request.user)
+            return Response(result)
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'])
+    def sync_vendor_invoice(self, request):
+        """Sync VendorInvoice to QuickBooks"""
+        try:
+            from .quickbooks_services import QuickBooksService
+            from .models import VendorInvoice
+            
+            invoice_id = request.data.get('invoice_id')
+            if not invoice_id:
+                return Response({'error': 'invoice_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                vendor_invoice = VendorInvoice.objects.get(pk=invoice_id)
+            except VendorInvoice.DoesNotExist:
+                return Response({'error': 'Vendor invoice not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            service = QuickBooksService(request.user)
+            result = service.create_invoice_from_vendor_invoice(vendor_invoice)
+            
+            if result['status'] == 'success':
+                # Log activity
+                ActivityLog.objects.create(
+                    client=vendor_invoice.job.client,
+                    activity_type='QuickBooks',
+                    title=f'Invoice {vendor_invoice.invoice_number} Synced to QB',
+                    description=f'QB Invoice ID: {result["qb_invoice_id"]}',
+                    created_by=request.user,
+                )
+            
+            return Response(result)
+        
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'])
+    def sync_purchase_order(self, request):
+        """Sync PurchaseOrder to QuickBooks"""
+        try:
+            from .quickbooks_services import QuickBooksService
+            from .models import PurchaseOrder
+            
+            po_id = request.data.get('po_id')
+            if not po_id:
+                return Response({'error': 'po_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                po = PurchaseOrder.objects.get(pk=po_id)
+            except PurchaseOrder.DoesNotExist:
+                return Response({'error': 'Purchase order not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            service = QuickBooksService(request.user)
+            result = service.sync_purchase_order_as_purchase(po)
+            
+            if result['status'] == 'success':
+                ActivityLog.objects.create(
+                    client=po.job.client,
+                    activity_type='QuickBooks',
+                    title=f'PO {po.po_number} Synced to QB',
+                    description=f'QB Purchase ID: {result["qb_purchase_id"]}',
+                    created_by=request.user,
+                )
+            
+            return Response(result)
+        
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'])
+    def sync_quote(self, request):
+        """Sync Quote to QuickBooks as Estimate"""
+        try:
+            from .quickbooks_services import QuickBooksService
+            from .models import Quote
+            
+            quote_id = request.data.get('quote_id')
+            if not quote_id:
+                return Response({'error': 'quote_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                quote = Quote.objects.get(pk=quote_id)
+            except Quote.DoesNotExist:
+                return Response({'error': 'Quote not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            service = QuickBooksService(request.user)
+            result = service.sync_quote_as_estimate(quote)
+            
+            if result['status'] == 'success':
+                ActivityLog.objects.create(
+                    client=quote.client,
+                    activity_type='QuickBooks',
+                    title=f'Quote {quote.quote_id} Synced to QB',
+                    description=f'QB Estimate ID: {result["qb_estimate_id"]}',
+                    created_by=request.user,
+                ) if quote.client else None
+            
+            return Response(result)
+        
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'])
+    def sync_customer(self, request):
+        """Sync Client to QuickBooks Customer"""
+        try:
+            from .quickbooks_services import QuickBooksService
+            from .models import Client
+            
+            client_id = request.data.get('client_id')
+            if not client_id:
+                return Response({'error': 'client_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                client = Client.objects.get(pk=client_id)
+            except Client.DoesNotExist:
+                return Response({'error': 'Client not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            service = QuickBooksService(request.user)
+            qb_customer = service.find_or_create_customer(client)
+            
+            ActivityLog.objects.create(
+                client=client,
+                activity_type='QuickBooks',
+                title=f'Client {client.name} Synced to QB',
+                description=f'QB Customer ID: {qb_customer.id}',
+                created_by=request.user,
+            )
+            
+            return Response({
+                'status': 'success',
+                'qb_customer_id': qb_customer.id,
+                'qb_customer_name': qb_customer.DisplayName,
+                'message': 'Customer synced to QuickBooks'
+            })
+        
+        except Exception as e:
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ===== QC, Delivery, Attachments, Notes, Alerts =====

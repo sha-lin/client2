@@ -1,0 +1,291 @@
+"""
+Celery tasks and scheduled jobs for automated workflows
+"""
+from django.utils import timezone
+from django.db.models import Q
+from datetime import timedelta
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def expire_old_quotes():
+    """
+    Daily task to mark expired quotes as Lost.
+    Finds quotes with valid_until < today and status="Sent to Customer",
+    then marks them as "Lost".
+    
+    Can be called directly or scheduled with Celery/APScheduler.
+    """
+    from .models import Quote, Notification, ActivityLog
+    
+    try:
+        today = timezone.now().date()
+        
+        # Find expired quotes
+        expired_quotes = Quote.objects.filter(
+            valid_until__lt=today,
+            status__in=['Sent to Customer', 'Sent to PT']
+        ).select_related('client', 'created_by')
+        
+        count = 0
+        for quote in expired_quotes:
+            # Mark as lost
+            quote.status = 'Lost'
+            quote.loss_reason = 'Quote expired - customer did not approve within valid period'
+            quote.save()
+            
+            count += 1
+            
+            # Create notification for AM
+            if quote.created_by:
+                try:
+                    Notification.objects.create(
+                        recipient=quote.created_by,
+                        notification_type='quote_expired',
+                        title=f'Quote {quote.quote_id} Expired',
+                        message=f'Quote {quote.quote_id} expired on {quote.valid_until}. Marked as lost.',
+                        link=f'/quotes/{quote.id}/',
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to create notification for quote {quote.quote_id}: {e}")
+            
+            # Log activity
+            if quote.client:
+                try:
+                    ActivityLog.objects.create(
+                        client=quote.client,
+                        activity_type='Quote',
+                        title=f'Quote {quote.quote_id} Expired',
+                        description=f'Quote expired on {quote.valid_until} and was marked as lost',
+                        related_quote=quote,
+                        created_by=quote.created_by,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to log activity for quote {quote.quote_id}: {e}")
+        
+        logger.info(f"Expired {count} old quotes")
+        return {
+            'status': 'success',
+            'expired_quotes': count,
+            'timestamp': str(timezone.now())
+        }
+    
+    except Exception as exc:
+        logger.error(f"Error in expire_old_quotes task: {exc}")
+        return {
+            'status': 'error',
+            'error': str(exc),
+            'timestamp': str(timezone.now())
+        }
+
+
+def remind_approaching_job_deadlines():
+    """
+    Send reminders for jobs nearing their deadline (within 3 days).
+    Only reminds if job status is "pending" or "in_progress".
+    Prevents spam by checking if reminder sent in last 24 hours.
+    """
+    from .models import Job, Notification, ActivityLog
+    
+    try:
+        today = timezone.now().date()
+        three_days = today + timedelta(days=3)
+        one_day_ago = timezone.now() - timedelta(days=1)
+        
+        # Find jobs approaching deadline
+        approaching_jobs = Job.objects.filter(
+            expected_completion__gte=today,
+            expected_completion__lte=three_days,
+            status__in=['pending', 'in_progress'],
+            person_in_charge__isnull=False
+        ).select_related('person_in_charge', 'client')
+        
+        count = 0
+        for job in approaching_jobs:
+            # Check if reminder already sent today
+            last_reminder = ActivityLog.objects.filter(
+                title__contains=f'Deadline Reminder for Job {job.job_number}',
+                created_at__gte=one_day_ago
+            ).first()
+            
+            if last_reminder:
+                continue
+            
+            # Send reminder notification
+            try:
+                Notification.objects.create(
+                    recipient=job.person_in_charge,
+                    notification_type='job_deadline_reminder',
+                    title=f'Deadline Reminder: {job.job_name}',
+                    message=f'Job {job.job_number} ({job.client.name}) is due on {job.expected_completion}. Days remaining: {(job.expected_completion - today).days}',
+                    link=f'/jobs/{job.id}/',
+                )
+            except Exception as e:
+                logger.warning(f"Failed to create notification for job {job.job_number}: {e}")
+            
+            # Log activity
+            try:
+                ActivityLog.objects.create(
+                    client=job.client,
+                    activity_type='Job',
+                    title=f'Deadline Reminder for Job {job.job_number}',
+                    description=f'Reminder sent to {job.person_in_charge.get_full_name()}. Due: {job.expected_completion}',
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log activity for job {job.job_number}: {e}")
+            
+            count += 1
+        
+        logger.info(f"Sent {count} job deadline reminders")
+        return {
+            'status': 'success',
+            'reminders_sent': count,
+            'timestamp': str(timezone.now())
+        }
+    
+    except Exception as exc:
+        logger.error(f"Error in remind_approaching_job_deadlines task: {exc}")
+        return {
+            'status': 'error',
+            'error': str(exc),
+            'timestamp': str(timezone.now())
+        }
+
+
+def sync_completed_pos_to_qb():
+    """
+    Sync completed Purchase Orders to QuickBooks.
+    Finds POs marked as completed but not yet synced to QB.
+    """
+    from .models import PurchaseOrder
+    
+    try:
+        # Find completed POs not yet synced
+        completed_pos = PurchaseOrder.objects.filter(
+            status='COMPLETED',
+            invoice_sent=False
+        ).select_related('job', 'vendor')
+        
+        count = 0
+        for po in completed_pos:
+            try:
+                # Mark as ready for QB sync (actual QB sync happens in QB service)
+                po.invoice_sent = True
+                po.save()
+                count += 1
+            except Exception as e:
+                logger.warning(f"Failed to mark PO {po.po_number} for QB sync: {e}")
+        
+        logger.info(f"Marked {count} POs ready for QB sync")
+        return {
+            'status': 'success',
+            'pos_synced': count,
+            'timestamp': str(timezone.now())
+        }
+    
+    except Exception as exc:
+        logger.error(f"Error in sync_completed_pos_to_qb task: {exc}")
+        return {
+            'status': 'error',
+            'error': str(exc),
+            'timestamp': str(timezone.now())
+        }
+
+
+def check_po_delivery_overdue():
+    """
+    Check for Purchase Orders that are overdue (required_by date passed).
+    Create alerts for PT to follow up with vendors.
+    """
+    from .models import PurchaseOrder, SystemAlert
+    
+    try:
+        today = timezone.now().date()
+        
+        # Find overdue POs
+        overdue_pos = PurchaseOrder.objects.filter(
+            required_by__lt=today,
+            status__in=['NEW', 'ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL'],
+        ).select_related('job', 'vendor')
+        
+        count = 0
+        for po in overdue_pos:
+            # Check if alert already exists
+            existing_alert = SystemAlert.objects.filter(
+                title__contains=f'PO {po.po_number} Overdue',
+                resolved=False
+            ).first()
+            
+            if existing_alert:
+                continue
+            
+            # Create system alert
+            try:
+                days_overdue = (today - po.required_by).days
+                SystemAlert.objects.create(
+                    alert_type='po_overdue',
+                    title=f'PO {po.po_number} Overdue',
+                    description=f'PO {po.po_number} from {po.vendor.name} was due on {po.required_by} ({days_overdue} days overdue). Status: {po.status}',
+                    severity='high',
+                    related_po=po,
+                )
+                count += 1
+            except Exception as e:
+                logger.warning(f"Failed to create alert for PO {po.po_number}: {e}")
+        
+        logger.info(f"Created {count} overdue PO alerts")
+        return {
+            'status': 'success',
+            'alerts_created': count,
+            'timestamp': str(timezone.now())
+        }
+    
+    except Exception as exc:
+        logger.error(f"Error in check_po_delivery_overdue task: {exc}")
+        return {
+            'status': 'error',
+            'error': str(exc),
+            'timestamp': str(timezone.now())
+        }
+
+
+# Celery tasks (if using Celery)
+try:
+    from celery import shared_task
+    
+    @shared_task(bind=True, max_retries=3)
+    def celery_expire_old_quotes(self):
+        """Celery-wrapped version of expire_old_quotes"""
+        try:
+            return expire_old_quotes()
+        except Exception as exc:
+            raise self.retry(exc=exc, countdown=60)
+    
+    @shared_task(bind=True, max_retries=3)
+    def celery_remind_approaching_job_deadlines(self):
+        """Celery-wrapped version of remind_approaching_job_deadlines"""
+        try:
+            return remind_approaching_job_deadlines()
+        except Exception as exc:
+            raise self.retry(exc=exc, countdown=60)
+    
+    @shared_task(bind=True, max_retries=3)
+    def celery_sync_completed_pos_to_qb(self):
+        """Celery-wrapped version of sync_completed_pos_to_qb"""
+        try:
+            return sync_completed_pos_to_qb()
+        except Exception as exc:
+            raise self.retry(exc=exc, countdown=60)
+    
+    @shared_task(bind=True, max_retries=3)
+    def celery_check_po_delivery_overdue(self):
+        """Celery-wrapped version of check_po_delivery_overdue"""
+        try:
+            return check_po_delivery_overdue()
+        except Exception as exc:
+            raise self.retry(exc=exc, countdown=60)
+
+except ImportError:
+    # Celery not installed, tasks will be called directly via APScheduler
+    logger.info("Celery not available, scheduled tasks will use APScheduler or direct calls")

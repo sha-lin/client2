@@ -563,7 +563,7 @@ class Product(models.Model):
     # Pricing
     base_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Base price for non-customizable products")
     
-    # ===== INVENTORY & STOCK TRACKING (Gap #1 Fix) =====
+    # INVENTORY & STOCK TRACKING
     STOCK_STATUS_CHOICES = [
         ('in_stock', 'In Stock'),
         ('low_stock', 'Low Stock'),
@@ -974,7 +974,7 @@ class ProductVariable(models.Model):
     ]
     
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='variables')
-    name = models.CharField(max_length=100, help_text="e.g., Quantity Options, Paper Weight")
+    name = models.CharField(max_length=100, help_text="Quantity Options, Paper Weight")
     display_order = models.IntegerField(default=0)
     variable_type = models.CharField(max_length=20, choices=VARIABLE_TYPE_CHOICES, default='required')
     pricing_type = models.CharField(max_length=20, choices=PRICING_TYPE_CHOICES, default='fixed')
@@ -1288,10 +1288,11 @@ class ProductLegal(models.Model):
 
 
 class ProductProduction(models.Model):
-    """Production-specific settings with structured print specs (Gap #3 & #5 Fix)"""
+    """Production-specific settings with structured print specs"""
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='production')
     
     # ===== PRODUCTION METHOD =====
+    # Should be vendor specific
     PRODUCTION_METHOD_CHOICES = [
         ('digital_offset', 'Digital Offset Printing'),
         ('offset', 'Offset Printing'),
@@ -1307,7 +1308,7 @@ class ProductProduction(models.Model):
     production_method_detail = models.CharField(max_length=100, choices=PRODUCTION_METHOD_CHOICES, default='digital_offset')
     machine_equipment = models.CharField(max_length=100, blank=True, help_text="e.g., HP Indigo 7900, Epson SureColor")
     
-    # ===== PRINT-SPECIFIC METADATA (Gap #5 Fix) =====
+    # PRINT-SPECIFIC METADATA
     COLOR_PROFILE_CHOICES = [
         ('cmyk', 'CMYK (Print Standard)'),
         ('rgb', 'RGB (Digital)'),
@@ -1322,7 +1323,7 @@ class ProductProduction(models.Model):
     requires_outlined_fonts = models.BooleanField(default=True, help_text="Fonts must be converted to outlines")
     accepts_transparency = models.BooleanField(default=False, help_text="Artwork can contain transparency")
     
-    # ===== FINISHING OPTIONS (Structured, not JSON) =====
+    #FINISHING OPTIONS
     finish_lamination = models.BooleanField(default=False, verbose_name="Lamination")
     finish_uv_coating = models.BooleanField(default=False, verbose_name="UV Coating")
     finish_embossing = models.BooleanField(default=False, verbose_name="Embossing")
@@ -1346,7 +1347,7 @@ class ProductProduction(models.Model):
     checklist_material = models.BooleanField(default=False, verbose_name="Material in stock")
     checklist_proofs = models.BooleanField(default=False, verbose_name="Color proofs confirmed")
     
-    # ===== BILL OF MATERIALS (Structured BOM - Gap #3 Fix) =====
+    # BILL OF MATERIALS 
     # Primary Material
     bom_primary_material = models.CharField(max_length=200, blank=True, help_text="e.g., 300gsm Art Card")
     bom_primary_size = models.CharField(max_length=100, blank=True, help_text="e.g., SRA3, A4, Custom")
@@ -1431,7 +1432,7 @@ class ProductChangeHistory(models.Model):
 
 class ProductMaterialLink(models.Model):
     """
-    Links a finished product to raw materials in inventory (Gap #1 Fix)
+    Links a finished product to raw materials in inventory
     Enables automatic stock deduction when products are produced
     """
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='material_links')
@@ -1656,7 +1657,7 @@ class Quote(models.Model):
         if self.status == 'Approved':
             self.is_locked = True
         
-        # Unlock quote if status is reverted (e.g., back to Draft or Sent to Customer)
+        # Unlock quote if status is reverted (back to Draft or Sent to Customer)
         if self.status in ['Draft', 'Sent to PT', 'Sent to Customer', 'Costed']:
             self.is_locked = False
         
@@ -1876,7 +1877,7 @@ class Quote(models.Model):
 
 
 class QuoteLineItem(models.Model):
-    """Line items for quotes - stores product pricing snapshots"""
+    """Line items for quotes - stores product pricing"""
     
     DISCOUNT_TYPE_CHOICES = [
         ('percent', 'Percentage'),
@@ -2474,7 +2475,7 @@ class LPO(models.Model):
     
     
     def sync_to_quickbooks(self, user=None):
-        """Sync this LPO to QuickBooks as an invoice"""
+        """Syncing LPO to QuickBooks as an invoice"""
         
         from quickbooks_integration.helpers import get_qb_client
         from quickbooks.objects.invoice import Invoice
@@ -2488,7 +2489,7 @@ class LPO(models.Model):
                 
             client = get_qb_client(user)
             
-            # 1. Find or Create Customer in QB
+            # 1. Find or Create Customer in QB- based on client info- mostly created clients
             qb_customer = None
             customers = Customer.filter(DisplayName=self.client.name, qb=client)
             
@@ -4353,10 +4354,10 @@ class Promotion(models.Model):
 
 class MaterialInventory(models.Model):
     """
-    Inventory & Material Commitment (Soft-Locks)
+    Inventory & Material Commitment 
     Virtual stock tracking for raw materials
     """
-    # Link to ProductVariableOption (e.g., "300gsm Matte Paper")
+    # Link to ProductVariableOption ("300gsm Matte Paper")
     product_variable_option = models.ForeignKey(
         'ProductVariableOption',
         on_delete=models.CASCADE,
@@ -4799,3 +4800,20 @@ class MaterialSubstitutionRequest(models.Model):
     justification = models.TextField()
     status = models.CharField(max_length=20, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class QuickBooksToken(models.Model):
+    """Store QuickBooks OAuth tokens for users"""
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='quickbooks_token')
+    access_token = models.TextField()
+    refresh_token = models.TextField()
+    realm_id = models.CharField(max_length=100)
+    token_expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"QB Token - {self.user.username}"
+    
+    def is_expired(self):
+        return timezone.now() > self.token_expires_at

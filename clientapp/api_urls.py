@@ -58,6 +58,8 @@ router.register("shipments", api_views.ShipmentViewSet, basename="shipment")
 # Vendors / Purchasing / Finance
 router.register("vendors", api_views.VendorViewSet, basename="vendor")
 router.register("lpos", api_views.LPOViewSet, basename="lpo")
+router.register("purchase-orders", api_views.PurchaseOrderViewSet, basename="purchase-order")
+router.register("vendor-invoices", api_views.VendorInvoiceViewSet, basename="vendor-invoice")
 router.register("payments", api_views.PaymentViewSet, basename="payment")
 router.register("vendor-quotes", api_views.VendorQuoteViewSet, basename="vendor-quote")
 router.register("lpo-line-items", api_views.LPOLineItemViewSet, basename="lpo-line-item")

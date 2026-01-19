@@ -1,15 +1,12 @@
-"""
-Better script to add Swagger tags - starts fresh from backup
-"""
 import re
 
-# Read the backup (original file without broken tags)
+# Read the api views file backup
 with open('clientapp/api_views.py.backup', 'r') as f:
     content = f.read()
 
 # Mapping of ViewSets to their tags and methods
 VIEWSET_CONFIGS = {
-    # ==================== ACCOUNT MANAGER ====================
+    # ACCOUNT MANAGER 
     "LeadViewSet": ("Account Manager", ['list', 'create', 'retrieve', 'update', 'partial_update', 'destroy']),
     "ClientViewSet": ("Account Manager", ['list', 'create', 'retrieve', 'update', 'partial_update', 'destroy']),
     "ClientContactViewSet": ("Account Manager", ['list', 'create', 'retrieve', 'update', 'partial_update', 'destroy']),
@@ -85,8 +82,7 @@ VIEWSET_CONFIGS = {
     "WebhookDeliveryViewSet": ("Integrations", ['list', 'retrieve']),  # ReadOnly
     
     # ==================== DASHBOARD & ANALYTICS ====================
-    # Note: These are ViewSet, not ModelViewSet - typically have custom methods
-    # We won't auto-decorate them, but they could be decorated individually
+    # viewsets
     "DashboardViewSet": ("Dashboard & Analytics", []),
     "AnalyticsViewSet": ("Dashboard & Analytics", []),
     "SearchViewSet": ("Dashboard & Analytics", []),

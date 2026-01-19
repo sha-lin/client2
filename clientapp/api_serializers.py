@@ -825,3 +825,60 @@ class VendorPerformanceSerializer(serializers.Serializer):
     
     # Performance insights
     insights = serializers.ListField(child=serializers.DictField())
+
+
+class PurchaseOrderDetailedSerializer(serializers.ModelSerializer):
+    """Detailed serializer for Purchase Orders with nested data"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    vendor_email = serializers.CharField(source='vendor.email', read_only=True)
+    vendor_phone = serializers.CharField(source='vendor.phone', read_only=True)
+    job_number = serializers.CharField(source='job.job_number', read_only=True)
+    job_name = serializers.CharField(source='job.job_name', read_only=True)
+    client_name = serializers.CharField(source='job.client.name', read_only=True)
+    days_until_due = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            'id', 'po_number', 'job', 'job_number', 'job_name',
+            'vendor', 'vendor_name', 'vendor_email', 'vendor_phone',
+            'product_type', 'product_description', 'quantity',
+            'unit_cost', 'total_cost', 'status', 'milestone',
+            'created_at', 'updated_at', 'required_by', 'due_date',
+            'vendor_accepted', 'vendor_accepted_at', 'vendor_notes',
+            'completed_at', 'completed_on_time', 'has_issues',
+            'is_blocked', 'blocked_reason', 'blocked_at',
+            'shipping_method', 'tracking_number', 'ready_for_pickup',
+            'invoice_sent', 'invoice_paid', 'days_until_due',
+            'client_name', 'assets_acknowledged', 'last_activity_at'
+        ]
+        read_only_fields = [
+            'po_number', 'created_at', 'updated_at', 'days_until_due',
+            'vendor_name', 'vendor_email', 'vendor_phone', 'job_number',
+            'job_name', 'client_name'
+        ]
+    
+    def get_days_until_due(self, obj):
+        return obj.days_until_due
+
+
+class VendorInvoiceDetailedSerializer(serializers.ModelSerializer):
+    """Detailed serializer for Vendor Invoices"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    job_number = serializers.CharField(source='job.job_number', read_only=True)
+    client_name = serializers.CharField(source='job.client.name', read_only=True)
+    
+    class Meta:
+        model = VendorInvoice
+        fields = [
+            'id', 'invoice_number', 'vendor_invoice_ref', 'purchase_order',
+            'po_number', 'vendor', 'vendor_name', 'job', 'job_number',
+            'client_name', 'invoice_date', 'due_date', 'line_items',
+            'subtotal', 'tax_rate', 'tax_amount', 'total_amount', 'status',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'invoice_number', 'created_at', 'updated_at', 'vendor_name',
+            'po_number', 'job_number', 'client_name'
+        ]

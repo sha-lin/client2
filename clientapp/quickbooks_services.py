@@ -5,16 +5,17 @@ from django.conf import settings
 from django.utils import timezone
 from datetime import timedelta
 from decimal import Decimal
-from quickbooks.objects.invoice import Invoice
+from quickbooks.objects.invoice import Invoice, SalesItemLine
 from quickbooks.objects.customer import Customer
 from quickbooks.objects.item import Item
-from quickbooks.objects.invoice import InvoiceLine, SalesItemLineDetail
-from quickbooks.objects.base import EmailAddress, PhysicalAddress
+from quickbooks.objects.account import Account
+from quickbooks.objects.base import EmailAddress, Address
 from .helpers import get_qb_client
 from .models import QuickBooksToken
 import logging
-from quickbooks.objects.account import Account
 
+# Get SalesItemLineDetail from the SalesItemLine class dict
+SalesItemLineDetail = SalesItemLine.class_dict.get('SalesItemLineDetail')
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +78,7 @@ class QuickBooksService:
             
             # Address
             if client_obj.address:
-                address = PhysicalAddress()
+                address = Address()
                 address.Line1 = client_obj.address[:500] 
                 customer.BillAddr = address
             
@@ -197,7 +198,7 @@ class QuickBooksService:
                 )
                 
                 # Create line
-                line = InvoiceLine()
+                line = SalesItemLine()
                 line.Amount = float(item.unit_price * item.quantity)
                 line.DetailType = "SalesItemLineDetail"
                 
@@ -274,3 +275,312 @@ class QuickBooksService:
         except Exception as e:
             logger.error(f"Error getting invoice PDF: {e}")
             raise
+    
+    def create_invoice_from_vendor_invoice(self, vendor_invoice):
+        """
+        Create QuickBooks invoice from VendorInvoice.
+        
+        Args:
+            vendor_invoice: VendorInvoice model instance
+            
+        Returns:
+            dict with invoice details and QB invoice ID
+        """
+        try:
+            from .models import VendorInvoice
+            
+            # Find or create customer in QB
+            qb_customer = self.find_or_create_customer(vendor_invoice.job.client)
+            
+            # Create invoice object
+            invoice = Invoice()
+            invoice.CustomerRef = qb_customer.id
+            
+            # Set dates
+            invoice.TxnDate = vendor_invoice.invoice_date.isoformat()
+            invoice.DueDate = vendor_invoice.due_date.isoformat()
+            
+            # Set line items
+            line_items = []
+            for item_data in (vendor_invoice.line_items or []):
+                line = SalesItemLine()
+                line.Description = item_data.get('description', 'Service')
+                line.Amount = Decimal(str(item_data.get('amount', 0)))
+                
+                # Try to link to item or create simple line
+                sales_detail = SalesItemLineDetail()
+                sales_detail.Qty = 1
+                sales_detail.UnitPrice = Decimal(str(item_data.get('amount', 0)))
+                
+                line.SalesItemLineDetail = sales_detail
+                line_items.append(line)
+            
+            invoice.Line = line_items
+            
+            # Add memo with reference info
+            invoice.PrivateNote = f"Vendor: {vendor_invoice.vendor.name}\nPO: {vendor_invoice.purchase_order.po_number}\nJob: {vendor_invoice.job.job_number}"
+            
+            # Save to QB
+            invoice.save(qb=self.client)
+            
+            # Update vendor invoice with QB ID
+            vendor_invoice.qb_invoice_id = invoice.id
+            vendor_invoice.save()
+            
+            logger.info(f"Created QB invoice {invoice.id} for vendor invoice {vendor_invoice.invoice_number}")
+            
+            return {
+                'status': 'success',
+                'qb_invoice_id': invoice.id,
+                'qb_invoice_number': invoice.DocNumber,
+                'amount': float(invoice.TotalAmt),
+                'customer_id': qb_customer.id,
+            }
+        
+        except Exception as e:
+            logger.error(f"Error creating QB invoice: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def sync_purchase_order_as_purchase(self, purchase_order):
+        """
+        Sync PurchaseOrder to QuickBooks as a Purchase (Bill).
+        
+        Args:
+            purchase_order: PurchaseOrder model instance
+            
+        Returns:
+            dict with purchase/bill details
+        """
+        try:
+            from quickbooks.objects.purchase import Purchase, PurchaseLine, ItemBasedExpenseLineDetail
+            from .models import PurchaseOrder
+            
+            # Find or create vendor in QB
+            # For now, use a simple approach - vendors as customers
+            qb_customer = self.find_or_create_customer(purchase_order.job.client)
+            
+            # Create purchase/bill
+            purchase = Purchase()
+            purchase.EntityRef = qb_customer.id
+            purchase.TxnDate = purchase_order.created_at.date().isoformat()
+            
+            # Add line item
+            line = PurchaseLine()
+            line.Description = purchase_order.product_type
+            line.Amount = purchase_order.total_cost
+            
+            purchase.Line = [line]
+            purchase.PrivateNote = f"Vendor: {purchase_order.vendor.name}\nProduct: {purchase_order.product_description}\nQty: {purchase_order.quantity}"
+            
+            # Save to QB
+            purchase.save(qb=self.client)
+            
+            logger.info(f"Created QB purchase {purchase.id} for PO {purchase_order.po_number}")
+            
+            return {
+                'status': 'success',
+                'qb_purchase_id': purchase.id,
+                'amount': float(purchase.TotalAmt),
+            }
+        
+        except Exception as e:
+            logger.error(f"Error creating QB purchase: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def sync_quote_as_estimate(self, quote):
+        """
+        Sync Quote to QuickBooks as Estimate.
+        
+        Args:
+            quote: Quote model instance
+            
+        Returns:
+            dict with estimate details
+        """
+        try:
+            from quickbooks.objects.estimate import Estimate, EstimateLine
+            from .models import Quote
+            
+            # Get EstimateLine detail class
+            EstimateLineDetail = EstimateLine.class_dict.get('SalesItemLineDetail')
+            
+            if not quote.client:
+                return {'status': 'error', 'error': 'Quote has no client'}
+            
+            # Find or create customer
+            qb_customer = self.find_or_create_customer(quote.client)
+            
+            # Create estimate
+            estimate = Estimate()
+            estimate.CustomerRef = qb_customer.id
+            estimate.TxnDate = quote.quote_date.isoformat()
+            estimate.DueDate = quote.valid_until.isoformat()
+            
+            # Add line items
+            line = EstimateLine()
+            line.Description = quote.product_name
+            line.Amount = quote.total_amount
+            
+            line_detail = EstimateLineDetail()
+            line_detail.Qty = quote.quantity
+            line_detail.UnitPrice = quote.unit_price
+            line.SalesItemLineDetail = line_detail
+            
+            estimate.Line = [line]
+            estimate.PrivateNote = f"Quote ID: {quote.quote_id}\nReference: {quote.reference_number}"
+            
+            # Save to QB
+            estimate.save(qb=self.client)
+            
+            logger.info(f"Created QB estimate {estimate.id} for quote {quote.quote_id}")
+            
+            return {
+                'status': 'success',
+                'qb_estimate_id': estimate.id,
+                'amount': float(estimate.TotalAmt),
+            }
+        
+        except Exception as e:
+            logger.error(f"Error creating QB estimate: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def get_sync_status(self):
+        """Get QuickBooks sync status"""
+        try:
+            from .models import QuickBooksToken
+            
+            token = QuickBooksToken.objects.get(user=self.user)
+            
+            return {
+                'status': 'connected',
+                'realm_id': token.realm_id,
+                'connected_at': token.created_at.isoformat() if token.created_at else None,
+                'expires_at': token.expires_at.isoformat() if token.expires_at else None,
+                'company_name': token.company_name,
+            }
+        
+        except QuickBooksToken.DoesNotExist:
+            return {
+                'status': 'not_connected',
+                'message': 'QuickBooks not connected. Please authenticate first.'
+            }
+        except Exception as e:
+            logger.error(f"Error checking sync status: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+
+
+class QuickBooksAuthService:
+    """Service for QuickBooks OAuth authentication"""
+    
+    @staticmethod
+    def get_auth_url(request):
+        """
+        Generate QB OAuth authorization URL
+        
+        Returns:
+            dict with authorization URL
+        """
+        try:
+            from django.urls import reverse
+            from .helpers import get_qb_auth_url
+            
+            redirect_uri = request.build_absolute_uri(reverse('qb-callback'))
+            auth_url = get_qb_auth_url(redirect_uri)
+            
+            return {
+                'status': 'success',
+                'auth_url': auth_url,
+                'redirect_uri': redirect_uri
+            }
+        
+        except Exception as e:
+            logger.error(f"Error generating auth URL: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def handle_oauth_callback(request, auth_code, realm_id):
+        """
+        Handle QB OAuth callback
+        
+        Args:
+            request: Django request object
+            auth_code: OAuth authorization code
+            realm_id: QB Company/Realm ID
+            
+        Returns:
+            dict with token details
+        """
+        try:
+            from .helpers import exchange_auth_code_for_token
+            from .models import QuickBooksToken
+            
+            # Exchange code for tokens
+            tokens = exchange_auth_code_for_token(auth_code)
+            
+            # Save tokens
+            qb_token = QuickBooksToken.objects.update_or_create(
+                user=request.user,
+                defaults={
+                    'realm_id': realm_id,
+                    'access_token': tokens['access_token'],
+                    'refresh_token': tokens.get('refresh_token'),
+                    'expires_in': tokens.get('expires_in', 3600),
+                    'expires_at': timezone.now() + timedelta(seconds=tokens.get('expires_in', 3600)),
+                }
+            )
+            
+            logger.info(f"QB tokens saved for user {request.user}")
+            
+            return {
+                'status': 'success',
+                'message': 'QuickBooks connected successfully',
+                'realm_id': realm_id
+            }
+        
+        except Exception as e:
+            logger.error(f"Error handling QB callback: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def disconnect(user):
+        """
+        Disconnect QuickBooks account
+        
+        Args:
+            user: Django User object
+        """
+        try:
+            from .models import QuickBooksToken
+            
+            QuickBooksToken.objects.filter(user=user).delete()
+            logger.info(f"QB disconnected for user {user}")
+            
+            return {
+                'status': 'success',
+                'message': 'QuickBooks disconnected'
+            }
+        
+        except Exception as e:
+            logger.error(f"Error disconnecting QB: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
