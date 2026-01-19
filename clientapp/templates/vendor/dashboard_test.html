@@ -1,0 +1,337 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Partner Portal - Print Duka</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #f1f5f9;
+            --sidebar-active: #3b82f6;
+            --body-bg: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--body-bg); color: var(--text-main); display: flex; min-height: 100vh; }
+
+        /* Sidebar */
+        .sidebar { width: 240px; background-color: white; border-right: 1px solid var(--border-color); display: flex; flex-direction: column; position: fixed; height: 100vh; z-index: 1000; }
+        .sidebar-header { padding: 24px; border-bottom: 1px solid var(--border-color); }
+        .sidebar-header h1 { font-size: 1.25rem; font-weight: 800; color: #0f172a; }
+        .sidebar-header p { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+        .sidebar-nav { flex: 1; padding: 20px 0; }
+        .nav-item { display: flex; align-items: center; padding: 12px 24px; color: var(--text-muted); text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: all 0.2s; gap: 12px; }
+        .nav-item:hover { background-color: var(--sidebar-hover); color: var(--text-main); }
+        .nav-item.active { background-color: #eff6ff; color: var(--sidebar-active); border-right: 3px solid var(--sidebar-active); }
+        .nav-item i { width: 20px; text-align: center; font-size: 1.1rem; }
+        .sidebar-footer { padding: 20px; border-top: 1px solid var(--border-color); background: #f8fafc; }
+        .vendor-name { font-size: 0.8125rem; font-weight: 700; color: var(--text-main); }
+        .vendor-status { font-size: 0.7rem; color: var(--success); font-weight: 600; margin-top: 2px; }
+
+        /* Main Content */
+        .main-wrapper { margin-left: 240px; flex: 1; padding: 24px; display: flex; gap: 24px; }
+        .content-area { flex: 1; max-width: calc(100% - 320px); }
+
+        /* Urgent Actions */
+        .urgent-section { background: white; border: 1px solid #fee2e2; border-radius: 12px; padding: 16px; margin-bottom: 24px; box-shadow: var(--shadow); }
+        .urgent-header { display: flex; align-items: center; gap: 8px; color: #991b1b; font-weight: 700; font-size: 0.85rem; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.025em; }
+        .urgent-alert { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-radius: 8px; margin-bottom: 8px; font-size: 0.8125rem; border: 1px solid transparent; }
+        .urgent-alert.red { background-color: #fff5f5; border-color: #feb2b2; color: #c53030; }
+        .urgent-alert.orange { background-color: #fffaf0; border-color: #fbd38d; color: #9a3412; }
+        .urgent-alert.blue { background-color: #eff6ff; border-color: #bfdbfe; color: #1e40af; }
+        .btn-action { padding: 6px 16px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: none; transition: opacity 0.2s; }
+        .btn-red { background: #e53e3e; color: white; }
+        .btn-blue { background: #3b82f6; color: white; }
+
+        /* PO Header & Controls */
+        .po-header { margin-bottom: 24px; }
+        .po-header h2 { font-size: 1.25rem; font-weight: 700; margin-bottom: 16px; }
+        .po-controls { display: flex; align-items: center; gap: 12px; }
+        .search-container { flex: 1; position: relative; }
+        .search-container i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8; }
+        .search-container input { width: 100%; padding: 10px 12px 10px 36px; border-radius: 8px; border: 1px solid var(--border-color); background: white; font-size: 0.8125rem; outline: none; }
+        .filter-btn { padding: 8px 16px; background: white; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; }
+        .filter-btn.active { background: #1e293b; color: white; border-color: #1e293b; }
+
+        /* KPI Cards */
+        .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .kpi-card { background: white; padding: 20px; border-radius: 12px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .kpi-card.performance { grid-column: span 1; grid-row: span 2; background: white; }
+        .kpi-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .kpi-value { font-size: 1.5rem; font-weight: 700; }
+        .kpi-value.large { font-size: 2.5rem; color: var(--success); display: flex; align-items: center; gap: 8px; }
+        .perf-stats { margin-top: 15px; font-size: 0.75rem; }
+        .perf-row { display: flex; justify-content: space-between; margin-bottom: 8px; color: var(--text-muted); }
+        .perf-row strong { color: var(--text-main); }
+
+        /* Kanban Board */
+        .kanban-board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+        .kanban-col { display: flex; flex-direction: column; gap: 12px; }
+        .col-title { display: flex; justify-content: space-between; align-items: center; font-size: 0.875rem; font-weight: 700; padding-bottom: 10px; border-bottom: 2px solid var(--border-color); }
+        .col-count { background: #f1f5f9; color: #64748b; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; }
+        
+        .po-card { background: white; border-radius: 10px; padding: 16px; border: 1px solid var(--border-color); border-top: 4px solid var(--info); box-shadow: var(--shadow); }
+        .po-card.green { border-top-color: var(--success); }
+        .po-card.yellow { border-top-color: var(--warning); }
+        .po-card.red { border-top-color: var(--danger); }
+        .po-id { font-size: 0.8125rem; font-weight: 700; margin-bottom: 4px; }
+        .po-type { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px; }
+        .po-meta { display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 12px; }
+        .po-meta .time { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; color: var(--text-muted); }
+        .po-meta .overdue { background: #fee2e2; color: #ef4444; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+        .po-btn-group { display: flex; gap: 8px; }
+        .po-btn { flex: 1; padding: 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; cursor: pointer; border: 1px solid var(--border-color); background: #f8fafc; }
+        .po-btn.primary { background: var(--info); color: white; border: none; }
+
+        /* Blocked Jobs */
+        .blocked-box { background: #fffbeb; border: 1px solid #fde68a; border-radius: 12px; padding: 20px; display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+        .blocked-info h4 { font-size: 0.9rem; font-weight: 700; color: #92400e; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .blocked-info p { font-size: 0.8125rem; color: #b45309; }
+
+        /* Right Panel */
+        .right-panel { width: 300px; display: flex; flex-direction: column; gap: 20px; }
+        .panel-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
+        .panel-title { font-size: 0.875rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .deadline-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+        .deadline-time { font-size: 0.75rem; color: var(--danger); font-weight: 700; margin-bottom: 4px; }
+        .deadline-id { font-size: 0.8125rem; font-weight: 700; }
+        .activity-item { display: flex; gap: 12px; margin-bottom: 16px; }
+        .activity-icon { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; flex-shrink: 0; }
+        .activity-icon.blue { background: #dbeafe; color: #1e40af; }
+        .activity-text { font-size: 0.8125rem; line-height: 1.4; }
+        .activity-time { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+        @media (max-width: 1400px) { .kanban-board { grid-template-columns: repeat(3, 1fr); } }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>Print Duka</h1>
+            <p>Vendor Partner Portal</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="{% url 'vendor_dashboard' %}" class="nav-item active"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="{% url 'active_jobs' %}" class="nav-item"><i class="fas fa-tasks"></i> Active Jobs</a>
+            <a href="{% url 'completed_jobs' %}" class="nav-item"><i class="fas fa-check-circle"></i> Completed Jobs</a>
+            <a href="{% url 'invoices' %}" class="nav-item"><i class="fas fa-file-invoice-dollar"></i> Invoices</a>
+            <a href="{% url 'performance' %}" class="nav-item"><i class="fas fa-chart-line"></i> Performance</a>
+            <a href="#" class="nav-item"><i class="fas fa-question-circle"></i> Help Center</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="vendor-name">{{ vendor.name|default:"Acme Printing Co." }}</div>
+            <div class="vendor-status"><i class="fas fa-certificate"></i> Certified Vendor</div>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="content-area">
+            <!-- Urgent Actions -->
+            <div class="urgent-section">
+                <div class="urgent-header"><i class="fas fa-exclamation-triangle"></i> Urgent Actions Required</div>
+                <div class="urgent-alert red">
+                    <span><i class="fas fa-clock"></i> 1 job overdue - immediate action required</span>
+                    <button class="btn-action btn-red">View Jobs</button>
+                </div>
+                <div class="urgent-alert orange">
+                    <span><i class="fas fa-bolt"></i> 2 jobs at risk - no activity 24hrs</span>
+                    <button class="btn-action btn-red">View Jobs</button>
+                </div>
+                <div class="urgent-alert blue">
+                    <span><i class="fas fa-plus-circle"></i> 2 new POs awaiting Accept/Decline</span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn-action btn-blue">Accept All</button>
+                        <button class="btn-action" style="background: white; border: 1px solid #3b82f6; color: #3b82f6;">Review</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PO Header -->
+            <div class="po-header">
+                <h2>Purchase Orders</h2>
+                <div class="po-controls">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search by Job ID or Product Type...">
+                    </div>
+                    <button class="filter-btn active">Show All</button>
+                    <button class="filter-btn">Action Needed (3)</button>
+                    <button class="filter-btn">At Risk (3)</button>
+                </div>
+            </div>
+
+            <!-- Kanban Board -->
+            <div class="kanban-board">
+                <!-- Column 1: New POs -->
+                <div class="kanban-col">
+                    <div class="col-title">New POs <span class="col-count">2</span></div>
+                    <div class="po-card">
+                        <div class="po-id">PD-2026-0419</div>
+                        <div class="po-type">Cap - Screen Print</div>
+                        <div class="po-meta"><span>Qty: 300</span><span class="time">3d</span></div>
+                        <div class="po-btn-group">
+                            <button class="po-btn">View</button>
+                            <button class="po-btn primary">Accept</button>
+                        </div>
+                    </div>
+                    <div class="po-card">
+                        <div class="po-id">PD-2026-0421</div>
+                        <div class="po-type">Notebook - Screen Print</div>
+                        <div class="po-meta"><span>Qty: 200</span><span class="time">4d</span></div>
+                        <div class="po-btn-group">
+                            <button class="po-btn">View</button>
+                            <button class="po-btn primary">Accept</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column 2: In Production -->
+                <div class="kanban-col">
+                    <div class="col-title">In Production <span class="col-count">3</span></div>
+                    <div class="po-card green">
+                        <div class="po-id">PD-2026-0418</div>
+                        <div class="po-type">Phone Case - UV Print</div>
+                        <div class="po-meta"><span>Qty: 400</span><span class="time">35h</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                    <div class="po-card green">
+                        <div class="po-id">PD-2026-0420</div>
+                        <div class="po-type">Mug - Sublimation</div>
+                        <div class="po-meta"><span>Qty: 150</span><span class="time">47h</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                    <div class="po-card green">
+                        <div class="po-id">PD-2026-0415</div>
+                        <div class="po-type">Tote Bag - Screen Print</div>
+                        <div class="po-meta"><span>Qty: 500</span><span class="time">2d</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                </div>
+
+                <!-- Column 3: Awaiting Approval -->
+                <div class="kanban-col">
+                    <div class="col-title">Awaiting Approval <span class="col-count">2</span></div>
+                    <div class="po-card yellow">
+                        <div class="po-id">PD-2026-0413</div>
+                        <div class="po-type">T-Shirt - DTG Print</div>
+                        <div class="po-meta"><span>Qty: 250</span><span class="time">18h</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                    <div class="po-card yellow">
+                        <div class="po-id">PD-2026-0416</div>
+                        <div class="po-type">Lanyard - Sublimation</div>
+                        <div class="po-meta"><span>Qty: 800</span><span class="time">29h</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                </div>
+
+                <!-- Column 4: At Risk -->
+                <div class="kanban-col">
+                    <div class="col-title">At Risk <span class="col-count" style="background: #fee2e2; color: #ef4444;">3</span></div>
+                    <div class="po-card red">
+                        <div class="po-id">PD-2026-0414</div>
+                        <div class="po-type">Backpack - Embroidery</div>
+                        <div class="po-meta"><span>Qty: 80</span><span class="overdue">OVERDUE</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                    <div class="po-card red">
+                        <div class="po-id">PD-2026-0417</div>
+                        <div class="po-type">Hoodie - Embroidery</div>
+                        <div class="po-meta"><span>Qty: 100</span><span class="time">11h</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                    <div class="po-card red">
+                        <div class="po-id">PD-2026-0422</div>
+                        <div class="po-type">Polo Shirt - Embroidery</div>
+                        <div class="po-meta"><span>Qty: 75</span><span class="time">4h</span></div>
+                        <button class="po-btn" style="width: 100%;">View Job</button>
+                    </div>
+                </div>
+
+                <!-- Column 5: Completed -->
+                <div class="kanban-col">
+                    <div class="col-title">Completed <span class="col-count">0</span></div>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); text-align: center; padding-top: 20px;">No jobs completed today</p>
+                </div>
+            </div>
+
+            <!-- KPI Grid -->
+            <div class="kpi-grid">
+                <div class="kpi-card performance">
+                    <div class="kpi-label">Performance Score</div>
+                    <div class="kpi-value large">92% <i class="fas fa-trending-up" style="font-size: 1rem;"></i></div>
+                    <div class="perf-stats">
+                        <div class="perf-row"><span>Jobs completed:</span><strong>8</strong></div>
+                        <div class="perf-row"><span>On-time rate:</span><strong>87.5% (7/8)</strong></div>
+                        <div class="perf-row"><span>Issues raised:</span><strong>2</strong></div>
+                        <a href="#" style="color: var(--info); text-decoration: none; font-weight: 700; font-size: 0.75rem; display: block; margin-top: 12px;">Full Scorecard →</a>
+                    </div>
+                </div>
+                <div class="kpi-card"><div class="kpi-label"><i class="far fa-clock"></i> Active Jobs</div><div class="kpi-value">3</div></div>
+                <div class="kpi-card"><div class="kpi-label"><i class="fas fa-exclamation-circle"></i> Action Needed</div><div class="kpi-value" style="color: var(--danger);">3</div></div>
+                <div class="kpi-card"><div class="kpi-label"><i class="far fa-file-alt"></i> Proofs Pending</div><div class="kpi-value" style="color: var(--warning);">2</div></div>
+                <div class="kpi-card"><div class="kpi-label"><i class="fas fa-dollar-sign"></i> Pending Invoices</div><div class="kpi-value">$4,850</div></div>
+                <div class="kpi-card"><div class="kpi-label"><i class="far fa-hourglass"></i> Avg Response</div><div class="kpi-value">3.2 hrs</div></div>
+                <div class="kpi-card"><div class="kpi-label"><i class="far fa-calendar-alt"></i> This Month</div><div class="kpi-value">23 jobs</div></div>
+            </div>
+
+            <!-- Blocked Jobs -->
+            <div class="blocked-box">
+                <div class="blocked-info">
+                    <h4><i class="fas fa-pause-circle"></i> Blocked Jobs (1)</h4>
+                    <p><strong>PD-2026-0413</strong>: Awaiting material substitution approval (PT notified: 2 days ago)</p>
+                </div>
+                <button class="btn-action" style="background: white; border: 1px solid var(--border-color); color: var(--text-main);">Send Reminder</button>
+            </div>
+        </div>
+
+        <!-- Right Panel -->
+        <aside class="right-panel">
+            <div class="panel-card">
+                <div class="panel-title"><i class="far fa-clock"></i> Upcoming Deadlines</div>
+                <div class="deadline-item">
+                    <div class="deadline-time">Due in 4h</div>
+                    <div class="deadline-id">PD-2026-0422</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Polo Shirt - Embroidery</div>
+                </div>
+                <div class="deadline-item">
+                    <div class="deadline-time">Due in 11h</div>
+                    <div class="deadline-id">PD-2026-0417</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">Hoodie - Embroidery</div>
+                </div>
+            </div>
+
+            <div class="panel-card">
+                <div class="panel-title"><i class="fas fa-history"></i> Recent Activity</div>
+                <div class="activity-item">
+                    <div class="activity-icon blue"><i class="fas fa-check"></i></div>
+                    <div class="activity-text">
+                        PT approved proof for <strong>PD-2028-0413</strong>
+                        <div class="activity-time">2 hrs ago</div>
+                    </div>
+                </div>
+                <div class="activity-item">
+                    <div class="activity-icon blue"><i class="fas fa-sync"></i></div>
+                    <div class="activity-text">
+                        New PO assigned: <strong>PD-2026-0419</strong>
+                        <div class="activity-time">4 hrs ago</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+</body>
+</html>

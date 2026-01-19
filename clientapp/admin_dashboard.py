@@ -1,7 +1,3 @@
-"""
-Dashboard Analytics for PrintDuka Admin
-Provides metrics, charts, and reports for the admin dashboard
-"""
 #Admin dashboard all reports
 
 from django.db.models import Count, Sum, Q, Avg, F
@@ -135,7 +131,7 @@ def get_sales_performance_trend(months=6):
 
 def get_recent_orders(limit=10):
     """
-    Get recent orders (LPO) for dashboard
+    Get recent orders-LPO for dashboard
     """
     from .models import LPO
     
@@ -197,8 +193,7 @@ def get_revenue_by_category():
     """
     from .models import Quote, ProductCategory
     
-    # This is a simplified version
-    # You might need to adjust based on your quote-product relationship
+    
     category_revenue = Quote.objects.filter(
         status='approved'
     ).values('product_name').annotate(
@@ -322,11 +317,9 @@ def get_profit_margin_data():
 def create_low_stock_alerts():
     """
     Check inventory and create alerts for low stock
-    This should be called periodically (e.g., daily cron job)
     """
     from .models import SystemAlert
-    # Add your inventory model here when ready
-    # For now, this is a placeholder
+    
     pass
 
 
@@ -363,7 +356,7 @@ def create_quote_expiry_alerts():
                 related_client=quote.client
             )
 
-# ========== FEATURE 1: OUTSTANDING RECEIVABLES ==========
+#FEATURE 1: OUTSTANDING RECEIVABLES
 
 def get_outstanding_receivables():
     """
@@ -485,7 +478,7 @@ def get_payment_collection_rate():
     }
 
 
-# ========== FEATURE 6: STAFF PERFORMANCE ==========
+# FEATURE 6: STAFF PERFORMANCE 
 
 def get_staff_performance():
     """
@@ -501,7 +494,7 @@ def get_staff_performance():
     sales_reps = User.objects.filter(
         groups__name='Account Manager'
     ).annotate(
-        # ✅ FIX: Change from 'quotes_count' to 'total_quotes'
+        
         total_quotes=Count('quotes_created', filter=Q(
             quotes_created__created_at__gte=thirty_days_ago
         )),
@@ -517,7 +510,7 @@ def get_staff_performance():
     
     sales_leaderboard = []
     for rep in sales_reps:
-        # ✅ FIX: Use total_quotes instead of quotes_count
+        
         win_rate = (rep.quotes_won / rep.total_quotes * 100) if rep.total_quotes > 0 else 0
         avg_deal = (rep.total_revenue / rep.quotes_won) if rep.quotes_won and rep.quotes_won > 0 else 0
         
@@ -552,7 +545,7 @@ def get_staff_performance():
     }
 
 
-# ========== FEATURE 9: TIME-BASED INSIGHTS ==========
+# TIME-BASED INSIGHTS
 
 def get_time_based_insights():
     """

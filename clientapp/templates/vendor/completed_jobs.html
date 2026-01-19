@@ -1,0 +1,681 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase Orders - Print Duka Vendor Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #1e293b;
+            --sidebar-active: #3b82f6;
+            --body-bg: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary-blue: #3b82f6;
+            --primary-blue-light: #dbeafe;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --warning: #f59e0b;
+            --warning-bg: #fef3c7;
+            --danger: #ef4444;
+            --danger-bg: #fee2e2;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--body-bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background-color: white;
+            color: black;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.75rem;
+            opacity: 0.6;
+            margin-top: 2px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 10px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 24px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            gap: 12px;
+        }
+
+        .nav-item:hover {
+            color: white;
+            background: var(--sidebar-hover);
+        }
+
+        .nav-item.active {
+            background-color: var(--sidebar-active);
+            color: white;
+            border-radius: 0 50px 50px 0;
+            margin-right: 15px;
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .vendor-name {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .vendor-status {
+            font-size: 0.75rem;
+            color: var(--success);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 240px;
+            flex: 1;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .top-bar h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .capacity-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+        }
+
+        /* Search & Filters */
+        .filters-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .search-box {
+            flex: 1;
+            position: relative;
+        }
+
+        .search-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            font-size: 0.875rem;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px 12px 10px 36px;
+            background: #f1f5f9;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            font-size: 0.8125rem;
+            outline: none;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .filter-btn.active {
+            background: black;
+            color: white;
+            border-color: black;
+        }
+
+        .filter-count {
+            color: var(--text-muted);
+            font-weight: 400;
+            margin-left: 4px;
+        }
+
+        /* Dashboard Grid */
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 24px;
+        }
+
+        .main-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .kpi-row {
+            display: grid;
+            grid-template-columns: 280px 1fr 1fr 1fr;
+            gap: 16px;
+        }
+
+        .kpi-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        /* Performance Card */
+        .perf-card {
+            grid-row: span 2;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .perf-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .perf-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .certified-badge {
+            background: var(--success-bg);
+            color: #065f46;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .perf-score {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--success);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .perf-score i {
+            font-size: 1.25rem;
+        }
+
+        .perf-stats {
+            margin-top: auto;
+            font-size: 0.75rem;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: var(--text-muted);
+        }
+
+        .stat-item strong {
+            color: var(--text-main);
+        }
+
+        .perf-link {
+            color: var(--primary-blue);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-top: 12px;
+            display: block;
+        }
+
+        /* Small KPI Cards */
+        .small-kpi {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .small-kpi-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .small-kpi-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .small-kpi-value.danger { color: var(--danger); }
+
+        /* Table Section */
+        .table-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.75rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            background: #f8fafc;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        /* Right Sidebar */
+        .right-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .panel-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .panel-title {
+            font-size: 0.875rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .deadline-empty {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 12px 0;
+        }
+
+        .activity-item {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .activity-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            flex-shrink: 0;
+        }
+
+        .icon-success { background: var(--success-bg); color: var(--success); }
+        .icon-info { background: var(--primary-blue-light); color: var(--primary-blue); }
+        .icon-warning { background: var(--warning-bg); color: var(--warning); }
+
+        .activity-content p {
+            font-size: 0.75rem;
+            line-height: 1.4;
+        }
+
+        .activity-time {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .capacity-status {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .capacity-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+        }
+
+        .capacity-val {
+            font-weight: 700;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--success);
+            font-weight: 700;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>Print Duka</h1>
+            <p>Vendor Portal</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="{% url 'vendor_dashboard' %}" class="nav-item active"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="{% url 'active_jobs' %}" class="nav-item"><i class="fas fa-tasks"></i> Active Jobs</a>
+            <a href="{% url 'completed_jobs' %}" class="nav-item"><i class="fas fa-check-circle"></i> Completed Jobs</a>
+            <a href="{% url 'invoices' %}" class="nav-item"><i class="fas fa-file-invoice-dollar"></i> Invoices</a>
+            <a href="{% url 'performance' %}" class="nav-item"><i class="fas fa-chart-line"></i> Performance</a>
+            <a href="#" class="nav-item"><i class="fas fa-question-circle"></i> Help Center</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="vendor-name">Acme Printing Co.</div>
+            <div class="vendor-status">Certified Vendor</div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <h2>Purchase Orders</h2>
+            <div class="top-bar-right">
+                <div class="capacity-indicator">
+                    Capacity: <span class="status-dot"></span> Available
+                </div>
+                <i class="far fa-bell" style="color: var(--text-muted); cursor: pointer;"></i>
+            </div>
+        </div>
+
+        <!-- Search & Filters -->
+        <div class="filters-row">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" placeholder="Search by Job ID or Product Type...">
+            </div>
+            <button class="filter-btn active">Show All</button>
+            <button class="filter-btn">My Action Needed <span class="filter-count">(0)</span></button>
+            <button class="filter-btn">At Risk <span class="filter-count">(0)</span></button>
+            <button class="filter-btn">Awaiting PT <span class="filter-count">(0)</span></button>
+        </div>
+
+        <!-- Dashboard Layout -->
+        <div class="dashboard-layout">
+            
+            <!-- Left Column -->
+            <div class="main-grid">
+                
+                <!-- KPI Grid -->
+                <div class="kpi-row">
+                    <!-- Performance Score -->
+                    <div class="kpi-card perf-card">
+                        <div class="perf-header">
+                            <span class="perf-label">Vendor Performance Score</span>
+                            <span class="certified-badge">Certified Vendor</span>
+                        </div>
+                        <div class="perf-score">
+                            92% <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="perf-stats">
+                            <div class="stat-item">
+                                <span>Jobs completed:</span>
+                                <strong>8</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span>On-time rate:</span>
+                                <strong>87.5% (7/8)</strong>
+                            </div>
+                            <div class="stat-item">
+                                <span>Issues raised:</span>
+                                <strong>2</strong>
+                            </div>
+                        </div>
+                        <a href="#" class="perf-link">View Full Performance →</a>
+                    </div>
+
+                    <!-- Small KPIs -->
+                    <div class="kpi-card small-kpi">
+                        <div class="small-kpi-header">
+                            <i class="fas fa-briefcase"></i> Active Jobs
+                        </div>
+                        <div class="small-kpi-value">0</div>
+                    </div>
+
+                    <div class="kpi-card small-kpi">
+                        <div class="small-kpi-header">
+                            <i class="fas fa-exclamation-circle"></i> Action Needed
+                        </div>
+                        <div class="small-kpi-value danger">0</div>
+                    </div>
+
+                    <div class="kpi-card small-kpi">
+                        <div class="small-kpi-header">
+                            <i class="fas fa-file-alt"></i> Proofs Pending PT
+                        </div>
+                        <div class="small-kpi-value">0</div>
+                    </div>
+
+                    <!-- Second Row of Small KPIs -->
+                    <div class="kpi-card small-kpi">
+                        <div class="small-kpi-header">
+                            <i class="fas fa-dollar-sign"></i> Pending Invoices
+                        </div>
+                        <div class="small-kpi-value">$4,850</div>
+                    </div>
+
+                    <div class="kpi-card small-kpi">
+                        <div class="small-kpi-header">
+                            <i class="fas fa-clock"></i> Avg Response Time
+                        </div>
+                        <div class="small-kpi-value">3.2 hrs</div>
+                    </div>
+
+                    <div class="kpi-card small-kpi">
+                        <div class="small-kpi-header">
+                            <i class="fas fa-check-circle"></i> This Month
+                        </div>
+                        <div class="small-kpi-value">23 jobs</div>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <div class="table-card">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Job ID</th>
+                                <th>Product Type</th>
+                                <th>Quantity</th>
+                                <th>Milestone</th>
+                                <th>Required By</th>
+                                <th>Days Left</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Table rows will be dynamically populated -->
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="right-sidebar">
+                
+                <!-- Deadlines -->
+                <div class="panel-card">
+                    <div class="panel-title">
+                        <i class="far fa-clock" style="color: var(--danger);"></i>
+                        Upcoming Deadlines (48hrs)
+                    </div>
+                    <div class="deadline-empty">No urgent deadlines</div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="panel-card">
+                    <div class="panel-title">Recent Activity</div>
+                    
+                    <div class="activity-item">
+                        <div class="activity-icon icon-success"><i class="fas fa-check"></i></div>
+                        <div class="activity-content">
+                            <p>PT approved proof for PD-2026-0410</p>
+                            <div class="activity-time">2 hrs ago</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon icon-info"><i class="fas fa-plus"></i></div>
+                        <div class="activity-content">
+                            <p>New PO assigned: PD-2026-0413</p>
+                            <div class="activity-time">4 hrs ago</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon icon-warning"><i class="fas fa-exclamation-triangle"></i></div>
+                        <div class="activity-content">
+                            <p>Auto-escalation: Job PD-2026-0408 flagged at-risk</p>
+                            <div class="activity-time">6 hrs ago</div>
+                        </div>
+                    </div>
+
+                    <div class="activity-item">
+                        <div class="activity-icon icon-success"><i class="fas fa-dollar-sign"></i></div>
+                        <div class="activity-content">
+                            <p>Invoice #INV-2026-088 paid - $1,240</p>
+                            <div class="activity-time">1 day ago</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Capacity Status -->
+                <div class="panel-card">
+                    <div class="panel-title">Capacity Status</div>
+                    <div class="capacity-status">
+                        <div class="capacity-row">
+                            <span>Currently assigned:</span>
+                            <span class="capacity-val">0 jobs</span>
+                        </div>
+                        <div class="capacity-row">
+                            <span>Status:</span>
+                            <div class="status-badge">
+                                <span class="status-dot"></span> Available
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

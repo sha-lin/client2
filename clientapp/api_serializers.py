@@ -83,6 +83,14 @@ from .models import (
     Adjustment,
     WebhookSubscription,
     WebhookDelivery,
+
+    # Vendor Portal models
+    PurchaseOrder,
+    VendorInvoice,
+    PurchaseOrderProof,
+    PurchaseOrderIssue,
+    PurchaseOrderNote,
+    MaterialSubstitutionRequest,
 )
 
 
@@ -132,6 +140,31 @@ class ClientSerializer(serializers.ModelSerializer):
                 )
 
         return super().validate(attrs)
+
+    def to_representation(self, instance):
+        """
+        Remove B2B-specific fields from the response if the client is B2C.
+        This keeps the API response clean and only shows relevant fields.
+        """
+        ret = super().to_representation(instance)
+        
+        if instance.client_type == 'B2C':
+            # B2B-specific fields to hide for B2C clients
+            b2b_fields = [
+                'company',
+                'vat_tax_id',
+                'kra_pin',
+                'industry',
+                'payment_terms',
+                'credit_limit',
+                'default_markup',
+                'risk_rating',
+                'is_reseller',
+            ]
+            for field in b2b_fields:
+                ret.pop(field, None)
+        
+        return ret
 
 
 class BrandAssetSerializer(serializers.ModelSerializer):
@@ -663,3 +696,132 @@ class WebhookDeliverySerializer(serializers.ModelSerializer):
     class Meta:
         model = WebhookDelivery
         fields = "__all__"
+
+
+# Vendor Portal Serializers
+
+class PurchaseOrderSerializer(serializers.ModelSerializer):
+    """Serializer for Purchase Orders"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    job_number = serializers.CharField(source='job.job_number', read_only=True)
+    client_name = serializers.CharField(source='job.client.name', read_only=True)
+    is_delayed = serializers.BooleanField(read_only=True)
+    days_until_due = serializers.IntegerField(read_only=True)
+    
+    class Meta:
+        model = PurchaseOrder
+        fields = [
+            'id', 'po_number', 'job', 'job_number', 'vendor', 'vendor_name',
+            'client_name', 'product_type', 'product_description', 'quantity',
+            'unit_cost', 'total_cost', 'required_by', 'estimated_completion',
+            'actual_completion', 'status', 'milestone', 'vendor_accepted',
+            'vendor_accepted_at', 'vendor_notes', 'special_instructions',
+            'assets_acknowledged', 'assets_acknowledged_at', 'shipping_method',
+            'tracking_number', 'carrier', 'ready_for_pickup', 'coordination_group',
+            'internal_notes', 'is_delayed', 'days_until_due', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['po_number', 'created_at', 'updated_at', 'is_delayed', 'days_until_due']
+
+
+class VendorInvoiceSerializer(serializers.ModelSerializer):
+    """Serializer for Vendor Invoices"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    job_number = serializers.CharField(source='job.job_number', read_only=True)
+    
+    class Meta:
+        model = VendorInvoice
+        fields = [
+            'id', 'invoice_number', 'vendor_invoice_ref', 'purchase_order',
+            'po_number', 'vendor', 'vendor_name', 'job', 'job_number',
+            'invoice_date', 'due_date', 'line_items', 'subtotal', 'tax_rate',
+            'tax_amount', 'total_amount', 'payment_terms', 'payment_method',
+            'status', 'invoice_file', 'supporting_documents', 'vendor_notes',
+            'internal_notes', 'rejection_reason', 'submitted_at', 'approved_at', 
+            'approved_by', 'paid_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['invoice_number', 'tax_amount', 'total_amount', 
+                           'submitted_at', 'approved_at', 'paid_at', 'created_at', 'updated_at']
+
+
+class PurchaseOrderProofSerializer(serializers.ModelSerializer):
+    """Serializer for Purchase Order Proofs"""
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = PurchaseOrderProof
+        fields = [
+            'id', 'purchase_order', 'po_number', 'proof_image', 'proof_type',
+            'submitted_at', 'status', 'rejection_reason', 'reviewed_by',
+            'reviewed_by_name', 'reviewed_at'
+        ]
+        read_only_fields = ['submitted_at']
+
+
+class PurchaseOrderIssueSerializer(serializers.ModelSerializer):
+    """Serializer for Purchase Order Issues"""
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    resolved_by_name = serializers.CharField(source='resolved_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = PurchaseOrderIssue
+        fields = [
+            'id', 'purchase_order', 'po_number', 'issue_type', 'description',
+            'photo', 'status', 'resolution_notes', 'resolved_by',
+            'resolved_by_name', 'resolved_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class PurchaseOrderNoteSerializer(serializers.ModelSerializer):
+    """Serializer for Purchase Order Notes"""
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    sender_name = serializers.CharField(source='sender.get_full_name', read_only=True)
+    
+    class Meta:
+        model = PurchaseOrderNote
+        fields = [
+            'id', 'purchase_order', 'po_number', 'sender', 'sender_name',
+            'category', 'message', 'created_at'
+        ]
+        read_only_fields = ['created_at']
+
+
+class MaterialSubstitutionRequestSerializer(serializers.ModelSerializer):
+    """Serializer for Material Substitution Requests"""
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = MaterialSubstitutionRequest
+        fields = [
+            'id', 'purchase_order', 'po_number', 'original_material',
+            'original_pantone', 'original_supplier', 'proposed_material',
+            'proposed_pantone', 'match_percentage', 'comparison_photo',
+            'justification', 'status', 'reviewed_by', 'reviewed_by_name',
+            'reviewed_at', 'rejection_reason', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['created_at', 'updated_at']
+
+
+class VendorPerformanceSerializer(serializers.Serializer):
+    """Serializer for Vendor Performance Metrics"""
+    overall_score = serializers.IntegerField()
+    vps_grade = serializers.CharField()
+    tax_status = serializers.CharField()
+    certifications = serializers.ListField(child=serializers.CharField())
+    
+    # Performance metrics
+    on_time_rate = serializers.DecimalField(max_digits=5, decimal_places=2)
+    quality_score = serializers.DecimalField(max_digits=5, decimal_places=2)
+    avg_turnaround = serializers.DecimalField(max_digits=5, decimal_places=2)
+    defect_rate = serializers.DecimalField(max_digits=5, decimal_places=2)
+    cost_per_job = serializers.DecimalField(max_digits=10, decimal_places=2)
+    acceptance_rate = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+    response_time = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+    ghosting_incidents = serializers.IntegerField(required=False)
+    decline_rate = serializers.DecimalField(max_digits=5, decimal_places=2, required=False)
+    
+    # Performance insights
+    insights = serializers.ListField(child=serializers.DictField())

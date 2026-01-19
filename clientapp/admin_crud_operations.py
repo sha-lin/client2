@@ -1,5 +1,5 @@
 """
-Admin CRUD Operations - Django Admin-style views for all models
+Admin CRUD Operations - Django Admin
 Implements full CRUD functionality (List, Detail, Add, Edit, Delete) for each model
 """
 

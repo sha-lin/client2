@@ -1,6 +1,6 @@
 """
 Product Configuration Rules Engine
-Validates product variable combinations (Vistaprint's secret sauce)
+Validates product variable combinations
 """
 from typing import Dict, Any, List
 from django.core.exceptions import ValidationError

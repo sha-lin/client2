@@ -848,22 +848,102 @@
             </div>
 
             <!-- 5. ANALYTICS TAB -->
+                        <!-- 5. ANALYTICS TAB (Gap #7 Fix - Enhanced Analytics) -->
             <div class="tab-content hidden" data-content="analytics">
+                {% if product and product.status == 'published' %}
+                <!-- Metrics Cards -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-sm font-medium text-gray-500">Total Orders</span>
+                            <i data-lucide="shopping-cart" class="w-5 h-5 text-blue-500"></i>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-900">{{ product.quotes.count|default:'0' }}</p>
+                        <p class="text-xs text-gray-400 mt-1">All time quotes</p>
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-sm font-medium text-gray-500">Stock Status</span>
+                            <i data-lucide="package" class="w-5 h-5 text-orange-500"></i>
+                        </div>
+                        <p class="text-lg font-bold text-gray-900">{{ product.get_stock_status_display|default:'Made to Order' }}</p>
+                        {% if product.track_inventory %}
+                        <p class="text-xs text-gray-400 mt-1">{{ product.stock_quantity }} units in stock</p>
+                        {% else %}
+                        <p class="text-xs text-gray-400 mt-1">Inventory tracking disabled</p>
+                        {% endif %}
+                    </div>
+                    <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <span class="text-sm font-medium text-gray-500">Total Edits</span>
+                            <i data-lucide="edit-3" class="w-5 h-5 text-purple-500"></i>
+                        </div>
+                        <p class="text-3xl font-bold text-gray-900">{{ product.change_history.count|default:'0' }}</p>
+                        <p class="text-xs text-gray-400 mt-1">Changes recorded</p>
+                    </div>
+                </div>
+                <!-- Product Summary Card -->
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+                    <h3 class="text-base font-bold text-gray-900 mb-4">Product Summary</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="text-center p-4 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-gray-900">{{ product.created_at|timesince }}</p>
+                            <p class="text-xs text-gray-500">Age</p>
+                        </div>
+                        <div class="text-center p-4 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-gray-900">{{ product.images.count|default:'0' }}</p>
+                            <p class="text-xs text-gray-500">Images</p>
+                        </div>
+                        <div class="text-center p-4 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-gray-900">{{ product.variables.count|default:'0' }}</p>
+                            <p class="text-xs text-gray-500">Variables</p>
+                        </div>
+                        <div class="text-center p-4 bg-gray-50 rounded-lg">
+                            <p class="text-2xl font-bold text-gray-900">{{ product.faqs.count|default:'0' }}</p>
+                            <p class="text-xs text-gray-500">FAQs</p>
+                        </div>
+                    </div>
+                </div>
+                <!-- Inventory Info (Gap #1) -->
+                {% if product.track_inventory %}
+                <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6 mt-6">
+                    <h3 class="text-base font-bold text-gray-900 mb-4">Inventory Status</h3>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="p-4 bg-blue-50 rounded-lg border border-blue-100">
+                            <p class="text-xs text-blue-600 font-medium mb-1">Current Stock</p>
+                            <p class="text-2xl font-bold text-blue-900">{{ product.stock_quantity }}</p>
+                        </div>
+                        <div class="p-4 bg-amber-50 rounded-lg border border-amber-100">
+                            <p class="text-xs text-amber-600 font-medium mb-1">Low Stock Alert</p>
+                            <p class="text-2xl font-bold text-amber-900">{{ product.low_stock_threshold }}</p>
+                        </div>
+                        <div class="p-4 {% if product.stock_quantity <= product.low_stock_threshold %}bg-red-50 border-red-100{% else %}bg-green-50 border-green-100{% endif %} rounded-lg border">
+                            <p class="text-xs {% if product.stock_quantity <= product.low_stock_threshold %}text-red-600{% else %}text-green-600{% endif %} font-medium mb-1">Status</p>
+                            <p class="text-lg font-bold {% if product.stock_quantity <= product.low_stock_threshold %}text-red-900{% else %}text-green-900{% endif %}">
+                                {% if product.stock_quantity <= 0 %}Out of Stock{% elif product.stock_quantity <= product.low_stock_threshold %}Low Stock{% else %}In Stock{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                {% else %}
+                <!-- Placeholder for unpublished products -->
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-12 text-center">
                     <div class="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-6">
                         <i data-lucide="bar-chart-3" class="w-10 h-10 text-gray-300"></i>
                     </div>
                     <h3 class="text-xl font-bold text-gray-900 mb-2">No Performance Data Yet</h3>
-                    <p class="text-gray-500 max-sm mx-auto">Once your product is published and starts receiving views
-                        and orders, you'll see detailed analytics here.</p>
+                    <p class="text-gray-500 max-w-sm mx-auto">Once your product is published and starts receiving views and orders, you'll see detailed analytics here.</p>
                 </div>
+                {% endif %}
             </div>
 
-            <!-- 6. HISTORY TAB -->
+            <!-- 6. HISTORY TAB (Gap #4 Fix - Enhanced with field changes) -->
             <div class="tab-content hidden" data-content="history">
                 <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div class="p-6 border-b border-gray-100 bg-gray-50/50">
+                    <div class="p-6 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
                         <h3 class="text-base font-bold text-gray-900">Product Change Log</h3>
+                        <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">{{ product.change_history.count|default:'0' }} changes</span>
                     </div>
                     <div class="p-6">
                         {% if product.change_history.all %}
@@ -873,30 +953,50 @@
                                 <li>
                                     <div class="relative pb-8">
                                         {% if not forloop.last %}
-                                        <span class="absolute left-5 top-5 -ml-px h-full w-0.5 bg-gray-100"
-                                            aria-hidden="true"></span>
+                                        <span class="absolute left-5 top-5 -ml-px h-full w-0.5 bg-gray-100" aria-hidden="true"></span>
                                         {% endif %}
                                         <div class="relative flex items-start space-x-3">
                                             <div class="relative">
-                                                <div
-                                                    class="h-10 w-10 rounded-full bg-gray-50 border border-gray-200 flex items-center justify-center ring-8 ring-white">
-                                                    <i data-lucide="{% if entry.change_type == 'created' %}plus{% elif entry.change_type == 'published' %}check{% else %}edit-2{% endif %}"
-                                                        class="w-4 h-4 text-gray-500"></i>
+                                                <div class="h-10 w-10 rounded-full {% if entry.change_type == 'published' %}bg-green-50 border-green-200{% elif entry.change_type == 'created' %}bg-blue-50 border-blue-200{% elif entry.change_type == 'field_updated' %}bg-amber-50 border-amber-200{% else %}bg-gray-50 border-gray-200{% endif %} border flex items-center justify-center ring-8 ring-white">
+                                                    <i data-lucide="{% if entry.change_type == 'created' %}plus{% elif entry.change_type == 'published' %}check{% elif entry.change_type == 'field_updated' %}edit-2{% else %}history{% endif %}"
+                                                        class="w-4 h-4 {% if entry.change_type == 'published' %}text-green-500{% elif entry.change_type == 'created' %}text-blue-500{% elif entry.change_type == 'field_updated' %}text-amber-500{% else %}text-gray-500{% endif %}"></i>
                                                 </div>
                                             </div>
                                             <div class="min-w-0 flex-1 py-1">
                                                 <div class="text-sm text-gray-500">
-                                                    <span class="font-bold text-gray-900">{{
-                                                        entry.changed_by.get_full_name|default:entry.changed_by.username
-                                                        }}</span>
-                                                    {% if entry.notes %}
+                                                    <span class="font-bold text-gray-900">{{ entry.changed_by.get_full_name|default:entry.changed_by.username }}</span>
+                                                    {% if entry.change_type == 'field_updated' %}
+                                                        changed <span class="font-semibold text-gray-700">{{ entry.field_changed }}</span>
+                                                    {% elif entry.change_type == 'published' %}
+                                                        published this product
+                                                    {% elif entry.change_type == 'created' %}
+                                                        created this product
+                                                    {% elif entry.notes %}
                                                         {{ entry.notes }}
                                                     {% else %}
                                                         {{ entry.change_type|title }}
                                                     {% endif %}
                                                 </div>
-                                                <div class="mt-1 text-xs text-gray-400">
-                                                    {{ entry.changed_at|date:"M d, Y • H:i" }}
+                                                <!-- Show old/new values for field changes -->
+                                                {% if entry.old_value or entry.new_value %}
+                                                <div class="mt-2 p-3 bg-gray-50 rounded-lg text-xs font-mono border border-gray-100">
+                                                    {% if entry.old_value %}
+                                                    <div class="flex items-start gap-2 text-red-600 mb-1">
+                                                        <span class="text-gray-400 select-none">−</span>
+                                                        <span class="truncate">{{ entry.old_value|truncatechars:80 }}</span>
+                                                    </div>
+                                                    {% endif %}
+                                                    {% if entry.new_value %}
+                                                    <div class="flex items-start gap-2 text-green-600">
+                                                        <span class="text-gray-400 select-none">+</span>
+                                                        <span class="truncate">{{ entry.new_value|truncatechars:80 }}</span>
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                                <div class="mt-2 text-xs text-gray-400">
+                                                    <i data-lucide="clock" class="w-3 h-3 inline-block mr-1"></i>
+                                                    {{ entry.changed_at|date:"M d, Y" }} at {{ entry.changed_at|time:"H:i" }}
                                                 </div>
                                             </div>
                                         </div>
@@ -908,7 +1008,8 @@
                         {% else %}
                         <div class="text-center py-12">
                             <i data-lucide="history" class="w-12 h-12 text-gray-200 mx-auto mb-4"></i>
-                            <p class="text-gray-500">No changes recorded yet.</p>
+                            <p class="text-gray-500 font-medium">No changes recorded yet.</p>
+                            <p class="text-xs text-gray-400 mt-1">Changes will be logged automatically when you edit and save this product.</p>
                         </div>
                         {% endif %}
                     </div>

@@ -15,7 +15,7 @@ from .models import (
     ProductProduction, ProductChangeHistory,
     # Process-related models for formula-based pricing
     Process, ProcessVariable, ProcessVariableRange, ProcessTier,
-    ProcessVendor
+    ProcessVendor, PurchaseOrder
 )
 
 # ---------------------- LEAD ----------------------
@@ -153,16 +153,27 @@ class NotificationAdmin(admin.ModelAdmin):
     ordering = ('-created_at',)
 
 
+
+# Add this before ActivityLogAdmin
+@admin.register(PurchaseOrder)
+class PurchaseOrderAdmin(admin.ModelAdmin):
+    list_display = ('po_number', 'vendor', 'job', 'status', 'total_cost', 'required_by', 'created_at')
+    search_fields = ('po_number', 'vendor__name', 'job__job_number') # Required for autocomplete
+    list_filter = ('status', 'created_at')
+    ordering = ('-created_at',)
+
 # ---------------------- ACTIVITY LOG ----------------------
+# In clientapp/admin.py
+
 @admin.register(ActivityLog)
 class ActivityLogAdmin(admin.ModelAdmin):
-    list_display = ('client', 'activity_type', 'title', 'created_by', 'created_at')
-    search_fields = ('client__name', 'title', 'activity_type')
+    list_display = ('purchase_order', 'client', 'activity_type', 'created_by', 'created_at')
+    search_fields = ('purchase_order__po_number', 'client__name', 'description')
     list_filter = ('activity_type', 'created_at')
     date_hierarchy = 'created_at'
     ordering = ('-created_at',)
-    autocomplete_fields = ['client', 'related_quote']
-
+    # Use only fields that exist
+    autocomplete_fields = ['purchase_order', 'client']
 
 # ---------------------- JOB PRODUCT INLINE ----------------------
 class JobProductInline(admin.TabularInline):
@@ -183,7 +194,7 @@ class JobAdmin(admin.ModelAdmin):
         'job_number', 'job_name', 'client', 'job_type', 'priority',
         'status', 'start_date', 'expected_completion', 'created_at'
     )
-    search_fields = ('job_number', 'job_name', 'client__name', 'person_in_charge')
+    search_fields = ('job_number', 'job_name', 'client__name', 'person_in_charge__username')
     list_filter = ('job_type', 'priority', 'status', 'start_date', 'expected_completion')
     ordering = ('-created_at',)
     date_hierarchy = 'start_date'
@@ -248,9 +259,9 @@ class ProductFamilyAdmin(admin.ModelAdmin):
 
 @admin.register(Vendor)
 class VendorAdmin(admin.ModelAdmin):
-    list_display = ['name', 'contact_person', 'email', 'phone', 'active']
+    list_display = ['name', 'user', 'contact_person', 'email', 'phone', 'active']
     list_filter = ['active']
-    search_fields = ['name', 'contact_person', 'email']
+    search_fields = ['name', 'contact_person', 'email', 'user__username']
 
 
 @admin.register(ProductTag)

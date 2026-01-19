@@ -38,6 +38,11 @@ class Lead(models.Model):
         ('WhatsApp', 'WhatsApp'),
     ]
     
+    CLIENT_TYPE_CHOICES = [
+        ('B2B', 'B2B Business'),
+        ('B2C', 'B2C Retail'),
+    ]
+    
     lead_id = models.CharField(max_length=20, unique=True, editable=False)
     name = models.CharField(max_length=200)
     email = models.EmailField(blank=True)
@@ -45,6 +50,7 @@ class Lead(models.Model):
     source = models.CharField(max_length=50, choices=SOURCE_CHOICES, blank=True)
     product_interest = models.CharField(max_length=200, blank=True)
     preferred_contact = models.CharField(max_length=20, choices=CONTACT_METHOD_CHOICES, default='Email')
+    preferred_client_type = models.CharField(max_length=10, choices=CLIENT_TYPE_CHOICES, default='B2B', help_text="Client type lead will convert to (B2B/B2C)")
     follow_up_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='New')
     notes = models.TextField(blank=True)
@@ -66,6 +72,26 @@ class Lead(models.Model):
     
     def __str__(self):
         return f"{self.lead_id} - {self.name}"
+    
+    def check_duplicate(self):
+        """Check if lead is duplicate (exists in Lead or Client tables)"""
+        # Check in Lead table
+        if self.pk:
+            duplicate_lead = Lead.objects.filter(
+                email=self.email
+            ).exclude(pk=self.pk).first()
+        else:
+            duplicate_lead = Lead.objects.filter(email=self.email).first()
+        
+        if duplicate_lead:
+            return True, f"Email already exists as lead {duplicate_lead.lead_id}"
+        
+        # Check in Client table to prevent onboarding existing clients as leads
+        duplicate_client = Client.objects.filter(email=self.email).first()
+        if duplicate_client:
+            return True, f"Email already exists as client {duplicate_client.client_id}"
+        
+        return False, None
     
     def save(self, *args, **kwargs):
         if not self.lead_id:
@@ -536,6 +562,20 @@ class Product(models.Model):
     
     # Pricing
     base_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True, help_text="Base price for non-customizable products")
+    
+    # ===== INVENTORY & STOCK TRACKING (Gap #1 Fix) =====
+    STOCK_STATUS_CHOICES = [
+        ('in_stock', 'In Stock'),
+        ('low_stock', 'Low Stock'),
+        ('out_of_stock', 'Out of Stock'),
+        ('made_to_order', 'Made to Order'),
+        ('discontinued', 'Discontinued'),
+    ]
+    stock_status = models.CharField(max_length=20, choices=STOCK_STATUS_CHOICES, default='made_to_order', help_text="Current stock availability")
+    stock_quantity = models.IntegerField(default=0, help_text="Current stock quantity (for pre-made products)")
+    low_stock_threshold = models.IntegerField(default=10, help_text="Alert when stock falls below this")
+    track_inventory = models.BooleanField(default=False, help_text="Enable inventory tracking for this product")
+    allow_backorders = models.BooleanField(default=True, help_text="Allow orders when out of stock")
     
     # Notes & Comments
     internal_notes = models.TextField(blank=True, help_text="Internal use only")
@@ -1248,11 +1288,57 @@ class ProductLegal(models.Model):
 
 
 class ProductProduction(models.Model):
-    """Production-specific settings"""
+    """Production-specific settings with structured print specs (Gap #3 & #5 Fix)"""
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='production')
     
-    production_method_detail = models.CharField(max_length=100, blank=True)
-    machine_equipment = models.CharField(max_length=100, blank=True)
+    # ===== PRODUCTION METHOD =====
+    PRODUCTION_METHOD_CHOICES = [
+        ('digital_offset', 'Digital Offset Printing'),
+        ('offset', 'Offset Printing'),
+        ('screen', 'Screen Printing'),
+        ('digital', 'Digital Printing'),
+        ('large_format', 'Large Format Printing'),
+        ('embroidery', 'Embroidery'),
+        ('sublimation', 'Sublimation'),
+        ('laser_engraving', 'Laser Engraving'),
+        ('uv_printing', 'UV Printing'),
+        ('other', 'Other'),
+    ]
+    production_method_detail = models.CharField(max_length=100, choices=PRODUCTION_METHOD_CHOICES, default='digital_offset')
+    machine_equipment = models.CharField(max_length=100, blank=True, help_text="e.g., HP Indigo 7900, Epson SureColor")
+    
+    # ===== PRINT-SPECIFIC METADATA (Gap #5 Fix) =====
+    COLOR_PROFILE_CHOICES = [
+        ('cmyk', 'CMYK (Print Standard)'),
+        ('rgb', 'RGB (Digital)'),
+        ('pantone', 'Pantone Spot Colors'),
+        ('cmyk_pantone', 'CMYK + Pantone'),
+    ]
+    color_profile = models.CharField(max_length=20, choices=COLOR_PROFILE_CHOICES, default='cmyk', help_text="Required color mode for artwork")
+    bleed_mm = models.DecimalField(max_digits=5, decimal_places=1, default=3.0, help_text="Bleed requirement in mm")
+    safe_zone_mm = models.DecimalField(max_digits=5, decimal_places=1, default=5.0, help_text="Safe zone from edge in mm")
+    min_resolution_dpi = models.IntegerField(default=300, help_text="Minimum required DPI for artwork")
+    max_ink_coverage = models.IntegerField(default=280, help_text="Maximum ink coverage percentage (usually 280-320%)")
+    requires_outlined_fonts = models.BooleanField(default=True, help_text="Fonts must be converted to outlines")
+    accepts_transparency = models.BooleanField(default=False, help_text="Artwork can contain transparency")
+    
+    # ===== FINISHING OPTIONS (Structured, not JSON) =====
+    finish_lamination = models.BooleanField(default=False, verbose_name="Lamination")
+    finish_uv_coating = models.BooleanField(default=False, verbose_name="UV Coating")
+    finish_embossing = models.BooleanField(default=False, verbose_name="Embossing")
+    finish_debossing = models.BooleanField(default=False, verbose_name="Debossing")
+    finish_foil_stamping = models.BooleanField(default=False, verbose_name="Foil Stamping")
+    finish_die_cutting = models.BooleanField(default=False, verbose_name="Die Cutting")
+    finish_folding = models.BooleanField(default=False, verbose_name="Folding")
+    finish_binding = models.BooleanField(default=False, verbose_name="Binding")
+    finish_perforation = models.BooleanField(default=False, verbose_name="Perforation")
+    finish_scoring = models.BooleanField(default=False, verbose_name="Scoring")
+    
+    # ===== QUALITY CONTROL REQUIREMENTS =====
+    qc_color_match = models.BooleanField(default=True, verbose_name="Color Match Check")
+    qc_registration = models.BooleanField(default=True, verbose_name="Registration Check")
+    qc_cutting_accuracy = models.BooleanField(default=True, verbose_name="Cutting Accuracy Check")
+    qc_finish_quality = models.BooleanField(default=True, verbose_name="Finish Quality Check")
     
     # Pre-Production Checklist
     checklist_artwork = models.BooleanField(default=False, verbose_name="Client artwork approved")
@@ -1260,10 +1346,68 @@ class ProductProduction(models.Model):
     checklist_material = models.BooleanField(default=False, verbose_name="Material in stock")
     checklist_proofs = models.BooleanField(default=False, verbose_name="Color proofs confirmed")
     
-    production_notes = models.TextField(blank=True)
+    # ===== BILL OF MATERIALS (Structured BOM - Gap #3 Fix) =====
+    # Primary Material
+    bom_primary_material = models.CharField(max_length=200, blank=True, help_text="e.g., 300gsm Art Card")
+    bom_primary_size = models.CharField(max_length=100, blank=True, help_text="e.g., SRA3, A4, Custom")
+    bom_primary_quantity_per_unit = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True, help_text="Material qty per product unit")
+    bom_primary_unit = models.CharField(max_length=20, blank=True, help_text="e.g., sheets, sqm, meters")
+    
+    # Secondary Material (if any)
+    bom_secondary_material = models.CharField(max_length=200, blank=True)
+    bom_secondary_size = models.CharField(max_length=100, blank=True)
+    bom_secondary_quantity_per_unit = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True)
+    bom_secondary_unit = models.CharField(max_length=20, blank=True)
+    
+    # Ink/Consumables
+    bom_ink_coverage_sqm = models.DecimalField(max_digits=10, decimal_places=4, null=True, blank=True, help_text="Ink coverage per unit in sqm")
+    
+    production_notes = models.TextField(blank=True, help_text="Special production instructions")
+    
+    class Meta:
+        verbose_name = "Product Production Settings"
+        verbose_name_plural = "Product Production Settings"
     
     def __str__(self):
         return f"Production for {self.product.name}"
+    
+    def get_finishing_options(self):
+        """Return list of enabled finishing options"""
+        options = []
+        if self.finish_lamination:
+            options.append('Lamination')
+        if self.finish_uv_coating:
+            options.append('UV Coating')
+        if self.finish_embossing:
+            options.append('Embossing')
+        if self.finish_debossing:
+            options.append('Debossing')
+        if self.finish_foil_stamping:
+            options.append('Foil Stamping')
+        if self.finish_die_cutting:
+            options.append('Die Cutting')
+        if self.finish_folding:
+            options.append('Folding')
+        if self.finish_binding:
+            options.append('Binding')
+        if self.finish_perforation:
+            options.append('Perforation')
+        if self.finish_scoring:
+            options.append('Scoring')
+        return options
+    
+    def get_qc_requirements(self):
+        """Return list of QC checks required"""
+        checks = []
+        if self.qc_color_match:
+            checks.append('Color Match')
+        if self.qc_registration:
+            checks.append('Registration')
+        if self.qc_cutting_accuracy:
+            checks.append('Cutting Accuracy')
+        if self.qc_finish_quality:
+            checks.append('Finish Quality')
+        return checks
 
 
 class ProductChangeHistory(models.Model):
@@ -1285,6 +1429,55 @@ class ProductChangeHistory(models.Model):
         return f"{self.product.internal_code} - {self.change_type} at {self.changed_at}"
 
 
+class ProductMaterialLink(models.Model):
+    """
+    Links a finished product to raw materials in inventory (Gap #1 Fix)
+    Enables automatic stock deduction when products are produced
+    """
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='material_links')
+    material = models.ForeignKey('MaterialInventory', on_delete=models.CASCADE, related_name='product_links')
+    
+    # How much of this material is consumed per unit of product
+    quantity_per_product = models.DecimalField(
+        max_digits=10, 
+        decimal_places=4, 
+        default=1.0,
+        help_text="Amount of material consumed per product unit"
+    )
+    
+    # Material type
+    MATERIAL_TYPE_CHOICES = [
+        ('primary', 'Primary Material'),
+        ('secondary', 'Secondary Material'),
+        ('consumable', 'Consumable (Ink, etc.)'),
+        ('packaging', 'Packaging'),
+    ]
+    material_type = models.CharField(max_length=20, choices=MATERIAL_TYPE_CHOICES, default='primary')
+    
+    # Notes
+    notes = models.CharField(max_length=255, blank=True)
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['product', 'material_type']
+        unique_together = ['product', 'material']
+        verbose_name = "Product-Material Link"
+        verbose_name_plural = "Product-Material Links"
+    
+    def __str__(self):
+        return f"{self.product.internal_code} → {self.material.material_name} ({self.quantity_per_product} {self.material.unit})"
+    
+    def calculate_material_needed(self, product_quantity):
+        """Calculate how much material is needed for a given product quantity"""
+        return self.quantity_per_product * product_quantity
+    
+    def check_material_availability(self, product_quantity):
+        """Check if enough material is available for production"""
+        needed = self.calculate_material_needed(product_quantity)
+        return self.material.available_stock >= needed
 
 
 class Quote(models.Model):
@@ -1346,8 +1539,8 @@ class Quote(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
     
-    reference_number = models.CharField(max_length=100, blank=True, help_text="Client PO/LPO reference")
-    shipping_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Delivery/shipping cost")
+    reference_number = models.CharField(max_length=100, blank=True, help_text="Client LPO reference")
+    shipping_charges = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Delivery cost")
     adjustment_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Final adjustment (+/-)")
     adjustment_reason = models.CharField(max_length=255, blank=True, help_text="Reason for adjustment")
     tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=16, help_text="Tax percentage (default 16% VAT)")
@@ -1371,6 +1564,17 @@ class Quote(models.Model):
         null=True,
         blank=True,
         related_name='quotes_costed'
+    )
+    
+    # Quote Locking & Production Assignment
+    is_locked = models.BooleanField(default=False, help_text="When True (after Approval), quote is read-only. Changes require revision.")
+    preferred_production_lead = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='preferred_production_quotes',
+        help_text="Production Team member to assign job to when quote is approved"
     )
     
     # Dates
@@ -1448,11 +1652,19 @@ class Quote(models.Model):
         if self.status == 'Lost':
             self.production_status = 'completed'
         
+        # Lock quote when approved to prevent accidental edits
+        if self.status == 'Approved':
+            self.is_locked = True
+        
+        # Unlock quote if status is reverted (e.g., back to Draft or Sent to Customer)
+        if self.status in ['Draft', 'Sent to PT', 'Sent to Customer', 'Costed']:
+            self.is_locked = False
+        
         # Call super().save() to actually save the object to the database
         super().save(*args, **kwargs)
     
     def _enforce_status_transitions(self):
-        """Enforce valid status transitions (Zoho-like strict state machine)"""
+        """Enforce valid status transitions"""
         if not self.pk:  # New quote, no previous status to compare
             return
         
@@ -1491,6 +1703,67 @@ class Quote(models.Model):
         if self.status == 'Approved' and self.lead and not self.lead.converted_to_client:
             self.convert_lead_to_client()
     
+    def can_be_edited(self):
+        """Check if quote can be edited based on lock status"""
+        if self.is_locked:
+            return False, "Quote is locked. Create a revised quote to make changes."
+        return True, None
+    
+    def create_revised_quote(self, revised_by=None):
+        """Create a revised (cloned) quote from a locked quote"""
+        if not self.is_locked:
+            raise ValidationError("Can only create revisions from locked (approved) quotes.")
+        
+        # Clone the quote
+        revised_quote = Quote.objects.create(
+            client=self.client,
+            lead=self.lead,
+            product=self.product,
+            channel=self.channel,
+            product_name=self.product_name,
+            quantity=self.quantity,
+            unit_price=self.unit_price,
+            total_amount=self.total_amount,
+            reference_number=self.reference_number,
+            shipping_charges=self.shipping_charges,
+            adjustment_amount=self.adjustment_amount,
+            adjustment_reason=self.adjustment_reason,
+            tax_rate=self.tax_rate,
+            custom_terms=self.custom_terms,
+            subtotal=self.subtotal,
+            discount_total=self.discount_total,
+            tax_total=self.tax_total,
+            payment_terms=self.payment_terms,
+            status='Draft',
+            include_vat=self.include_vat,
+            production_cost=self.production_cost,
+            production_notes=self.production_notes,
+            notes=f"Revised quote based on {self.quote_id}",
+            terms=self.terms,
+            customer_notes=self.customer_notes,
+            created_by=revised_by or self.created_by,
+            preferred_production_lead=self.preferred_production_lead,
+        )
+        
+        # Clone line items
+        for line_item in self.line_items.all():
+            QuoteLineItem.objects.create(
+                quote=revised_quote,
+                product=line_item.product,
+                product_name=line_item.product_name,
+                customization_level_snapshot=line_item.customization_level_snapshot,
+                base_price_snapshot=line_item.base_price_snapshot,
+                quantity=line_item.quantity,
+                unit_price=line_item.unit_price,
+                line_total=line_item.line_total,
+                discount_amount=line_item.discount_amount,
+                discount_type=line_item.discount_type,
+                variable_amount=line_item.variable_amount,
+                order=line_item.order,
+            )
+        
+        return revised_quote
+    
     def convert_lead_to_client(self):
         """Convert lead to client when quote is approved"""
         lead = self.lead
@@ -1499,12 +1772,15 @@ class Quote(models.Model):
         existing_client = Client.objects.filter(email=lead.email).first()
         
         if not existing_client:
+            # Get client type from lead's preferred_client_type field (B2B/B2C)
+            client_type = lead.preferred_client_type if hasattr(lead, 'preferred_client_type') else 'B2C'
+            
             # Create new client from lead
             client = Client.objects.create(
                 name=lead.name,
                 email=lead.email,
                 phone=lead.phone,
-                client_type='B2C',
+                client_type=client_type,
                 lead_source=lead.source if hasattr(lead, 'source') else '',
                 preferred_channel=lead.preferred_contact if hasattr(lead, 'preferred_contact') else 'Email',
                 status='Active',
@@ -1528,7 +1804,7 @@ class Quote(models.Model):
                 client=client,
                 activity_type='Note',
                 title=f"Client Converted from Lead {lead.lead_id}",
-                description=f"Lead automatically converted to client after quote {self.quote_id} was approved.",
+                description=f"Lead automatically converted to {client_type} client after quote {self.quote_id} was approved.",
                 created_by=self.created_by
             )
         else:
@@ -1620,7 +1896,7 @@ class QuoteLineItem(models.Model):
     unit_price = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     line_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     
-    # Discount fields (Zoho-style)
+    # Discount fields
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Discount value")
     discount_type = models.CharField(max_length=10, choices=DISCOUNT_TYPE_CHOICES, default='percent', help_text="Discount type")
     
@@ -1740,7 +2016,10 @@ class ActivityLog(models.Model):
     title = models.CharField(max_length=200)
     description = models.TextField()
     
+    
     related_quote = models.ForeignKey(Quote, on_delete=models.SET_NULL, null=True, blank=True)
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='activities', null=True, blank=True)
+
     
     created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -1805,7 +2084,6 @@ class ProductionUpdate(models.Model):
         target_client = None
 
         if self.quote and self.status:
-            # Sync quote production status
             self.quote.production_status = self.status
             if self.status in ['costed', 'sent_to_client'] and self.created_by:
                 self.quote.costed_by = self.created_by
@@ -1826,10 +2104,12 @@ class ProductionUpdate(models.Model):
 
             Notification.objects.create(
                 recipient=target_client.account_manager,
+                notification_type='general', 
                 title=title,
                 message=self.notes or f"Production status changed to {self.get_status_display()}",
                 link=self._resolve_notification_link()
             )
+
 
     def _resolve_notification_link(self):
         if self.quote:
@@ -1838,25 +2118,6 @@ class ProductionUpdate(models.Model):
             return reverse('job_detail', args=[self.job.pk])
         return ''
 
-
-class Notification(models.Model):
-    """Internal notifications for account managers"""
-
-    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
-    title = models.CharField(max_length=150)
-    message = models.TextField()
-    link = models.CharField(max_length=255, blank=True)
-    is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['recipient', 'is_read']),
-        ]
-
-    def __str__(self):
-        return f"Notification for {self.recipient.username} - {self.title}"
 
 
 
@@ -2000,7 +2261,7 @@ class JobAttachment(models.Model):
 # PRODUCT MANAGEMENT MODELS 
 
 class PropertyType(models.Model):
-    """Types of properties like Size, Finish, Paper Stock, Corners, etc."""
+    """Types of properties like Size, Finish, Paper Stock, Corners"""
     PROPERTY_TYPE_CHOICES = [
         ('size', 'Size'),
         ('finish', 'Finish'),
@@ -2125,7 +2386,7 @@ class ProductTemplate(models.Model):
 class TurnAroundTime(models.Model):
     """Production turnaround times with pricing"""
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='turnaround_times')
-    name = models.CharField(max_length=100, help_text="e.g., Standard, 2-Day, Next-Day")
+    name = models.CharField(max_length=100, help_text="Standard, 2-Day, Next-Day")
     business_days = models.IntegerField(help_text="Number of business days")
     price_modifier = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     is_default = models.BooleanField(default=False)
@@ -2484,173 +2745,77 @@ class Payment(models.Model):
 
 
 
-
 class Vendor(models.Model):
     """
-    Vendor/Supplier model.
-    Stores vendor information including VPS (Vendor Performance Score).
+    Consolidated Vendor/Supplier model for the portal and production team.
     """
-    VPS_CHOICES = [
-        ('A', 'A - Excellent'),
-        ('B', 'B - Good'),
-        ('C', 'C - Acceptable'),
-    ]
-    
-    RATING_CHOICES = [
-        ('Excellent', 'Excellent'),
-        ('Very Good', 'Very Good'),
-        ('Good', 'Good'),
-        ('Fair', 'Fair'),
-    ]
-    
-    PAYMENT_TERMS_CHOICES = [
-        ('Net 7', 'Net 7 Days'),
-        ('Net 14', 'Net 14 Days'),
-        ('Net 30', 'Net 30 Days'),
-        ('Prepaid', 'Prepaid'),
-        ('Cash on Delivery', 'Cash on Delivery'),
-    ]
-    
-    PAYMENT_METHOD_CHOICES = [
-        ('Bank Transfer', 'Bank Transfer'),
-        ('Mobile Money', 'Mobile Money'),
-        ('Cash', 'Cash'),
-        ('Check', 'Check'),
-    ]
-    
-    # Basic Information
+    # Authentication & Basic Info
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='vendor_profile', null=True, blank=True)
     name = models.CharField(max_length=200)
     contact_person = models.CharField(max_length=200, blank=True, null=True)
     email = models.EmailField()
     phone = models.CharField(max_length=20)
     business_address = models.TextField(blank=True, null=True)
     
-    # Business Details
+    # Business & Compliance
     tax_pin = models.CharField(max_length=50, blank=True, null=True)
-    payment_terms = models.CharField(max_length=50, choices=PAYMENT_TERMS_CHOICES, blank=True, null=True)
-    payment_method = models.CharField(max_length=50, choices=PAYMENT_METHOD_CHOICES, blank=True, null=True)
+    payment_terms = models.CharField(max_length=100, blank=True, null=True)
+    payment_method = models.CharField(max_length=50, blank=True, null=True)
     
-    # Services & Specialization
-    services = models.TextField(blank=True, null=True)  
+    # Capabilities
+    services = models.TextField(blank=True, null=True, help_text="Comma-separated services")
     specialization = models.TextField(blank=True, null=True)
-    
-    # Capacity
-    minimum_order = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    lead_time = models.CharField(max_length=100, blank=True, null=True)  
+    minimum_order = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    lead_time = models.CharField(max_length=100, blank=True, null=True, help_text="e.g., 5 days")
     rush_capable = models.BooleanField(default=False)
     
-    # Ratings
-    quality_rating = models.CharField(max_length=50, choices=RATING_CHOICES, blank=True, null=True)
-    reliability_rating = models.CharField(max_length=50, choices=RATING_CHOICES, blank=True, null=True)
+    # Performance & Ratings
+    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
+    quality_rating = models.CharField(max_length=20, blank=True, null=True)
+    reliability_rating = models.CharField(max_length=20, blank=True, null=True)
+    vps_score = models.CharField(max_length=10, blank=True, help_text="Grade e.g. A, B, C")
+    vps_score_value = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    performance_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
     
-    # Vendor Performance Score
-    vps_score = models.CharField(max_length=1, choices=VPS_CHOICES, default='B')
-    vps_score_value = models.DecimalField(max_digits=5, decimal_places=2, default=5.0)
-    
-    # Rating (1-5 stars)
-    rating = models.DecimalField(max_digits=3, decimal_places=1, default=4.0)
-    
-    # Additional info
-    internal_notes = models.TextField(blank=True, null=True)
-    internal_notes_updated = models.DateTimeField(blank=True, null=True)
+    # Status & Flags
+    is_certified = models.BooleanField(default=False)
     recommended = models.BooleanField(default=False)
     active = models.BooleanField(default=True)
+    is_available = models.BooleanField(default=True)
+    max_concurrent_jobs = models.IntegerField(default=10)
     
-    # Legacy field for backward compatibility
-    address = models.TextField(blank=True, null=True)
-    
+    # Internal
+    internal_notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        ordering = ['-vps_score_value', 'name']
-    
-    def calculate_vps(self):
-        """
-        Dynamically calculate Vendor Performance Score based on:
-        - QC pass rate (70% weight)
-        - On-time delivery rate (20% weight)
-        - Cost competitiveness (10% weight)
-        
-        Returns: Updated vps_score and vps_score_value
-        """
-        from django.db.models import Count, Q, Avg
-        from datetime import timedelta
-        from decimal import Decimal
-        
-        # Get QC inspections for this vendor (last 90 days)
-        ninety_days_ago = timezone.now() - timedelta(days=90)
-        qc_inspections = QCInspection.objects.filter(
-            vendor=self,
-            created_at__gte=ninety_days_ago
-        )
-        
-        total_qc = qc_inspections.count()
-        passed_qc = qc_inspections.filter(status='passed').count()
-        qc_pass_rate = (passed_qc / total_qc * 100) if total_qc > 0 else 100
-        
-        # Get vendor stages for on-time delivery (last 90 days)
-        vendor_stages = JobVendorStage.objects.filter(
-            vendor=self,
-            created_at__gte=ninety_days_ago,
-            status='completed',
-            expected_completion__isnull=False,
-            actual_completion__isnull=False
-        )
-        
-        total_stages = vendor_stages.count()
-        on_time_stages = 0
-        for stage in vendor_stages:
-            if stage.actual_completion and stage.expected_completion:
-                if stage.actual_completion <= stage.expected_completion:
-                    on_time_stages += 1
-        on_time_rate = (on_time_stages / total_stages * 100) if total_stages > 0 else 100
-        
-        # Cost competitiveness (simplified - compare average vendor cost vs market average)
-        # For now, we'll use a default score if no data
-        cost_score = 80  # Default
-        
-        # Calculate weighted VPS score (0-100)
-        vps_value = (
-            (qc_pass_rate * 0.70) +
-            (on_time_rate * 0.20) +
-            (cost_score * 0.10)
-        )
-        
-        # Convert to letter grade
-        if vps_value >= 90:
-            vps_letter = 'A'
-        elif vps_value >= 75:
-            vps_letter = 'B'
-        else:
-            vps_letter = 'C'
-        
-        # Update fields
-        self.vps_score = vps_letter
-        self.vps_score_value = Decimal(str(round(vps_value, 2)))
-        self.save(update_fields=['vps_score', 'vps_score_value', 'updated_at'])
-        
-        return {
-            'vps_score': vps_letter,
-            'vps_score_value': float(vps_value),
-            'qc_pass_rate': round(qc_pass_rate, 1),
-            'on_time_rate': round(on_time_rate, 1),
-        }
-    
-    def __str__(self):
-        return f"{self.name} (VPS: {self.vps_score})"
-
-
-class VendorSpecialty(models.Model):
-    """Vendor specialties/capabilities"""
-    name = models.CharField(max_length=100)
-    vendors = models.ManyToManyField(Vendor, related_name='specialties')
-    
-    class Meta:
-        verbose_name_plural = 'Vendor Specialties'
+        ordering = ['name']
     
     def __str__(self):
         return self.name
+    
+    def get_active_jobs_count(self):
+        return self.purchase_orders.filter(
+            status__in=['NEW', 'ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+        ).count()
+    
+    def update_performance_score(self):
+        completed_jobs = self.purchase_orders.filter(status='COMPLETED')
+        total = completed_jobs.count()
+        if total == 0:
+            self.performance_score = 0
+            self.save()
+            return
+        on_time = completed_jobs.filter(completed_on_time=True).count()
+        issues = self.purchase_orders.filter(has_issues=True).count()
+        on_time_rate = (on_time / total) * 100
+        issue_penalty = (issues / total) * 10
+        score = max(0, min(100, on_time_rate - issue_penalty))
+        self.performance_score = round(score, 2)
+        self.vps_score_value = self.performance_score
+        self.save()
+
 
 
 
@@ -4436,3 +4601,201 @@ class WebhookDelivery(models.Model):
         return f"WebhookDelivery-{self.id} - {self.status}"
 
 
+
+# ============================================================================
+# VENDOR PORTAL MODELS
+# ============================================================================
+
+from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
+from datetime import timedelta
+
+
+
+class PurchaseOrder(models.Model):
+    """
+    Consolidated Purchase Order model.
+    """
+    STATUS_CHOICES = [
+        ('NEW', 'New - Awaiting Acceptance'),
+        ('ACCEPTED', 'Accepted'),
+        ('IN_PRODUCTION', 'In Production'),
+        ('AWAITING_APPROVAL', 'Awaiting Proof Approval'),
+        ('BLOCKED', 'Blocked'),
+        ('AT_RISK', 'At Risk'),
+        ('COMPLETED', 'Completed'),
+        ('CANCELLED', 'Cancelled'),
+    ]
+    
+    MILESTONE_CHOICES = [
+        ('awaiting_acceptance', 'Awaiting Acceptance'),
+        ('in_production', 'In Production'),
+        ('quality_check', 'Quality Check'),
+        ('completed', 'Completed'),
+    ]
+
+    po_number = models.CharField(max_length=50, unique=True, editable=False)
+    job = models.ForeignKey('Job', on_delete=models.CASCADE, related_name='purchase_orders')
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='purchase_orders')
+    
+    product_type = models.CharField(max_length=255)
+    product_description = models.TextField(blank=True)
+    quantity = models.PositiveIntegerField()
+    
+    unit_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='NEW')
+    milestone = models.CharField(max_length=50, choices=MILESTONE_CHOICES, default='awaiting_acceptance')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    required_by = models.DateField()
+    due_date = models.DateTimeField(null=True, blank=True)
+    
+    vendor_accepted = models.BooleanField(default=False)
+    vendor_accepted_at = models.DateTimeField(null=True, blank=True)
+    vendor_notes = models.TextField(blank=True)
+    
+    last_activity_at = models.DateTimeField(auto_now=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    completed_on_time = models.BooleanField(default=False)
+    has_issues = models.BooleanField(default=False)
+    
+    is_blocked = models.BooleanField(default=False)
+    blocked_reason = models.TextField(blank=True)
+    blocked_at = models.DateTimeField(null=True, blank=True)
+    
+    assets_acknowledged = models.BooleanField(default=False)
+    assets_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    shipping_method = models.CharField(max_length=20, blank=True)
+    tracking_number = models.CharField(max_length=100, blank=True)
+    ready_for_pickup = models.BooleanField(default=False)
+    
+    invoice_sent = models.BooleanField(default=False)
+    invoice_paid = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.po_number} - {self.vendor.name}"
+
+    def save(self, *args, **kwargs):
+        if not self.po_number:
+            year = timezone.now().year
+            last_po = PurchaseOrder.objects.filter(po_number__startswith=f'PO-{year}-').order_by('po_number').last()
+            new_number = (int(last_po.po_number.split('-')[-1]) + 1) if last_po else 1
+            self.po_number = f'PO-{year}-{new_number:04d}'
+        
+        if self.unit_cost and self.quantity:
+            self.total_cost = self.unit_cost * self.quantity
+            
+        if self.required_by and not self.due_date:
+            self.due_date = timezone.make_aware(timezone.datetime.combine(self.required_by, timezone.datetime.min.time()))
+            
+        super().save(*args, **kwargs)
+
+    @property
+    def days_until_due(self):
+        if self.status == 'COMPLETED' or not self.required_by:
+            return 0
+        delta = self.required_by - timezone.now().date()
+        return max(0, delta.days)
+
+
+class PurchaseOrderNote(models.Model):
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='notes')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE)
+    category = models.CharField(max_length=20)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['created_at']
+
+
+
+
+
+class VendorInvoice(models.Model):
+    """
+    Invoice submitted by vendor for completed work.
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('approved', 'Approved'),
+        ('paid', 'Paid'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    invoice_number = models.CharField(max_length=50, unique=True, editable=False)
+    vendor_invoice_ref = models.CharField(max_length=100, blank=True)
+    
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='vendor_invoices')
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='vendor_invoices')
+    job = models.ForeignKey('Job', on_delete=models.CASCADE, related_name='vendor_invoices')
+    
+    invoice_date = models.DateField(default=timezone.now)
+    due_date = models.DateField()
+    
+    line_items = models.JSONField(default=list)
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    tax_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    invoice_file = models.FileField(upload_to='vendor_invoices/%Y/%m/', null=True, blank=True)
+    
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.invoice_number:
+            year = timezone.now().year
+            last_invoice = VendorInvoice.objects.filter(invoice_number__startswith=f'INV-{year}-').order_by('invoice_number').last()
+            new_number = (int(last_invoice.invoice_number.split('-')[-1]) + 1) if last_invoice else 1
+            self.invoice_number = f'INV-{year}-{new_number:04d}'
+        
+        if self.subtotal:
+            self.tax_amount = (self.subtotal * self.tax_rate) / 100
+            self.total_amount = self.subtotal + self.tax_amount
+        
+        super().save(*args, **kwargs)
+
+
+class PurchaseOrderProof(models.Model):
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='proofs')
+    proof_image = models.ImageField(upload_to='po_proofs/')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, default='pending')
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+
+class PurchaseOrderIssue(models.Model):
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='issues')
+    issue_type = models.CharField(max_length=50)
+    description = models.TextField()
+    status = models.CharField(max_length=20, default='open')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class MaterialSubstitutionRequest(models.Model):
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='substitution_requests')
+    original_material = models.CharField(max_length=200)
+    proposed_material = models.CharField(max_length=200)
+    match_percentage = models.DecimalField(max_digits=5, decimal_places=2)
+    justification = models.TextField()
+    status = models.CharField(max_length=20, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)

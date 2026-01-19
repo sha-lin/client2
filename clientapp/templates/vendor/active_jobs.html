@@ -1,0 +1,403 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Jobs | Print Duka Vendor Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #f1f5f9;
+            --sidebar-active: #3b82f6;
+            --body-bg: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--body-bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background-color: white;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .sidebar-header p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 24px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            gap: 12px;
+        }
+
+        .nav-item:hover {
+            background-color: var(--sidebar-hover);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background-color: #eff6ff;
+            color: var(--sidebar-active);
+            border-right: 3px solid var(--sidebar-active);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background: #f8fafc;
+        }
+
+        .vendor-name {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .vendor-status {
+            font-size: 0.7rem;
+            color: var(--success);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 240px;
+            flex: 1;
+            padding: 24px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        /* Table Card */
+        .card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            background: #f8fafc;
+            padding: 16px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px;
+            font-size: 0.875rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #f8fafc;
+        }
+
+        .po-link {
+            font-weight: 700;
+            color: var(--info);
+            text-decoration: none;
+        }
+
+        .po-link:hover {
+            text-decoration: underline;
+        }
+
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .status-new {
+            background: #eff6ff;
+            color: #1e40af;
+        }
+
+        .status-production {
+            background: #ecfdf5;
+            color: #065f46;
+        }
+
+        .status-approval {
+            background: #fffbeb;
+            color: #92400e;
+        }
+
+        .status-at-risk {
+            background: #fef2f2;
+            color: #991b1b;
+        }
+
+        .btn-view {
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: white;
+            color: var(--text-main);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-view:hover {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+        }
+
+        .empty-state {
+            padding: 48px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+
+<body>
+
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>Print Duka</h1>
+            <p>Vendor Partner Portal</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="{% url 'vendor_dashboard' %}" class="nav-item"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="{% url 'active_jobs' %}" class="nav-item active"><i class="fas fa-tasks"></i> Active Jobs</a>
+            <a href="{% url 'completed_jobs' %}" class="nav-item"><i class="fas fa-check-circle"></i> Completed Jobs</a>
+            <a href="{% url 'invoices' %}" class="nav-item"><i class="fas fa-file-invoice-dollar"></i> Invoices</a>
+            <a href="{% url 'performance' %}" class="nav-item"><i class="fas fa-chart-line"></i> Performance</a>
+            <a href="#" class="nav-item"><i class="fas fa-question-circle"></i> Help Center</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="vendor-name">{{ vendor.name }}</div>
+            <div class="vendor-status"><i class="fas fa-certificate"></i> Certified Vendor</div>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <div class="page-header">
+            <h1 class="page-title">Active Jobs</h1>
+            <div style="display: flex; gap: 12px;">
+                <div class="search-container" style="position: relative;">
+                    <i class="fas fa-search"
+                        style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                    <input type="text" placeholder="Search POs..."
+                        style="padding: 10px 12px 10px 36px; border-radius: 8px; border: 1px solid var(--border-color); outline: none; font-size: 0.875rem; width: 250px;">
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-label"><i class="far fa-clock"></i> Total Active</div>
+                <div class="stat-value">{{ active_jobs.count }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fas fa-bolt"></i> At Risk</div>
+                <div class="stat-value" style="color: var(--danger);">{{ at_risk_count|default:0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="fas fa-spinner"></i> In Production</div>
+                <div class="stat-value" style="color: var(--success);">{{ in_production_count|default:0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label"><i class="far fa-calendar-check"></i> Due This Week</div>
+                <div class="stat-value">{{ due_this_week_count|default:0 }}</div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>PO Number</th>
+                            <th>Product Type</th>
+                            <th>Quantity</th>
+                            <th>Deadline</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for po in active_jobs %}
+                        <tr>
+                            <td><a href="{% url 'view_po_detail' po.id %}" class="po-link">{{ po.po_number }}</a></td>
+                            <td>{{ po.product_type }}</td>
+                            <td>{{ po.quantity }}</td>
+                            <td>
+                                <div style="font-weight: 600;">{{ po.required_by|date:"M d, Y" }}</div>
+                                <div
+                                    style="font-size: 0.7rem; color: {% if po.days_until_due < 2 %}var(--danger){% else %}var(--text-muted){% endif %};">
+                                    {{ po.days_until_due }} days left
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-pill 
+                                    {% if po.status == 'NEW' %}status-new
+                                    {% elif po.status == 'IN_PRODUCTION' %}status-production
+                                    {% elif po.status == 'AWAITING_APPROVAL' %}status-approval
+                                    {% elif po.status == 'AT_RISK' %}status-at-risk
+                                    {% endif %}">
+                                    {{ po.get_status_display }}
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{% url 'view_po_detail' po.id %}" class="btn-view">View Details</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6">
+                                <div class="empty-state">
+                                    <i class="fas fa-tasks"></i>
+                                    <p>No active jobs found.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+</html>

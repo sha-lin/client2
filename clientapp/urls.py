@@ -144,7 +144,7 @@ urlpatterns = [
 
     path('vendor-comparison/<int:job_id>/', views.vendor_comparison, name='vendor_comparison'),
     path('ajax/create-vendor/', views.ajax_create_vendor, name='ajax_create_vendor'),
-    path('vendors/<int:vendor_id>/', views.vendor_profile, name='vendor_profile'),
+    # path('vendors/<int:vendor_id>/', views.vendor_profile, name='vendor_profile'),
     # Quality control inspection page
     path('qc-inspection/<int:inspection_id>/', views.qc_inspection, name='qc_inspection'),
     path('vendors/', views.vendor_list, name='vendor_list'),
@@ -389,5 +389,36 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     
     # ==================== ALERTS ====================
     # path('alerts/', admin_views.admin_alerts_list, name='admin_alerts_list'),
+    
+    # Vendor Portal URLs
+    path('vendor/dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
+    
+    # Jobs Management
+    path('jobs/active/', views.active_jobs, name='active_jobs'),
+    path('jobs/completed/', views.completed_jobs, name='completed_jobs'),
+    path('jobs/<str:job_id>/', views.job_detail, name='job_detail'),
+    # path('jobs/<str:job_id>/accept/', views.accept_job, name='accept_job'),
+    # path('jobs/<str:job_id>/decline/', views.decline_job, name='decline_job'),
+    # path('jobs/<str:job_id>/submit-proof/', views.submit_proof, name='submit_proof'),
+    # path('jobs/<str:job_id>/update-status/', views.update_job_status, name='update_job_status'),
+    
+    # Invoices
+    path('invoices/', views.invoices, name='invoices'),
+    # path('invoices/create/', views.create_invoice, name='create_invoice'),
+    # path('invoices/<int:invoice_id>/', views.invoice_detail, name='invoice_detail'),
+    
+    # Performance
+    path('performance/', views.performance, name='performance'),
+    
+    # Help & Support
+    # path('help/', views.help_center, name='help'),
+    # path('support/ticket/create/', views.create_support_ticket, name='create_ticket'),
+    
+    # API Endpoints for AJAX calls
+    # path('api/jobs/search/', views.api_search_jobs, name='api_search_jobs'),
+    # path('api/jobs/filter/', views.api_filter_jobs, name='api_filter_jobs'),
+    # path('api/accept-all/', views.api_accept_all, name='api_accept_all'),
+    # path('api/notifications/', views.api_get_notifications, name='api_notifications'),
+
 
 ]

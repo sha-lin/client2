@@ -157,7 +157,7 @@ class QuoteApprovalService:
         
         quote_id = quote.pk
         
-        # Get a fresh instance from database (ensures it's committed)
+        # Get a fresh instance from database
         quote = Quote.objects.get(pk=quote_id)
         
         # Check if quote can be sent to customer

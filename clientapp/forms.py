@@ -252,6 +252,7 @@ class VendorForm(forms.ModelForm):
     class Meta:
         model = Vendor
         fields = [
+            'user',
             'name', 'contact_person', 'email', 'phone', 'business_address',
             'tax_pin', 'payment_terms', 'payment_method', 'services', 
             'specialization', 'minimum_order', 'lead_time', 'rush_capable',
@@ -259,6 +260,7 @@ class VendorForm(forms.ModelForm):
             'rating', 'internal_notes', 'recommended', 'active'
         ]
         widgets = {
+            'user': forms.Select(attrs={'class': 'form-select w-full'}),
             'name': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'Vendor name'}),
             'contact_person': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'Contact person'}),
             'email': forms.EmailInput(attrs={'class': 'form-input w-full', 'placeholder': 'Email'}),

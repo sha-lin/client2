@@ -1,0 +1,601 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice Submission - Print Duka Vendor Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #1e293b;
+            --sidebar-active: #3b82f6;
+            --body-bg: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --primary-blue: #3b82f6;
+            --primary-blue-light: #dbeafe;
+            --success: #10b981;
+            --success-bg: #d1fae5;
+            --warning: #f59e0b;
+            --warning-bg: #fef3c7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--body-bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background-color: white;
+            color: black;
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .sidebar-header p {
+            font-size: 0.75rem;
+            opacity: 0.6;
+            margin-top: 2px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 10px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 24px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            gap: 12px;
+        }
+
+        .nav-item:hover {
+            color: white;
+            background: var(--sidebar-hover);
+        }
+
+        .nav-item.active {
+            background-color: var(--sidebar-active);
+            color: white;
+            border-radius: 0 50px 50px 0;
+            margin-right: 15px;
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 1rem;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .vendor-name {
+            font-size: 0.8125rem;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+
+        .vendor-status {
+            font-size: 0.75rem;
+            color: var(--success);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 240px;
+            flex: 1;
+            padding: 32px;
+        }
+
+        .page-header {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .header-icon {
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        .header-text h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .header-text p {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            color: var(--text-main);
+        }
+
+        /* Tables */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8125rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px 16px;
+            color: var(--text-muted);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            display: inline-block;
+        }
+
+        .badge-success { background: var(--success-bg); color: #065f46; }
+        .badge-warning { background: var(--warning-bg); color: #92400e; }
+        .badge-info { background: var(--primary-blue-light); color: #1e40af; }
+
+        .note-box {
+            background: var(--primary-blue-light);
+            color: #1e40af;
+            padding: 12px 16px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            margin-top: 16px;
+        }
+
+        /* Form Elements */
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px;
+            background: #f1f5f9;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-blue);
+            background: white;
+        }
+
+        /* Invoice Summary Box */
+        .summary-box {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .summary-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .summary-total {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+            font-weight: 700;
+        }
+
+        .total-amount {
+            color: var(--primary-blue);
+            font-size: 1.25rem;
+        }
+
+        /* Payment Terms */
+        .payment-terms {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            background: #f1f5f9;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .payment-terms i {
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .payment-terms-text {
+            font-size: 0.8125rem;
+            color: var(--text-muted);
+        }
+
+        .payment-terms-title {
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 4px;
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            transition: opacity 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary-blue);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-outline {
+            background: white;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+            flex: 1;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Recent Invoices */
+        .invoice-list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .invoice-list-item:last-child {
+            border-bottom: none;
+        }
+
+        .invoice-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .invoice-icon {
+            width: 36px;
+            height: 36px;
+            background: #f1f5f9;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+        }
+
+        .invoice-details h4 {
+            font-size: 0.875rem;
+            font-weight: 700;
+        }
+
+        .invoice-details p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .invoice-actions {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .invoice-amount {
+            font-weight: 700;
+            font-size: 0.875rem;
+        }
+
+        .btn-view {
+            padding: 6px 16px;
+            border: 1px solid var(--border-color);
+            background: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>Print Duka</h1>
+            <p>Vendor Portal</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="{% url 'vendor_dashboard' %}" class="nav-item active"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="{% url 'active_jobs' %}" class="nav-item"><i class="fas fa-tasks"></i> Active Jobs</a>
+            <a href="{% url 'completed_jobs' %}" class="nav-item"><i class="fas fa-check-circle"></i> Completed Jobs</a>
+            <a href="{% url 'invoices' %}" class="nav-item"><i class="fas fa-file-invoice-dollar"></i> Invoices</a>
+            <a href="{% url 'performance' %}" class="nav-item"><i class="fas fa-chart-line"></i> Performance</a>
+            <a href="#" class="nav-item"><i class="fas fa-question-circle"></i> Help Center</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="vendor-name">Acme Printing Co.</div>
+            <div class="vendor-status">Certified Vendor</div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-icon">
+                <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="header-text">
+                <h2>Invoice Submission</h2>
+                <p>Submit invoices for completed and accepted jobs</p>
+            </div>
+        </div>
+
+        <!-- Jobs Ready Section -->
+        <div class="card">
+            <div class="card-title">Jobs Ready for Invoicing</div>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Job ID</th>
+                            <th>Product Type</th>
+                            <th>Quantity</th>
+                            <th>Unit Rate</th>
+                            <th>Total</th>
+                            <th>Completed Date</th>
+                            <th>PT Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Empty state or dynamic rows go here -->
+                        <tr>
+                            <td>PD-2026-0410</td>
+                            <td>T-Shirt - DTG Print</td>
+                            <td>250</td>
+                            <td>$12.50</td>
+                            <td>$3125.00</td>
+                            <td>1/10/2026</td>
+                            <td><span class="badge badge-success">Accepted</span></td>
+                        </tr>
+                        <tr>
+                            <td>PD-2026-0408</td>
+                            <td>Tote Bag - Screen Print</td>
+                            <td>150</td>
+                            <td>$8.75</td>
+                            <td>$1312.50</td>
+                            <td>1/9/2026</td>
+                            <td><span class="badge badge-success">Accepted</span></td>
+                        </tr>
+                        <tr>
+                            <td>PD-2026-0412</td>
+                            <td>Hoodie - Embroidery</td>
+                            <td>100</td>
+                            <td>$22.00</td>
+                            <td>$2200.00</td>
+                            <td>1/11/2026</td>
+                            <td><span class="badge badge-warning">Pending Review</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="note-box">
+                <strong>Note:</strong> Only jobs that have been accepted by Print Duka can be invoiced. Jobs pending review will be available for invoicing once accepted.
+            </div>
+        </div>
+
+        <!-- Create Invoice Section -->
+        <div class="card">
+            <div class="card-title">Create Invoice</div>
+            <form>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Invoice Number</label>
+                        <input type="text" class="form-control" placeholder="INV-2026-001">
+                    </div>
+                    <div class="form-group">
+                        <label>Invoice Date</label>
+                        <input type="date" class="form-control" value="2026-01-14">
+                    </div>
+                </div>
+
+                <div class="summary-box">
+                    <div class="card-title" style="font-size: 0.875rem; margin-bottom: 12px;">Invoice Summary</div>
+                    <div class="summary-item">
+                        <span>PD-2026-0410 - T-Shirt - DTG Print (250 x $12.50)</span>
+                        <span>$3125.00</span>
+                    </div>
+                    <div class="summary-item">
+                        <span>PD-2026-0408 - Tote Bag - Screen Print (150 x $8.75)</span>
+                        <span>$1312.50</span>
+                    </div>
+                    <div class="summary-total">
+                        <span>Total Amount:</span>
+                        <span class="total-amount">$4437.50</span>
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 24px;">
+                    <label>Additional Notes (Optional)</label>
+                    <textarea class="form-control" rows="3" placeholder="Add any additional information or comments..."></textarea>
+                </div>
+
+                <div class="payment-terms">
+                    <i class="fas fa-dollar-sign"></i>
+                    <div class="payment-terms-text">
+                        <div class="payment-terms-title">Payment Terms</div>
+                        Net 15 from PT acceptance. Payment will be processed within 15 business days after Print Duka approves your invoice.
+                    </div>
+                </div>
+
+                <div class="btn-group">
+                    <button type="submit" class="btn btn-primary">Submit Invoice</button>
+                    <button type="button" class="btn btn-outline">Save as Draft</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Recent Invoices Section -->
+        <div class="card">
+            <div class="card-title">Recent Invoices</div>
+            
+            <div class="invoice-list-item">
+                <div class="invoice-info">
+                    <div class="invoice-icon"><i class="far fa-file-alt"></i></div>
+                    <div class="invoice-details">
+                        <h4>INV-2026-003</h4>
+                        <p>Jan 8, 2026</p>
+                    </div>
+                </div>
+                <div class="invoice-actions">
+                    <div class="invoice-amount">KSH 3125.00</div>
+                    <span class="badge badge-success">Paid</span>
+                    <button class="btn-view">View</button>
+                </div>
+            </div>
+
+            <div class="invoice-list-item">
+                <div class="invoice-info">
+                    <div class="invoice-icon"><i class="far fa-file-alt"></i></div>
+                    <div class="invoice-details">
+                        <h4>INV-2026-002</h4>
+                        <p>Jan 5, 2026</p>
+                    </div>
+                </div>
+                <div class="invoice-actions">
+                    <div class="invoice-amount">KSH2450.00</div>
+                    <span class="badge badge-warning">Processing</span>
+                    <button class="btn-view">View</button>
+                </div>
+            </div>
+
+            <div class="invoice-list-item">
+                <div class="invoice-info">
+                    <div class="invoice-icon"><i class="far fa-file-alt"></i></div>
+                    <div class="invoice-details">
+                        <h4>INV-2026-001</h4>
+                        <p>Jan 1, 2026</p>
+                    </div>
+                </div>
+                <div class="invoice-actions">
+                    <div class="invoice-amount">KSH 1875.00</div>
+                    <span class="badge badge-success">Paid</span>
+                    <button class="btn-view">View</button>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+</html>

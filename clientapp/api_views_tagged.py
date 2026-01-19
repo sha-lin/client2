@@ -401,6 +401,7 @@ class LeadViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
+
 class ClientContactViewSet(viewsets.ModelViewSet):
     queryset = ClientContact.objects.select_related("client").all()
     serializer_class = ClientContactSerializer
@@ -431,6 +432,7 @@ class ClientContactViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
+
 class ClientViewSet(viewsets.ModelViewSet):
     queryset = Client.objects.select_related("account_manager", "converted_from_lead").all()
     serializer_class = ClientSerializer
@@ -461,6 +463,7 @@ class ClientViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
+
 class BrandAssetViewSet(viewsets.ModelViewSet):
     queryset = BrandAsset.objects.select_related("client", "uploaded_by").all()
     serializer_class = BrandAssetSerializer
@@ -491,6 +494,7 @@ class BrandAssetViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
+
 class ComplianceDocumentViewSet(viewsets.ModelViewSet):
     queryset = ComplianceDocument.objects.select_related("client", "uploaded_by").all()
     serializer_class = ComplianceDocumentSerializer
@@ -521,6 +525,7 @@ class ComplianceDocumentViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
@@ -532,7 +537,12 @@ class ProductViewSet(viewsets.ModelViewSet):
 
 #storefront- for later use
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class StorefrontProductViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Public storefront-safe product listing for ecommerce/landing pages.
@@ -553,6 +563,7 @@ class StorefrontProductViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
+
 class QuoteViewSet(viewsets.ModelViewSet):
     queryset = Quote.objects.select_related("client", "lead", "created_by").prefetch_related("line_items")
     serializer_class = QuoteSerializer
@@ -814,7 +825,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
         
         if not quote.is_locked:
             return Response(
-                {"detail": "Can only clone locked/approved quotes. Use direct edit for draft quotes."},
+                {"detail": "Can only clone locked (approved) quotes. Use direct edit for draft quotes."},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -873,7 +884,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
             created_by=request.user,
         )
         
-        # Create notification if user is assigned
+        # Create notification if user assigned
         if person_in_charge:
             Notification.objects.create(
                 recipient=person_in_charge,
@@ -886,17 +897,6 @@ class QuoteViewSet(viewsets.ModelViewSet):
         serializer = JobSerializer(job)
         return Response({"detail": "Job created", "job": serializer.data})
 
-    def perform_update(self, serializer):
-        """
-        Override perform_update to enforce quote locking.
-        Prevents editing of locked/approved quotes via API.
-        """
-        if serializer.instance.is_locked:
-            raise serializers.ValidationError(
-                "This quote is locked (Approved). Please create a revised quote (clone) to make changes."
-            )
-        serializer.save()
-
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='create', decorator=swagger_auto_schema(tags=['Account Manager']))
@@ -904,6 +904,7 @@ class QuoteViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
+
 class QuoteLineItemViewSet(viewsets.ModelViewSet):
     queryset = QuoteLineItem.objects.select_related("quote", "product").all()
     serializer_class = QuoteLineItemSerializer
@@ -918,6 +919,7 @@ class QuoteLineItemViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class JobViewSet(viewsets.ModelViewSet):
     queryset = Job.objects.select_related("client", "quote", "created_by", "person_in_charge").all()
     serializer_class = JobSerializer
@@ -1024,7 +1026,7 @@ class JobViewSet(viewsets.ModelViewSet):
     def remind(self, request, pk=None):
         """
         Send a reminder notification to the assigned Production Team member.
-        4 Hour cool-down period to prevent spam
+        Implements 4-hour cooldown period to prevent spam.
         """
         from datetime import timedelta
         
@@ -1128,7 +1130,7 @@ class JobViewSet(viewsets.ModelViewSet):
             "uploaded_at": att.uploaded_at,
         } for att in attachments]
         
-        # Create notification for vendor- for vendors who have accounts
+        # Create notification for vendor (if vendor has user account)
         # activity log
         ActivityLog.objects.create(
             client=job.client,
@@ -1159,6 +1161,7 @@ class JobViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+
 class VendorViewSet(viewsets.ModelViewSet):
     queryset = Vendor.objects.all()
     serializer_class = VendorSerializer
@@ -1188,6 +1191,7 @@ class VendorViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+
 class LPOViewSet(viewsets.ModelViewSet):
     queryset = LPO.objects.select_related("client", "quote", "created_by").all()
     serializer_class = LPOSerializer
@@ -1202,6 +1206,7 @@ class LPOViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+
 class PaymentViewSet(viewsets.ModelViewSet):
     queryset = Payment.objects.select_related("lpo", "recorded_by").all()
     serializer_class = PaymentSerializer
@@ -1212,7 +1217,12 @@ class PaymentViewSet(viewsets.ModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class PropertyTypeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = PropertyType.objects.all()
     serializer_class = PropertyTypeSerializer
@@ -1222,7 +1232,12 @@ class PropertyTypeViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class PropertyValueViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = PropertyValue.objects.select_related("property_type").all()
     serializer_class = PropertyValueSerializer
@@ -1232,7 +1247,12 @@ class PropertyValueViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class ProductPropertyViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ProductProperty.objects.select_related("product", "property_value", "property_value__property_type").all()
     serializer_class = ProductPropertySerializer
@@ -1240,8 +1260,13 @@ class ProductPropertyViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["product", "property_value__property_type", "is_available"]
 
 
-@method_decorator(name='list', decorator=swagger_auto_schema(tags=['API']))
-@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['API']))
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class QuantityPricingViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = QuantityPricing.objects.select_related("product").all()
     serializer_class = QuantityPricingSerializer
@@ -1250,7 +1275,12 @@ class QuantityPricingViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class TurnAroundTimeViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TurnAroundTime.objects.select_related("product").all()
     serializer_class = TurnAroundTimeSerializer
@@ -1258,7 +1288,7 @@ class TurnAroundTimeViewSet(viewsets.ReadOnlyModelViewSet):
     filterset_fields = ["product", "is_available", "is_default"]
 
 
-# costing process viewsets
+# ===== Costing Process ViewSets =====
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='create', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
@@ -1266,6 +1296,7 @@ class TurnAroundTimeViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class ProcessViewSet(viewsets.ModelViewSet):
     queryset = Process.objects.all()
     serializer_class = ProcessSerializer
@@ -1336,6 +1367,7 @@ class ProcessViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class ProcessTierViewSet(viewsets.ModelViewSet):
     queryset = ProcessTier.objects.select_related("process").all()
     serializer_class = ProcessTierSerializer
@@ -1349,6 +1381,7 @@ class ProcessTierViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class ProcessVariableViewSet(viewsets.ModelViewSet):
     queryset = ProcessVariable.objects.select_related("process").all()
     serializer_class = ProcessVariableSerializer
@@ -1362,6 +1395,7 @@ class ProcessVariableViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class ProductVariableViewSet(viewsets.ModelViewSet):
     queryset = ProductVariable.objects.select_related("product").all()
     serializer_class = ProductVariableSerializer
@@ -1375,6 +1409,7 @@ class ProductVariableViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class ProductVariableOptionViewSet(viewsets.ModelViewSet):
     queryset = ProductVariableOption.objects.select_related("variable").all()
     serializer_class = ProductVariableOptionSerializer
@@ -1388,6 +1423,7 @@ class ProductVariableOptionViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class ProcessVendorViewSet(viewsets.ModelViewSet):
     queryset = ProcessVendor.objects.select_related("process").all()
     serializer_class = ProcessVendorSerializer
@@ -1401,6 +1437,7 @@ class ProcessVendorViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class PricingTierViewSet(viewsets.ModelViewSet):
     queryset = PricingTier.objects.select_related("process").all()
     serializer_class = PricingTierSerializer
@@ -1414,6 +1451,7 @@ class PricingTierViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class VendorTierPricingViewSet(viewsets.ModelViewSet):
     queryset = VendorTierPricing.objects.select_related("process_vendor").all()
     serializer_class = VendorTierPricingSerializer
@@ -1427,6 +1465,7 @@ class VendorTierPricingViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Pricing & Costing']))
+
 class ProcessVariableRangeViewSet(viewsets.ModelViewSet):
     queryset = ProcessVariableRange.objects.select_related("variable").all()
     serializer_class = ProcessVariableRangeSerializer
@@ -1440,6 +1479,7 @@ class ProcessVariableRangeViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
+
 class NotificationViewSet(viewsets.ModelViewSet):
     queryset = Notification.objects.select_related("recipient").all()
     serializer_class = NotificationSerializer
@@ -1464,7 +1504,12 @@ class NotificationViewSet(viewsets.ModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Notifications & Logging']))
+
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ActivityLog.objects.select_related("client", "created_by").all()
     serializer_class = ActivityLogSerializer
@@ -1480,13 +1525,14 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class SystemSettingViewSet(viewsets.ModelViewSet):
     queryset = SystemSetting.objects.all()
     serializer_class = SystemSettingSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
 
 
-# Product metadata viewsets
+# ===== Product Metadata ViewSets =====
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='create', decorator=swagger_auto_schema(tags=['Product Catalog']))
@@ -1494,6 +1540,7 @@ class SystemSettingViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductImageViewSet(viewsets.ModelViewSet):
     queryset = ProductImage.objects.select_related("product").all()
     serializer_class = ProductImageSerializer
@@ -1507,6 +1554,7 @@ class ProductImageViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductVideoViewSet(viewsets.ModelViewSet):
     queryset = ProductVideo.objects.select_related("product").all()
     serializer_class = ProductVideoSerializer
@@ -1520,6 +1568,7 @@ class ProductVideoViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductDownloadableFileViewSet(viewsets.ModelViewSet):
     queryset = ProductDownloadableFile.objects.select_related("product").all()
     serializer_class = ProductDownloadableFileSerializer
@@ -1533,6 +1582,7 @@ class ProductDownloadableFileViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductSEOViewSet(viewsets.ModelViewSet):
     queryset = ProductSEO.objects.select_related("product").all()
     serializer_class = ProductSEOSerializer
@@ -1545,6 +1595,7 @@ class ProductSEOViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductReviewSettingsViewSet(viewsets.ModelViewSet):
     queryset = ProductReviewSettings.objects.select_related("product").all()
     serializer_class = ProductReviewSettingsSerializer
@@ -1557,6 +1608,7 @@ class ProductReviewSettingsViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductFAQViewSet(viewsets.ModelViewSet):
     queryset = ProductFAQ.objects.select_related("product").all()
     serializer_class = ProductFAQSerializer
@@ -1570,6 +1622,7 @@ class ProductFAQViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductShippingViewSet(viewsets.ModelViewSet):
     queryset = ProductShipping.objects.select_related("product").all()
     serializer_class = ProductShippingSerializer
@@ -1582,6 +1635,7 @@ class ProductShippingViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductLegalViewSet(viewsets.ModelViewSet):
     queryset = ProductLegal.objects.select_related("product").all()
     serializer_class = ProductLegalSerializer
@@ -1594,6 +1648,7 @@ class ProductLegalViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductProductionViewSet(viewsets.ModelViewSet):
     queryset = ProductProduction.objects.select_related("product").all()
     serializer_class = ProductProductionSerializer
@@ -1601,7 +1656,12 @@ class ProductProductionViewSet(viewsets.ModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductChangeHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ProductChangeHistory.objects.select_related("product", "changed_by").all()
     serializer_class = ProductChangeHistorySerializer
@@ -1615,11 +1675,19 @@ class ProductChangeHistoryViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductTemplateViewSet(viewsets.ModelViewSet):
     queryset = ProductTemplate.objects.select_related("product").all()
     serializer_class = ProductTemplateSerializer
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
 
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Integrations']))
 
 class QuickBooksSyncViewSet(viewsets.ViewSet):
     """
@@ -1649,6 +1717,7 @@ class QuickBooksSyncViewSet(viewsets.ViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class JobVendorStageViewSet(viewsets.ModelViewSet):
     queryset = JobVendorStage.objects.select_related("job", "vendor").all()
     serializer_class = JobVendorStageSerializer
@@ -1662,6 +1731,7 @@ class JobVendorStageViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class JobNoteViewSet(viewsets.ModelViewSet):
     queryset = JobNote.objects.select_related("job", "created_by").all()
     serializer_class = JobNoteSerializer
@@ -1675,6 +1745,7 @@ class JobNoteViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class JobAttachmentViewSet(viewsets.ModelViewSet):
     queryset = JobAttachment.objects.select_related("job", "uploaded_by").all()
     serializer_class = JobAttachmentSerializer
@@ -1688,6 +1759,7 @@ class JobAttachmentViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class VendorQuoteViewSet(viewsets.ModelViewSet):
     queryset = VendorQuote.objects.select_related("job", "vendor").all()
     serializer_class = VendorQuoteSerializer
@@ -1701,6 +1773,7 @@ class VendorQuoteViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class QCInspectionViewSet(viewsets.ModelViewSet):
     queryset = QCInspection.objects.select_related("job", "vendor", "inspector").all()
     serializer_class = QCInspectionSerializer
@@ -1722,6 +1795,7 @@ class QCInspectionViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class DeliveryViewSet(viewsets.ModelViewSet):
     queryset = Delivery.objects.select_related("job", "qc_inspection", "handoff_confirmed_by", "created_by").all()
     serializer_class = DeliverySerializer
@@ -1760,6 +1834,7 @@ class QuoteAttachmentViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+
 class LPOLineItemViewSet(viewsets.ModelViewSet):
     queryset = LPOLineItem.objects.select_related("lpo").all()
     serializer_class = LPOLineItemSerializer
@@ -1773,6 +1848,7 @@ class LPOLineItemViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class SystemAlertViewSet(viewsets.ModelViewSet):
     queryset = SystemAlert.objects.all()
     serializer_class = SystemAlertSerializer
@@ -1786,6 +1862,7 @@ class SystemAlertViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class ProductionUpdateViewSet(viewsets.ModelViewSet):
     """
     API endpoint for Production Team to post granular progress updates.
@@ -1819,7 +1896,12 @@ class ProductionUpdateViewSet(viewsets.ModelViewSet):
 # ===== User / Group Management =====
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class UserViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
@@ -1843,7 +1925,12 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['System & Configuration']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['System & Configuration']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['System & Configuration']))
+
 class GroupViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
@@ -1890,6 +1977,13 @@ class ChangePasswordView(APIView):
 
 # ===== Dashboard / Analytics =====
 
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+
 class DashboardViewSet(viewsets.ViewSet):
     permission_classes = [IsAuthenticated, IsAdmin | IsAccountManager | IsProductionTeam]
 
@@ -1930,6 +2024,13 @@ class DashboardViewSet(viewsets.ViewSet):
         }
         return Response(data, status=status.HTTP_200_OK)
 
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
 
 class AnalyticsViewSet(viewsets.ViewSet):
     """
@@ -2064,6 +2165,13 @@ class AnalyticsViewSet(viewsets.ViewSet):
         })
 
 
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Dashboard & Analytics']))
+
 class SearchViewSet(viewsets.ViewSet):
     """
     Unified search endpoint for searching across Leads, Clients, Quotes, and Jobs.
@@ -2137,6 +2245,13 @@ class SearchViewSet(viewsets.ViewSet):
 
 
 # ===== Production Team APIs =====
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
 
 class CostingEngineViewSet(viewsets.ViewSet):
     """
@@ -2298,6 +2413,13 @@ class CostingEngineViewSet(viewsets.ViewSet):
         })
 
 
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
+
 class WorkloadViewSet(viewsets.ViewSet):
     """
     Workload management API for Production Team.
@@ -2358,6 +2480,13 @@ class WorkloadViewSet(viewsets.ViewSet):
             "total_overdue_jobs": sum(w['overdue_jobs'] for w in workload_data),
         })
 
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Production Team']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Production Team']))
 
 class ProductionAnalyticsViewSet(viewsets.ViewSet):
     """
@@ -2469,6 +2598,7 @@ class ProductionAnalyticsViewSet(viewsets.ViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class CustomerViewSet(viewsets.ModelViewSet):
     """
     Customer Management for Storefront
@@ -2521,6 +2651,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class CustomerAddressViewSet(viewsets.ModelViewSet):
     """Customer Address Book"""
     queryset = CustomerAddress.objects.select_related('customer').all()
@@ -2543,6 +2674,7 @@ class CustomerAddressViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class CartViewSet(viewsets.ModelViewSet):
     """
     Shopping Cart Management
@@ -2723,6 +2855,7 @@ class CartViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class OrderViewSet(viewsets.ModelViewSet):
     """Order Management"""
     queryset = Order.objects.prefetch_related('items', 'items__product').select_related('customer').all()
@@ -2876,7 +3009,12 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class CouponViewSet(viewsets.ReadOnlyModelViewSet):
     """Coupon/Discount Engine"""
     queryset = Coupon.objects.filter(is_active=True)
@@ -2926,7 +3064,12 @@ class CouponViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class DesignTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     """Design Templates for Design Studio"""
     queryset = DesignTemplate.objects.filter(is_active=True)
@@ -2944,6 +3087,7 @@ class DesignTemplateViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class DesignStateViewSet(viewsets.ModelViewSet):
     """Design State Storage"""
     queryset = DesignState.objects.select_related('product', 'template', 'customer').all()
@@ -2971,6 +3115,7 @@ class DesignStateViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class ProductReviewViewSet(viewsets.ModelViewSet):
     """Product Reviews and Ratings"""
     queryset = ProductReview.objects.filter(is_approved=True).select_related('product', 'customer', 'order')
@@ -2997,7 +3142,12 @@ class ProductReviewViewSet(viewsets.ModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class ShippingMethodViewSet(viewsets.ReadOnlyModelViewSet):
     """Shipping Methods"""
     queryset = ShippingMethod.objects.filter(is_active=True)
@@ -3009,7 +3159,12 @@ class ShippingMethodViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class TaxConfigurationViewSet(viewsets.ReadOnlyModelViewSet):
     """Tax Configuration"""
     queryset = TaxConfiguration.objects.filter(is_active=True)
@@ -3135,13 +3290,19 @@ class PreflightView(APIView):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
+
 class ProductRuleViewSet(viewsets.ModelViewSet):
     queryset = ProductRule.objects.all()
     serializer_class = ProductRuleSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
+
 class TimelineEventViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = TimelineEvent.objects.all()
     serializer_class = TimelineEventSerializer
@@ -3154,6 +3315,7 @@ class TimelineEventViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class DesignSessionViewSet(viewsets.ModelViewSet):
     queryset = DesignSession.objects.all()
     serializer_class = DesignSessionSerializer
@@ -3165,6 +3327,7 @@ class DesignSessionViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class DesignVersionViewSet(viewsets.ModelViewSet):
     queryset = DesignVersion.objects.all()
     serializer_class = DesignVersionSerializer
@@ -3176,6 +3339,7 @@ class DesignVersionViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class ProofApprovalViewSet(viewsets.ModelViewSet):
     queryset = ProofApproval.objects.all()
     serializer_class = ProofApprovalSerializer
@@ -3187,6 +3351,7 @@ class ProofApprovalViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Timeline & Tracking']))
+
 class ShipmentViewSet(viewsets.ModelViewSet):
     queryset = Shipment.objects.all()
     serializer_class = ShipmentSerializer
@@ -3194,7 +3359,12 @@ class ShipmentViewSet(viewsets.ModelViewSet):
     filterset_fields = ['order', 'status', 'carrier']
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Design & Ecommerce']))
+
 class PromotionViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Promotion.objects.filter(is_active=True)
     serializer_class = PromotionSerializer
@@ -3206,6 +3376,7 @@ class PromotionViewSet(viewsets.ReadOnlyModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Inventory Management']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Inventory Management']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Inventory Management']))
+
 class MaterialInventoryViewSet(viewsets.ModelViewSet):
     queryset = MaterialInventory.objects.all()
     serializer_class = MaterialInventorySerializer
@@ -3217,6 +3388,7 @@ class MaterialInventoryViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+
 class RefundViewSet(viewsets.ModelViewSet):
     queryset = Refund.objects.all()
     serializer_class = RefundSerializer
@@ -3228,6 +3400,7 @@ class RefundViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+
 class CreditNoteViewSet(viewsets.ModelViewSet):
     queryset = CreditNote.objects.all()
     serializer_class = CreditNoteSerializer
@@ -3239,6 +3412,7 @@ class CreditNoteViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+
 class AdjustmentViewSet(viewsets.ModelViewSet):
     queryset = Adjustment.objects.all()
     serializer_class = AdjustmentSerializer
@@ -3250,13 +3424,19 @@ class AdjustmentViewSet(viewsets.ModelViewSet):
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Integrations']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Integrations']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Integrations']))
+
 class WebhookSubscriptionViewSet(viewsets.ModelViewSet):
     queryset = WebhookSubscription.objects.all()
     serializer_class = WebhookSubscriptionSerializer
     permission_classes = [IsAuthenticated, IsAdmin]
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Integrations']))
 @method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Integrations']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Integrations']))
+
 class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = WebhookDelivery.objects.all()
     serializer_class = WebhookDeliverySerializer
