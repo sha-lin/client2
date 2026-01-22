@@ -59,6 +59,10 @@ router.register("shipments", api_views.ShipmentViewSet, basename="shipment")
 router.register("vendors", api_views.VendorViewSet, basename="vendor")
 router.register("lpos", api_views.LPOViewSet, basename="lpo")
 router.register("purchase-orders", api_views.PurchaseOrderViewSet, basename="purchase-order")
+router.register("purchase-order-proofs", api_views.PurchaseOrderProofViewSet, basename="purchase-order-proof")
+router.register("purchase-order-issues", api_views.PurchaseOrderIssueViewSet, basename="purchase-order-issue")
+router.register("purchase-order-notes", api_views.PurchaseOrderNoteViewSet, basename="purchase-order-note")
+router.register("material-substitutions", api_views.MaterialSubstitutionRequestViewSet, basename="material-substitution")
 router.register("vendor-invoices", api_views.VendorInvoiceViewSet, basename="vendor-invoice")
 router.register("payments", api_views.PaymentViewSet, basename="payment")
 router.register("vendor-quotes", api_views.VendorQuoteViewSet, basename="vendor-quote")
@@ -94,6 +98,24 @@ router.register("production-updates", api_views.ProductionUpdateViewSet, basenam
 router.register("costing-engine", api_views.CostingEngineViewSet, basename="costing-engine")
 router.register("workload", api_views.WorkloadViewSet, basename="workload")
 router.register("production-analytics", api_views.ProductionAnalyticsViewSet, basename="production-analytics")
+
+# Production Team Portal - NEW APIs for vendor-PT integration
+router.register("approval-thresholds", api_views.ApprovalThresholdViewSet, basename="approval-threshold")
+router.register("invoice-disputes", api_views.InvoiceDisputeViewSet, basename="invoice-dispute")
+router.register("job-progress-updates", api_views.JobProgressUpdateViewSet, basename="job-progress-update")
+router.register("sla-escalations", api_views.SLAEscalationViewSet, basename="sla-escalation")
+router.register("vendor-performance-metrics", api_views.VendorPerformanceMetricsViewSet, basename="vendor-performance-metrics")
+router.register("profitability-analysis", api_views.ProfitabilityAnalysisViewSet, basename="profitability-analysis")
+
+# Client Portal APIs
+router.register("client-portal-users", api_views.ClientPortalUserViewSet, basename="client-portal-user")
+router.register("client-orders", api_views.ClientOrderViewSet, basename="client-order")
+router.register("client-invoices", api_views.ClientInvoiceViewSet, basename="client-invoice")
+router.register("client-payments", api_views.ClientPaymentViewSet, basename="client-payment")
+router.register("client-support-tickets", api_views.ClientSupportTicketViewSet, basename="client-support-ticket")
+router.register("client-documents", api_views.ClientDocumentLibraryViewSet, basename="client-document")
+router.register("client-notifications", api_views.ClientPortalNotificationViewSet, basename="client-notification")
+router.register("client-activity-logs", api_views.ClientActivityLogViewSet, basename="client-activity-log")
 
 # Storefront Ecommerce APIs
 # router.register("storefront/customers", api_views.CustomerViewSet, basename="storefront-customer")

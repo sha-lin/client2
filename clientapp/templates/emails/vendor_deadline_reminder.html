@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; }
+        .header { background-color: #ff9800; color: white; padding: 20px; text-align: center; border-radius: 5px; }
+        .content { padding: 20px; }
+        .job-info { background-color: #fff3e0; padding: 15px; margin: 15px 0; border-left: 4px solid #ff9800; }
+        .label { font-weight: bold; color: #555; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
+        .urgent { color: #d9534f; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⏰ Deadline Reminder</h1>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{ vendor_name }},</p>
+            
+            <p class="urgent">This is a reminder that your deadline is approaching!</p>
+            
+            <div class="job-info">
+                <p><span class="label">Job Number:</span> {{ job_number }}</p>
+                <p><span class="label">Job Name:</span> {{ job_name }}</p>
+                <p><span class="label">Days Remaining:</span> <strong style="color: #ff9800;">{{ days_remaining }} day(s)</strong></p>
+                <p><span class="label">Expected Completion:</span> {{ expected_completion|date:"Y-m-d H:i" }}</p>
+                <p><span class="label">Current Progress:</span> {{ progress }}%</p>
+            </div>
+            
+            <p>Please ensure this job is completed on time. If you anticipate any delays, please notify us immediately.</p>
+            
+            <p>Thank you for your prompt attention to this matter!</p>
+            
+            <p>
+                Best regards,<br>
+                Production Team
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated notification. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

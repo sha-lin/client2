@@ -1637,7 +1637,7 @@ class Quote(models.Model):
         
         # Set valid_until if not set
         if not self.valid_until:
-            self.valid_until = timezone.now().date() + timedelta(days=30)
+            self.valid_until = timezone.now().date() + timedelta(days=3)
 
         # Enforce status transitions 
         if not getattr(self, '_skip_status_validation', False):
@@ -4751,6 +4751,13 @@ class VendorInvoice(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
     invoice_file = models.FileField(upload_to='vendor_invoices/%Y/%m/', null=True, blank=True)
     
+    # Approval fields
+    validation_errors = models.JSONField(default=list, blank=True, help_text="Validation errors from invoice validation service")
+    validation_warnings = models.JSONField(default=list, blank=True, help_text="Validation warnings")
+    is_validated = models.BooleanField(default=False)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices_approved')
+    rejection_reason = models.TextField(blank=True, null=True)
+    
     submitted_at = models.DateTimeField(null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     paid_at = models.DateTimeField(null=True, blank=True)
@@ -4817,3 +4824,778 @@ class QuickBooksToken(models.Model):
     
     def is_expired(self):
         return timezone.now() > self.token_expires_at
+
+
+# ============================================================================
+# CLIENT PORTAL MODELS
+# ============================================================================
+
+class ClientPortalUser(models.Model):
+    """
+    Client Portal User - Access to client's account/orders/invoices
+    Linked to Client (B2B Account)
+    """
+    CLIENT_ROLES = [
+        ('owner', 'Account Owner'),
+        ('admin', 'Portal Administrator'),
+        ('user', 'Regular User'),
+        ('viewer', 'View-Only Access'),
+    ]
+    
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='client_portal_user')
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='portal_users')
+    role = models.CharField(max_length=20, choices=CLIENT_ROLES, default='user')
+    
+    # Permissions
+    can_view_orders = models.BooleanField(default=True)
+    can_place_orders = models.BooleanField(default=True)
+    can_view_invoices = models.BooleanField(default=True)
+    can_view_payments = models.BooleanField(default=True)
+    can_submit_tickets = models.BooleanField(default=True)
+    can_access_documents = models.BooleanField(default=True)
+    can_manage_users = models.BooleanField(default=False)  # Admin only
+    
+    # Status
+    is_active = models.BooleanField(default=True)
+    email_verified = models.BooleanField(default=False)
+    last_login = models.DateTimeField(null=True, blank=True)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = [['user', 'client']]
+    
+    def __str__(self):
+        return f"{self.user.username} - {self.client.client_id} ({self.role})"
+
+
+class ClientOrder(models.Model):
+    """
+    Client Portal Order - Represents a Quote converted to Order for B2B Clients
+    Linked to Quote for tracking purposes
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('submitted', 'Submitted'),
+        ('acknowledged', 'Acknowledged'),
+        ('in_production', 'In Production'),
+        ('ready', 'Ready for Shipment'),
+        ('shipped', 'Shipped'),
+        ('delivered', 'Delivered'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    # Identification
+    order_number = models.CharField(max_length=50, unique=True, editable=False, db_index=True)
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name='portal_orders')
+    quote = models.ForeignKey(Quote, on_delete=models.SET_NULL, null=True, blank=True, related_name='client_orders')
+    job = models.ForeignKey(Job, on_delete=models.SET_NULL, null=True, blank=True, related_name='client_portal_orders')
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    
+    # Pricing
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    shipping_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Delivery Info
+    shipping_address = models.TextField()
+    delivery_date = models.DateField(null=True, blank=True)
+    special_instructions = models.TextField(blank=True)
+    
+    # Tracking
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='client_orders_created')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['order_number']),
+        ]
+    
+    def __str__(self):
+        return f"CO-{self.order_number} - {self.client.client_id}"
+    
+    def save(self, *args, **kwargs):
+        if not self.order_number:
+            year = timezone.now().year
+            last_order = ClientOrder.objects.filter(
+                order_number__startswith=f'CO-{year}-'
+            ).order_by('order_number').last()
+            
+            if last_order:
+                last_num = int(last_order.order_number.split('-')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+            
+            self.order_number = f'CO-{year}-{new_num:05d}'
+        
+        super().save(*args, **kwargs)
+
+
+class ClientOrderItem(models.Model):
+    """Items in a Client Order"""
+    order = models.ForeignKey(ClientOrder, on_delete=models.CASCADE, related_name='items')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT)
+    
+    # Details
+    product_name = models.CharField(max_length=255)
+    product_sku = models.CharField(max_length=100, blank=True)
+    quantity = models.IntegerField(validators=[MinValueValidator(1)])
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2)
+    line_total = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Specifications
+    specifications = models.JSONField(default=dict, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"{self.quantity}x {self.product_name} - Order {self.order.order_number}"
+
+
+class ClientInvoice(models.Model):
+    """
+    Client Portal Invoice - Generated from Orders/Jobs
+    Synced with QuickBooks
+    """
+    STATUS_CHOICES = [
+        ('draft', 'Draft'),
+        ('issued', 'Issued'),
+        ('overdue', 'Overdue'),
+        ('paid', 'Paid'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    # Identification
+    invoice_number = models.CharField(max_length=50, unique=True, editable=False, db_index=True)
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name='portal_invoices')
+    order = models.ForeignKey(ClientOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name='invoices')
+    
+    # Amounts
+    subtotal = models.DecimalField(max_digits=12, decimal_places=2)
+    tax_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    balance_due = models.DecimalField(max_digits=12, decimal_places=2)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='draft')
+    
+    # Dates
+    invoice_date = models.DateField()
+    due_date = models.DateField()
+    issued_at = models.DateTimeField(null=True, blank=True)
+    
+    # QB Integration
+    qb_invoice_id = models.CharField(max_length=255, blank=True, db_index=True)
+    is_synced_to_qb = models.BooleanField(default=False)
+    qb_last_sync_at = models.DateTimeField(null=True, blank=True)
+    
+    # Description
+    description = models.TextField(blank=True)
+    line_items_json = models.JSONField(default=list, blank=True)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-invoice_date']
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['invoice_number']),
+        ]
+    
+    def __str__(self):
+        return f"INV-{self.invoice_number} - {self.client.client_id}"
+    
+    def save(self, *args, **kwargs):
+        if not self.invoice_number:
+            year = timezone.now().year
+            last_invoice = ClientInvoice.objects.filter(
+                invoice_number__startswith=f'INV-{year}-'
+            ).order_by('invoice_number').last()
+            
+            if last_invoice:
+                last_num = int(last_invoice.invoice_number.split('-')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+            
+            self.invoice_number = f'INV-{year}-{new_num:05d}'
+        
+        super().save(*args, **kwargs)
+
+
+class ClientPayment(models.Model):
+    """
+    Client Portal Payment Record - Track payments from clients
+    Synced with QB Payments
+    """
+    PAYMENT_METHODS = [
+        ('credit_card', 'Credit Card'),
+        ('bank_transfer', 'Bank Transfer'),
+        ('check', 'Check'),
+        ('mpesa', 'M-Pesa'),
+        ('paypal', 'PayPal'),
+        ('other', 'Other'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('processing', 'Processing'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+        ('refunded', 'Refunded'),
+    ]
+    
+    # Identification
+    payment_number = models.CharField(max_length=50, unique=True, editable=False, db_index=True)
+    client = models.ForeignKey(Client, on_delete=models.PROTECT, related_name='portal_payments')
+    invoice = models.ForeignKey(ClientInvoice, on_delete=models.SET_NULL, null=True, blank=True, related_name='payments')
+    
+    # Amount
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS)
+    
+    # Status
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # QB Integration
+    qb_payment_id = models.CharField(max_length=255, blank=True, db_index=True)
+    is_synced_to_qb = models.BooleanField(default=False)
+    
+    # Reference
+    reference_number = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(blank=True)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    processed_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['payment_number']),
+        ]
+    
+    def __str__(self):
+        return f"PAY-{self.payment_number} - {self.client.client_id}"
+    
+    def save(self, *args, **kwargs):
+        if not self.payment_number:
+            year = timezone.now().year
+            month = timezone.now().month
+            last_payment = ClientPayment.objects.filter(
+                payment_number__startswith=f'PAY-{year}{month:02d}-'
+            ).order_by('payment_number').last()
+            
+            if last_payment:
+                last_num = int(last_payment.payment_number.split('-')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+            
+            self.payment_number = f'PAY-{year}{month:02d}-{new_num:04d}'
+        
+        super().save(*args, **kwargs)
+
+
+class ClientSupportTicket(models.Model):
+    """
+    Client Portal Support Ticket - Track client support requests
+    """
+    PRIORITY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('urgent', 'Urgent'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('in_progress', 'In Progress'),
+        ('awaiting_client', 'Awaiting Client'),
+        ('resolved', 'Resolved'),
+        ('closed', 'Closed'),
+    ]
+    
+    CATEGORY_CHOICES = [
+        ('order', 'Order Issue'),
+        ('invoice', 'Invoice/Billing'),
+        ('delivery', 'Delivery'),
+        ('quality', 'Quality'),
+        ('technical', 'Technical'),
+        ('other', 'Other'),
+    ]
+    
+    # Identification
+    ticket_number = models.CharField(max_length=50, unique=True, editable=False, db_index=True)
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='support_tickets')
+    
+    # Content
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES)
+    
+    # Linked items
+    order = models.ForeignKey(ClientOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name='support_tickets')
+    invoice = models.ForeignKey(ClientInvoice, on_delete=models.SET_NULL, null=True, blank=True, related_name='support_tickets')
+    
+    # Status
+    priority = models.CharField(max_length=20, choices=PRIORITY_CHOICES, default='medium')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    
+    # Assignment
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_support_tickets')
+    
+    # Resolution
+    resolution_notes = models.TextField(blank=True)
+    
+    # Tracking
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_support_tickets')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'status']),
+            models.Index(fields=['ticket_number']),
+        ]
+    
+    def __str__(self):
+        return f"TKT-{self.ticket_number} - {self.title}"
+    
+    def save(self, *args, **kwargs):
+        if not self.ticket_number:
+            year = timezone.now().year
+            last_ticket = ClientSupportTicket.objects.filter(
+                ticket_number__startswith=f'TKT-{year}-'
+            ).order_by('ticket_number').last()
+            
+            if last_ticket:
+                last_num = int(last_ticket.ticket_number.split('-')[-1])
+                new_num = last_num + 1
+            else:
+                new_num = 1
+            
+            self.ticket_number = f'TKT-{year}-{new_num:05d}'
+        
+        super().save(*args, **kwargs)
+
+
+class ClientTicketReply(models.Model):
+    """Replies to support tickets"""
+    ticket = models.ForeignKey(ClientSupportTicket, on_delete=models.CASCADE, related_name='replies')
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='ticket_replies')
+    
+    message = models.TextField()
+    attachment_url = models.URLField(blank=True)
+    
+    is_internal = models.BooleanField(default=False, help_text="Internal note not visible to client")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    def __str__(self):
+        return f"Reply to {self.ticket.ticket_number}"
+
+
+class ClientDocumentLibrary(models.Model):
+    """
+    Client Portal Document Library - Store client-accessible documents
+    """
+    DOC_TYPES = [
+        ('invoice', 'Invoice'),
+        ('quote', 'Quote'),
+        ('specification', 'Specification'),
+        ('artwork', 'Artwork'),
+        ('proof', 'Proof'),
+        ('manual', 'Manual'),
+        ('certificate', 'Certificate'),
+        ('other', 'Other'),
+    ]
+    
+    # Identification
+    document_number = models.CharField(max_length=50, editable=False, db_index=True)
+    client = models.ForeignKey(Client, on_delete=models.CASCADE, related_name='document_library')
+    
+    # Details
+    title = models.CharField(max_length=255)
+    description = models.TextField(blank=True)
+    doc_type = models.CharField(max_length=20, choices=DOC_TYPES)
+    
+    # Linked items
+    order = models.ForeignKey(ClientOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
+    invoice = models.ForeignKey(ClientInvoice, on_delete=models.SET_NULL, null=True, blank=True, related_name='documents')
+    
+    # File
+    file_url = models.URLField()
+    file_size = models.IntegerField(help_text="Size in bytes")
+    file_format = models.CharField(max_length=10)  # pdf, docx, xlsx, etc
+    
+    # Access Control
+    is_public = models.BooleanField(default=True)
+    accessible_by = models.ManyToManyField(ClientPortalUser, blank=True, related_name='accessible_documents')
+    
+    # Tracking
+    uploaded_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='uploaded_documents')
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'doc_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.title} - {self.client.client_id}"
+
+
+class ClientPortalNotification(models.Model):
+    """
+    Client Portal Notifications - Sent to portal users
+    """
+    NOTIFICATION_TYPES = [
+        ('order_confirmed', 'Order Confirmed'),
+        ('order_status_update', 'Order Status Update'),
+        ('invoice_issued', 'Invoice Issued'),
+        ('payment_received', 'Payment Received'),
+        ('delivery_scheduled', 'Delivery Scheduled'),
+        ('ticket_reply', 'Support Ticket Reply'),
+        ('announcement', 'Announcement'),
+        ('reminder', 'Reminder'),
+    ]
+    
+    portal_user = models.ForeignKey(ClientPortalUser, on_delete=models.CASCADE, related_name='notifications')
+    
+    notification_type = models.CharField(max_length=30, choices=NOTIFICATION_TYPES)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    
+    # Links
+    order = models.ForeignKey(ClientOrder, on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications')
+    invoice = models.ForeignKey(ClientInvoice, on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications')
+    ticket = models.ForeignKey(ClientSupportTicket, on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications')
+    
+    # Status
+    is_read = models.BooleanField(default=False)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['portal_user', 'is_read']),
+        ]
+    
+    def __str__(self):
+        return f"{self.notification_type} - {self.portal_user.user.username}"
+
+
+class ClientActivityLog(models.Model):
+    """
+    Client Portal Activity Log - Track user actions
+    """
+    ACTION_TYPES = [
+        ('order_created', 'Order Created'),
+        ('order_updated', 'Order Updated'),
+        ('order_submitted', 'Order Submitted'),
+        ('invoice_viewed', 'Invoice Viewed'),
+        ('invoice_downloaded', 'Invoice Downloaded'),
+        ('payment_made', 'Payment Made'),
+        ('ticket_created', 'Ticket Created'),
+        ('document_downloaded', 'Document Downloaded'),
+        ('login', 'Login'),
+        ('profile_updated', 'Profile Updated'),
+    ]
+    
+    portal_user = models.ForeignKey(ClientPortalUser, on_delete=models.CASCADE, related_name='activity_logs')
+    
+    action_type = models.CharField(max_length=30, choices=ACTION_TYPES)
+    description = models.TextField()
+    
+    # Context
+    order = models.ForeignKey(ClientOrder, on_delete=models.SET_NULL, null=True, blank=True)
+    invoice = models.ForeignKey(ClientInvoice, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # IP and user agent
+    ip_address = models.GenericIPAddressField(blank=True, null=True)
+    user_agent = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['portal_user', 'action_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.action_type} - {self.portal_user.user.username}"
+
+
+# ============================================================================
+# APPROVAL & AUTHORIZATION MODELS
+# ============================================================================
+
+class ApprovalThreshold(models.Model):
+    """
+    Defines approval thresholds for different user roles.
+    Limits spending authority by amount.
+    """
+    ROLE_CHOICES = [
+        ('pt_member', 'Production Team Member'),
+        ('pt_manager', 'Production Team Manager'),
+        ('director', 'Director'),
+        ('ceo', 'CEO'),
+    ]
+    
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, unique=True)
+    min_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Minimum invoice amount this role can approve")
+    max_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Maximum invoice amount this role can approve (0 = unlimited)")
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['min_amount']
+    
+    def __str__(self):
+        max_str = f"to {self.max_amount}" if self.max_amount > 0 else "unlimited"
+        return f"{self.get_role_display()}: {self.min_amount} {max_str}"
+    
+    @staticmethod
+    def get_user_threshold(user):
+        """Get the approval threshold for a specific user based on their role/group"""
+        if user.is_superuser:
+            return ApprovalThreshold.objects.filter(
+                role='ceo',
+                is_active=True
+            ).first()
+        
+        if user.groups.filter(name='Production Team Manager').exists():
+            return ApprovalThreshold.objects.filter(
+                role='pt_manager',
+                is_active=True
+            ).first()
+        
+        if user.groups.filter(name='Director').exists():
+            return ApprovalThreshold.objects.filter(
+                role='director',
+                is_active=True
+            ).first()
+        
+        if user.groups.filter(name='Production Team').exists():
+            return ApprovalThreshold.objects.filter(
+                role='pt_member',
+                is_active=True
+            ).first()
+        
+        return None
+    
+    @staticmethod
+    def can_user_approve_amount(user, amount):
+        """Check if a user can approve an invoice of a specific amount"""
+        threshold = ApprovalThreshold.get_user_threshold(user)
+        
+        if not threshold:
+            return False, f"No approval threshold configured for {user.username}"
+        
+        if not threshold.is_active:
+            return False, f"Approval threshold for {threshold.get_role_display()} is inactive"
+        
+        if amount < threshold.min_amount:
+            return False, f"Amount KES {amount} is below minimum approval amount KES {threshold.min_amount}"
+        
+        if threshold.max_amount > 0 and amount > threshold.max_amount:
+            return False, f"Amount KES {amount} exceeds maximum approval amount KES {threshold.max_amount} for {threshold.get_role_display()}"
+        
+        return True, f"User can approve this amount"
+
+
+class InvoiceDispute(models.Model):
+    """
+    Track disputes on invoices - wrong amount, missing items, etc.
+    """
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('vendor_responded', 'Vendor Responded'),
+        ('pt_reviewing', 'PT Reviewing'),
+        ('resolved', 'Resolved'),
+        ('escalated', 'Escalated'),
+    ]
+    
+    invoice = models.ForeignKey('VendorInvoice', on_delete=models.CASCADE, related_name='disputes')
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='invoice_disputes')
+    
+    title = models.CharField(max_length=255)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+    
+    # Resolution
+    resolution_notes = models.TextField(blank=True, null=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='disputes_resolved')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='disputes_created')
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Dispute on {self.invoice.invoice_number}: {self.title}"
+
+
+class InvoiceDisputeResponse(models.Model):
+    """
+    Vendor response to a dispute
+    """
+    dispute = models.ForeignKey(InvoiceDispute, on_delete=models.CASCADE, related_name='responses')
+    
+    message = models.TextField()
+    attachment = models.FileField(upload_to='dispute_attachments/%Y/%m/', null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='dispute_responses')
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Response to {self.dispute.id} - {self.created_at.strftime('%Y-%m-%d')}"
+
+
+class JobProgressUpdate(models.Model):
+    """
+    Track vendor progress updates on jobs
+    """
+    job_vendor_stage = models.ForeignKey('JobVendorStage', on_delete=models.CASCADE, related_name='progress_updates')
+    
+    progress_percentage = models.PositiveIntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    status = models.CharField(max_length=50)
+    notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Progress {self.progress_percentage}% - {self.job_vendor_stage.job.job_number}"
+
+
+class SLAEscalation(models.Model):
+    """
+    Track SLA breaches and escalations
+    """
+    ESCALATION_LEVEL_CHOICES = [
+        ('reminder', 'Reminder Email'),
+        ('urgent', 'Urgent Notification'),
+        ('manager', 'Manager Escalation'),
+        ('director', 'Director Review'),
+    ]
+    
+    job_vendor_stage = models.ForeignKey('JobVendorStage', on_delete=models.CASCADE, related_name='escalations')
+    
+    level = models.CharField(max_length=20, choices=ESCALATION_LEVEL_CHOICES)
+    days_overdue = models.IntegerField()
+    message = models.TextField()
+    notified_users = models.ManyToManyField(User, related_name='sla_escalations')
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"SLA Escalation Level {self.level} - {self.job_vendor_stage.job.job_number}"
+
+
+class VendorPerformanceMetrics(models.Model):
+    """
+    Aggregate vendor performance metrics
+    """
+    vendor = models.OneToOneField('Vendor', on_delete=models.CASCADE, related_name='performance_metrics')
+    
+    # On-time metrics
+    total_jobs = models.IntegerField(default=0)
+    on_time_jobs = models.IntegerField(default=0)
+    on_time_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Quality metrics
+    qc_passed_jobs = models.IntegerField(default=0)
+    qc_failed_jobs = models.IntegerField(default=0)
+    qc_pass_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Response metrics
+    avg_response_time_hours = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Financial metrics
+    total_invoice_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    approved_invoice_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    dispute_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    last_updated = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name_plural = "Vendor Performance Metrics"
+    
+    def __str__(self):
+        return f"Metrics for {self.vendor.name}"
+
+
+class ProfitabilityAnalysis(models.Model):
+    """
+    Profitability calculations for jobs/vendors/products
+    """
+    ENTITY_TYPE_CHOICES = [
+        ('job', 'Job'),
+        ('vendor', 'Vendor'),
+        ('product', 'Product'),
+        ('process', 'Process'),
+    ]
+    
+    entity_type = models.CharField(max_length=20, choices=ENTITY_TYPE_CHOICES)
+    entity_id = models.IntegerField()  # References Job.id, Vendor.id, etc.
+    
+    revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    margin = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    margin_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    period_start = models.DateField()
+    period_end = models.DateField()
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-period_end', '-margin_percentage']
+        indexes = [
+            models.Index(fields=['entity_type', 'entity_id']),
+        ]
+    
+    def __str__(self):
+        return f"{self.entity_type} {self.entity_id}: {self.margin_percentage}% margin"

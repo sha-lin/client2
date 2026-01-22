@@ -250,6 +250,84 @@ def check_po_delivery_overdue():
         }
 
 
+# ============================================================================
+# PHASE 3: QUICKBOOKS BATCH SYNC TASKS
+# ============================================================================
+
+def batch_sync_pending_lpos_to_qb():
+    """
+    Phase 3 Task: Automatically sync pending LPOs to QuickBooks Invoices.
+    Runs daily or can be triggered manually.
+    Syncs approved LPOs that haven't been synced to QB yet.
+    """
+    from .quickbooks_services import QuickBooksFullSyncService
+    from .models import User, LPO
+    
+    try:
+        # Find admin user to use for QB sync
+        admin_user = User.objects.filter(is_staff=True, is_superuser=True).first()
+        
+        if not admin_user:
+            logger.warning("No admin user found for QB sync")
+            return {
+                'status': 'error',
+                'error': 'No admin user found for QB sync',
+                'timestamp': str(timezone.now())
+            }
+        
+        sync_service = QuickBooksFullSyncService(admin_user)
+        results = sync_service.batch_sync_lpos(limit=20)
+        
+        logger.info(f"Batch LPO sync completed: {results['successful']} successful, {results['failed']} failed")
+        
+        return results
+    
+    except Exception as e:
+        logger.error(f"Error in batch LPO QB sync: {e}")
+        return {
+            'status': 'error',
+            'error': str(e),
+            'timestamp': str(timezone.now())
+        }
+
+
+def batch_sync_pending_vendor_invoices_to_qb():
+    """
+    Phase 3 Task: Automatically sync pending vendor invoices to QuickBooks Bills.
+    Runs daily or can be triggered manually.
+    Syncs approved vendor invoices that haven't been synced to QB yet.
+    """
+    from .quickbooks_services import QuickBooksFullSyncService
+    from .models import User
+    
+    try:
+        # Find admin user
+        admin_user = User.objects.filter(is_staff=True, is_superuser=True).first()
+        
+        if not admin_user:
+            logger.warning("No admin user found for QB sync")
+            return {
+                'status': 'error',
+                'error': 'No admin user found for QB sync',
+                'timestamp': str(timezone.now())
+            }
+        
+        sync_service = QuickBooksFullSyncService(admin_user)
+        results = sync_service.batch_sync_vendor_invoices(limit=20)
+        
+        logger.info(f"Batch vendor invoice sync completed: {results['successful']} successful, {results['failed']} failed")
+        
+        return results
+    
+    except Exception as e:
+        logger.error(f"Error in batch vendor invoice QB sync: {e}")
+        return {
+            'status': 'error',
+            'error': str(e),
+            'timestamp': str(timezone.now())
+        }
+
+
 # Celery tasks (if using Celery)
 try:
     from celery import shared_task
@@ -283,6 +361,24 @@ try:
         """Celery-wrapped version of check_po_delivery_overdue"""
         try:
             return check_po_delivery_overdue()
+        except Exception as exc:
+            raise self.retry(exc=exc, countdown=60)
+    
+    # ===== PHASE 3: QUICKBOOKS BATCH SYNC CELERY TASKS =====
+    
+    @shared_task(bind=True, max_retries=3)
+    def celery_batch_sync_lpos_to_qb(self):
+        """Celery-wrapped version of batch_sync_pending_lpos_to_qb"""
+        try:
+            return batch_sync_pending_lpos_to_qb()
+        except Exception as exc:
+            raise self.retry(exc=exc, countdown=60)
+    
+    @shared_task(bind=True, max_retries=3)
+    def celery_batch_sync_vendor_invoices_to_qb(self):
+        """Celery-wrapped version of batch_sync_pending_vendor_invoices_to_qb"""
+        try:
+            return batch_sync_pending_vendor_invoices_to_qb()
         except Exception as exc:
             raise self.retry(exc=exc, countdown=60)
 

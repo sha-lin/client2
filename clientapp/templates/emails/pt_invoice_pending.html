@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; }
+        .header { background-color: #ff9800; color: white; padding: 20px; text-align: center; border-radius: 5px; }
+        .content { padding: 20px; }
+        .invoice-info { background-color: #fff3e0; padding: 15px; margin: 15px 0; border-left: 4px solid #ff9800; }
+        .label { font-weight: bold; color: #555; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
+        .urgent { color: #d9534f; font-weight: bold; }
+        .button { background-color: #ff9800; color: white; padding: 10px 20px; text-decoration: none; border-radius: 3px; display: inline-block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Invoice Pending Your Approval</h1>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{ pt_user_name }},</p>
+            
+            <p class="urgent">A new vendor invoice is awaiting your approval:</p>
+            
+            <div class="invoice-info">
+                <p><span class="label">Invoice Number:</span> {{ invoice_number }}</p>
+                <p><span class="label">Vendor:</span> {{ vendor_name }}</p>
+                <p><span class="label">Vendor Ref:</span> {{ vendor_invoice_ref }}</p>
+                <p><span class="label">Job Number:</span> {{ job_number }}</p>
+                <p><span class="label">Amount:</span> <strong style="color: #ff9800;">KES {{ total_amount }}</strong></p>
+                <p><span class="label">Invoice Date:</span> {{ invoice_date }}</p>
+                <p><span class="label">Due Date:</span> {{ due_date }}</p>
+                <p><span class="label">Submitted:</span> {{ invoice_date }}</p>
+            </div>
+            
+            <p>Please review the invoice and approve or reject as appropriate.</p>
+            
+            <p style="text-align: center;">
+                <a href="{{ approval_url }}" class="button">Review Invoice</a>
+            </p>
+            
+            <p>
+                Best regards,<br>
+                System
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated notification. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>

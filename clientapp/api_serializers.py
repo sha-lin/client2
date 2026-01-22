@@ -83,7 +83,6 @@ from .models import (
     Adjustment,
     WebhookSubscription,
     WebhookDelivery,
-
     # Vendor Portal models
     PurchaseOrder,
     VendorInvoice,
@@ -91,6 +90,17 @@ from .models import (
     PurchaseOrderIssue,
     PurchaseOrderNote,
     MaterialSubstitutionRequest,
+    # Client Portal models
+    ClientPortalUser,
+    ClientOrder,
+    ClientOrderItem,
+    ClientInvoice,
+    ClientPayment,
+    ClientSupportTicket,
+    ClientTicketReply,
+    ClientDocumentLibrary,
+    ClientPortalNotification,
+    ClientActivityLog,
 )
 
 
@@ -752,8 +762,8 @@ class PurchaseOrderProofSerializer(serializers.ModelSerializer):
     class Meta:
         model = PurchaseOrderProof
         fields = [
-            'id', 'purchase_order', 'po_number', 'proof_image', 'proof_type',
-            'submitted_at', 'status', 'rejection_reason', 'reviewed_by',
+            'id', 'purchase_order', 'po_number', 'proof_image',
+            'submitted_at', 'status', 'reviewed_by',
             'reviewed_by_name', 'reviewed_at'
         ]
         read_only_fields = ['submitted_at']
@@ -762,16 +772,14 @@ class PurchaseOrderProofSerializer(serializers.ModelSerializer):
 class PurchaseOrderIssueSerializer(serializers.ModelSerializer):
     """Serializer for Purchase Order Issues"""
     po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
-    resolved_by_name = serializers.CharField(source='resolved_by.get_full_name', read_only=True)
     
     class Meta:
         model = PurchaseOrderIssue
         fields = [
             'id', 'purchase_order', 'po_number', 'issue_type', 'description',
-            'photo', 'status', 'resolution_notes', 'resolved_by',
-            'resolved_by_name', 'resolved_at', 'created_at', 'updated_at'
+            'status', 'created_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at']
 
 
 class PurchaseOrderNoteSerializer(serializers.ModelSerializer):
@@ -791,18 +799,15 @@ class PurchaseOrderNoteSerializer(serializers.ModelSerializer):
 class MaterialSubstitutionRequestSerializer(serializers.ModelSerializer):
     """Serializer for Material Substitution Requests"""
     po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
-    reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True)
     
     class Meta:
         model = MaterialSubstitutionRequest
         fields = [
             'id', 'purchase_order', 'po_number', 'original_material',
-            'original_pantone', 'original_supplier', 'proposed_material',
-            'proposed_pantone', 'match_percentage', 'comparison_photo',
-            'justification', 'status', 'reviewed_by', 'reviewed_by_name',
-            'reviewed_at', 'rejection_reason', 'created_at', 'updated_at'
+            'proposed_material', 'match_percentage',
+            'justification', 'status', 'created_at'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = ['created_at']
 
 
 class VendorPerformanceSerializer(serializers.Serializer):
@@ -882,3 +887,170 @@ class VendorInvoiceDetailedSerializer(serializers.ModelSerializer):
             'invoice_number', 'created_at', 'updated_at', 'vendor_name',
             'po_number', 'job_number', 'client_name'
         ]
+
+
+# ============================================================================
+# CLIENT PORTAL SERIALIZERS
+# ============================================================================
+
+class ClientPortalUserSerializer(serializers.ModelSerializer):
+    """Client Portal User"""
+    user_email = serializers.CharField(source='user.email', read_only=True)
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    
+    class Meta:
+        model = ClientPortalUser
+        fields = [
+            'id', 'user', 'user_email', 'client', 'client_name', 'role',
+            'can_view_orders', 'can_place_orders', 'can_view_invoices',
+            'can_view_payments', 'can_submit_tickets', 'can_access_documents',
+            'can_manage_users', 'is_active', 'email_verified', 'last_login',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['user_email', 'client_name', 'created_at', 'updated_at', 'last_login']
+
+
+class ClientOrderItemSerializer(serializers.ModelSerializer):
+    """Client Order Item"""
+    product_name = serializers.CharField(read_only=True)
+    
+    class Meta:
+        model = ClientOrderItem
+        fields = [
+            'id', 'product', 'product_name', 'product_sku', 'quantity',
+            'unit_price', 'line_total', 'specifications', 'created_at'
+        ]
+        read_only_fields = ['line_total', 'created_at']
+
+
+class ClientOrderSerializer(serializers.ModelSerializer):
+    """Client Order"""
+    items = ClientOrderItemSerializer(many=True, read_only=True)
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    quote_number = serializers.CharField(source='quote.quote_number', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ClientOrder
+        fields = [
+            'id', 'order_number', 'client', 'client_name', 'quote', 'quote_number',
+            'job', 'status', 'subtotal', 'tax_amount', 'shipping_cost', 'total_amount',
+            'shipping_address', 'delivery_date', 'special_instructions', 'items',
+            'created_by', 'created_at', 'updated_at', 'submitted_at'
+        ]
+        read_only_fields = [
+            'order_number', 'client_name', 'quote_number', 'created_at', 'updated_at', 'submitted_at'
+        ]
+
+
+class ClientInvoiceSerializer(serializers.ModelSerializer):
+    """Client Invoice"""
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    order_number = serializers.CharField(source='order.order_number', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ClientInvoice
+        fields = [
+            'id', 'invoice_number', 'client', 'client_name', 'order', 'order_number',
+            'subtotal', 'tax_amount', 'total_amount', 'amount_paid', 'balance_due',
+            'status', 'invoice_date', 'due_date', 'issued_at', 'qb_invoice_id',
+            'is_synced_to_qb', 'qb_last_sync_at', 'description', 'line_items_json',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'invoice_number', 'client_name', 'order_number', 'qb_invoice_id',
+            'is_synced_to_qb', 'qb_last_sync_at', 'created_at', 'updated_at'
+        ]
+
+
+class ClientPaymentSerializer(serializers.ModelSerializer):
+    """Client Payment"""
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ClientPayment
+        fields = [
+            'id', 'payment_number', 'client', 'client_name', 'invoice', 'invoice_number',
+            'amount', 'payment_method', 'status', 'qb_payment_id', 'is_synced_to_qb',
+            'reference_number', 'notes', 'created_at', 'updated_at', 'processed_at'
+        ]
+        read_only_fields = [
+            'payment_number', 'client_name', 'invoice_number', 'qb_payment_id',
+            'is_synced_to_qb', 'created_at', 'updated_at', 'processed_at'
+        ]
+
+
+class ClientTicketReplySerializer(serializers.ModelSerializer):
+    """Support Ticket Reply"""
+    user_name = serializers.CharField(source='user.get_full_name', read_only=True)
+    
+    class Meta:
+        model = ClientTicketReply
+        fields = [
+            'id', 'ticket', 'user', 'user_name', 'message', 'attachment_url',
+            'is_internal', 'created_at'
+        ]
+        read_only_fields = ['user_name', 'created_at']
+
+
+class ClientSupportTicketSerializer(serializers.ModelSerializer):
+    """Client Support Ticket"""
+    replies = ClientTicketReplySerializer(many=True, read_only=True)
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ClientSupportTicket
+        fields = [
+            'id', 'ticket_number', 'client', 'client_name', 'title', 'description',
+            'category', 'order', 'invoice', 'priority', 'status', 'assigned_to',
+            'assigned_to_name', 'resolution_notes', 'replies', 'created_by',
+            'created_by_name', 'created_at', 'updated_at', 'resolved_at'
+        ]
+        read_only_fields = [
+            'ticket_number', 'client_name', 'created_by_name', 'assigned_to_name',
+            'created_at', 'updated_at', 'resolved_at'
+        ]
+
+
+class ClientDocumentLibrarySerializer(serializers.ModelSerializer):
+    """Client Document"""
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    uploaded_by_name = serializers.CharField(source='uploaded_by.get_full_name', read_only=True)
+    
+    class Meta:
+        model = ClientDocumentLibrary
+        fields = [
+            'id', 'document_number', 'client', 'client_name', 'title', 'description',
+            'doc_type', 'order', 'invoice', 'file_url', 'file_size', 'file_format',
+            'is_public', 'uploaded_by', 'uploaded_by_name', 'created_at', 'expires_at'
+        ]
+        read_only_fields = [
+            'document_number', 'client_name', 'uploaded_by_name', 'created_at'
+        ]
+
+
+class ClientPortalNotificationSerializer(serializers.ModelSerializer):
+    """Client Portal Notification"""
+    
+    class Meta:
+        model = ClientPortalNotification
+        fields = [
+            'id', 'portal_user', 'notification_type', 'title', 'message',
+            'order', 'invoice', 'ticket', 'is_read', 'created_at', 'read_at'
+        ]
+        read_only_fields = ['portal_user', 'created_at', 'read_at']
+
+
+class ClientActivityLogSerializer(serializers.ModelSerializer):
+    """Client Activity Log"""
+    portal_user_name = serializers.CharField(source='portal_user.user.get_full_name', read_only=True)
+    
+    class Meta:
+        model = ClientActivityLog
+        fields = [
+            'id', 'portal_user', 'portal_user_name', 'action_type', 'description',
+            'order', 'invoice', 'ip_address', 'user_agent', 'created_at'
+        ]
+        read_only_fields = ['portal_user_name', 'created_at']

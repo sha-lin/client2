@@ -1,6 +1,7 @@
 import decimal
 import json
 import uuid
+import logging
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -18,6 +19,8 @@ from django.core.exceptions import ValidationError
 from functools import wraps
 from django.contrib.auth.models import User, Group
 from .models import BrandAsset
+
+logger = logging.getLogger(__name__)
 from django.core.paginator import Paginator
 
 
@@ -50,6 +53,8 @@ from .models import (
     ProcessVariableRange,
     Process,
     Vendor,
+    Payment,
+    VendorInvoice,
 )
 
 # Import comprehensive CRUD API endpoints
@@ -1372,7 +1377,7 @@ def create_quote(request):
 
             # Set dates
             quote_date = timezone.now().date()
-            valid_until = quote_date + timedelta(days=30)
+            valid_until = quote_date + timedelta(days=3)
             if quote_date_str:
                 quote_date = timezone.datetime.fromisoformat(quote_date_str).date()
             if valid_until_str:
@@ -1435,7 +1440,7 @@ def create_quote(request):
     ).order_by('name')
     
     today = timezone.now().date()
-    default_valid_until = today + timedelta(days=30)
+    default_valid_until = today + timedelta(days=3)
     
     # Get account manager name
     account_manager_name = request.user.get_full_name() or request.user.username
@@ -1549,7 +1554,7 @@ def quote_create(request):
                         total_amount=Decimal('0'),  # Will be calculated
                         status='Draft',
                         quote_date=timezone.now().date(),
-                        valid_until=timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date() + timedelta(days=30),
+                        valid_until=timezone.datetime.fromisoformat(valid_until).date() if valid_until else timezone.now().date() + timedelta(days=3),
                         notes=special_instructions,
                         reference_number=reference_number,
                         shipping_charges=shipping_charges,

@@ -39,3 +39,36 @@ class IsOwnerOrAdmin(permissions.BasePermission):
         owner = getattr(obj, "created_by", None) or getattr(obj, "owner", None)
         return owner == request.user
 
+
+class IsClient(permissions.BasePermission):
+    """Allow Client Portal Users - authenticated only"""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        # Check if user has a client portal profile
+        try:
+            from .models import ClientPortalUser
+            return ClientPortalUser.objects.filter(user=request.user, is_active=True).exists()
+        except:
+            return False
+
+
+class IsClientOwner(permissions.BasePermission):
+    """
+    Object-level: Client can only access their own data
+    """
+
+    def has_object_permission(self, request, view, obj):
+        from .models import ClientPortalUser
+        
+        try:
+            portal_user = ClientPortalUser.objects.get(user=request.user, is_active=True)
+        except:
+            return False
+        
+        # Get client from object (different models have different field names)
+        obj_client = getattr(obj, "client", None) or getattr(obj, "portal_user.client", None)
+        
+        return portal_user.client == obj_client
+

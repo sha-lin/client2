@@ -9,6 +9,9 @@ from decimal import Decimal
 from drf_yasg.utils import swagger_auto_schema
 from django.utils.decorators import method_decorator
 from .quickbooks_services import QuickBooksService, QuickBooksAuthService
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 from .models import (
@@ -26,6 +29,10 @@ from .models import (
     Payment,
     PurchaseOrder,
     VendorInvoice,
+    PurchaseOrderProof,
+    PurchaseOrderIssue,
+    PurchaseOrderNote,
+    MaterialSubstitutionRequest,
     QuickBooksToken,
     Notification,
     ActivityLog,
@@ -74,6 +81,17 @@ from .models import (
     CustomerAddress,
     Cart,
     CartItem,
+    # Client Portal models
+    ClientPortalUser,
+    ClientOrder,
+    ClientOrderItem,
+    ClientInvoice,
+    ClientPayment,
+    ClientSupportTicket,
+    ClientTicketReply,
+    ClientDocumentLibrary,
+    ClientPortalNotification,
+    ClientActivityLog,
     Order,
     OrderItem,
     Coupon,
@@ -95,6 +113,14 @@ from .models import (
     CreditNote,
     Adjustment,
     WebhookSubscription,
+    # Production Team Portal models
+    ApprovalThreshold,
+    InvoiceDispute,
+    InvoiceDisputeResponse,
+    JobProgressUpdate,
+    SLAEscalation,
+    VendorPerformanceMetrics,
+    ProfitabilityAnalysis,
     WebhookDelivery,
 )
 from .api_serializers import (
@@ -112,6 +138,10 @@ from .api_serializers import (
     PaymentSerializer,
     PurchaseOrderDetailedSerializer,
     VendorInvoiceDetailedSerializer,
+    PurchaseOrderProofSerializer,
+    PurchaseOrderIssueSerializer,
+    PurchaseOrderNoteSerializer,
+    MaterialSubstitutionRequestSerializer,
     NotificationSerializer,
     ActivityLogSerializer,
     PropertyTypeSerializer,
@@ -154,6 +184,17 @@ from .api_serializers import (
     ProductProductionSerializer,
     ProductChangeHistorySerializer,
     ProductTemplateSerializer,
+    # Client Portal serializers
+    ClientPortalUserSerializer,
+    ClientOrderSerializer,
+    ClientOrderItemSerializer,
+    ClientInvoiceSerializer,
+    ClientPaymentSerializer,
+    ClientSupportTicketSerializer,
+    ClientTicketReplySerializer,
+    ClientDocumentLibrarySerializer,
+    ClientPortalNotificationSerializer,
+    ClientActivityLogSerializer,
     JobVendorStageSerializer,
     JobNoteSerializer,
     JobAttachmentSerializer,
@@ -186,6 +227,8 @@ from .permissions import (
     IsAccountManager,
     IsProductionTeam,
     IsOwnerOrAdmin,
+    IsClient,
+    IsClientOwner,
 )
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Account Manager']))
@@ -194,14 +237,6 @@ from .permissions import (
 @method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
-
-@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Account Manager']))
-@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Account Manager']))
-@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Account Manager']))
-@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Account Manager']))
-@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Account Manager']))
-@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Account Manager']))
-
 class LeadViewSet(viewsets.ModelViewSet):
     queryset = Lead.objects.select_related("created_by").all()
     serializer_class = LeadSerializer
@@ -1296,8 +1331,11 @@ class JobViewSet(viewsets.ModelViewSet):
             "uploaded_at": att.uploaded_at,
         } for att in attachments]
         
-        # Create notification for vendor- for vendors who have accounts
-        # activity log
+        # Send vendor notification
+        from .vendor_notifications import VendorNotificationService
+        VendorNotificationService.notify_job_assignment(vendor_stage, vendor)
+        
+        # Create activity log
         ActivityLog.objects.create(
             client=job.client,
             activity_type="Job",
@@ -1318,6 +1356,68 @@ class JobViewSet(viewsets.ModelViewSet):
             "expected_completion": vendor_stage.expected_completion,
             "attachments_count": len(attachment_list),
             "attachments": attachment_list,
+        })
+
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
+    def update_progress(self, request, pk=None):
+        """
+        Vendor updates job progress
+        Required: progress (0-100), status
+        Optional: notes
+        """
+        from .vendor_notifications import PTNotificationService
+        
+        job = self.get_object()
+        
+        # Get vendor stages for this job
+        vendor_stage = job.vendor_stages.filter(vendor__user=request.user).first()
+        
+        if not vendor_stage:
+            return Response(
+                {"detail": "You are not assigned to this job"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+        
+        progress = int(request.data.get("progress", 0))
+        status_update = request.data.get("status", "in_production")
+        notes = request.data.get("notes", "")
+        
+        # Validate progress
+        if not (0 <= progress <= 100):
+            return Response(
+                {"detail": "Progress must be between 0 and 100"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update vendor stage
+        vendor_stage.progress = progress
+        vendor_stage.status = status_update
+        vendor_stage.notes = notes
+        vendor_stage.save()
+        
+        # Check if overdue
+        if vendor_stage.expected_completion and timezone.now() > vendor_stage.expected_completion:
+            days_overdue = (timezone.now() - vendor_stage.expected_completion).days
+            # Notify PT team if overdue
+            if days_overdue > 0:
+                PTNotificationService.notify_pt_job_overdue(vendor_stage)
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=job.client,
+            activity_type="Job",
+            title=f"Progress Update: Job {job.job_number}",
+            description=f"{vendor_stage.vendor.name} updated progress to {progress}%. Status: {status_update}.",
+            created_by=request.user,
+        )
+        
+        return Response({
+            "detail": "Progress updated successfully",
+            "job_number": job.job_number,
+            "progress": progress,
+            "status": status_update,
+            "notes": notes,
+            "is_overdue": timezone.now() > vendor_stage.expected_completion if vendor_stage.expected_completion else False,
         })
 
 
@@ -1569,9 +1669,33 @@ class VendorInvoiceViewSet(viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'invoice_date', 'due_date', 'status']
     ordering = ['-created_at']
     
+    def create(self, request, *args, **kwargs):
+        """Create invoice and notify PT team"""
+        from .vendor_notifications import PTNotificationService
+        
+        response = super().create(request, *args, **kwargs)
+        
+        # Get the created invoice
+        if response.status_code == 201:
+            try:
+                invoice_id = response.data.get('id')
+                invoice = VendorInvoice.objects.get(pk=invoice_id)
+                invoice.submitted_at = timezone.now()
+                invoice.save()
+                
+                # Notify PT team about pending invoice
+                PTNotificationService.notify_pt_invoice_submitted(invoice)
+            except Exception as e:
+                logger.error(f"Error notifying PT team about invoice: {str(e)}")
+        
+        return response
+    
     @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
     def approve(self, request, pk=None):
         """PT approves vendor invoice"""
+        from .invoice_validation import InvoiceValidationService
+        from .vendor_notifications import VendorNotificationService
+        
         invoice = self.get_object()
         
         if invoice.status == 'approved':
@@ -1580,32 +1704,61 @@ class VendorInvoiceViewSet(viewsets.ModelViewSet):
         if invoice.status == 'paid':
             return Response({'detail': 'Cannot approve paid invoice'}, status=status.HTTP_400_BAD_REQUEST)
         
+        # Validate invoice before approval
+        validation = InvoiceValidationService.validate(invoice)
+        invoice.is_validated = validation['is_valid']
+        invoice.validation_errors = validation.get('errors', [])
+        invoice.validation_warnings = validation.get('warnings', [])
+        
+        if not validation['is_valid']:
+            invoice.save()
+            return Response({
+                'detail': 'Invoice validation failed',
+                'errors': validation['errors'],
+                'warnings': validation['warnings']
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
         invoice.status = 'approved'
+        invoice.approved_by = request.user
+        invoice.approved_at = timezone.now()
         invoice.save()
+        
+        # Send notification to vendor
+        VendorNotificationService.notify_invoice_approved(invoice)
         
         # Log activity
         ActivityLog.objects.create(
             client=invoice.job.client,
             activity_type='Vendor Invoice',
             title=f'Invoice {invoice.invoice_number} Approved',
-            description=f'{invoice.vendor.name} invoice approved. Amount: {invoice.total_amount}',
+            description=f'{invoice.vendor.name} invoice approved. Amount: {invoice.total_amount}. Validated: {validation["is_valid"]}',
             created_by=request.user,
         )
         
         serializer = self.get_serializer(invoice)
-        return Response({'detail': 'Invoice approved', 'invoice': serializer.data})
+        return Response({
+            'detail': 'Invoice approved',
+            'invoice': serializer.data,
+            'validation_summary': validation
+        })
     
     @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
     def reject(self, request, pk=None):
         """PT rejects vendor invoice"""
+        from .vendor_notifications import VendorNotificationService
+        
         invoice = self.get_object()
-        reason = request.data.get('reason', '')
+        reason = request.data.get('reason', 'No reason provided')
         
         if invoice.status in ['approved', 'paid']:
             return Response({'detail': f'Cannot reject {invoice.status} invoice'}, status=status.HTTP_400_BAD_REQUEST)
         
         invoice.status = 'rejected'
+        invoice.rejection_reason = reason
         invoice.save()
+        
+        # Send notification to vendor
+        VendorNotificationService.notify_invoice_rejected(invoice, reason)
         
         # Log activity
         ActivityLog.objects.create(
@@ -2254,6 +2407,200 @@ class QuickBooksSyncViewSet(viewsets.ViewSet):
         
         except Exception as e:
             return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    # ===== PHASE 3: COMPLETE QUICKBOOKS SYNC ENDPOINTS =====
+    
+    @decorators.action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin | IsProductionTeam])
+    def sync_lpo_to_invoice(self, request):
+        """
+        PHASE 3: Sync Local Purchase Order (LPO) to QuickBooks Invoice.
+        This is the primary customer-facing invoice in QB.
+        """
+        try:
+            from .quickbooks_services import QuickBooksFullSyncService
+            from .models import LPO
+            
+            lpo_id = request.data.get('lpo_id')
+            if not lpo_id:
+                return Response({'error': 'lpo_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                lpo = LPO.objects.get(pk=lpo_id)
+            except LPO.DoesNotExist:
+                return Response({'error': 'LPO not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            sync_service = QuickBooksFullSyncService(request.user)
+            result = sync_service.sync_lpo_to_invoice(lpo)
+            
+            if result['status'] == 'success':
+                ActivityLog.objects.create(
+                    client=lpo.client,
+                    activity_type='QuickBooks Sync - Phase 3',
+                    title=f'LPO {lpo.lpo_number} → QB Invoice',
+                    description=f'QB Invoice ID: {result["qb_invoice_id"]}. Amount: {result["amount"]}',
+                    created_by=request.user,
+                )
+            
+            return Response(result)
+        
+        except Exception as e:
+            logger.error(f"Error syncing LPO to QB: {e}")
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin | IsProductionTeam])
+    def sync_vendor_invoice_to_bill(self, request):
+        """
+        PHASE 3: Sync Vendor Invoice to QuickBooks Bill (Accounts Payable).
+        This creates vendor payables in QB accounting.
+        """
+        try:
+            from .quickbooks_services import QuickBooksFullSyncService
+            from .models import VendorInvoice
+            
+            invoice_id = request.data.get('invoice_id')
+            if not invoice_id:
+                return Response({'error': 'invoice_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                vendor_invoice = VendorInvoice.objects.get(pk=invoice_id)
+            except VendorInvoice.DoesNotExist:
+                return Response({'error': 'Vendor invoice not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            sync_service = QuickBooksFullSyncService(request.user)
+            result = sync_service.sync_vendor_invoice_to_bill(vendor_invoice)
+            
+            if result['status'] == 'success':
+                ActivityLog.objects.create(
+                    client=vendor_invoice.job.client,
+                    activity_type='QuickBooks Sync - Phase 3',
+                    title=f'Vendor Invoice {vendor_invoice.invoice_number} → QB Bill',
+                    description=f'QB Bill ID: {result["qb_bill_id"]}. Amount: {result["amount"]}',
+                    created_by=request.user,
+                )
+            
+            return Response(result)
+        
+        except Exception as e:
+            logger.error(f"Error syncing vendor invoice to QB: {e}")
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin | IsProductionTeam])
+    def sync_payment_to_qb(self, request):
+        """
+        PHASE 3: Sync Payment to QuickBooks Payment record.
+        Records customer payments in QB.
+        """
+        try:
+            from .quickbooks_services import QuickBooksFullSyncService
+            from .models import Payment
+            
+            payment_id = request.data.get('payment_id')
+            if not payment_id:
+                return Response({'error': 'payment_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            try:
+                payment = Payment.objects.get(pk=payment_id)
+            except Payment.DoesNotExist:
+                return Response({'error': 'Payment not found'}, status=status.HTTP_404_NOT_FOUND)
+            
+            sync_service = QuickBooksFullSyncService(request.user)
+            result = sync_service.sync_payment_to_qb(payment)
+            
+            if result['status'] == 'success':
+                ActivityLog.objects.create(
+                    client=payment.client,
+                    activity_type='QuickBooks Sync - Phase 3',
+                    title=f'Payment {payment.payment_reference} Synced to QB',
+                    description=f'QB Payment ID: {result["qb_payment_id"]}. Amount: {result["amount"]}',
+                    created_by=request.user,
+                )
+            
+            return Response(result)
+        
+        except Exception as e:
+            logger.error(f"Error syncing payment to QB: {e}")
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin | IsProductionTeam])
+    def batch_sync_lpos(self, request):
+        """
+        PHASE 3: Batch sync pending LPOs to QuickBooks Invoices.
+        Efficiently syncs multiple LPOs at once.
+        """
+        try:
+            from .quickbooks_services import QuickBooksFullSyncService
+            
+            limit = request.data.get('limit', 10)
+            sync_service = QuickBooksFullSyncService(request.user)
+            results = sync_service.batch_sync_lpos(limit=limit)
+            
+            if results.get('successful', 0) > 0:
+                ActivityLog.objects.create(
+                    activity_type='QuickBooks Batch Sync',
+                    title=f'Batch LPO Sync - {results["successful"]} Successful',
+                    description=f'Synced {results["successful"]} LPOs. Failed: {results["failed"]}',
+                    created_by=request.user,
+                )
+            
+            return Response(results)
+        
+        except Exception as e:
+            logger.error(f"Error in batch LPO sync: {e}")
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin | IsProductionTeam])
+    def batch_sync_vendor_invoices(self, request):
+        """
+        PHASE 3: Batch sync pending vendor invoices to QuickBooks Bills.
+        Efficiently syncs multiple vendor invoices at once.
+        """
+        try:
+            from .quickbooks_services import QuickBooksFullSyncService
+            
+            limit = request.data.get('limit', 10)
+            sync_service = QuickBooksFullSyncService(request.user)
+            results = sync_service.batch_sync_vendor_invoices(limit=limit)
+            
+            if results.get('successful', 0) > 0:
+                ActivityLog.objects.create(
+                    activity_type='QuickBooks Batch Sync',
+                    title=f'Batch Vendor Invoice Sync - {results["successful"]} Successful',
+                    description=f'Synced {results["successful"]} invoices. Failed: {results["failed"]}',
+                    created_by=request.user,
+                )
+            
+            return Response(results)
+        
+        except Exception as e:
+            logger.error(f"Error in batch vendor invoice sync: {e}")
+            return Response({'status': 'error', 'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @decorators.action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsAdmin | IsProductionTeam])
+    def sync_status(self, request):
+        """
+        PHASE 3: Get QuickBooks sync status and statistics.
+        Shows pending items, synced items, and sync history.
+        """
+        try:
+            from .quickbooks_services import QuickBooksFullSyncService
+            
+            sync_service = QuickBooksFullSyncService(request.user)
+            status_data = sync_service.get_sync_status()
+            
+            return Response({
+                'status': 'success',
+                'sync_status': status_data,
+                'last_sync': timezone.now().isoformat(),
+                'qb_connected': True
+            })
+        
+        except Exception as e:
+            logger.error(f"Error getting QB sync status: {e}")
+            return Response({
+                'status': 'error',
+                'qb_connected': False,
+                'error': str(e)
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 # ===== QC, Delivery, Attachments, Notes, Alerts =====
@@ -3679,7 +4026,7 @@ class PricingEngineView(APIView):
                 "margin": float(result["margin"]),
                 "currency": result["currency"],
             })
-        except ValidationError as e:
+        except DjangoValidationError as e:
             return Response(
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
@@ -3876,3 +4223,1201 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = WebhookDelivery.objects.all()
     serializer_class = WebhookDeliverySerializer
     permission_classes = [IsAuthenticated, IsAdmin]
+
+
+# ============================================================================
+# PHASE 2 & 3 VENDOR OPERATIONS & QUALITY CONTROL VIEWSETS
+# ============================================================================
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+class PurchaseOrderProofViewSet(viewsets.ModelViewSet):
+    """
+    Purchase Order Proof ViewSet - Vendors submit proofs, PT approves/rejects.
+    Phase 2 Implementation: Full REST API for vendor proof submission and approval workflow.
+    """
+    queryset = PurchaseOrderProof.objects.select_related('purchase_order', 'reviewed_by', 'purchase_order__vendor').all()
+    serializer_class = PurchaseOrderProofSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ['purchase_order', 'status', 'proof_type']
+    search_fields = ['purchase_order__po_number']
+    ordering_fields = ['submitted_at', 'reviewed_at']
+    ordering = ['-submitted_at']
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def approve(self, request, pk=None):
+        """PT approves vendor proof"""
+        proof = self.get_object()
+        
+        if proof.status == 'approved':
+            return Response(
+                {'detail': 'Proof already approved'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        proof.status = 'approved'
+        proof.reviewed_by = request.user
+        proof.reviewed_at = timezone.now()
+        proof.save()
+        
+        # Update PO status if all proofs approved
+        po = proof.purchase_order
+        pending_proofs = PurchaseOrderProof.objects.filter(
+            purchase_order=po,
+            status__in=['pending', 'rejected']
+        ).count()
+        
+        if pending_proofs == 0:
+            po.proofs_approved = True
+            po.save()
+            
+            # Notify vendor
+            if po.vendor:
+                Notification.objects.create(
+                    recipient=po.vendor.primary_contact if hasattr(po.vendor, 'primary_contact') else None,
+                    notification_type='proof_approved',
+                    title=f'All proofs approved for PO {po.po_number}',
+                    message='Your proofs have been approved. Ready to proceed to next stage.',
+                    link=f'/purchase-orders/{po.id}/',
+                )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Proof Review',
+            title=f'Proof Approved for PO {po.po_number}',
+            description=f'Proof type: {proof.proof_type}. Status: Approved',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(proof)
+        return Response({'detail': 'Proof approved', 'proof': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def reject(self, request, pk=None):
+        """PT rejects vendor proof"""
+        proof = self.get_object()
+        reason = request.data.get('reason', '')
+        
+        if not reason:
+            return Response(
+                {'error': 'Rejection reason is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if proof.status == 'rejected':
+            return Response(
+                {'detail': 'Proof already rejected'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        proof.status = 'rejected'
+        proof.rejection_reason = reason
+        proof.reviewed_by = request.user
+        proof.reviewed_at = timezone.now()
+        proof.save()
+        
+        # Notify vendor to resubmit
+        po = proof.purchase_order
+        if po.vendor:
+            Notification.objects.create(
+                recipient=po.vendor.primary_contact if hasattr(po.vendor, 'primary_contact') else None,
+                notification_type='proof_rejected',
+                title=f'Proof Rejected for PO {po.po_number}',
+                message=f'Your proof has been rejected. Reason: {reason}. Please resubmit.',
+                link=f'/purchase-orders/{po.id}/',
+            )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Proof Review',
+            title=f'Proof Rejected for PO {po.po_number}',
+            description=f'Proof type: {proof.proof_type}. Reason: {reason}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(proof)
+        return Response({'detail': 'Proof rejected', 'proof': serializer.data, 'reason': reason})
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+class PurchaseOrderIssueViewSet(viewsets.ModelViewSet):
+    """
+    Purchase Order Issue ViewSet - Track vendor issues, blocking items, and resolutions.
+    Phase 2 Implementation: Full REST API for issue tracking and resolution workflow.
+    """
+    queryset = PurchaseOrderIssue.objects.select_related('purchase_order', 'resolved_by', 'purchase_order__vendor').all()
+    serializer_class = PurchaseOrderIssueSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ['purchase_order', 'status', 'issue_type']
+    search_fields = ['purchase_order__po_number', 'description']
+    ordering_fields = ['created_at', 'resolved_at']
+    ordering = ['-created_at']
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def resolve(self, request, pk=None):
+        """Mark issue as resolved"""
+        issue = self.get_object()
+        resolution_notes = request.data.get('resolution_notes', '')
+        
+        if not resolution_notes:
+            return Response(
+                {'error': 'Resolution notes are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        issue.status = 'resolved'
+        issue.resolution_notes = resolution_notes
+        issue.resolved_by = request.user
+        issue.resolved_at = timezone.now()
+        issue.save()
+        
+        # Update PO - unblock if no other active issues
+        po = issue.purchase_order
+        active_issues = PurchaseOrderIssue.objects.filter(
+            purchase_order=po,
+            status='open'
+        ).count()
+        
+        if active_issues == 0 and po.is_blocked:
+            po.is_blocked = False
+            po.blocked_reason = None
+            po.status = 'IN_PRODUCTION'
+            po.save()
+        
+        # Notify vendor of resolution
+        if po.vendor:
+            Notification.objects.create(
+                recipient=po.vendor.primary_contact if hasattr(po.vendor, 'primary_contact') else None,
+                notification_type='issue_resolved',
+                title=f'Issue Resolved for PO {po.po_number}',
+                message=f'An issue with your PO has been resolved. Details: {resolution_notes}',
+                link=f'/purchase-orders/{po.id}/',
+            )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Issue Resolution',
+            title=f'Issue Resolved for PO {po.po_number}',
+            description=f'Issue type: {issue.issue_type}. Resolution: {resolution_notes}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(issue)
+        return Response({'detail': 'Issue resolved', 'issue': serializer.data})
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+class PurchaseOrderNoteViewSet(viewsets.ModelViewSet):
+    """
+    Purchase Order Note ViewSet - Track notes, messages, and communication for POs.
+    Phase 2 Implementation: Full REST API for vendor-PT communication.
+    """
+    queryset = PurchaseOrderNote.objects.select_related('purchase_order', 'sender', 'purchase_order__vendor').all()
+    serializer_class = PurchaseOrderNoteSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ['purchase_order', 'category', 'sender']
+    search_fields = ['purchase_order__po_number', 'message']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+    
+    def perform_create(self, serializer):
+        """Auto-set sender to current user"""
+        serializer.save(sender=self.request.user)
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
+class MaterialSubstitutionRequestViewSet(viewsets.ModelViewSet):
+    """
+    Material Substitution Request ViewSet - Vendors request material changes.
+    Phase 2 Implementation: Full REST API for material substitution workflow.
+    """
+    queryset = MaterialSubstitutionRequest.objects.select_related('purchase_order', 'reviewed_by', 'purchase_order__vendor').all()
+    serializer_class = MaterialSubstitutionRequestSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ['purchase_order', 'status']
+    search_fields = ['purchase_order__po_number', 'original_material', 'proposed_material']
+    ordering_fields = ['created_at', 'reviewed_at']
+    ordering = ['-created_at']
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def approve(self, request, pk=None):
+        """PT approves material substitution"""
+        substitution = self.get_object()
+        approval_notes = request.data.get('approval_notes', '')
+        
+        substitution.status = 'approved'
+        substitution.approval_notes = approval_notes
+        substitution.reviewed_by = request.user
+        substitution.reviewed_at = timezone.now()
+        substitution.save()
+        
+        # Notify vendor
+        po = substitution.purchase_order
+        if po.vendor:
+            Notification.objects.create(
+                recipient=po.vendor.primary_contact if hasattr(po.vendor, 'primary_contact') else None,
+                notification_type='substitution_approved',
+                title=f'Material Substitution Approved for PO {po.po_number}',
+                message=f'Your request to substitute {substitution.original_material} with {substitution.proposed_material} has been approved.',
+                link=f'/purchase-orders/{po.id}/',
+            )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Material Substitution',
+            title=f'Substitution Approved for PO {po.po_number}',
+            description=f'{substitution.original_material} → {substitution.proposed_material}. Notes: {approval_notes}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(substitution)
+        return Response({'detail': 'Substitution approved', 'substitution': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def reject(self, request, pk=None):
+        """PT rejects material substitution"""
+        substitution = self.get_object()
+        rejection_reason = request.data.get('rejection_reason', '')
+        
+        if not rejection_reason:
+            return Response(
+                {'error': 'Rejection reason is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        substitution.status = 'rejected'
+        substitution.rejection_reason = rejection_reason
+        substitution.reviewed_by = request.user
+        substitution.reviewed_at = timezone.now()
+        substitution.save()
+        
+        # Notify vendor
+        po = substitution.purchase_order
+        if po.vendor:
+            Notification.objects.create(
+                recipient=po.vendor.primary_contact if hasattr(po.vendor, 'primary_contact') else None,
+                notification_type='substitution_rejected',
+                title=f'Material Substitution Rejected for PO {po.po_number}',
+                message=f'Your request to substitute {substitution.original_material} has been rejected. Reason: {rejection_reason}',
+                link=f'/purchase-orders/{po.id}/',
+            )
+        
+        # Log activity
+        ActivityLog.objects.create(
+            client=po.job.client,
+            activity_type='Material Substitution',
+            title=f'Substitution Rejected for PO {po.po_number}',
+            description=f'Original: {substitution.original_material}. Reason: {rejection_reason}',
+            created_by=request.user,
+        )
+        
+        serializer = self.get_serializer(substitution)
+        return Response({'detail': 'Substitution rejected', 'substitution': serializer.data})
+
+
+# ============================================================================
+# CLIENT PORTAL VIEWSETS - Complete B2B Client Management
+# ============================================================================
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientPortalUserViewSet(viewsets.ModelViewSet):
+    """
+    Client Portal User Management
+    Manage portal access and permissions for client employees
+    """
+    queryset = ClientPortalUser.objects.select_related('user', 'client').all()
+    serializer_class = ClientPortalUserSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsClientOwner]
+    filterset_fields = ['client', 'role', 'is_active']
+    search_fields = ['user__username', 'user__email', 'user__first_name', 'user__last_name']
+    ordering_fields = ['created_at', 'role']
+    
+    def get_queryset(self):
+        """Restrict to user's client only"""
+        queryset = super().get_queryset()
+        user = self.request.user
+        
+        try:
+            portal_user = ClientPortalUser.objects.get(user=user)
+            # Show only portal users from same client
+            return queryset.filter(client=portal_user.client)
+        except ClientPortalUser.DoesNotExist:
+            # Admin can see all
+            if user.is_superuser or user.groups.filter(name="Admin").exists():
+                return queryset
+            return queryset.none()
+    
+    @decorators.action(detail=False, methods=['post'], permission_classes=[IsAuthenticated, IsClient])
+    def invite_user(self, request):
+        """Invite new user to client portal"""
+        email = request.data.get('email')
+        role = request.data.get('role', 'user')
+        
+        if not email:
+            return Response({'error': 'Email is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            portal_user = ClientPortalUser.objects.get(user=request.user)
+        except ClientPortalUser.DoesNotExist:
+            return Response({'error': 'User is not a portal member'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if user is owner/admin
+        if portal_user.role not in ['owner', 'admin']:
+            return Response({'error': 'Only owners/admins can invite users'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check if user already exists
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Create new user - they'll set password on first login
+            username = email.split('@')[0]
+            # Ensure unique username
+            base_username = username
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+            
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                is_active=False  # Inactive until they accept invite
+            )
+        
+        # Check if already a portal user for this client
+        existing = ClientPortalUser.objects.filter(client=portal_user.client, user=user).first()
+        if existing:
+            return Response({'error': 'User is already a member'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create portal user
+        new_portal_user = ClientPortalUser.objects.create(
+            client=portal_user.client,
+            user=user,
+            role=role,
+            is_active=False,
+        )
+        
+        # Send invitation email - TODO: implement email service
+        Notification.objects.create(
+            recipient=user,
+            notification_type='portal_invitation',
+            title='Invited to Client Portal',
+            message=f'You have been invited to join {portal_user.client.name} portal',
+            link='/portal/invite-accept/',
+        )
+        
+        serializer = ClientPortalUserSerializer(new_portal_user)
+        return Response({
+            'detail': 'Invitation sent',
+            'portal_user': serializer.data
+        }, status=status.HTTP_201_CREATED)
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsClient])
+    def revoke_access(self, request, pk=None):
+        """Revoke portal access for a user"""
+        portal_user = self.get_object()
+        
+        try:
+            current_user = ClientPortalUser.objects.get(user=request.user)
+        except ClientPortalUser.DoesNotExist:
+            return Response({'error': 'Current user is not a portal member'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Check permissions
+        if current_user.role not in ['owner', 'admin']:
+            return Response({'error': 'Only owners/admins can revoke access'}, status=status.HTTP_403_FORBIDDEN)
+        
+        # Cannot revoke owner's access
+        if portal_user.role == 'owner':
+            return Response({'error': 'Cannot revoke owner access'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        portal_user.is_active = False
+        portal_user.revoked_at = timezone.now()
+        portal_user.save()
+        
+        # Create notification
+        Notification.objects.create(
+            recipient=portal_user.user,
+            notification_type='access_revoked',
+            title='Portal Access Revoked',
+            message=f'Your access to {portal_user.client.name} portal has been revoked',
+        )
+        
+        serializer = self.get_serializer(portal_user)
+        return Response({'detail': 'Access revoked', 'portal_user': serializer.data})
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientOrderViewSet(viewsets.ModelViewSet):
+    """
+    Client Orders - B2B Purchase Orders from Approved Quotes
+    Clients can view, place, track orders
+    """
+    queryset = ClientOrder.objects.select_related('client', 'quote', 'job', 'created_by').prefetch_related('items').all()
+    serializer_class = ClientOrderSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsClientOwner]
+    filterset_fields = ['client', 'status', 'quote']
+    search_fields = ['co_number', 'quote__quote_id']
+    ordering_fields = ['created_at', 'status']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Restrict to user's client"""
+        queryset = super().get_queryset()
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            return queryset.filter(client=portal_user.client)
+        except ClientPortalUser.DoesNotExist:
+            return queryset.none()
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsClient])
+    def submit(self, request, pk=None):
+        """Submit order for processing"""
+        order = self.get_object()
+        
+        if order.status != 'draft':
+            return Response(
+                {'error': f'Cannot submit order in {order.status} status'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        order.status = 'submitted'
+        order.submitted_at = timezone.now()
+        order.save()
+        
+        # Create notification for PT
+        pt_group = Group.objects.filter(name="Production Team").first()
+        if pt_group:
+            for user in pt_group.user_set.all():
+                Notification.objects.create(
+                    recipient=user,
+                    notification_type='client_order_submitted',
+                    title=f'Client Order {order.co_number} Submitted',
+                    message=f'{order.client.name} submitted order {order.co_number}',
+                    link=f'/client-orders/{order.id}/',
+                )
+        
+        # Create activity log
+        ClientActivityLog.objects.create(
+            portal_user_id=ClientPortalUser.objects.get(user=request.user).id,
+            client=order.client,
+            action_type='order_created',
+            title=f'Order {order.co_number} Submitted',
+            description=f'Order submitted for processing',
+            ip_address=self._get_client_ip(request),
+        )
+        
+        serializer = self.get_serializer(order)
+        return Response({'detail': 'Order submitted', 'order': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsClient])
+    def cancel(self, request, pk=None):
+        """Cancel pending order"""
+        order = self.get_object()
+        
+        if order.status not in ['draft', 'submitted']:
+            return Response(
+                {'error': f'Cannot cancel order in {order.status} status'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        order.status = 'cancelled'
+        order.cancelled_at = timezone.now()
+        order.save()
+        
+        # Create activity log
+        ClientActivityLog.objects.create(
+            portal_user_id=ClientPortalUser.objects.get(user=request.user).id,
+            client=order.client,
+            action_type='order_updated',
+            title=f'Order {order.co_number} Cancelled',
+            description='Order cancelled by client',
+            ip_address=self._get_client_ip(request),
+        )
+        
+        serializer = self.get_serializer(order)
+        return Response({'detail': 'Order cancelled', 'order': serializer.data})
+    
+    def _get_client_ip(self, request):
+        """Extract client IP from request"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientInvoiceViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Client Invoices - Read-only for viewing and downloading
+    """
+    queryset = ClientInvoice.objects.select_related('client', 'order').all()
+    serializer_class = ClientInvoiceSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsClientOwner]
+    filterset_fields = ['client', 'status', 'order']
+    search_fields = ['inv_number', 'order__co_number']
+    ordering_fields = ['created_at', 'due_date']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Restrict to user's client"""
+        queryset = super().get_queryset()
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            return queryset.filter(client=portal_user.client)
+        except ClientPortalUser.DoesNotExist:
+            return queryset.none()
+    
+    @decorators.action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        """Download invoice as PDF"""
+        invoice = self.get_object()
+        
+        # Generate PDF - TODO: implement PDF generation
+        # For now, return file metadata
+        return Response({
+            'invoice_number': invoice.inv_number,
+            'filename': f'{invoice.inv_number}.pdf',
+            'file_size': 0,
+            'generated_at': timezone.now().isoformat(),
+        })
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientPaymentViewSet(viewsets.ModelViewSet):
+    """
+    Client Payments - Submit and track payments
+    """
+    queryset = ClientPayment.objects.select_related('client', 'invoice', 'created_by').all()
+    serializer_class = ClientPaymentSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsClientOwner]
+    filterset_fields = ['client', 'status', 'payment_method']
+    search_fields = ['pay_number', 'invoice__inv_number']
+    ordering_fields = ['created_at', 'payment_date']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Restrict to user's client"""
+        queryset = super().get_queryset()
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            return queryset.filter(client=portal_user.client)
+        except ClientPortalUser.DoesNotExist:
+            return queryset.none()
+    
+    def perform_create(self, serializer):
+        """Record payment submission"""
+        payment = serializer.save(
+            created_by=self.request.user,
+            status='pending'  # Awaiting approval
+        )
+        
+        # Create activity log
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            ClientActivityLog.objects.create(
+                portal_user=portal_user,
+                client=payment.client,
+                action_type='payment_made',
+                title=f'Payment {payment.pay_number} Submitted',
+                description=f'Payment of {payment.amount} submitted via {payment.payment_method}',
+                ip_address=self._get_client_ip(self.request),
+            )
+        except ClientPortalUser.DoesNotExist:
+            pass
+        
+        # Send notification to Admin
+        admin_group = Group.objects.filter(name="Admin").first()
+        if admin_group:
+            for user in admin_group.user_set.all():
+                Notification.objects.create(
+                    recipient=user,
+                    notification_type='payment_received',
+                    title=f'Payment {payment.pay_number} Received',
+                    message=f'{payment.client.name} submitted payment of {payment.amount}',
+                    link=f'/client-payments/{payment.id}/',
+                )
+    
+    @decorators.action(detail=True, methods=['post'])
+    def verify(self, request, pk=None):
+        """Admin verifies payment completion"""
+        payment = self.get_object()
+        
+        if not request.user.groups.filter(name="Admin").exists():
+            return Response({'error': 'Only admins can verify payments'}, status=status.HTTP_403_FORBIDDEN)
+        
+        payment.status = 'completed'
+        payment.verified_at = timezone.now()
+        payment.save()
+        
+        # Create notification for client
+        try:
+            portal_user = ClientPortalUser.objects.get(client=payment.client)
+            Notification.objects.create(
+                recipient=portal_user.user,
+                notification_type='payment_confirmed',
+                title=f'Payment {payment.pay_number} Confirmed',
+                message='Your payment has been received and processed',
+                link=f'/portal/payments/',
+            )
+        except ClientPortalUser.DoesNotExist:
+            pass
+        
+        serializer = self.get_serializer(payment)
+        return Response({'detail': 'Payment verified', 'payment': serializer.data})
+    
+    def _get_client_ip(self, request):
+        """Extract client IP"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientSupportTicketViewSet(viewsets.ModelViewSet):
+    """
+    Client Support Tickets - Issue tracking and support workflow
+    """
+    queryset = ClientSupportTicket.objects.select_related('client', 'assigned_to', 'created_by').prefetch_related('replies').all()
+    serializer_class = ClientSupportTicketSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsClientOwner]
+    filterset_fields = ['client', 'status', 'priority']
+    search_fields = ['tkt_number', 'subject']
+    ordering_fields = ['created_at', 'priority']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Restrict to user's client"""
+        queryset = super().get_queryset()
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            return queryset.filter(client=portal_user.client)
+        except ClientPortalUser.DoesNotExist:
+            return queryset.none()
+    
+    def perform_create(self, serializer):
+        """Auto-assign to support team"""
+        ticket = serializer.save(
+            created_by=self.request.user,
+            status='open'
+        )
+        
+        # Auto-assign to support team (first available)
+        support_group = Group.objects.filter(name="Support").first()
+        if support_group:
+            support_user = support_group.user_set.first()
+            if support_user:
+                ticket.assigned_to = support_user
+                ticket.save()
+        
+        # Create activity log
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            ClientActivityLog.objects.create(
+                portal_user=portal_user,
+                client=ticket.client,
+                action_type='ticket_created',
+                title=f'Ticket {ticket.tkt_number} Created',
+                description=f'Support ticket: {ticket.subject}',
+                ip_address=self._get_client_ip(self.request),
+            )
+        except ClientPortalUser.DoesNotExist:
+            pass
+        
+        # Notify assigned user
+        if ticket.assigned_to:
+            Notification.objects.create(
+                recipient=ticket.assigned_to,
+                notification_type='ticket_assigned',
+                title=f'Ticket {ticket.tkt_number} Assigned',
+                message=f'{ticket.client.name}: {ticket.subject}',
+                link=f'/client-tickets/{ticket.id}/',
+            )
+    
+    @decorators.action(detail=True, methods=['post'])
+    def add_reply(self, request, pk=None):
+        """Add reply to ticket"""
+        ticket = self.get_object()
+        message = request.data.get('message')
+        is_internal = request.data.get('is_internal', False)
+        
+        if not message:
+            return Response({'error': 'Message is required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        reply = ClientTicketReply.objects.create(
+            ticket=ticket,
+            author=request.user,
+            message=message,
+            is_internal_note=is_internal,
+        )
+        
+        # Update ticket status if customer replies
+        if not is_internal and ticket.status == 'awaiting_customer':
+            ticket.status = 'open'
+            ticket.save()
+        
+        # Notify other side
+        if is_internal:
+            # Internal note - notify support team
+            support_group = Group.objects.filter(name="Support").first()
+            if support_group:
+                for user in support_group.user_set.all():
+                    if user != request.user:
+                        Notification.objects.create(
+                            recipient=user,
+                            notification_type='ticket_internal_note',
+                            title=f'Internal Note: {ticket.tkt_number}',
+                            message=message[:100],
+                            link=f'/client-tickets/{ticket.id}/',
+                        )
+        else:
+            # Customer reply - notify support team
+            if ticket.assigned_to:
+                Notification.objects.create(
+                    recipient=ticket.assigned_to,
+                    notification_type='ticket_reply',
+                    title=f'Reply: {ticket.tkt_number}',
+                    message=message[:100],
+                    link=f'/client-tickets/{ticket.id}/',
+                )
+        
+        serializer = ClientTicketReplySerializer(reply)
+        return Response({'detail': 'Reply added', 'reply': serializer.data})
+    
+    @decorators.action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Resolve/close ticket"""
+        ticket = self.get_object()
+        
+        if not request.user.groups.filter(name="Support").exists():
+            return Response({'error': 'Only support can resolve tickets'}, status=status.HTTP_403_FORBIDDEN)
+        
+        ticket.status = 'resolved'
+        ticket.resolved_at = timezone.now()
+        ticket.save()
+        
+        # Notify customer
+        try:
+            portal_user = ClientPortalUser.objects.get(client=ticket.client)
+            Notification.objects.create(
+                recipient=portal_user.user,
+                notification_type='ticket_resolved',
+                title=f'Ticket {ticket.tkt_number} Resolved',
+                message='Your support ticket has been resolved',
+                link=f'/portal/tickets/',
+            )
+        except ClientPortalUser.DoesNotExist:
+            pass
+        
+        serializer = self.get_serializer(ticket)
+        return Response({'detail': 'Ticket resolved', 'ticket': serializer.data})
+    
+    def _get_client_ip(self, request):
+        """Extract client IP"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientDocumentLibraryViewSet(viewsets.ModelViewSet):
+    """
+    Client Document Library - Share documents with clients
+    """
+    queryset = ClientDocumentLibrary.objects.select_related('client', 'uploaded_by', 'accessible_to').all()
+    serializer_class = ClientDocumentLibrarySerializer
+    permission_classes = [IsAuthenticated, IsClient | IsClientOwner]
+    filterset_fields = ['client', 'document_type', 'is_expired']
+    search_fields = ['file_name', 'description']
+    ordering_fields = ['uploaded_at', 'expires_at']
+    ordering = ['-uploaded_at']
+    
+    def get_queryset(self):
+        """Restrict to user's client"""
+        queryset = super().get_queryset()
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            # Show documents for this client that are accessible to this user
+            return queryset.filter(client=portal_user.client, accessible_to=portal_user)
+        except ClientPortalUser.DoesNotExist:
+            return queryset.none()
+    
+    @decorators.action(detail=True, methods=['get'])
+    def download(self, request, pk=None):
+        """Download document"""
+        document = self.get_object()
+        
+        # Log download
+        try:
+            portal_user = ClientPortalUser.objects.get(user=request.user)
+            ClientActivityLog.objects.create(
+                portal_user=portal_user,
+                client=document.client,
+                action_type='document_downloaded',
+                title=f'Document Downloaded: {document.file_name}',
+                description=f'File: {document.file_name}',
+                ip_address=self._get_client_ip(request),
+            )
+        except ClientPortalUser.DoesNotExist:
+            pass
+        
+        return Response({
+            'file_name': document.file_name,
+            'file_size': document.file_size,
+            'file_url': document.file_url,
+            'downloaded_at': timezone.now().isoformat(),
+        })
+    
+    def _get_client_ip(self, request):
+        """Extract client IP"""
+        x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+        if x_forwarded_for:
+            return x_forwarded_for.split(',')[0].strip()
+        return request.META.get('REMOTE_ADDR', '')
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientPortalNotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Client Portal Notifications - Real-time portal alerts
+    """
+    queryset = ClientPortalNotification.objects.select_related('client').all()
+    serializer_class = ClientPortalNotificationSerializer
+    permission_classes = [IsAuthenticated, IsClient]
+    filterset_fields = ['client', 'notification_type', 'is_read']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Restrict to user's client"""
+        queryset = super().get_queryset()
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            return queryset.filter(client=portal_user.client)
+        except ClientPortalUser.DoesNotExist:
+            return queryset.none()
+    
+    @decorators.action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """Mark notification as read"""
+        notification = self.get_object()
+        notification.is_read = True
+        notification.read_at = timezone.now()
+        notification.save()
+        
+        serializer = self.get_serializer(notification)
+        return Response({'detail': 'Marked as read', 'notification': serializer.data})
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Client Portal']))
+class ClientActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Client Portal Activity Log - Audit trail for all portal actions
+    """
+    queryset = ClientActivityLog.objects.select_related('client', 'portal_user').all()
+    serializer_class = ClientActivityLogSerializer
+    permission_classes = [IsAuthenticated, IsClient]
+    filterset_fields = ['client', 'action_type', 'portal_user']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Restrict to user's client"""
+        queryset = super().get_queryset()
+        try:
+            portal_user = ClientPortalUser.objects.get(user=self.request.user)
+            # Only owner/admin can see full activity log
+            if portal_user.role in ['owner', 'admin']:
+                return queryset.filter(client=portal_user.client)
+            # Regular users see only their own activities
+            return queryset.filter(client=portal_user.client, portal_user=portal_user)
+        except ClientPortalUser.DoesNotExist:
+            return queryset.none()
+
+
+# ============================================================================
+# PRODUCTION TEAM PORTAL - NEW VIEWSETS FOR PT INTEGRATION
+# ============================================================================
+
+class ApprovalThresholdSerializer(serializers.ModelSerializer):
+    """Serializer for ApprovalThreshold model"""
+    class Meta:
+        model = ApprovalThreshold
+        fields = ['id', 'role', 'min_amount', 'max_amount', 'description', 'created_at', 'updated_at']
+        ref_name = 'ApprovalThresholdDetail'
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['PT Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['PT Portal']))
+class ApprovalThresholdViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Approval Thresholds - Role-based spending limits
+    Defines maximum invoice amounts each role can approve
+    """
+    queryset = ApprovalThreshold.objects.filter(is_active=True)
+    serializer_class = ApprovalThresholdSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    ordering_fields = ['min_amount', 'max_amount']
+    ordering = ['min_amount']
+    
+    @decorators.action(detail=False, methods=['get'])
+    def my_threshold(self, request):
+        """Get current user's approval threshold"""
+        threshold = ApprovalThreshold.get_user_threshold(request.user)
+        if threshold:
+            serializer = self.get_serializer(threshold)
+            return Response(serializer.data)
+        return Response({'detail': 'No approval threshold configured'}, status=status.HTTP_404_NOT_FOUND)
+    
+    @decorators.action(detail=False, methods=['post'])
+    def check_authority(self, request):
+        """Check if user can approve a specific amount"""
+        amount = Decimal(request.data.get('amount', 0))
+        can_approve, message = ApprovalThreshold.can_user_approve_amount(request.user, amount)
+        return Response({
+            'can_approve': can_approve,
+            'message': message,
+            'amount': str(amount),
+        })
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['PT Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['PT Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['PT Portal']))
+class InvoiceDisputeViewSet(viewsets.ModelViewSet):
+    """
+    Invoice Disputes - Track disputed invoices
+    PT team can create disputes, vendors can respond
+    """
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    filterset_fields = ['status', 'vendor', 'invoice']
+    ordering_fields = ['created_at']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Get disputes, filter for PT team"""
+        if self.request.user.groups.filter(name='Production Team').exists():
+            return InvoiceDispute.objects.select_related('invoice', 'vendor', 'created_by')
+        return InvoiceDispute.objects.none()
+    
+    def get_serializer_class(self):
+        """Define serializer for disputes"""
+        class DisputeSerializer(serializers.ModelSerializer):
+            invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
+            vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+            created_by_name = serializers.CharField(source='created_by.username', read_only=True)
+            
+            class Meta:
+                model = InvoiceDispute
+                fields = ['id', 'invoice', 'invoice_number', 'vendor', 'vendor_name', 'title', 
+                         'description', 'status', 'resolution_notes', 'resolved_at', 'resolved_by',
+                         'created_at', 'created_by', 'created_by_name', 'updated_at']
+                ref_name = 'InvoiceDisputeDetail'
+        
+        return DisputeSerializer
+    
+    def perform_create(self, serializer):
+        """Create dispute and log activity"""
+        dispute = serializer.save(created_by=self.request.user)
+        ActivityLog.objects.create(
+            user=self.request.user,
+            action_type='invoice_dispute_created',
+            title=f'Invoice Dispute Created: {dispute.invoice.invoice_number}',
+            description=f'{dispute.title}',
+        )
+        logger.info(f'Invoice dispute created by {self.request.user.username} for invoice {dispute.invoice.invoice_number}')
+    
+    @decorators.action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Resolve a dispute"""
+        dispute = self.get_object()
+        dispute.status = 'resolved'
+        dispute.resolved_by = request.user
+        dispute.resolved_at = timezone.now()
+        dispute.resolution_notes = request.data.get('resolution_notes', '')
+        dispute.save()
+        
+        ActivityLog.objects.create(
+            user=request.user,
+            action_type='invoice_dispute_resolved',
+            title=f'Invoice Dispute Resolved: {dispute.invoice.invoice_number}',
+        )
+        
+        # Notify vendor
+        from .vendor_notifications import VendorNotificationService
+        VendorNotificationService.notify_dispute_resolved(dispute)
+        
+        serializer = self.get_serializer(dispute)
+        return Response({'detail': 'Dispute resolved', 'dispute': serializer.data})
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['PT Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['PT Portal']))
+class JobProgressUpdateViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Job Progress Updates - Track vendor progress on jobs
+    Vendors submit, PT team reviews in real-time
+    """
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    filterset_fields = ['job_vendor_stage', 'created_by']
+    ordering_fields = ['created_at', 'progress_percentage']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Get progress updates for PT team"""
+        if self.request.user.groups.filter(name='Production Team').exists():
+            return JobProgressUpdate.objects.select_related('job_vendor_stage', 'created_by').all()
+        return JobProgressUpdate.objects.none()
+    
+    def get_serializer_class(self):
+        """Serializer for progress updates"""
+        class ProgressSerializer(serializers.ModelSerializer):
+            job_number = serializers.CharField(source='job_vendor_stage.job.job_number', read_only=True)
+            vendor_name = serializers.CharField(source='job_vendor_stage.vendor.name', read_only=True)
+            
+            class Meta:
+                model = JobProgressUpdate
+                fields = ['id', 'job_vendor_stage', 'job_number', 'vendor_name', 'progress_percentage',
+                         'status', 'notes', 'created_at', 'created_by']
+                ref_name = 'JobProgressUpdateDetail'
+        
+        return ProgressSerializer
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['PT Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['PT Portal']))
+class SLAEscalationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    SLA Escalations - Track deadline breaches and escalations
+    """
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    filterset_fields = ['level', 'job_vendor_stage']
+    ordering_fields = ['created_at', 'days_overdue']
+    ordering = ['-days_overdue', '-created_at']
+    
+    def get_queryset(self):
+        """Get escalations for PT team"""
+        if self.request.user.groups.filter(name='Production Team').exists():
+            return SLAEscalation.objects.select_related('job_vendor_stage').all()
+        return SLAEscalation.objects.none()
+    
+    def get_serializer_class(self):
+        """Serializer for escalations"""
+        class EscalationSerializer(serializers.ModelSerializer):
+            job_number = serializers.CharField(source='job_vendor_stage.job.job_number', read_only=True)
+            vendor_name = serializers.CharField(source='job_vendor_stage.vendor.name', read_only=True)
+            
+            class Meta:
+                model = SLAEscalation
+                fields = ['id', 'job_vendor_stage', 'job_number', 'vendor_name', 'level',
+                         'days_overdue', 'message', 'created_at']
+                ref_name = 'SLAEscalationDetail'
+        
+        return EscalationSerializer
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['PT Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['PT Portal']))
+class VendorPerformanceMetricsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Vendor Performance Metrics - Comprehensive vendor scoring
+    On-time %, QC pass rate, response time, financial metrics
+    """
+    queryset = VendorPerformanceMetrics.objects.select_related('vendor').all()
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    filterset_fields = ['vendor']
+    ordering_fields = ['on_time_percentage', 'qc_pass_rate', 'last_updated']
+    ordering = ['-on_time_percentage']
+    
+    def get_serializer_class(self):
+        """Serializer for performance metrics"""
+        class MetricsSerializer(serializers.ModelSerializer):
+            vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+            vps_score = serializers.SerializerMethodField()
+            
+            def get_vps_score(self, obj):
+                """Calculate VPS score (weighted average)"""
+                on_time = float(obj.on_time_percentage) * 0.3
+                qc = float(obj.qc_pass_rate) * 0.4
+                response = (100 - float(obj.avg_response_time_hours)) * 0.2
+                compliance = 100 * 0.1  # Default compliance
+                return round(on_time + qc + response + compliance, 2)
+            
+            class Meta:
+                model = VendorPerformanceMetrics
+                fields = ['id', 'vendor', 'vendor_name', 'total_jobs', 'on_time_jobs', 'on_time_percentage',
+                         'qc_passed_jobs', 'qc_failed_jobs', 'qc_pass_rate', 'avg_response_time_hours',
+                         'total_invoice_amount', 'approved_invoice_amount', 'dispute_amount', 'vps_score', 'last_updated']
+                ref_name = 'VendorPerformanceMetricsDetail'
+        
+        return MetricsSerializer
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['PT Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['PT Portal']))
+class ProfitabilityAnalysisViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Profitability Analysis - Job/Vendor/Product profitability tracking
+    """
+    queryset = ProfitabilityAnalysis.objects.all()
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    filterset_fields = ['entity_type', 'period_start', 'period_end']
+    ordering_fields = ['margin_percentage', 'revenue', 'created_at']
+    ordering = ['-margin_percentage']
+    
+    def get_serializer_class(self):
+        """Serializer for profitability"""
+        class ProfitSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = ProfitabilityAnalysis
+                fields = ['id', 'entity_type', 'entity_id', 'revenue', 'cost', 'margin',
+                         'margin_percentage', 'period_start', 'period_end', 'created_at', 'updated_at']
+                ref_name = 'ProfitabilityAnalysisDetail'
+        
+        return ProfitSerializer

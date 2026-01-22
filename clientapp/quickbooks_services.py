@@ -584,3 +584,417 @@ class QuickBooksAuthService:
                 'status': 'error',
                 'error': str(e)
             }
+
+
+# ============================================================================
+# PHASE 3: COMPLETE QUICKBOOKS SYNC IMPLEMENTATION
+# ============================================================================
+
+class QuickBooksFullSyncService:
+    """
+    Phase 3 Implementation: Complete QuickBooks sync for invoices, bills, payments.
+    Handles all financial data synchronization including error handling and retries.
+    """
+    
+    def __init__(self, user):
+        self.user = user
+        self.qb_service = QuickBooksService(user)
+        self.client = self.qb_service.client
+    
+    def sync_lpo_to_invoice(self, lpo):
+        """
+        Sync Local Purchase Order (LPO) to QuickBooks as Invoice.
+        
+        Args:
+            lpo: LPO model instance
+            
+        Returns:
+            dict with sync status
+        """
+        try:
+            from .models import LPO, LPOLineItem
+            
+            # Get or create QB customer
+            qb_customer = self.qb_service.find_or_create_customer(lpo.client)
+            
+            # Create invoice
+            invoice = Invoice()
+            invoice.CustomerRef = qb_customer.Id
+            invoice.DocNumber = lpo.lpo_number
+            invoice.TxnDate = lpo.created_at.date().isoformat()
+            invoice.DueDate = (lpo.created_at + timedelta(days=30)).date().isoformat()
+            
+            # Add line items
+            lines = []
+            for line_item in lpo.lpo_line_items.all():
+                line = SalesItemLine()
+                line.Description = f"{line_item.product.name} - Qty: {line_item.quantity}"
+                line.Amount = line_item.total_amount
+                
+                # Set up detail
+                detail = {
+                    'ItemRef': self._get_or_create_item_in_qb(line_item.product).Id,
+                    'UnitPrice': float(line_item.unit_price),
+                    'Qty': line_item.quantity,
+                }
+                line.__dict__.update(detail)
+                lines.append(line)
+            
+            invoice.Line = lines
+            
+            # Custom fields
+            invoice.Memo = f"LPO {lpo.lpo_number} - Auto-synced from PrintDuka"
+            invoice.CustomerMemo = {
+                'value': f"Order for {lpo.client.name}"
+            }
+            
+            # Save to QB
+            invoice.save(qb=self.client)
+            
+            # Update LPO with QB details
+            lpo.synced_to_quickbooks = True
+            lpo.quickbooks_invoice_id = invoice.Id
+            lpo.quickbooks_invoice_number = invoice.DocNumber
+            lpo.quickbooks_sync_date = timezone.now()
+            lpo.save()
+            
+            logger.info(f"LPO {lpo.lpo_number} synced to QB as Invoice {invoice.Id}")
+            
+            return {
+                'status': 'success',
+                'qb_invoice_id': invoice.Id,
+                'qb_invoice_number': invoice.DocNumber,
+                'amount': float(invoice.TotalAmt),
+                'customer_id': qb_customer.Id,
+            }
+        
+        except Exception as e:
+            logger.error(f"Error syncing LPO to QB: {e}")
+            return {
+                'status': 'error',
+                'error': str(e),
+                'lpo_id': lpo.id,
+                'lpo_number': lpo.lpo_number,
+            }
+    
+    def sync_vendor_invoice_to_bill(self, vendor_invoice):
+        """
+        Sync Vendor Invoice to QuickBooks as Bill (Accounts Payable).
+        
+        Args:
+            vendor_invoice: VendorInvoice model instance
+            
+        Returns:
+            dict with sync status
+        """
+        try:
+            from quickbooks.objects.bill import Bill, BillLine
+            from .models import VendorInvoice
+            
+            # Get or create QB vendor
+            qb_vendor = self._get_or_create_vendor_in_qb(vendor_invoice.vendor)
+            
+            # Create bill
+            bill = Bill()
+            bill.VendorRef = qb_vendor.Id
+            bill.DocNumber = vendor_invoice.invoice_number
+            bill.TxnDate = vendor_invoice.invoice_date.isoformat()
+            bill.DueDate = vendor_invoice.due_date.isoformat() if vendor_invoice.due_date else timezone.now().date().isoformat()
+            
+            # Add line items
+            lines = []
+            for item in vendor_invoice.line_items:
+                line = BillLine()
+                line.Description = item.get('description', 'Service')
+                line.Amount = Decimal(str(item.get('amount', 0)))
+                lines.append(line)
+            
+            bill.Line = lines
+            
+            # Memo
+            bill.Memo = f"Vendor Invoice {vendor_invoice.invoice_number} - {vendor_invoice.vendor.name}"
+            
+            # Save to QB
+            bill.save(qb=self.client)
+            
+            # Update vendor invoice with QB details
+            vendor_invoice.synced_to_quickbooks = True
+            vendor_invoice.quickbooks_bill_id = bill.Id
+            vendor_invoice.quickbooks_sync_date = timezone.now()
+            vendor_invoice.save()
+            
+            logger.info(f"Vendor Invoice {vendor_invoice.invoice_number} synced to QB as Bill {bill.Id}")
+            
+            return {
+                'status': 'success',
+                'qb_bill_id': bill.Id,
+                'qb_bill_number': bill.DocNumber,
+                'amount': float(bill.TotalAmt),
+                'vendor_id': qb_vendor.Id,
+            }
+        
+        except Exception as e:
+            logger.error(f"Error syncing vendor invoice to QB: {e}")
+            return {
+                'status': 'error',
+                'error': str(e),
+                'invoice_id': vendor_invoice.id,
+                'invoice_number': vendor_invoice.invoice_number,
+            }
+    
+    def sync_payment_to_qb(self, payment):
+        """
+        Sync Payment to QuickBooks as Payment record.
+        
+        Args:
+            payment: Payment model instance
+            
+        Returns:
+            dict with sync status
+        """
+        try:
+            from quickbooks.objects.payment import Payment as QBPayment
+            from .models import Payment
+            
+            # Get QB customer
+            qb_customer = self.qb_service.find_or_create_customer(payment.client)
+            
+            # Create payment
+            qb_payment = QBPayment()
+            qb_payment.CustomerRef = qb_customer.Id
+            qb_payment.TxnDate = payment.payment_date.isoformat()
+            qb_payment.TotalAmt = float(payment.amount)
+            qb_payment.PrivateNote = f"Payment {payment.payment_reference} - {payment.payment_method}"
+            
+            # Save to QB
+            qb_payment.save(qb=self.client)
+            
+            # Update payment with QB details
+            payment.synced_to_quickbooks = True
+            payment.quickbooks_payment_id = qb_payment.Id
+            payment.quickbooks_sync_date = timezone.now()
+            payment.save()
+            
+            logger.info(f"Payment {payment.payment_reference} synced to QB as Payment {qb_payment.Id}")
+            
+            return {
+                'status': 'success',
+                'qb_payment_id': qb_payment.Id,
+                'amount': float(qb_payment.TotalAmt),
+                'customer_id': qb_customer.Id,
+            }
+        
+        except Exception as e:
+            logger.error(f"Error syncing payment to QB: {e}")
+            return {
+                'status': 'error',
+                'error': str(e),
+                'payment_id': payment.id,
+                'payment_reference': payment.payment_reference,
+            }
+    
+    def _get_or_create_item_in_qb(self, product):
+        """
+        Get or create QuickBooks Item for a product.
+        
+        Args:
+            product: Product model instance
+            
+        Returns:
+            QuickBooks Item object
+        """
+        try:
+            from quickbooks.objects.item import Item
+            
+            # Search for existing item
+            items = Item.filter(
+                Name=product.name,
+                qb=self.client
+            )
+            
+            if items:
+                return items[0]
+            
+            # Create new item
+            item = Item()
+            item.Name = product.name[:100]
+            item.Type = 'Service'
+            item.Description = product.description[:1000] if product.description else product.name
+            item.UnitPrice = float(product.price)
+            item.Active = True
+            
+            # Save to QB
+            item.save(qb=self.client)
+            logger.info(f"Created QB Item: {item.Name}")
+            
+            return item
+        
+        except Exception as e:
+            logger.error(f"Error creating QB item: {e}")
+            raise
+    
+    def _get_or_create_vendor_in_qb(self, vendor):
+        """
+        Get or create QuickBooks Vendor for a supplier.
+        
+        Args:
+            vendor: Vendor model instance
+            
+        Returns:
+            QuickBooks Vendor object
+        """
+        try:
+            from quickbooks.objects.vendor import Vendor as QBVendor
+            
+            # Search for existing vendor
+            vendors = QBVendor.filter(
+                DisplayName=vendor.name,
+                qb=self.client
+            )
+            
+            if vendors:
+                return vendors[0]
+            
+            # Create new vendor
+            qb_vendor = QBVendor()
+            qb_vendor.DisplayName = vendor.name
+            qb_vendor.CompanyName = vendor.name
+            qb_vendor.GivenName = vendor.name.split()[0]
+            qb_vendor.FamilyName = " ".join(vendor.name.split()[1:]) if len(vendor.name.split()) > 1 else ""
+            
+            # Email
+            if vendor.email:
+                email = EmailAddress()
+                email.Address = vendor.email
+                qb_vendor.PrimaryEmailAddr = email
+            
+            # Phone
+            if vendor.phone:
+                qb_vendor.PrimaryPhone = {
+                    'FreeFormNumber': vendor.phone
+                }
+            
+            # Address
+            if vendor.address:
+                address = Address()
+                address.Line1 = vendor.address[:500]
+                qb_vendor.BillAddr = address
+            
+            # Save to QB
+            qb_vendor.save(qb=self.client)
+            logger.info(f"Created QB Vendor: {qb_vendor.DisplayName}")
+            
+            return qb_vendor
+        
+        except Exception as e:
+            logger.error(f"Error creating QB vendor: {e}")
+            raise
+    
+    def batch_sync_lpos(self, limit=10):
+        """
+        Batch sync pending LPOs to QuickBooks.
+        
+        Args:
+            limit: Maximum number of LPOs to sync
+            
+        Returns:
+            dict with sync statistics
+        """
+        try:
+            from .models import LPO
+            
+            pending_lpos = LPO.objects.filter(
+                synced_to_quickbooks=False,
+                status='approved'
+            )[:limit]
+            
+            results = {
+                'total': len(pending_lpos),
+                'successful': 0,
+                'failed': 0,
+                'errors': []
+            }
+            
+            for lpo in pending_lpos:
+                result = self.sync_lpo_to_invoice(lpo)
+                if result['status'] == 'success':
+                    results['successful'] += 1
+                else:
+                    results['failed'] += 1
+                    results['errors'].append(result)
+            
+            logger.info(f"Batch sync completed: {results['successful']} successful, {results['failed']} failed")
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error in batch sync: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def batch_sync_vendor_invoices(self, limit=10):
+        """
+        Batch sync pending vendor invoices to QuickBooks.
+        
+        Args:
+            limit: Maximum number of invoices to sync
+            
+        Returns:
+            dict with sync statistics
+        """
+        try:
+            from .models import VendorInvoice
+            
+            pending_invoices = VendorInvoice.objects.filter(
+                synced_to_quickbooks=False,
+                status='approved'
+            )[:limit]
+            
+            results = {
+                'total': len(pending_invoices),
+                'successful': 0,
+                'failed': 0,
+                'errors': []
+            }
+            
+            for invoice in pending_invoices:
+                result = self.sync_vendor_invoice_to_bill(invoice)
+                if result['status'] == 'success':
+                    results['successful'] += 1
+                else:
+                    results['failed'] += 1
+                    results['errors'].append(result)
+            
+            logger.info(f"Batch invoice sync completed: {results['successful']} successful, {results['failed']} failed")
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error in batch invoice sync: {e}")
+            return {
+                'status': 'error',
+                'error': str(e)
+            }
+    
+    def get_sync_status(self):
+        """
+        Get overall QuickBooks sync status.
+        
+        Returns:
+            dict with sync statistics
+        """
+        try:
+            from .models import LPO, VendorInvoice, Payment
+            
+            return {
+                'lpos_synced': LPO.objects.filter(synced_to_quickbooks=True).count(),
+                'lpos_pending': LPO.objects.filter(synced_to_quickbooks=False, status='approved').count(),
+                'vendor_invoices_synced': VendorInvoice.objects.filter(synced_to_quickbooks=True).count(),
+                'vendor_invoices_pending': VendorInvoice.objects.filter(synced_to_quickbooks=False, status='approved').count(),
+                'payments_synced': Payment.objects.filter(synced_to_quickbooks=True).count(),
+                'payments_pending': Payment.objects.filter(synced_to_quickbooks=False).count(),
+            }
+        
+        except Exception as e:
+            logger.error(f"Error getting sync status: {e}")
+            return {'status': 'error', 'error': str(e)}

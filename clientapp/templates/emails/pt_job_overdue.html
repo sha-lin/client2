@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; }
+        .header { background-color: #f44336; color: white; padding: 20px; text-align: center; border-radius: 5px; }
+        .content { padding: 20px; }
+        .job-info { background-color: #ffebee; padding: 15px; margin: 15px 0; border-left: 4px solid #f44336; }
+        .label { font-weight: bold; color: #555; }
+        .footer { text-align: center; color: #999; font-size: 12px; margin-top: 30px; }
+        .urgent { color: #d9534f; font-weight: bold; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚠️ JOB OVERDUE</h1>
+        </div>
+        
+        <div class="content">
+            <p>Dear {{ pt_user_name }},</p>
+            
+            <p class="urgent">ALERT: A job is now overdue!</p>
+            
+            <div class="job-info">
+                <p><span class="label">Job Number:</span> {{ job_number }}</p>
+                <p><span class="label">Vendor:</span> {{ vendor_name }}</p>
+                <p><span class="label">Days Overdue:</span> <strong style="color: #f44336;">{{ days_overdue }} days</strong></p>
+                <p><span class="label">Expected Completion:</span> {{ expected_completion|date:"Y-m-d" }}</p>
+                <p><span class="label">Current Progress:</span> {{ progress }}%</p>
+            </div>
+            
+            <p>Please follow up with {{ vendor_name }} immediately to expedite completion.</p>
+            
+            <p>
+                Best regards,<br>
+                System
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>This is an automated notification. Please do not reply to this email.</p>
+        </div>
+    </div>
+</body>
+</html>
