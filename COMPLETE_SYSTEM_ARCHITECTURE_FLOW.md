@@ -1,6 +1,6 @@
 #  COMPLETE SYSTEM ARCHITECTURE & FLOW DOCUMENTATION
 
-**System Name:** Print Management & Order Fulfillment Platform  
+**System Name:** Print Duka
 **Technology Stack:** Django REST Framework + PostgreSQL  
 **Last Updated:** January 25, 2026  
 **Status:**  Production Ready
