@@ -74,6 +74,26 @@
         <input type="hidden" name="tax_total" id="hiddenTax">
         <input type="hidden" name="total" id="hiddenTotal">
         <input type="hidden" name="existing_quote_id" id="existing_quote_id" value="{{ quote_id|default:'' }}">
+        <!-- Store existing line items data for JavaScript -->
+        <div id="existingLineItemsData" style="display: none;">
+            {% if existing_line_items %}
+                {% for item in existing_line_items %}
+                    <div class="line-item-data" 
+                         data-product-id="{{ item.product.id }}"
+                         data-product-name="{{ item.product.name }}"
+                         data-product-sku="{{ item.product.internal_code }}"
+                         data-customization="{{ item.product.customization_level }}"
+                         data-quantity="{{ item.quantity }}"
+                         data-rate="{{ item.base_price }}"
+                         data-discount="{{ item.discount_amount }}"
+                         data-discount-type="{% if item.product.discount_type %}{{ item.product.discount_type }}{% else %}percent{% endif %}"
+                         data-description="{{ item.description }}"
+                         data-variable-amount="{{ item.variable_amount }}"
+                         data-price="{{ item.product.unit_price|default:item.product.base_price }}">
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
 
         <div class="max-w-[1400px] mx-auto px-6 py-6">
             <div class="flex gap-6">
@@ -347,6 +367,129 @@
 
     // Trigger change on load to set initial hidden IDs if pre-selected
     document.getElementById('client_select')?.dispatchEvent(new Event('change'));
+
+    // ===== LOAD EXISTING LINE ITEMS (for editing existing quotes) =====
+    function loadExistingLineItems() {
+        const existingItemsContainer = document.getElementById('existingLineItemsData');
+        if (!existingItemsContainer) return;
+
+        const lineItemDivs = existingItemsContainer.querySelectorAll('.line-item-data');
+        console.log(`Found ${lineItemDivs.length} existing line items to load`);
+
+        lineItemDivs.forEach((div) => {
+            const productData = {
+                id: div.dataset.productId,
+                name: div.dataset.productName,
+                internal_code: div.dataset.productSku,
+                customization: div.dataset.customization,
+                price: parseFloat(div.dataset.price) || 0,
+                desc: div.dataset.description || '',
+            };
+
+            // Create a pseudo-product object that matches what addLine expects
+            const lineData = {
+                ...productData,
+                quantity: parseFloat(div.dataset.quantity) || 1,
+                rate: parseFloat(div.dataset.rate) || 0,
+                discount: parseFloat(div.dataset.discount) || 0,
+                discountType: div.dataset.discountType || 'percent',
+                variableAmount: parseFloat(div.dataset.variableAmount) || 0,
+            };
+
+            // Add the line item
+            addLineWithData(lineData);
+        });
+
+        // Recalculate totals after loading all items
+        if (lineItemDivs.length > 0) {
+            calcAll();
+        }
+    }
+
+    // Modified addLine function that accepts pre-filled data
+    function addLineWithData(lineData) {
+        if (emptyRow) emptyRow.style.display = 'none';
+        lineCounter++;
+        const isCustomizable = lineData.customization !== 'non_customizable';
+
+        let rateValue = lineData.rate || lineData.price || 0;
+        const rateReadonly = (lineData.customization === 'non_customizable') ? 'readonly' :
+            (lineData.customization === 'fully_customizable') ? '' : '';
+
+        const customizationLabel = lineData.customization.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+        const tr = document.createElement('tr');
+        tr.className = 'border-b border-gray-100 hover:bg-gray-50 line-row';
+        tr.dataset.customizable = isCustomizable;
+        tr.innerHTML = `
+            <td class="px-4 py-2 text-sm text-gray-500">${lineCounter}</td>
+            <td class="px-4 py-2">
+                <input type="hidden" name="product_id[]" value="${lineData.id}">
+                <input type="hidden" name="customization_level[]" value="${lineData.customization}">
+                <div class="font-medium text-sm text-gray-900 mb-1">${lineData.name}</div>
+                <div class="text-[10px] text-gray-500 uppercase tracking-wider mb-1">${customizationLabel}</div>
+                <input type="text" name="description[]" value="${lineData.desc || ''}" placeholder="Description"
+                    class="table-input w-full text-xs text-gray-600 rounded">
+            </td>
+            <td class="px-4 py-2">
+                <input type="number" name="quantity[]" value="${lineData.quantity}" min="1" step="1" required
+                    class="qty table-input w-full text-sm text-right rounded">
+            </td>
+            <td class="px-4 py-2">
+                <div class="relative">
+                    <input type="number" name="rate[]" value="${rateValue ? Number(rateValue).toFixed(2) : ''}" min="0" step="0.01" required ${rateReadonly}
+                        class="rate table-input w-full text-sm text-right rounded ${(isCustomizable) ? 'bg-gray-50 text-gray-400' : ''}">
+                </div>
+            </td>
+            <td class="px-4 py-2">
+                <div class="flex items-center gap-1">
+                    <input type="number" name="discount[]" value="${lineData.discount}" min="0" step="0.01"
+                        class="disc table-input w-16 text-sm text-right rounded">
+                    <select name="discount_type[]" class="disc-type table-input w-12 text-xs rounded">
+                        <option value="percent" ${lineData.discountType === 'percent' ? 'selected' : ''}>%</option>
+                        <option value="fixed" ${lineData.discountType === 'fixed' ? 'selected' : ''}>KSh</option>
+                    </select>
+                </div>
+            </td>
+            <td class="px-4 py-2 text-right text-sm font-semibold text-gray-900 amt">KSh 0.00</td>
+            <td class="px-4 py-2 text-center">
+                <button type="button" class="delete-line text-red-500 hover:text-red-700" title="Delete row">
+                    <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+
+        // Attach event listeners to the new row
+        const qtyInput = tr.querySelector('.qty');
+        const rateInput = tr.querySelector('.rate');
+        const discInput = tr.querySelector('.disc');
+        const discTypeSelect = tr.querySelector('.disc-type');
+        const deleteBtn = tr.querySelector('.delete-line');
+
+        [qtyInput, rateInput, discInput, discTypeSelect].forEach(input => {
+            input?.addEventListener('input', function () { calcLine(tr); });
+            input?.addEventListener('change', function () { calcLine(tr); });
+        });
+
+        deleteBtn?.addEventListener('click', function (e) {
+            e.preventDefault();
+            tr.remove();
+            calcAll();
+            if (tbody.querySelectorAll('.line-row').length === 0 && emptyRow) {
+                emptyRow.style.display = 'table-row';
+                lineCounter = 0;
+            }
+            lucide.createIcons();
+        });
+
+        lucide.createIcons();
+        calcLine(tr);
+    }
+
+    // Call this function on page load to restore existing line items
+    loadExistingLineItems();
 
     // MOVED OUTSIDE: Define renderSearchResults at the top level
     function renderSearchResults(products) {
@@ -711,3 +854,4 @@
 });
 </script>
 {% endblock %}
+<script src="/static/js/quote-create.js"></script>

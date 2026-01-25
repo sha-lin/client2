@@ -1,0 +1,838 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Active Jobs | Print Duka Vendor Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --sidebar-bg: #0f172a;
+            --sidebar-hover: #f1f5f9;
+            --sidebar-active: #3b82f6;
+            --body-bg: #f8fafc;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --success: #10b981;
+            --info: #3b82f6;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--body-bg);
+            color: var(--text-main);
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 240px;
+            background-color: white;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            z-index: 1000;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .sidebar-header p {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 20px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 24px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            gap: 12px;
+        }
+
+        .nav-item:hover {
+            background-color: var(--sidebar-hover);
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background-color: #eff6ff;
+            color: var(--sidebar-active);
+            border-right: 3px solid var(--sidebar-active);
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background: #f8fafc;
+        }
+
+        .vendor-name {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .vendor-status {
+            font-size: 0.7rem;
+            color: var(--success);
+            font-weight: 600;
+            margin-top: 2px;
+        }
+
+        /* Main Content */
+        .main-wrapper {
+            margin-left: 240px;
+            flex: 1;
+            padding: 32px;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+
+        .page-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            box-shadow: var(--shadow);
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        /* Filters */
+        .filters-bar {
+            background: white;
+            padding: 16px 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            gap: 16px;
+            align-items: center;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .filter-input {
+            flex: 1;
+            position: relative;
+        }
+
+        .filter-input input {
+            width: 100%;
+            padding: 10px 12px 10px 36px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 0.8125rem;
+            outline: none;
+        }
+
+        .filter-input i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        .filter-select {
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 0.8125rem;
+            outline: none;
+            background: white;
+        }
+
+        .filter-btn {
+            padding: 10px 16px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .filter-btn.active {
+            background: #1e293b;
+            color: white;
+            border-color: #1e293b;
+        }
+
+        /* Jobs List */
+        .jobs-container {
+            display: grid;
+            gap: 16px;
+        }
+
+        .job-card {
+            background: white;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            box-shadow: var(--shadow);
+            transition: all 0.2s;
+        }
+
+        .job-card:hover {
+            border-color: var(--info);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .job-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .job-po-number {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .job-status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-new { background: #dbeafe; color: #1e40af; }
+        .badge-in_production { background: #d1fae5; color: #065f46; }
+        .badge-quality_check { background: #fef3c7; color: #92400e; }
+        .badge-completed { background: #d1fae5; color: #065f46; }
+        .badge-cancelled { background: #f3f4f6; color: #6b7280; }
+
+        .job-card-body {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 16px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .job-detail {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .job-detail-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .job-detail-value {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .job-card-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .job-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: none;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .job-btn-primary {
+            background: var(--info);
+            color: white;
+        }
+
+        .job-btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .job-btn-secondary {
+            background: white;
+            border: 1px solid var(--border-color);
+            color: var(--text-main);
+        }
+
+        .job-btn-secondary:hover {
+            background: #f8fafc;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 2000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 5% auto;
+            padding: 32px;
+            border-radius: 12px;
+            width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 16px;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.875rem;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            background: var(--info);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 700;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+
+        .btn-submit:hover {
+            opacity: 0.9;
+        }
+
+        @media (max-width: 1200px) {
+            .job-card-body {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h1>Print Duka</h1>
+            <p>Vendor Partner Portal</p>
+        </div>
+        <nav class="sidebar-nav">
+            <a href="{% url 'vendor_dashboard' %}" class="nav-item"><i class="fas fa-th-large"></i> Dashboard</a>
+            <a href="{% url 'active_jobs' %}" class="nav-item active"><i class="fas fa-tasks"></i> Active Jobs</a>
+            <a href="{% url 'completed_jobs' %}" class="nav-item"><i class="fas fa-check-circle"></i> Completed Jobs</a>
+            <a href="{% url 'invoices' %}" class="nav-item"><i class="fas fa-file-invoice-dollar"></i> Invoices</a>
+            <a href="{% url 'performance' %}" class="nav-item"><i class="fas fa-chart-line"></i> Performance</a>
+            <a href="#" class="nav-item"><i class="fas fa-question-circle"></i> Help Center</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="vendor-name">{{ vendor.name }}</div>
+            <div class="vendor-status"><i class="fas fa-certificate"></i> Certified Vendor</div>
+        </div>
+    </aside>
+
+    <div class="main-wrapper">
+        <!-- Page Header -->
+        <div class="page-header">
+            <h1 class="page-title">Active Jobs</h1>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" style="display: none; text-align: center; padding: 40px;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3b82f6;"></i>
+            <p style="margin-top: 16px; color: #64748b;">Loading active jobs...</p>
+        </div>
+
+        <!-- Content Container -->
+        <div id="contentContainer" style="display: none;">
+            <!-- Stats Grid -->
+            <div class="stats-grid" id="statsGrid"></div>
+
+            <!-- Filters -->
+            <div class="filters-bar">
+                <div class="filter-input">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search by PO Number, Job Number, or Product Type...">
+                </div>
+                <select class="filter-select" id="statusFilter">
+                    <option value="">All Statuses</option>
+                    <option value="new">New</option>
+                    <option value="in_production">In Production</option>
+                    <option value="quality_check">Quality Check</option>
+                    <option value="completed">Completed</option>
+                </select>
+                <button class="filter-btn active" onclick="sortBy('recent')">Recent</button>
+                <button class="filter-btn" onclick="sortBy('deadline')">Deadline</button>
+            </div>
+
+            <!-- Jobs List -->
+            <div class="jobs-container" id="jobsList"></div>
+
+            <!-- Empty State -->
+            <div id="emptyState" style="display: none; text-align: center; padding: 60px 20px;">
+                <i class="fas fa-inbox" style="font-size: 3rem; color: #cbd5e1; margin-bottom: 16px; display: block;"></i>
+                <p style="font-size: 1rem; color: #64748b;">No active jobs found</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Milestone Update Modal -->
+    <div id="milestoneModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Update Milestone</h2>
+                <button class="close-btn" onclick="closeMilestoneModal()">&times;</button>
+            </div>
+            <form onsubmit="submitMilestoneUpdate(event)">
+                <div class="form-group">
+                    <label class="form-label">Current Milestone</label>
+                    <input type="text" id="currentMilestone" readonly class="form-input" style="background: #f8fafc;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Milestone</label>
+                    <select id="newMilestone" class="form-select" required>
+                        <option value="">Select milestone...</option>
+                        <option value="in_production">In Production</option>
+                        <option value="quality_check">Quality Check</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notes</label>
+                    <textarea id="milestoneNotes" class="form-textarea" placeholder="Add any notes about this milestone update..."></textarea>
+                </div>
+                <button type="submit" class="btn-submit">Update Milestone</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Load API Service -->
+    <script src="{% static 'js/vendor_api.js' %}"></script>
+
+    <script>
+        // ============================================================================
+        // ACTIVE JOBS / PURCHASE ORDERS - FULL API INTEGRATION
+        // ============================================================================
+
+        let vendorAPI;
+        let allPOs = [];
+        let currentPOId = null;
+        const vendorId = "{{ vendor.id }}" || "1";
+
+        // Initialize page
+        async function initPage() {
+            try {
+                document.getElementById('loadingIndicator').style.display = 'block';
+
+                vendorAPI = new VendorAPI(vendorId);
+
+                // Load data
+                const pos = await vendorAPI.getPurchaseOrders({ 
+                    limit: 100,
+                    exclude_statuses: 'completed,cancelled'
+                }).catch(err => {
+                    console.warn('Error loading POs:', err);
+                    return [];
+                });
+
+                allPOs = Array.isArray(pos) ? pos : (pos.results || []);
+
+                // Filter out completed jobs
+                allPOs = allPOs.filter(p => !['completed', 'cancelled'].includes(p.status));
+
+                // Render
+                renderStats();
+                renderJobs(allPOs);
+                setupEventListeners();
+
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('contentContainer').style.display = 'block';
+
+            } catch (error) {
+                console.error('Init error:', error);
+                document.getElementById('loadingIndicator').innerHTML = `
+                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ef4444;"></i>
+                    <p style="margin-top: 16px; color: #ef4444;">Error loading jobs. Please refresh the page.</p>
+                `;
+            }
+        }
+
+        // ============================================================================
+        // RENDER FUNCTIONS
+        // ============================================================================
+
+        function renderStats() {
+            const stats = {
+                total: allPOs.length,
+                new: allPOs.filter(p => p.status === 'new').length,
+                in_production: allPOs.filter(p => p.status === 'in_production').length,
+                quality_check: allPOs.filter(p => p.status === 'quality_check').length,
+            };
+
+            const html = `
+                <div class="stat-card">
+                    <div class="stat-label">Total Active</div>
+                    <div class="stat-value">${stats.total}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Awaiting Response</div>
+                    <div class="stat-value" style="color: var(--info);">${stats.new}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">In Production</div>
+                    <div class="stat-value" style="color: var(--success);">${stats.in_production}</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Quality Check</div>
+                    <div class="stat-value" style="color: var(--warning);">${stats.quality_check}</div>
+                </div>
+            `;
+
+            document.getElementById('statsGrid').innerHTML = html;
+        }
+
+        function renderJobs(pos) {
+            if (pos.length === 0) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('jobsList').innerHTML = '';
+                return;
+            }
+
+            document.getElementById('emptyState').style.display = 'none';
+
+            let html = '';
+            pos.forEach(po => {
+                const daysUntilDue = getDaysUntilDue(po.required_by);
+                const statusClass = `badge-${po.status}`;
+                const statusText = getStatusDisplay(po.status);
+
+                html += `
+                    <div class="job-card" data-po-id="${po.id}">
+                        <div class="job-card-header">
+                            <div>
+                                <div class="job-po-number">${po.po_number}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">Job: ${po.job || 'N/A'}</div>
+                            </div>
+                            <span class="job-status-badge ${statusClass}">${statusText}</span>
+                        </div>
+
+                        <div class="job-card-body">
+                            <div class="job-detail">
+                                <div class="job-detail-label">Product Type</div>
+                                <div class="job-detail-value">${po.product_type || 'N/A'}</div>
+                            </div>
+                            <div class="job-detail">
+                                <div class="job-detail-label">Quantity</div>
+                                <div class="job-detail-value">${po.quantity || 0} units</div>
+                            </div>
+                            <div class="job-detail">
+                                <div class="job-detail-label">Required By</div>
+                                <div class="job-detail-value" style="color: ${daysUntilDue <= 3 ? 'var(--danger)' : 'inherit'};">${formatDate(po.required_by)}</div>
+                            </div>
+                            <div class="job-detail">
+                                <div class="job-detail-label">Days Until Due</div>
+                                <div class="job-detail-value" style="color: ${daysUntilDue <= 3 ? 'var(--danger)' : 'var(--success)'};">${daysUntilDue} days</div>
+                            </div>
+                        </div>
+
+                        <div class="job-card-actions">
+                            ${po.status === 'new' ? `
+                                <button class="job-btn job-btn-primary" onclick="acceptPO(${po.id})">Accept Job</button>
+                                <button class="job-btn job-btn-secondary" onclick="declinePO(${po.id})">Decline</button>
+                            ` : `
+                                ${po.status !== 'completed' ? `
+                                    <button class="job-btn job-btn-secondary" onclick="openMilestoneModal(${po.id}, '${po.milestone || po.status}')">Update Status</button>
+                                ` : ''}
+                                <button class="job-btn job-btn-secondary" onclick="viewDetails(${po.id})">View Details</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('jobsList').innerHTML = html;
+        }
+
+        // ============================================================================
+        // EVENT HANDLERS
+        // ============================================================================
+
+        function setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const query = e.target.value.toLowerCase();
+                const filtered = allPOs.filter(po => 
+                    po.po_number?.toLowerCase().includes(query) || 
+                    po.product_type?.toLowerCase().includes(query) ||
+                    po.job?.toString().includes(query)
+                );
+                renderJobs(filtered);
+            });
+
+            document.getElementById('statusFilter').addEventListener('change', (e) => {
+                const status = e.target.value;
+                const filtered = status ? allPOs.filter(po => po.status === status) : allPOs;
+                renderJobs(filtered);
+            });
+
+            // Close modal on outside click
+            window.addEventListener('click', (e) => {
+                const modal = document.getElementById('milestoneModal');
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        }
+
+        function sortBy(field) {
+            let sorted = [...allPOs];
+
+            if (field === 'deadline') {
+                sorted.sort((a, b) => new Date(a.required_by) - new Date(b.required_by));
+            } else {
+                sorted.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at));
+            }
+
+            renderJobs(sorted);
+
+            // Update active button
+            document.querySelectorAll('.filters-bar .filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        async function acceptPO(poId) {
+            try {
+                await vendorAPI.acceptPO(poId);
+                showSuccess('Purchase Order accepted!');
+                setTimeout(() => location.reload(), 1000);
+            } catch (error) {
+                showError('Failed to accept PO: ' + error.message);
+            }
+        }
+
+        async function declinePO(poId) {
+            const reason = prompt('Please provide a reason for declining this PO:');
+            if (!reason) return;
+
+            try {
+                await vendorAPI.post(`/purchase-orders/${poId}/decline/`, { reason });
+                showSuccess('Purchase Order declined');
+                setTimeout(() => location.reload(), 1000);
+            } catch (error) {
+                showError('Failed to decline PO: ' + error.message);
+            }
+        }
+
+        function openMilestoneModal(poId, currentMilestone) {
+            currentPOId = poId;
+            document.getElementById('currentMilestone').value = getStatusDisplay(currentMilestone);
+            document.getElementById('newMilestone').value = '';
+            document.getElementById('milestoneNotes').value = '';
+            document.getElementById('milestoneModal').style.display = 'block';
+        }
+
+        function closeMilestoneModal() {
+            document.getElementById('milestoneModal').style.display = 'none';
+            currentPOId = null;
+        }
+
+        async function submitMilestoneUpdate(e) {
+            e.preventDefault();
+
+            try {
+                const newMilestone = document.getElementById('newMilestone').value;
+                const notes = document.getElementById('milestoneNotes').value;
+
+                await vendorAPI.updateMilestone(currentPOId, newMilestone, notes);
+                showSuccess('Milestone updated successfully!');
+                closeMilestoneModal();
+                setTimeout(() => location.reload(), 1000);
+            } catch (error) {
+                showError('Failed to update milestone: ' + error.message);
+            }
+        }
+
+        function viewDetails(poId) {
+            window.location.href = `/purchase-orders/${poId}/`;
+        }
+
+        // ============================================================================
+        // UTILITY FUNCTIONS
+        // ============================================================================
+
+        function getDaysUntilDue(dueDate) {
+            if (!dueDate) return '?';
+            const due = new Date(dueDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            due.setHours(0, 0, 0, 0);
+            const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
+            return diff < 0 ? '0' : diff;
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function getStatusDisplay(status) {
+            const map = {
+                'new': 'New',
+                'in_production': 'In Production',
+                'quality_check': 'Quality Check',
+                'completed': 'Completed',
+                'cancelled': 'Cancelled'
+            };
+            return map[status] || status;
+        }
+
+        function showSuccess(message) {
+            const alert = document.createElement('div');
+            alert.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #10b981; color: white; padding: 16px 24px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 3000);
+        }
+
+        function showError(message) {
+            const alert = document.createElement('div');
+            alert.style.cssText = 'position: fixed; top: 20px; right: 20px; background: #ef4444; color: white; padding: 16px 24px; border-radius: 8px; z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.15);';
+            alert.textContent = message;
+            document.body.appendChild(alert);
+            setTimeout(() => alert.remove(), 5000);
+        }
+
+        // Initialize on load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initPage);
+        } else {
+            initPage();
+        }
+    </script>
+</body>
+
+</html>

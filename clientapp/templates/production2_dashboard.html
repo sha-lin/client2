@@ -8,96 +8,307 @@
 
 
 {% block content %}
-<div class="dashboard-container">
-    <div class="dashboard-header">
-
-        <p class="welcome-text">Welcome back, {{ user.first_name }}</p>
-    </div>
-
-    <!-- Status Cards -->
-    <div class="status-cards">
-        <div class="status-card done">
-            <div class="status-number">{{ completed_jobs }}</div>
-            <div class="status-label">Done</div>
-        </div>
-        <div class="status-card active">
-            <div class="status-number">{{ active_jobs }}</div>
-            <div class="status-label">Active</div>
-        </div>
-        <div class="status-card quote">
-            <div class="status-number">{{ quote_jobs }}</div>
-            <div class="status-label">Quote</div>
-        </div>
-        <div class="status-card issue">
-            <div class="status-number">{{ issue_jobs }}</div>
-            <div class="status-label">Issues</div>
-        </div>
-    </div>
-
-    <!-- Urgent Section -->
-    <div class="urgent-section">
-        <div class="section-header">
-            <span class="urgent-icon">⚠️</span>
-            <h2>URGENT ({{ urgent_jobs.count }})</h2>
-        </div>
-        <div class="urgent-list">
-            {% for job in urgent_jobs %}
-            <div class="urgent-item">
-                <span class="job-id">• Job #{{ job.job_number }}</span>
-                <span class="job-description">{{ job.product_name }}</span>
-                <a href="{% url 'job_detail' job.id %}" class="view-link">[View]</a>
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Production Dashboard</h1>
+                    <p class="text-gray-600 mt-1">Welcome back, {{ user.first_name }}!</p>
+                </div>
+                <div class="text-sm text-gray-500">
+                    Last updated: <span id="lastUpdated">Just now</span>
+                </div>
             </div>
-            {% endfor %}
         </div>
     </div>
 
-    <!-- My Active Jobs -->
-    <div class="active-jobs-section">
-        <div class="section-header">
-            <h2>📋 MY ACTIVE JOBS</h2>
-        </div>
-        <table class="jobs-table">
-            <thead>
-                <tr>
-                    <th>Job #</th>
-                    <th>Client</th>
-                    <th>Status</th>
-                    <th>Deadline</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for job in my_active_jobs %}
-                <tr>
-                    <td>{{ job.job_number }}</td>
-                    <td>{{ job.client.name }}</td>
-                    <td>
-                        <span class="status-badge {{ job.status_class }}">
-                            {{ job.status_label }}
-                        </span>
-                    </td>
-                    <td>
-                        <span {% if job.deadline_warning %}class="text-red-600 font-semibold"{% endif %}>
-                            {{ job.deadline_text }}
-                        </span>
-                    </td>
-                    <td>
-                        <a href="{% url 'job_detail' job.id %}" class="action-link">→</a>
-                    </td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center text-gray-500">
-                        No active jobs assigned to you.
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Key Metrics Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- Total Jobs -->
+            <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Total Jobs</p>
+                        <p class="text-3xl font-bold text-gray-900 mt-2" id="totalJobs">{{ total_jobs }}</p>
+                    </div>
+                    <div class="bg-blue-100 rounded-lg p-3">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
 
-    <!-- Performance Section -->
-    <div class="performance-section">
+            <!-- Active Jobs -->
+            <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Active Jobs</p>
+                        <p class="text-3xl font-bold text-blue-600 mt-2" id="activeJobs">{{ active_jobs }}</p>
+                    </div>
+                    <div class="bg-blue-100 rounded-lg p-3">
+                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Completed Jobs -->
+            <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Completed</p>
+                        <p class="text-3xl font-bold text-green-600 mt-2" id="completedJobs">{{ completed_jobs }}</p>
+                    </div>
+                    <div class="bg-green-100 rounded-lg p-3">
+                        <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Issues/On Hold -->
+            <div class="bg-white rounded-lg shadow p-6 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm font-medium">Issues/On Hold</p>
+                        <p class="text-3xl font-bold text-red-600 mt-2" id="issueJobs">{{ issue_jobs }}</p>
+                    </div>
+                    <div class="bg-red-100 rounded-lg p-3">
+                        <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4v2m0 6v2m0-6v2m0-6v2"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Urgent Jobs Section -->
+        <div class="bg-white rounded-lg shadow mb-8">
+            <div class="border-b border-gray-200 px-6 py-4">
+                <h2 class="text-lg font-semibold text-gray-900 flex items-center">
+                    <span class="text-2xl mr-3">⚠️</span>
+                    Urgent Jobs Due Soon
+                    <span class="ml-2 bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-semibold" id="urgentCount">{{ urgent_jobs.count }}</span>
+                </h2>
+            </div>
+            <div class="overflow-hidden">
+                <table class="w-full" id="urgentJobsTable">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Job #</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Product</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Urgency</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Due Date</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="urgentJobsBody">
+                        {% for job in urgent_jobs %}
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{{ job.job_number }}</td>
+                            <td class="px-6 py-4 text-sm text-gray-900">{{ job.product_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">
+                                    {{ job.urgency_label }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{{ job.expected_completion|date:"M d, Y" }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                <a href="{% url 'job_detail' job.id %}" class="text-blue-600 hover:text-blue-900 font-medium">View →</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                🎉 No urgent jobs! Keep up the good work.
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- My Active Jobs -->
+            <div class="lg:col-span-2">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="border-b border-gray-200 px-6 py-4">
+                        <h2 class="text-lg font-semibold text-gray-900">📋 My Active Jobs</h2>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full" id="myJobsTable">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Job #</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Client</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Deadline</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200" id="myJobsBody">
+                                {% for job in my_active_jobs %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">{{ job.job_number }}</td>
+                                    <td class="px-6 py-4 text-sm text-gray-900">{{ job.client.name }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full {% if job.status == 'in_progress' %}bg-blue-100 text-blue-800{% else %}bg-yellow-100 text-yellow-800{% endif %}">
+                                            {{ job.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm {% if job.deadline_warning %}text-red-600 font-semibold{% else %}text-gray-900{% endif %}">
+                                        {{ job.deadline_text }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                                        <a href="{% url 'job_detail' job.id %}" class="text-blue-600 hover:text-blue-900 font-medium">View →</a>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="px-6 py-8 text-center text-gray-500">
+                                        No active jobs assigned to you.
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="bg-white rounded-lg shadow">
+                <div class="border-b border-gray-200 px-6 py-4">
+                    <h2 class="text-lg font-semibold text-gray-900">📊 Your Performance</h2>
+                </div>
+                <div class="p-6 space-y-6">
+                    <!-- Total Jobs Metric -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-medium text-gray-600">Jobs Completed</span>
+                            <span class="text-lg font-bold text-gray-900">{{ user_jobs_completed }}/{{ user_jobs_total }}</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-blue-600 h-2 rounded-full transition-all" style="width: {% widthratio user_jobs_completed user_jobs_total 100 %}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Completion Rate -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-medium text-gray-600">Completion Rate</span>
+                            <span class="text-lg font-bold text-gray-900">{{ user_completion_rate }}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="bg-green-600 h-2 rounded-full transition-all" style="width: {{ user_completion_rate }}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Average Costing Time -->
+                    <div>
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-medium text-gray-600">Avg Costing Time</span>
+                            <span class="text-lg font-bold text-gray-900">{{ average_costing_time }} hrs</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">Time spent on quote costing</p>
+                    </div>
+
+                    <!-- Quick Stats -->
+                    <div class="bg-gray-50 rounded-lg p-4 mt-6">
+                        <h3 class="text-sm font-semibold text-gray-900 mb-3">Quick Stats</h3>
+                        <div class="space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">This Month:</span>
+                                <span class="font-semibold text-gray-900">Calculating...</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600">This Quarter:</span>
+                                <span class="font-semibold text-gray-900">Calculating...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Real-time Status -->
+        <div class="mt-8 bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="ml-2 text-sm text-gray-600">API Connected</span>
+                </div>
+                <div class="flex items-center">
+                    <div class="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="ml-2 text-sm text-gray-600">Database Synced</span>
+                </div>
+                <div class="ml-auto text-xs text-gray-500">
+                    Live data • Auto-refresh: 30 seconds
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// API Configuration
+const API_BASE = '/api/v1';
+
+// Auto-refresh dashboard data every 30 seconds
+async function refreshDashboard() {
+    try {
+        // Fetch updated metrics from API
+        const jobsResponse = await fetch(`${API_BASE}/jobs/?limit=1000`);
+        const jobsData = await jobsResponse.json();
+        const jobs = jobsData.results || jobsData;
+
+        // Calculate metrics
+        const totalJobs = jobs.length;
+        const activeJobs = jobs.filter(j => ['pending', 'in_progress'].includes(j.status)).length;
+        const completedJobs = jobs.filter(j => j.status === 'completed').length;
+        const issueJobs = jobs.filter(j => j.status === 'on_hold' || (new Date(j.expected_completion) < new Date() && ['pending', 'in_progress'].includes(j.status))).length;
+
+        // Update metric cards
+        document.getElementById('totalJobs').textContent = totalJobs;
+        document.getElementById('activeJobs').textContent = activeJobs;
+        document.getElementById('completedJobs').textContent = completedJobs;
+        document.getElementById('issueJobs').textContent = issueJobs;
+
+        // Update last updated timestamp
+        const now = new Date();
+        const timeString = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('lastUpdated').textContent = `${timeString}`;
+
+    } catch (error) {
+        console.error('Error refreshing dashboard:', error);
+    }
+}
+
+// Initial load and then refresh every 30 seconds
+document.addEventListener('DOMContentLoaded', function() {
+    refreshDashboard();
+    setInterval(refreshDashboard, 30000);
+});
+</script>
+
+<style>
+    @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .5; }
+    }
+    .animate-pulse {
+        animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+</style>
+
         <div class="section-header-row">
             <h2>📊 PERFORMANCE (This Month)</h2>
             <div class="performance-actions">

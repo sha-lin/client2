@@ -189,6 +189,280 @@
     .action-btn.secondary:hover {
         background: #ebebeb;
     }
+
+    /* Send to Vendor Modal Styles */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.4);
+        animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal.active {
+        display: block;
+    }
+
+    .modal-content {
+        background-color: white;
+        margin: 5% auto;
+        padding: 0;
+        border-radius: 8px;
+        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        animation: slideDown 0.3s;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-50px);
+            opacity: 0;
+        }
+        to {
+            transform: translateY(0);
+            opacity: 1;
+        }
+    }
+
+    .modal-header {
+        padding: 20px;
+        border-bottom: 1px solid #e0e0e0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-header h2 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+    }
+
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #666;
+    }
+
+    .modal-close:hover {
+        color: #000;
+    }
+
+    .modal-body {
+        padding: 20px;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .modal-footer {
+        padding: 20px;
+        border-top: 1px solid #e0e0e0;
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+    }
+
+    .modal-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .modal-btn-primary {
+        background: #2196f3;
+        color: white;
+    }
+
+    .modal-btn-primary:hover {
+        background: #1976d2;
+    }
+
+    .modal-btn-secondary {
+        background: #f5f5f5;
+        color: #555;
+        border: 1px solid #e0e0e0;
+    }
+
+    .modal-btn-secondary:hover {
+        background: #ebebeb;
+    }
+
+    /* Form Styles */
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #333;
+        font-size: 14px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #2196f3;
+        box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.1);
+    }
+
+    .vendor-checkbox {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+        padding: 10px;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .vendor-checkbox:hover {
+        background: #f9f9f9;
+    }
+
+    .vendor-checkbox input[type="checkbox"] {
+        width: auto;
+        margin-right: 10px;
+        cursor: pointer;
+    }
+
+    .vendor-info {
+        flex: 1;
+    }
+
+    .vendor-name {
+        font-weight: 600;
+        color: #333;
+    }
+
+    .vendor-contact {
+        font-size: 12px;
+        color: #666;
+    }
+
+    .summary-box {
+        background: #f9f9f9;
+        padding: 15px;
+        border-radius: 6px;
+        margin-top: 15px;
+        border: 1px solid #e0e0e0;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+    .summary-item:last-child {
+        margin-bottom: 0;
+        border-top: 1px solid #e0e0e0;
+        padding-top: 8px;
+        margin-top: 8px;
+        font-weight: 600;
+    }
+
+    .alert {
+        padding: 12px 15px;
+        border-radius: 6px;
+        margin-bottom: 15px;
+        font-size: 14px;
+    }
+
+    .alert-success {
+        background: #e8f5e9;
+        color: #2e7d32;
+        border: 1px solid #81c784;
+    }
+
+    .alert-error {
+        background: #ffebee;
+        color: #c62828;
+        border: 1px solid #ef5350;
+    }
+
+    .alert-info {
+        background: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #64b5f6;
+    }
+
+    .loading {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #2196f3;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+
+    .action-btn.vendor-assign {
+        background: #4CAF50;
+        color: white;
+    }
+
+    .action-btn.vendor-assign:hover {
+        background: #45a049;
+    }
+
+    .tracking-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .tracking-badge.assigned {
+        background: #c8e6c9;
+        color: #2e7d32;
+    }
+
+    .tracking-badge.pending {
+        background: #fff3e0;
+        color: #e65100;
+    }
+
 </style>
 {% endblock %}
 
@@ -196,13 +470,24 @@
 
 <div class="jobs-container">
     <div class="page-header">
-        <h1>MY JOBS</h1>
-        <p class="page-subtitle">Manage and track your assigned jobs</p>
+        <h1>MY JOBS - VENDOR ASSIGNMENT</h1>
+        <p class="page-subtitle">Assign jobs to vendors, track progress, and manage approvals</p>
     </div>
 
     <!-- Tabs -->
-    <div class="tabs-section">
-        <div class="tab-item active">In Progress Jobs ({{ jobs|length }})</div>
+    <div class="tabs-section" style="width: 100%; margin-bottom: 25px;">
+        <div class="tab-item active" onclick="switchTab('pending')" style="cursor: pointer;">
+            📋 Ready for Assignment <span id="tab-pending-count" style="background: #1976d2; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 5px;">({{ jobs|length }})</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('assigned')" style="cursor: pointer;">
+            ✓ Assigned to Vendors <span id="tab-assigned-count" style="background: #7b1fa2; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 5px;">(0)</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('proofs')" style="cursor: pointer;">
+            📸 Awaiting Proof Approval <span id="tab-proofs-count" style="background: #c2185b; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 5px;">(0)</span>
+        </div>
+        <div class="tab-item" onclick="switchTab('invoices')" style="cursor: pointer;">
+            💰 Pending Invoices <span id="tab-invoices-count" style="background: #e65100; color: white; border-radius: 12px; padding: 2px 8px; font-size: 11px; margin-left: 5px;">(0)</span>
+        </div>
     </div>
 
     <!-- Search and Filters -->
@@ -253,13 +538,13 @@
                             Product Details</th>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status</th>
+                            Vendor Status</th>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Deadline</th>
                         <th scope="col"
                             class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Progress</th>
+                            Assignment</th>
                         <th scope="col"
                             class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                             Actions</th>
@@ -267,7 +552,7 @@
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
                     {% for job in jobs %}
-                    <tr class="hover:bg-gray-50 transition-colors">
+                    <tr class="hover:bg-gray-50 transition-colors" data-job-id="{{ job.id }}">
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="text-sm font-bold text-gray-900">{{ job.job_number }}</div>
                         </td>
@@ -279,12 +564,8 @@
                             <div class="text-xs text-gray-500">{{ job.quantity }} pcs</div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                {% if job.status_class == 'completed' %}bg-green-100 text-green-800
-                                {% elif job.status_class == 'urgent' %}bg-red-100 text-red-800
-                                {% elif job.status_class == 'in-progress' %}bg-blue-100 text-blue-800
-                                {% else %}bg-gray-100 text-gray-800{% endif %}">
-                                {{ job.status_label }}
+                            <span class="tracking-badge {% if job.vendor_count > 0 %}assigned{% else %}pending{% endif %}" id="status-{{ job.id }}">
+                                {{ job.vendor_status }}
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
@@ -294,11 +575,11 @@
                                 {{ job.days_remaining }}
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap align-middle">
-                            <div class="w-full bg-gray-200 rounded-full h-2.5">
-                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: {{ job.progress }}%"></div>
-                            </div>
-                            <span class="text-xs text-gray-500 mt-1 inline-block">{{ job.progress }}%</span>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <button class="action-btn vendor-assign text-white px-3 py-1 text-xs" 
+                                    onclick="openSendToVendorModal({{ job.id }}, '{{ job.job_number }}', '{{ job.client_name }}')">
+                                📋 Send to Vendor
+                            </button>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                             <a href="{% url 'job_detail' job.id %}"
@@ -319,11 +600,171 @@
 
     <!-- Quick Actions -->
     <div class="quick-actions">
-        <div class="quick-actions-title">Quick Actions</div>
+        <div class="quick-actions-title">Workflow Summary</div>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 15px;">
+            <div style="padding: 15px; background: #e3f2fd; border-radius: 6px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #1976d2;" id="stat-pending">0</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">Jobs Pending Assignment</div>
+            </div>
+            <div style="padding: 15px; background: #f3e5f5; border-radius: 6px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #7b1fa2;" id="stat-assigned">0</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">Assigned to Vendors</div>
+            </div>
+            <div style="padding: 15px; background: #fce4ec; border-radius: 6px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #c2185b;" id="stat-proofs">0</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">Proofs Awaiting Approval</div>
+            </div>
+            <div style="padding: 15px; background: #fff3e0; border-radius: 6px; text-align: center;">
+                <div style="font-size: 24px; font-weight: bold; color: #e65100;" id="stat-invoices">0</div>
+                <div style="font-size: 12px; color: #666; margin-top: 5px;">Invoices Pending Review</div>
+            </div>
+        </div>
         <div class="actions-row">
-            <button class="action-btn primary">Create New Job</button>
-            <button class="action-btn secondary">Export Job List</button>
-            <button class="action-btn secondary">View Archive</button>
+            <button class="action-btn primary" onclick="loadDashboard()">Refresh Dashboard</button>
+            <button class="action-btn secondary" onclick="loadAssignedJobs()">View Assigned Jobs</button>
+            <button class="action-btn secondary" onclick="loadPendingProofs()">View Proof Approvals</button>
+        </div>
+    </div>
+</div>
+
+<!-- SEND TO VENDOR MODAL - COMPREHENSIVE VERSION -->
+<div id="sendToVendorModal" class="modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 9999;">
+    <div class="modal-content" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>📋 Send Purchase Order to Vendor</h2>
+            <button class="modal-close" onclick="closeSendToVendorModal()">&times;</button>
+        </div>
+        <div class="modal-body" style="padding: 20px;">
+            
+            <!-- SECTION 1: JOB DETAILS -->
+            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h3 style="margin: 0 0 15px 0; font-size: 16px; font-weight: 700;">📌 Purchase Order Details</h3>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; font-size: 14px;">
+                    <div>
+                        <div style="opacity: 0.9; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Job Number</div>
+                        <div style="font-size: 18px; font-weight: 700; margin-top: 5px;" id="modal-job-number-display">-</div>
+                    </div>
+                    <div>
+                        <div style="opacity: 0.9; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Client</div>
+                        <div style="font-size: 16px; font-weight: 600; margin-top: 5px;" id="modal-job-client-display">-</div>
+                    </div>
+                    <div>
+                        <div style="opacity: 0.9; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Product</div>
+                        <div style="font-size: 14px; margin-top: 5px;" id="modal-job-product-display">-</div>
+                    </div>
+                    <div>
+                        <div style="opacity: 0.9; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Quantity</div>
+                        <div style="font-size: 14px; margin-top: 5px;" id="modal-job-quantity-display">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECTION 2: ATTACHMENTS -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #FF9800;">
+                <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #333;">📎 Job Attachments & Artworks</h4>
+                
+                <!-- Existing Attachments Display -->
+                <div id="attachmentsList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; margin-bottom: 15px;">
+                    <div style="text-align: center; color: #999; padding: 20px; background: white; border-radius: 6px; border: 1px dashed #ddd;">
+                        <span class="loading"></span>
+                        <div style="font-size: 12px; margin-top: 8px;">Loading attachments...</div>
+                    </div>
+                </div>
+
+                <!-- File Upload Section -->
+                <div style="border-top: 1px solid #e0e0e0; padding-top: 15px;">
+                    <h5 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 600; color: #333;">📤 Add New Attachments</h5>
+                    <div style="display: flex; gap: 10px; align-items: flex-end;">
+                        <div style="flex: 1;">
+                            <label style="display: block; font-size: 12px; margin-bottom: 5px; color: #666;">Select Files (Images, PDFs, Documents)</label>
+                            <input type="file" id="attachmentInput" multiple accept="image/*,.pdf,.doc,.docx" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 13px;">
+                        </div>
+                        <button onclick="uploadJobAttachments()" style="background: #FF9800; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 13px; font-weight: 500;">Upload</button>
+                    </div>
+                    <div id="uploadStatus" style="display: none; margin-top: 10px; padding: 10px; border-radius: 4px; font-size: 12px;"></div>
+                </div>
+            </div>
+
+            <div class="alert alert-info" style="display: none;" id="modal-message"></div>
+
+            <!-- SECTION 3: VENDOR SELECTION -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #2196F3;">
+                <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #333;">🏭 Select Vendors from System *</h4>
+                <p style="margin: 0 0 12px 0; font-size: 12px; color: #666;">Choose one or more vendors to send this Purchase Order. You can select all active vendors.</p>
+                <div id="vendorList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; max-height: 300px; overflow-y: auto; padding: 10px; background: white; border: 1px solid #e0e0e0; border-radius: 6px;">
+                    <div style="grid-column: 1/-1; text-align: center; color: #999; padding: 20px;">
+                        <span class="loading" style="display: inline-block;"></span> 
+                        <div style="font-size: 12px; margin-top: 8px;">Loading all vendors...</div>
+                    </div>
+                </div>
+                <div style="font-size: 12px; color: #666; margin-top: 8px;">
+                    Selected Vendors: <strong id="vendor-count-display" style="color: #2196F3;">0</strong>
+                </div>
+            </div>
+
+            <!-- SECTION 4: PO DETAILS CONFIGURATION -->
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #4CAF50;">
+                <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #333;">⚙️ Purchase Order Configuration</h4>
+                
+                <!-- Expected Days & Cost -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="expectedDays" style="font-size: 12px;">Expected Days to Complete *</label>
+                        <input type="number" id="expectedDays" min="1" max="90" value="3" required style="margin-top: 5px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="expectedCost" style="font-size: 12px;">Estimated Cost</label>
+                        <input type="number" id="expectedCost" placeholder="Optional" step="0.01" min="0" style="margin-top: 5px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label for="stageName" style="font-size: 12px;">Production Stage *</label>
+                        <select id="stageName" style="margin-top: 5px;">
+                            <option>Production</option>
+                            <option>Quality Check</option>
+                            <option>Packaging</option>
+                            <option>Quality Assurance</option>
+                            <option>Assembly</option>
+                            <option>Design</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Special Instructions -->
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label for="vendorNotes" style="font-size: 12px;">Special Instructions & Notes</label>
+                    <textarea id="vendorNotes" placeholder="Add any special requirements, color codes, materials, delivery instructions, etc..." style="margin-top: 5px; min-height: 80px;"></textarea>
+                </div>
+            </div>
+
+            <!-- SECTION 5: SUMMARY & CONFIRMATION -->
+            <div class="summary-box" style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); border-left: 4px solid #4CAF50; padding: 15px; border-radius: 8px;">
+                <h4 style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600; color: #2e7d32;">✓ PO Sending Summary</h4>
+                <div class="summary-item" style="border: none; padding: 0; margin-bottom: 8px;">
+                    <span style="color: #555;">Selected Vendors:</span>
+                    <span id="summary-vendor-count" style="font-weight: bold; color: #2196F3; font-size: 16px;">0</span>
+                </div>
+                <div class="summary-item" style="border: none; padding: 0; margin-bottom: 8px;">
+                    <span style="color: #555;">Expected Completion:</span>
+                    <span id="summary-completion-date" style="font-weight: 600; color: #666;">-</span>
+                </div>
+                <div class="summary-item" style="border: none; padding: 0; margin-bottom: 8px;">
+                    <span style="color: #555;">Production Stage:</span>
+                    <span id="summary-stage" style="font-weight: 600; color: #666;">-</span>
+                </div>
+                <div class="summary-item" style="border-top: 2px solid #81c784; padding-top: 10px; margin-top: 10px;">
+                    <span style="color: #2e7d32; font-weight: 600;">Status:</span>
+                    <span id="summary-status" style="color: #c62828; font-weight: 700;">❌ Select at least one vendor</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-footer" style="background: #f8f9fa; padding: 15px 20px; display: flex; gap: 10px; justify-content: flex-end;">
+            <button class="modal-btn modal-btn-secondary" onclick="closeSendToVendorModal()" style="padding: 12px 24px;">Cancel</button>
+            <button class="modal-btn modal-btn-primary" id="sendToVendorBtn" onclick="sendJobToVendor()" disabled style="padding: 12px 32px; font-weight: 600;">
+                <span id="sendBtnText">📤 Send PO to Vendor(s)</span>
+                <span id="sendBtnLoading" class="loading" style="display: none; margin-left: 8px;"></span>
+            </button>
         </div>
     </div>
 </div>
@@ -332,19 +773,656 @@
 
 {% block extra_js %}
 <script>
-    // Add interactivity
-    document.getElementById('jobSearch').addEventListener('input', function (e) {
-        console.log('Searching:', e.target.value);
-    });
+'use strict';
 
-    document.querySelectorAll('select').forEach(select => {
-        select.addEventListener('change', function () {
-            console.log('Filter changed:', this.id, this.value);
+// ===== PRODUCTION TEAM VENDOR ASSIGNMENT API =====
+class ProductionTeamAPI {
+        constructor() {
+            this.baseUrl = '/api/v1';
+            this.csrfToken = this.getCookie('csrftoken');
+        }
+
+        getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        async getActiveVendors() {
+            try {
+                const response = await fetch(`${this.baseUrl}/vendors/?active=true&limit=500`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching vendors:', error);
+                return { results: [] };
+            }
+        }
+
+        async sendJobToVendor(jobId, vendorId, expectedDays, stageName, cost, notes) {
+            try {
+                console.log('🔵 API call: sendJobToVendor', {jobId, vendorId, expectedDays, stageName});
+                
+                const payload = {
+                    vendor_id: vendorId,
+                    stage_name: stageName,
+                    expected_days: expectedDays,
+                    total_cost: cost || 0,
+                    notes: notes,
+                };
+                
+                console.log('🔵 Payload:', payload);
+                
+                const response = await fetch(`${this.baseUrl}/jobs/${jobId}/send_to_vendor/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.csrfToken,
+                    },
+                    body: JSON.stringify(payload),
+                });
+                
+                console.log('🔵 Response status:', response.status);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    console.error('❌ API error:', error);
+                    throw new Error(error.detail || `HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const result = await response.json();
+                console.log('🔵 Success response:', result);
+                return result;
+            } catch (error) {
+                console.error('❌ Error sending job to vendor:', error);
+                throw error;
+            }
+        }
+
+        async getJobsStats() {
+            try {
+                // Get pending jobs (status='pending' - no vendor assigned yet)
+                const pendingRes = await fetch(`${this.baseUrl}/jobs/?status=pending`);
+                const pendingData = await pendingRes.json();
+                
+                // Get assigned jobs (status='in_progress' - sent to vendor, JobVendorStage created)
+                const assignedRes = await fetch(`${this.baseUrl}/jobs/?status=in_progress`);
+                const assignedData = await assignedRes.json();
+                
+                // Get proofs awaiting approval
+                const proofsRes = await fetch(`${this.baseUrl}/purchase-order-proofs/?status=pending`);
+                const proofsData = await proofsRes.json();
+                
+                // Get invoices awaiting approval
+                const invoicesRes = await fetch(`${this.baseUrl}/vendor-invoices/?status=submitted`);
+                const invoicesData = await invoicesRes.json();
+                
+                console.log('🔵 Assigned jobs count:', assignedData.results ? assignedData.results.length : 0);
+                console.log('🔵 Assigned data:', assignedData);
+                
+                return {
+                    pending: pendingData.results || [],
+                    assigned: assignedData.results || [],
+                    proofs: proofsData.results || [],
+                    invoices: invoicesData.results || [],
+                };
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+                return { pending: [], assigned: [], proofs: [], invoices: [] };
+            }
+        }
+
+        async getPurchaseOrders() {
+            try {
+                const response = await fetch(`${this.baseUrl}/purchase-orders/?status=ACCEPTED`);
+                if (!response.ok) throw new Error('Failed to fetch POs');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching POs:', error);
+                return { results: [] };
+            }
+        }
+
+        async getProofs() {
+            try {
+                const response = await fetch(`${this.baseUrl}/purchase-order-proofs/?status=pending`);
+                if (!response.ok) throw new Error('Failed to fetch proofs');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching proofs:', error);
+                return { results: [] };
+            }
+        }
+
+        async getInvoices() {
+            try {
+                const response = await fetch(`${this.baseUrl}/vendor-invoices/?status=submitted`);
+                if (!response.ok) throw new Error('Failed to fetch invoices');
+                return await response.json();
+            } catch (error) {
+                console.error('Error fetching invoices:', error);
+                return { results: [] };
+            }
+        }
+    }
+
+const ptApi = new ProductionTeamAPI();
+let currentTab = 'pending';
+let currentJobId = null;
+let selectedVendors = new Set();
+
+// ===== TAB MANAGEMENT =====
+function switchTab(tabName) {
+    currentTab = tabName;
+    
+    // Update tab styles
+    document.querySelectorAll('.tab-item').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    event.target.closest('.tab-item').classList.add('active');
+
+    // Load appropriate data
+    if (tabName === 'pending') {
+        loadPendingJobs();
+    } else if (tabName === 'assigned') {
+        loadAssignedJobs();
+    } else if (tabName === 'proofs') {
+        loadProofsTab();
+    } else if (tabName === 'invoices') {
+        loadInvoicesTab();
+    }
+}
+
+async function loadPendingJobs() {
+    // Pending jobs are already loaded from Django template
+    console.log('Viewing pending jobs');
+}
+
+async function loadAssignedJobs() {
+    const data = await ptApi.getPurchaseOrders();
+    const pos = data.results || [];
+    
+    console.log('Assigned POs:', pos);
+    
+    let html = '<div class="bg-white rounded-lg shadow overflow-hidden"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PO Number</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Required By</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cost</th></tr></thead><tbody>';
+    
+    if (pos.length === 0) {
+        html += '<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500">No purchase orders assigned yet.</td></tr>';
+    } else {
+        pos.forEach(po => {
+            const status = po.status || 'PENDING';
+            const statusColor = status === 'ACCEPTED' ? '#4CAF50' : status === 'DECLINED' ? '#f44336' : '#FFC107';
+            html += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm font-medium">${po.po_number || 'N/A'}</td>
+                    <td class="px-6 py-4 text-sm">${po.vendor_name || 'Unknown'}</td>
+                    <td class="px-6 py-4 text-sm"><span style="padding: 4px 8px; border-radius: 4px; background: ${statusColor}20; color: ${statusColor};">${status}</span></td>
+                    <td class="px-6 py-4 text-sm">${po.required_by || 'N/A'}</td>
+                    <td class="px-6 py-4 text-sm">${po.total_cost ? '$' + po.total_cost : 'N/A'}</td>
+                </tr>
+            `;
         });
-    });
+    }
+    
+    html += '</tbody></table></div></div>';
+    
+    const container = document.querySelector('.jobs-container');
+    const existingTable = container.querySelector('[data-tab-content]');
+    if (existingTable) existingTable.remove();
+    
+    const wrapper = document.createElement('div');
+    wrapper.setAttribute('data-tab-content', 'true');
+    wrapper.innerHTML = html;
+    container.querySelector('.search-filters').insertAdjacentElement('afterend', wrapper);
+}
 
-    document.querySelector('.more-filters-btn').addEventListener('click', function () {
-        console.log('More filters clicked');
-    });
+async function loadProofsTab() {
+    const data = await ptApi.getProofs();
+    const proofs = data.results || [];
+    
+    console.log('Pending proofs:', proofs);
+    
+    let html = '<div class="bg-white rounded-lg shadow overflow-hidden"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">PO</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th></tr></thead><tbody>';
+    
+    if (proofs.length === 0) {
+        html += '<tr><td colspan="4" class="px-6 py-10 text-center text-gray-500">No proofs awaiting approval.</td></tr>';
+    } else {
+        proofs.forEach(proof => {
+            html += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm font-medium">${proof.purchase_order_id || 'N/A'}</td>
+                    <td class="px-6 py-4 text-sm">${proof.proof_type || 'Photo'}</td>
+                    <td class="px-6 py-4 text-sm">${proof.submitted_at ? new Date(proof.submitted_at).toLocaleDateString() : 'N/A'}</td>
+                    <td class="px-6 py-4 text-sm">
+                        <button onclick="approveProof(${proof.id})" style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Approve</button>
+                        <button onclick="rejectProof(${proof.id})" style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Reject</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += '</tbody></table></div></div>';
+    
+    const container = document.querySelector('.jobs-container');
+    const existingTable = container.querySelector('[data-tab-content]');
+    if (existingTable) existingTable.remove();
+    
+    const wrapper = document.createElement('div');
+    wrapper.setAttribute('data-tab-content', 'true');
+    wrapper.innerHTML = html;
+    container.querySelector('.search-filters').insertAdjacentElement('afterend', wrapper);
+}
+
+async function loadInvoicesTab() {
+    const data = await ptApi.getInvoices();
+    const invoices = data.results || [];
+    
+    console.log('Pending invoices:', invoices);
+    
+    let html = '<div class="bg-white rounded-lg shadow overflow-hidden"><div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-200"><thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Invoice #</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Vendor</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th><th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th></tr></thead><tbody>';
+    
+    if (invoices.length === 0) {
+        html += '<tr><td colspan="5" class="px-6 py-10 text-center text-gray-500">No invoices pending review.</td></tr>';
+    } else {
+        invoices.forEach(invoice => {
+            html += `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-6 py-4 text-sm font-medium">${invoice.invoice_number || 'N/A'}</td>
+                    <td class="px-6 py-4 text-sm">${invoice.vendor_name || 'Unknown'}</td>
+                    <td class="px-6 py-4 text-sm">$${invoice.total_amount ? parseFloat(invoice.total_amount).toFixed(2) : '0.00'}</td>
+                    <td class="px-6 py-4 text-sm">${invoice.submitted_at ? new Date(invoice.submitted_at).toLocaleDateString() : 'N/A'}</td>
+                    <td class="px-6 py-4 text-sm">
+                        <button onclick="approveInvoice(${invoice.id})" style="background: #4CAF50; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; margin-right: 5px;">Approve</button>
+                        <button onclick="rejectInvoice(${invoice.id})" style="background: #f44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">Reject</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+    
+    html += '</tbody></table></div></div>';
+    
+    const container = document.querySelector('.jobs-container');
+    const existingTable = container.querySelector('[data-tab-content]');
+    if (existingTable) existingTable.remove();
+    
+    const wrapper = document.createElement('div');
+    wrapper.setAttribute('data-tab-content', 'true');
+    wrapper.innerHTML = html;
+    container.querySelector('.search-filters').insertAdjacentElement('afterend', wrapper);
+}
+
+async function approveProof(proofId) {
+    if (confirm('Approve this proof?')) {
+        console.log('Approving proof:', proofId);
+        alert('Proof approved! (Feature in development)');
+        loadProofsTab();
+    }
+}
+
+async function rejectProof(proofId) {
+    const reason = prompt('Enter rejection reason:');
+    if (reason) {
+        console.log('Rejecting proof:', proofId, reason);
+        alert('Proof rejected! (Feature in development)');
+        loadProofsTab();
+    }
+}
+
+async function approveInvoice(invoiceId) {
+    if (confirm('Approve this invoice?')) {
+        console.log('Approving invoice:', invoiceId);
+        alert('Invoice approved! (Feature in development)');
+        loadInvoicesTab();
+    }
+}
+
+async function rejectInvoice(invoiceId) {
+    const reason = prompt('Enter rejection reason:');
+    if (reason) {
+        console.log('Rejecting invoice:', invoiceId, reason);
+        alert('Invoice rejected! (Feature in development)');
+        loadInvoicesTab();
+    }
+}
+
+// ===== MODAL MANAGEMENT =====
+function openSendToVendorModal(jobId, jobNumber, clientName) {
+    try {
+        console.log('🔵 Function called with:', {jobId, jobNumber, clientName});
+        
+        currentJobId = jobId;
+        selectedVendors.clear();
+        
+        const modalEl = document.getElementById('sendToVendorModal');
+        console.log('🔵 Modal element found:', !!modalEl);
+        
+        if (!modalEl) {
+            console.error('❌ Modal element not found!');
+            alert('ERROR: Modal element not found in DOM');
+            return;
+        }
+        
+        const numberDisplay = document.getElementById('modal-job-number-display');
+        const clientDisplay = document.getElementById('modal-job-client-display');
+        
+        console.log('🔵 Elements found - number:', !!numberDisplay, 'client:', !!clientDisplay);
+        
+        if (numberDisplay) numberDisplay.textContent = jobNumber;
+        if (clientDisplay) clientDisplay.textContent = clientName;
+        
+        modalEl.classList.add('active');
+        console.log('🔵 Modal class added, active:', modalEl.classList.contains('active'));
+        console.log('🔵 Modal display:', window.getComputedStyle(modalEl).display);
+        
+        loadVendorsList();
+    } catch (error) {
+        console.error('❌ Error in openSendToVendorModal:', error);
+        alert('ERROR: ' + error.message);
+    }
+}
+
+function closeSendToVendorModal() {
+    document.getElementById('sendToVendorModal').classList.remove('active');
+    selectedVendors.clear();
+    document.getElementById('expectedDays').value = '3';
+    document.getElementById('expectedCost').value = '';
+    document.getElementById('vendorNotes').value = '';
+    document.getElementById('modal-message').style.display = 'none';
+}
+
+async function loadVendorsList() {
+    const vendorList = document.getElementById('vendorList');
+    try {
+        const data = await ptApi.getActiveVendors();
+        const vendors = data.results || [];
+        
+        if (vendors.length === 0) {
+            vendorList.innerHTML = '<div style="text-align: center; color: #999; padding: 20px;">No active vendors found.</div>';
+            return;
+        }
+
+        vendorList.innerHTML = vendors.map(vendor => `
+            <label class="vendor-checkbox">
+                <input type="checkbox" value="${vendor.id}" onchange="updateVendorSelection(this)">
+                <div class="vendor-info">
+                    <div class="vendor-name">${vendor.name}</div>
+                    <div class="vendor-contact">${vendor.contact_email || 'contact@vendor.com'}</div>
+                </div>
+            </label>
+        `).join('');
+    } catch (error) {
+        vendorList.innerHTML = '<div style="text-align: center; color: #c62828; padding: 20px;">Error loading vendors: ' + error.message + '</div>';
+    }
+}
+
+async function uploadJobAttachments() {
+    const fileInput = document.getElementById('attachmentInput');
+    const uploadStatus = document.getElementById('uploadStatus');
+    const files = fileInput.files;
+    
+    if (files.length === 0) {
+        uploadStatus.style.display = 'block';
+        uploadStatus.className = 'alert alert-error';
+        uploadStatus.textContent = '❌ Please select at least one file';
+        return;
+    }
+    
+    if (!currentJobId) {
+        uploadStatus.style.display = 'block';
+        uploadStatus.className = 'alert alert-error';
+        uploadStatus.textContent = '❌ Job ID not found';
+        return;
+    }
+    
+    const formData = new FormData();
+    for (let i = 0; i < files.length; i++) {
+        formData.append('files', files[i]);
+    }
+    formData.append('job_id', currentJobId);
+    
+    try {
+        uploadStatus.style.display = 'block';
+        uploadStatus.className = 'alert alert-info';
+        uploadStatus.textContent = '⏳ Uploading files...';
+        
+        const response = await fetch('/api/v1/jobs/' + currentJobId + '/upload_attachments/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ptApi.csrfToken,
+            },
+            body: formData,
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Upload failed');
+        }
+        
+        uploadStatus.className = 'alert alert-success';
+        uploadStatus.textContent = '✅ Files uploaded successfully!';
+        fileInput.value = '';
+        
+        // Reload attachments list
+        setTimeout(() => {
+            uploadStatus.style.display = 'none';
+        }, 3000);
+        
+    } catch (error) {
+        uploadStatus.className = 'alert alert-error';
+        uploadStatus.textContent = '❌ Error: ' + error.message;
+    }
+}
+
+
+function updateVendorSelection(checkbox) {
+    if (checkbox.checked) {
+        selectedVendors.add(parseInt(checkbox.value));
+    } else {
+        selectedVendors.delete(parseInt(checkbox.value));
+    }
+    updateSummary();
+}
+
+function updateSummary() {
+    const count = selectedVendors.size;
+    const days = parseInt(document.getElementById('expectedDays').value) || 0;
+    const today = new Date();
+    const completion = new Date(today.getTime() + days * 24 * 60 * 60 * 1000);
+    const completionStr = completion.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    document.getElementById('summary-vendor-count').textContent = count;
+    document.getElementById('summary-completion-date').textContent = completionStr;
+
+    if (count > 0) {
+        document.getElementById('summary-status').innerHTML = '✅ Ready to send';
+        document.getElementById('summary-status').style.color = '#2e7d32';
+        document.getElementById('sendToVendorBtn').disabled = false;
+    } else {
+        document.getElementById('summary-status').innerHTML = '❌ Select at least one vendor';
+        document.getElementById('summary-status').style.color = '#c62828';
+        document.getElementById('sendToVendorBtn').disabled = true;
+    }
+}
+
+if (document.getElementById('expectedDays')) {
+    document.getElementById('expectedDays').addEventListener('change', updateSummary);
+    document.getElementById('expectedDays').addEventListener('input', updateSummary);
+}
+
+async function sendJobToVendor() {
+    console.log('🔵 sendJobToVendor called');
+    console.log('🔵 selectedVendors:', Array.from(selectedVendors));
+    console.log('🔵 currentJobId:', currentJobId);
+    
+    if (selectedVendors.size === 0) {
+        alert('Please select at least one vendor');
+        return;
+    }
+
+    const sendBtn = document.getElementById('sendToVendorBtn');
+    const sendBtnText = document.getElementById('sendBtnText');
+    const sendBtnLoading = document.getElementById('sendBtnLoading');
+    
+    if (!sendBtn || !sendBtnText || !sendBtnLoading) {
+        console.error('❌ Button elements not found');
+        alert('ERROR: Button elements not found');
+        return;
+    }
+    
+    sendBtn.disabled = true;
+    sendBtnLoading.style.display = 'inline-block';
+    sendBtnText.textContent = 'Sending...';
+
+    try {
+        const expectedDays = parseInt(document.getElementById('expectedDays').value);
+        const stageName = document.getElementById('stageName').value;
+        const cost = parseFloat(document.getElementById('expectedCost').value) || 0;
+        const notes = document.getElementById('vendorNotes').value;
+
+        console.log('🔵 Form data:', {expectedDays, stageName, cost, notes});
+
+        // Send to each selected vendor
+        const vendorIds = Array.from(selectedVendors);
+        console.log('🔵 Sending to vendors:', vendorIds);
+        
+        const promises = vendorIds.map(vendorId => {
+            console.log('🔵 Calling ptApi.sendJobToVendor for vendor:', vendorId);
+            return ptApi.sendJobToVendor(currentJobId, vendorId, expectedDays, stageName, cost, notes);
+        });
+
+        const results = await Promise.all(promises);
+        console.log('🔵 All vendors processed, results:', results);
+        
+        // Show success message
+        const messageEl = document.getElementById('modal-message');
+        if (!messageEl) {
+            console.error('❌ modal-message element not found');
+            alert('✅ Jobs sent to vendors successfully!');
+            setTimeout(() => {
+                closeSendToVendorModal();
+                loadDashboard();
+                location.reload();
+            }, 1500);
+            return;
+        }
+        
+        messageEl.className = 'alert alert-success';
+        messageEl.textContent = `✅ Successfully sent to ${results.length} vendor(s)!`;
+        messageEl.style.display = 'block';
+
+        console.log('🔵 Success message displayed');
+
+        setTimeout(() => {
+            closeSendToVendorModal();
+            loadDashboard();
+            location.reload();
+        }, 2000);
+    } catch (error) {
+        console.error('❌ Error in sendJobToVendor:', error);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error stack:', error.stack);
+        
+        const messageEl = document.getElementById('modal-message');
+        if (messageEl) {
+            messageEl.className = 'alert alert-error';
+            messageEl.textContent = `❌ Error: ${error.message}`;
+            messageEl.style.display = 'block';
+        } else {
+            alert('❌ Error: ' + error.message);
+        }
+    } finally {
+        sendBtn.disabled = false;
+        sendBtnLoading.style.display = 'none';
+        sendBtnText.textContent = 'Send to Vendor';
+    }
+}
+
+// ===== DASHBOARD FUNCTIONS =====
+async function loadDashboard() {
+    try {
+        console.log('🔵 loadDashboard called');
+        const data = await ptApi.getJobsStats();
+        console.log('🔵 Stats received:', data);
+        
+        const pendingEl = document.getElementById('stat-pending');
+        const assignedEl = document.getElementById('stat-assigned');
+        const proofsEl = document.getElementById('stat-proofs');
+        const invoicesEl = document.getElementById('stat-invoices');
+        
+        const pendingCount = data.pending ? data.pending.length : 0;
+        const assignedCount = data.assigned ? data.assigned.length : 0;
+        const proofsCount = data.proofs ? data.proofs.length : 0;
+        const invoicesCount = data.invoices ? data.invoices.length : 0;
+        
+        if (pendingEl) {
+            pendingEl.textContent = pendingCount;
+            console.log('🔵 Updated stat-pending to:', pendingCount);
+        }
+        if (assignedEl) {
+            assignedEl.textContent = assignedCount;
+            console.log('🔵 Updated stat-assigned to:', assignedCount);
+        }
+        if (proofsEl) {
+            proofsEl.textContent = proofsCount;
+            console.log('🔵 Updated stat-proofs to:', proofsCount);
+        }
+        if (invoicesEl) {
+            invoicesEl.textContent = invoicesCount;
+            console.log('🔵 Updated stat-invoices to:', invoicesCount);
+        }
+        
+        // Update tab badges
+        const tabPendingEl = document.getElementById('tab-pending-count');
+        const tabAssignedEl = document.getElementById('tab-assigned-count');
+        const tabProofsEl = document.getElementById('tab-proofs-count');
+        const tabInvoicesEl = document.getElementById('tab-invoices-count');
+        
+        if (tabPendingEl) {
+            tabPendingEl.textContent = '(' + pendingCount + ')';
+            console.log('🔵 Updated tab-pending-count to:', '(' + pendingCount + ')');
+        }
+        if (tabAssignedEl) {
+            tabAssignedEl.textContent = '(' + assignedCount + ')';
+            console.log('🔵 Updated tab-assigned-count to:', '(' + assignedCount + ')');
+        }
+        if (tabProofsEl) {
+            tabProofsEl.textContent = '(' + proofsCount + ')';
+            console.log('🔵 Updated tab-proofs-count to:', '(' + proofsCount + ')');
+        }
+        if (tabInvoicesEl) {
+            tabInvoicesEl.textContent = '(' + invoicesCount + ')';
+            console.log('🔵 Updated tab-invoices-count to:', '(' + invoicesCount + ')');
+        }
+    } catch (error) {
+        console.error('❌ Error loading dashboard stats:', error);
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboard();
+    
+    // Auto-refresh every 10 seconds
+    setInterval(loadDashboard, 10000);
+});
+
+// Close modal when clicking outside
+window.onclick = function(event) {
+    const modal = document.getElementById('sendToVendorModal');
+    if (event.target === modal) {
+        closeSendToVendorModal();
+    }
+};
 </script>
 {% endblock %}

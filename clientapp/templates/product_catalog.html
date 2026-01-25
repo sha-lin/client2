@@ -150,9 +150,54 @@
         font-weight: 500;
     }
 
+    .badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        white-space: nowrap;
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .badge-in_stock {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .badge-low_stock {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .badge-out_of_stock {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    .badge-made_to_order {
+        background: #e0e7ff;
+        color: #3730a3;
+    }
+
+    .badge-discontinued {
+        background: #f3f4f6;
+        color: #6b7280;
+    }
+
     .product-name {
         font-weight: 500;
         color: #1a1a1a;
+    }
+
+    .product-name a {
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .product-name a:hover {
+        text-decoration: underline;
     }
 
     .status-badge {
@@ -278,6 +323,23 @@
             </select>
         </div>
         <div class="filter-dropdown">
+            <select name="customization">
+                <option value="all">All Customization Levels</option>
+                <option value="non_customizable" {% if request.GET.customization == 'non_customizable' %}selected{% endif %}>Fixed Price</option>
+                <option value="semi_customizable" {% if request.GET.customization == 'semi_customizable' %}selected{% endif %}>Semi-Customizable</option>
+                <option value="fully_customizable" {% if request.GET.customization == 'fully_customizable' %}selected{% endif %}>Fully Customizable</option>
+            </select>
+        </div>
+        <div class="filter-dropdown">
+            <select name="stock_status">
+                <option value="all">All Stock Levels</option>
+                <option value="in_stock" {% if request.GET.stock_status == 'in_stock' %}selected{% endif %}>In Stock</option>
+                <option value="low_stock" {% if request.GET.stock_status == 'low_stock' %}selected{% endif %}>Low Stock</option>
+                <option value="out_of_stock" {% if request.GET.stock_status == 'out_of_stock' %}selected{% endif %}>Out of Stock</option>
+                <option value="made_to_order" {% if request.GET.stock_status == 'made_to_order' %}selected{% endif %}>Made to Order</option>
+            </select>
+        </div>
+        <div class="filter-dropdown">
             <select name="status">
                 <option value="all" {% if selected_status == 'all' %}selected{% endif %}>All Status</option>
                 <option value="published" {% if selected_status == 'published' %}selected{% endif %}>Published</option>
@@ -298,6 +360,8 @@
                 <th>Product Name</th>
                 <th>Category</th>
                 <th>Product Type</th>
+                <th>Customization</th>
+                <th>Stock Status</th>
                 <th>Base Price (EVP)</th>
                 <th>Status</th>
                 <th>Last Updated</th>
@@ -308,9 +372,32 @@
             {% for product in products %}
             <tr>
                 <td class="sku-cell">{{ product.internal_code }}</td>
-                <td class="product-name">{{ product.name }}</td>
+                <td class="product-name">
+                    <a href="{% url 'product_detail' product.pk %}" style="color: #3b82f6; cursor: pointer; text-decoration: none;">
+                        {{ product.name }}
+                    </a>
+                </td>
                 <td>{{ product.primary_category|default:"—" }}</td>
                 <td>{{ product.get_product_type_display }}</td>
+                <td>
+                    <span class="badge">
+                        {% if product.customization_level == 'non_customizable' %}
+                            Fixed Price
+                        {% elif product.customization_level == 'semi_customizable' %}
+                            Semi-Customizable
+                        {% else %}
+                            Fully Customizable
+                        {% endif %}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge badge-{{ product.stock_status }}">
+                        {{ product.get_stock_status_display }}
+                        {% if product.stock_quantity > 0 and product.stock_status != 'made_to_order' %}
+                            <span style="font-size: 0.75rem; margin-left: 0.25rem;">({{ product.stock_quantity }})</span>
+                        {% endif %}
+                    </span>
+                </td>
                 <td class="price">
                     {% if product.base_price %}
                         KES {{ product.base_price|floatformat:2 }}
@@ -338,6 +425,9 @@
                 <td class="last-updated">{{ product.updated_at|date:"M d, Y" }}</td>
                 <td>
                     <div class="action-buttons">
+                        <a href="{% url 'product_detail' product.pk %}" class="btn-view" title="View Details">
+                            <i class="fas fa-eye"></i> View
+                        </a>
                         <a href="{% url 'product_edit' product.pk %}" class="btn-edit">
                             <i class="fas fa-edit"></i> Edit
                         </a>

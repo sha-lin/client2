@@ -99,6 +99,7 @@ urlpatterns = [
     
     # Product Catalog 
     path('production/catalog/', views.production_catalog, name='production_catalog'),
+    path('products/<int:pk>/', views.product_detail, name='product_detail'),
     path('production/products/create/', views.product_create, name='product_create'),
     path('production/products/<int:pk>/edit/', views.product_edit, name='product_edit'),
     path('production/products/<int:product_pk>/images/<int:image_pk>/delete/', 
@@ -396,11 +397,14 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     # Jobs Management
     path('jobs/active/', views.active_jobs, name='active_jobs'),
     path('jobs/completed/', views.completed_jobs, name='completed_jobs'),
-    path('jobs/<str:job_id>/', views.job_detail, name='job_detail'),
+    path('jobs/<int:pk>/', views.job_detail, name='job_detail'),
     # path('jobs/<str:job_id>/accept/', views.accept_job, name='accept_job'),
     # path('jobs/<str:job_id>/decline/', views.decline_job, name='decline_job'),
     # path('jobs/<str:job_id>/submit-proof/', views.submit_proof, name='submit_proof'),
     # path('jobs/<str:job_id>/update-status/', views.update_job_status, name='update_job_status'),
+    
+    # QC Proofs
+    path('vendor/proofs/', views.vendor_proofs, name='vendor_proofs'),
     
     # Invoices
     path('invoices/', views.invoices, name='invoices'),

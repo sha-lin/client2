@@ -83,32 +83,32 @@ class ClientForm(forms.ModelForm):
             'status': forms.Select(attrs={'class': 'form-select w-full'}),
         }
 
-        def clean_phone(self):
-            phone = self.cleaned_data.get('phone', '').strip()
+    def clean_phone(self):
+        phone = self.cleaned_data.get('phone', '').strip()
 
-            phone_cleaned = re.sub(r'[\s\-\(\)]', '', phone)
+        phone_cleaned = re.sub(r'[\s\-\(\)]', '', phone)
 
-            kenyan_patterns = [
-                r'^\+254[17]\d{8}$',
-                r'^254[17]\d{8}$',
-                r'^0[17]\d{8}$',
-            ]
-            is_valid = any(re.match(pattern, phone_cleaned) for pattern in kenyan_patterns)
+        kenyan_patterns = [
+            r'^\+254[17]\d{8}$',
+            r'^254[17]\d{8}$',
+            r'^0[17]\d{8}$',
+        ]
+        is_valid = any(re.match(pattern, phone_cleaned) for pattern in kenyan_patterns)
 
-            if not is_valid:
-                raise ValidationError('Invalid Kenyan phone number format')
-            
-            if phone_cleaned.startswith('0'):
-                phone_cleaned = '+254' + phone_cleaned[1:]
-            elif phone_cleaned.startswith('254'):
-                phone_cleaned = '+' + phone_cleaned
-
-            if Client.objects.filter(phone=phone_cleaned).exclude(pk=self.instance.pk if self.instance else None).exists():
-                raise ValidationError(
-                    f'A client with this phone number already exists.'
-                )
+        if not is_valid:
+            raise ValidationError('Invalid Kenyan phone number format')
         
-            return phone_cleaned    
+        if phone_cleaned.startswith('0'):
+            phone_cleaned = '+254' + phone_cleaned[1:]
+        elif phone_cleaned.startswith('254'):
+            phone_cleaned = '+' + phone_cleaned
+
+        if Client.objects.filter(phone=phone_cleaned).exclude(pk=self.instance.pk if self.instance else None).exists():
+            raise ValidationError(
+                f'A client with this phone number already exists.'
+            )
+    
+        return phone_cleaned    
 
 
 class QuoteForm(forms.ModelForm):

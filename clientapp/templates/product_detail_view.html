@@ -1,0 +1,583 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ product.name }} - Product Details{% endblock %}
+
+{% block content %}
+<div class="p-8 bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <div class="mb-6">
+        <a href="{% url 'product_catalog' %}" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4">
+            <i class="fas fa-arrow-left"></i>
+            Back to Catalog
+        </a>
+
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ product.name }}</h1>
+                <p class="text-gray-600">Internal Code: <span class="font-mono">{{ product.internal_code }}</span></p>
+            </div>
+            <div class="flex gap-2">
+                {% if is_production_team %}
+                <a href="{% url 'product_edit' product.pk %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
+                    <i class="fas fa-edit"></i>
+                    Edit Product
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Status Badges -->
+        <div class="flex gap-2 mb-6">
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                {% if product.status == 'published' %}
+                    bg-green-100 text-green-800
+                {% elif product.status == 'draft' %}
+                    bg-yellow-100 text-yellow-800
+                {% else %}
+                    bg-gray-100 text-gray-800
+                {% endif %}">
+                {{ product.get_status_display }}
+            </span>
+            
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                {% if product.is_visible %}
+                    bg-blue-100 text-blue-800
+                {% else %}
+                    bg-gray-100 text-gray-800
+                {% endif %}">
+                {% if product.is_visible %}Visible{% else %}Hidden{% endif %}
+            </span>
+
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium badge badge-{{ product.stock_status }}">
+                {{ product.get_stock_status_display }}
+            </span>
+
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                {% if product.customization_level == 'non_customizable' %}
+                    bg-purple-100 text-purple-800
+                {% elif product.customization_level == 'semi_customizable' %}
+                    bg-indigo-100 text-indigo-800
+                {% else %}
+                    bg-pink-100 text-pink-800
+                {% endif %}">
+                {% if product.customization_level == 'non_customizable' %}
+                    Fixed Price
+                {% elif product.customization_level == 'semi_customizable' %}
+                    Semi-Customizable
+                {% else %}
+                    Fully Customizable
+                {% endif %}
+            </span>
+        </div>
+    </div>
+
+    <!-- Tabs Navigation -->
+    <div class="bg-white rounded-lg shadow mb-6">
+        <div class="border-b border-gray-200">
+            <nav class="flex" role="tablist">
+                <button role="tab" aria-selected="true" aria-controls="general-panel" 
+                    class="tab-button active px-6 py-3 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap" 
+                    onclick="switchTab(event, 'general')">
+                    <i class="fas fa-info-circle"></i> General Information
+                </button>
+                <button role="tab" aria-selected="false" aria-controls="pricing-panel" 
+                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    onclick="switchTab(event, 'pricing')">
+                    <i class="fas fa-tag"></i> Pricing
+                </button>
+                <button role="tab" aria-selected="false" aria-controls="images-panel" 
+                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    onclick="switchTab(event, 'images')">
+                    <i class="fas fa-images"></i> Images
+                </button>
+                <button role="tab" aria-selected="false" aria-controls="inventory-panel" 
+                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    onclick="switchTab(event, 'inventory')">
+                    <i class="fas fa-warehouse"></i> Inventory
+                </button>
+                <button role="tab" aria-selected="false" aria-controls="history-panel" 
+                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    onclick="switchTab(event, 'history')">
+                    <i class="fas fa-history"></i> Change History
+                </button>
+                {% if seo_data %}
+                <button role="tab" aria-selected="false" aria-controls="seo-panel" 
+                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    onclick="switchTab(event, 'seo')">
+                    <i class="fas fa-search"></i> SEO
+                </button>
+                {% endif %}
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="p-6">
+            <!-- General Information Tab -->
+            <div id="general-panel" role="tabpanel" class="tab-panel active">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Main Content -->
+                    <div class="lg:col-span-2 space-y-6">
+                        <!-- Descriptions -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Descriptions</h3>
+                            <div class="space-y-4">
+                                {% if product.short_description %}
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Short Description</label>
+                                    <p class="text-gray-900 bg-white p-3 rounded border border-gray-200">
+                                        {{ product.short_description }}
+                                    </p>
+                                </div>
+                                {% endif %}
+                                
+                                {% if product.long_description %}
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Full Description</label>
+                                    <div class="text-gray-900 bg-white p-3 rounded border border-gray-200 whitespace-pre-wrap">
+                                        {{ product.long_description }}
+                                    </div>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Technical Specifications -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Technical Specifications</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Unit of Measure</label>
+                                    <p class="text-gray-900">{{ product.unit_of_measure|default:"—" }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Weight</label>
+                                    <p class="text-gray-900">{{ product.weight|default:"—" }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Dimensions</label>
+                                    <p class="text-gray-900">{{ product.dimensions|default:"—" }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Material Type</label>
+                                    <p class="text-gray-900">{{ product.material_type|default:"—" }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Warranty</label>
+                                    <p class="text-gray-900">{{ product.warranty|default:"—" }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Country of Origin</label>
+                                    <p class="text-gray-900">{{ product.country_of_origin|default:"—" }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Categorization -->
+                        <div class="bg-gray-50 rounded-lg p-6">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Categorization</h3>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Primary Category</label>
+                                    <p class="text-gray-900">{{ product.primary_category|default:"—" }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Product Type</label>
+                                    <p class="text-gray-900">{{ product.get_product_type_display|default:"—" }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Product Family</label>
+                                    <p class="text-gray-900">{{ product.product_family|default:"—" }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sidebar -->
+                    <div class="space-y-6">
+                        <!-- Pricing Overview -->
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Pricing</h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <p class="text-sm text-gray-600">Base Price</p>
+                                    <p class="text-2xl font-bold text-blue-600">
+                                        {% if product.base_price %}
+                                            ${{ product.base_price|floatformat:2 }}
+                                        {% else %}
+                                            Custom Quote
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                {% if product.base_cost %}
+                                <div>
+                                    <p class="text-sm text-gray-600">Base Cost</p>
+                                    <p class="text-gray-900">${{ product.base_cost|floatformat:2 }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Stock Status -->
+                        <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Stock Information</h3>
+                            <div class="space-y-3">
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Status</p>
+                                    <p class="text-gray-900">{{ product.get_stock_status_display }}</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Quantity in Stock</p>
+                                    <p class="text-2xl font-bold 
+                                        {% if product.stock_quantity > 20 %}
+                                            text-green-600
+                                        {% elif product.stock_quantity > 5 %}
+                                            text-yellow-600
+                                        {% else %}
+                                            text-red-600
+                                        {% endif %}">
+                                        {{ product.stock_quantity|default:"0" }}
+                                    </p>
+                                </div>
+                                {% if product.min_stock_level %}
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Minimum Stock Level</p>
+                                    <p class="text-gray-900">{{ product.min_stock_level }}</p>
+                                </div>
+                                {% endif %}
+                                {% if product.reorder_quantity %}
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Reorder Quantity</p>
+                                    <p class="text-gray-900">{{ product.reorder_quantity }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Product Attributes -->
+                        <div class="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Attributes</h3>
+                            <div class="space-y-3 text-sm">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Tracking Enabled</span>
+                                    <span class="font-medium">
+                                        {% if product.tracking_enabled %}
+                                            <i class="fas fa-check text-green-600"></i>
+                                        {% else %}
+                                            <i class="fas fa-times text-gray-400"></i>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Backorder Allowed</span>
+                                    <span class="font-medium">
+                                        {% if product.backorder_allowed %}
+                                            <i class="fas fa-check text-green-600"></i>
+                                        {% else %}
+                                            <i class="fas fa-times text-gray-400"></i>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="text-gray-600">Returnable</span>
+                                    <span class="font-medium">
+                                        {% if product.is_returnable %}
+                                            <i class="fas fa-check text-green-600"></i>
+                                        {% else %}
+                                            <i class="fas fa-times text-gray-400"></i>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pricing Tab -->
+            <div id="pricing-panel" role="tabpanel" class="tab-panel hidden">
+                <div class="space-y-6">
+                    {% if pricing %}
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Quantity Tier</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Min Qty</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Max Qty</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Price</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Type</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                {% for price_tier in pricing %}
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-gray-900">{{ price_tier.name|default:"Standard" }}</td>
+                                    <td class="px-4 py-3 text-gray-700">{{ price_tier.min_quantity|default:"—" }}</td>
+                                    <td class="px-4 py-3 text-gray-700">{{ price_tier.max_quantity|default:"Unlimited" }}</td>
+                                    <td class="px-4 py-3 font-semibold text-gray-900">
+                                        {% if price_tier.base_price %}
+                                            ${{ price_tier.base_price|floatformat:2 }}
+                                        {% else %}
+                                            {{ price_tier.price_formula|default:"Custom" }}
+                                        {% endif %}
+                                    </td>
+                                    <td class="px-4 py-3">
+                                        <span class="inline-flex px-2 py-1 rounded text-xs font-medium
+                                            {% if price_tier.price_formula %}
+                                                bg-purple-100 text-purple-800
+                                            {% else %}
+                                                bg-blue-100 text-blue-800
+                                            {% endif %}">
+                                            {% if price_tier.price_formula %}Formula{% else %}Fixed{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                                        No pricing tiers configured
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="bg-gray-50 rounded-lg p-8 text-center">
+                        <i class="fas fa-tag text-4xl text-gray-300 mb-4"></i>
+                        <p class="text-gray-600">No pricing tiers configured for this product</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Images Tab -->
+            <div id="images-panel" role="tabpanel" class="tab-panel hidden">
+                {% if images %}
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    {% for image in images %}
+                    <div class="bg-gray-100 rounded-lg overflow-hidden shadow">
+                        {% if image.image %}
+                        <img src="{{ image.image.url }}" alt="{{ image.alt_text }}" class="w-full h-48 object-cover">
+                        {% else %}
+                        <div class="w-full h-48 flex items-center justify-center bg-gray-300">
+                            <i class="fas fa-image text-gray-400 text-4xl"></i>
+                        </div>
+                        {% endif %}
+                        <div class="p-3">
+                            <p class="text-xs text-gray-600">{{ image.alt_text|truncatewords:5 }}</p>
+                            {% if image.is_primary %}
+                            <span class="inline-block mt-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                                Primary
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="bg-gray-50 rounded-lg p-8 text-center">
+                    <i class="fas fa-image text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-600">No images uploaded for this product</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Inventory Tab -->
+            <div id="inventory-panel" role="tabpanel" class="tab-panel hidden">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Stock Levels</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Current Stock</label>
+                                <p class="text-3xl font-bold text-gray-900">{{ product.stock_quantity|default:"0" }}</p>
+                            </div>
+                            {% if product.min_stock_level %}
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Minimum Level</label>
+                                <p class="text-2xl font-semibold text-gray-900">{{ product.min_stock_level }}</p>
+                            </div>
+                            {% endif %}
+                            {% if product.reorder_quantity %}
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Reorder Quantity</label>
+                                <p class="text-2xl font-semibold text-gray-900">{{ product.reorder_quantity }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Availability Settings</h3>
+                        <div class="space-y-3 text-sm">
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Stock Status</span>
+                                <span class="font-semibold text-gray-900">{{ product.get_stock_status_display }}</span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Backorders Allowed</span>
+                                <span class="font-semibold">
+                                    {% if product.backorder_allowed %}
+                                        <span class="text-green-600"><i class="fas fa-check"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-red-600"><i class="fas fa-times"></i> No</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-gray-600">Tracking Enabled</span>
+                                <span class="font-semibold">
+                                    {% if product.tracking_enabled %}
+                                        <span class="text-green-600"><i class="fas fa-check"></i> Yes</span>
+                                    {% else %}
+                                        <span class="text-red-600"><i class="fas fa-times"></i> No</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change History Tab -->
+            <div id="history-panel" role="tabpanel" class="tab-panel hidden">
+                {% if change_history %}
+                <div class="space-y-4">
+                    {% for change in change_history %}
+                    <div class="bg-gray-50 rounded-lg p-4 border-l-4 border-blue-400">
+                        <div class="flex items-start justify-between mb-2">
+                            <div>
+                                <p class="font-semibold text-gray-900">{{ change.change_type|upper }}</p>
+                                <p class="text-sm text-gray-600">{{ change.changed_by.get_full_name|default:change.changed_by.username }}</p>
+                            </div>
+                            <p class="text-sm text-gray-500">{{ change.changed_at|date:"M d, Y H:i" }}</p>
+                        </div>
+                        {% if change.notes %}
+                        <p class="text-gray-700 text-sm">{{ change.notes }}</p>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="bg-gray-50 rounded-lg p-8 text-center">
+                    <i class="fas fa-history text-4xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-600">No changes recorded yet</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- SEO Tab (if available) -->
+            {% if seo_data %}
+            <div id="seo-panel" role="tabpanel" class="tab-panel hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">SEO Metadata</h3>
+                        <div class="space-y-4">
+                            {% if seo_data.meta_title %}
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Meta Title</label>
+                                <p class="text-gray-900 bg-white p-2 rounded border border-gray-200 text-sm">
+                                    {{ seo_data.meta_title }}
+                                </p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if seo_data.meta_description %}
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Meta Description</label>
+                                <p class="text-gray-900 bg-white p-2 rounded border border-gray-200 text-sm">
+                                    {{ seo_data.meta_description }}
+                                </p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if seo_data.keywords %}
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">Keywords</label>
+                                <p class="text-gray-900 bg-white p-2 rounded border border-gray-200 text-sm">
+                                    {{ seo_data.keywords }}
+                                </p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="bg-gray-50 rounded-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Social Media</h3>
+                        <div class="space-y-4">
+                            {% if seo_data.og_title %}
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">OG Title</label>
+                                <p class="text-gray-900 text-sm">{{ seo_data.og_title }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            {% if seo_data.og_description %}
+                            <div>
+                                <label class="text-sm font-medium text-gray-600">OG Description</label>
+                                <p class="text-gray-900 text-sm">{{ seo_data.og_description }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+    .tab-panel {
+        display: none;
+    }
+
+    .tab-panel.active {
+        display: block;
+    }
+
+    .badge {
+        display: inline-block;
+        padding: 0.35rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        background: #e0f2fe;
+        color: #0369a1;
+    }
+
+    .badge-in_stock { background: #d1fae5; color: #065f46; }
+    .badge-low_stock { background: #fef3c7; color: #92400e; }
+    .badge-out_of_stock { background: #fee2e2; color: #991b1b; }
+    .badge-made_to_order { background: #e0e7ff; color: #3730a3; }
+    .badge-discontinued { background: #f3f4f6; color: #6b7280; }
+</style>
+
+<script>
+    function switchTab(event, tabName) {
+        event.preventDefault();
+        
+        // Hide all tab panels
+        const panels = document.querySelectorAll('.tab-panel');
+        panels.forEach(panel => panel.classList.remove('active'));
+        
+        // Remove active class from all buttons
+        const buttons = document.querySelectorAll('.tab-button');
+        buttons.forEach(button => {
+            button.setAttribute('aria-selected', 'false');
+            button.classList.remove('active');
+        });
+        
+        // Show selected tab panel
+        const panel = document.getElementById(tabName + '-panel');
+        if (panel) {
+            panel.classList.add('active');
+        }
+        
+        // Add active class to clicked button
+        event.target.closest('.tab-button').classList.add('active');
+        event.target.closest('.tab-button').setAttribute('aria-selected', 'true');
+    }
+</script>
+{% endblock %}

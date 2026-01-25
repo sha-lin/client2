@@ -151,7 +151,7 @@ class Client(models.Model):
     client_type = models.CharField(max_length=10, choices=CLIENT_TYPE_CHOICES, default='B2B')
     company = models.CharField(max_length=200, blank=True)
     name = models.CharField(max_length=200)
-    email = models.EmailField()
+    email = models.EmailField(blank=True)  # Optional for B2C, required for B2B (enforced in serializer)
     phone = models.CharField(max_length=20)
     
     # Business Details
@@ -1626,14 +1626,24 @@ class Quote(models.Model):
             
             self.quote_id = f'QT-{year}-{new_number:03d}'
         
-        # Calculate total amount (unit_price * quantity)
+        # Calculate total amount (unit_price * quantity + VAT + shipping + adjustments)
         unit_price = self.unit_price if self.unit_price is not None else Decimal('0')
         subtotal = unit_price * self.quantity
+        
+        # Calculate VAT if enabled
+        vat_amount = Decimal('0')
         if self.include_vat:
             vat_amount = subtotal * Decimal('0.16')
-            self.total_amount = subtotal + vat_amount
+            self.tax_total = vat_amount
         else:
-            self.total_amount = subtotal
+            self.tax_total = Decimal('0')
+        
+        # Calculate total: subtotal + VAT + shipping + adjustments
+        shipping_charges = self.shipping_charges if self.shipping_charges is not None else Decimal('0')
+        adjustment_amount = self.adjustment_amount if self.adjustment_amount is not None else Decimal('0')
+        
+        self.total_amount = subtotal + vat_amount + shipping_charges + adjustment_amount
+        self.subtotal = subtotal
         
         # Set valid_until if not set
         if not self.valid_until:
@@ -4769,6 +4779,10 @@ class VendorInvoice(models.Model):
         ordering = ['-created_at']
 
     def save(self, *args, **kwargs):
+        # Ensure line_items is never NULL (default to empty list)
+        if self.line_items is None:
+            self.line_items = []
+        
         if not self.invoice_number:
             year = timezone.now().year
             last_invoice = VendorInvoice.objects.filter(invoice_number__startswith=f'INV-{year}-').order_by('invoice_number').last()

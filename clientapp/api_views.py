@@ -229,6 +229,7 @@ from .permissions import (
     IsOwnerOrAdmin,
     IsClient,
     IsClientOwner,
+    IsVendor,
 )
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Account Manager']))
@@ -244,6 +245,11 @@ class LeadViewSet(viewsets.ModelViewSet):
     filterset_fields = ["status", "source", "created_by"]
     search_fields = ["lead_id", "name", "email", "phone"]
     ordering_fields = ["created_at", "status"]
+    
+    def perform_create(self, serializer):
+        """Set the creator of the lead"""
+        serializer.save(created_by=self.request.user)
+
     
     def get_queryset(self):
         """Restrict AMs to their own leads unless they're Admin"""
@@ -478,6 +484,14 @@ class ClientViewSet(viewsets.ModelViewSet):
     filterset_fields = ["client_type", "status", "account_manager"]
     search_fields = ["client_id", "name", "email", "phone", "company"]
     ordering_fields = ["created_at", "last_activity"]
+    
+    def perform_create(self, serializer):
+        """Set the account manager and onboarder of the client"""
+        serializer.save(
+            account_manager=self.request.user,
+            onboarded_by=self.request.user
+        )
+
     
     def get_queryset(self):
         """Restrict AMs to their own clients unless they're Admin"""
@@ -1294,6 +1308,7 @@ class JobViewSet(viewsets.ModelViewSet):
         vendor_id = request.data.get("vendor_id")
         stage_name = request.data.get("stage_name", "Production")
         expected_days = int(request.data.get("expected_days", 3))
+        total_cost = request.data.get("total_cost", 0)
         
         if not vendor_id:
             return Response(
@@ -1322,6 +1337,27 @@ class JobViewSet(viewsets.ModelViewSet):
             expected_completion=timezone.now() + timedelta(days=expected_days),
             status='sent_to_vendor',
         )
+        
+        # Create Purchase Order for this job-vendor assignment
+        try:
+            from decimal import Decimal
+            po = PurchaseOrder.objects.create(
+                job=job,
+                vendor=vendor,
+                product_type=job.product_type if hasattr(job, 'product_type') else stage_name,
+                product_description=job.description if hasattr(job, 'description') else f'{stage_name} - {job.job_number}',
+                quantity=1,
+                total_cost=Decimal(str(float(total_cost))) if total_cost else Decimal('0'),
+                status='NEW',
+                milestone='awaiting_acceptance',
+                required_by=timezone.now().date() + timedelta(days=expected_days),
+            )
+        except Exception as e:
+            # If PurchaseOrder creation fails, still continue with JobVendorStage
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to create PurchaseOrder for job {job.id}: {str(e)}", exc_info=True)
+            po = None
         
         # Get job attachments
         attachments = job.attachments.all()
@@ -1356,7 +1392,70 @@ class JobViewSet(viewsets.ModelViewSet):
             "expected_completion": vendor_stage.expected_completion,
             "attachments_count": len(attachment_list),
             "attachments": attachment_list,
+            "po_id": po.id if po else None,
         })
+
+    @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def upload_attachments(self, request, pk=None):
+        """
+        Upload file attachments to a job.
+        Accepts multipart form data with 'files' field
+        """
+        job = self.get_object()
+        
+        if 'files' not in request.FILES:
+            return Response(
+                {"detail": "No files provided"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        files = request.FILES.getlist('files')
+        if not files:
+            return Response(
+                {"detail": "No files in request"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from clientapp.models import JobAttachment
+        uploaded_files = []
+        
+        try:
+            for file in files:
+                attachment = JobAttachment.objects.create(
+                    job=job,
+                    file=file,
+                    file_name=file.name,
+                    file_size=file.size,
+                    uploaded_by=request.user,
+                )
+                uploaded_files.append({
+                    "id": attachment.id,
+                    "file_name": attachment.file_name,
+                    "file_size": attachment.file_size,
+                    "uploaded_at": attachment.uploaded_at.isoformat(),
+                })
+            
+            # Create activity log
+            from clientapp.models import ActivityLog
+            ActivityLog.objects.create(
+                client=job.client,
+                activity_type="Job",
+                title=f"Files Uploaded to Job {job.job_number}",
+                description=f"Production Team uploaded {len(uploaded_files)} file(s)",
+                created_by=request.user,
+            )
+            
+            return Response({
+                "detail": f"Successfully uploaded {len(uploaded_files)} file(s)",
+                "uploaded_files": uploaded_files,
+                "total_attachments": job.attachments.count(),
+            })
+            
+        except Exception as e:
+            return Response(
+                {"detail": f"Error uploading files: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated])
     def update_progress(self, request, pk=None):
@@ -1493,7 +1592,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
     """
     queryset = PurchaseOrder.objects.select_related('job', 'vendor', 'job__client').all()
     serializer_class = PurchaseOrderDetailedSerializer
-    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager | IsVendor]
     filterset_fields = ['vendor', 'status', 'milestone', 'job']
     search_fields = ['po_number', 'product_type', 'job__job_number']
     ordering_fields = ['created_at', 'required_by', 'status']
@@ -1504,13 +1603,22 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         user = self.request.user
         queryset = super().get_queryset()
         
+        # Vendors can only see their own POs
+        try:
+            vendor = Vendor.objects.get(user=user, active=True)
+            queryset = queryset.filter(vendor=vendor)
+            return queryset
+        except Vendor.DoesNotExist:
+            pass  # User is not a vendor, continue with other filtering
+        
+        # Filter by vendor_id if specified in query params
         vendor_id = self.request.query_params.get('vendor_id', None)
         if vendor_id:
             queryset = queryset.filter(vendor_id=vendor_id)
         
         return queryset
     
-    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin) | IsVendor])
     def accept(self, request, pk=None):
         """Vendor accepts the purchase order"""
         po = self.get_object()
@@ -1549,7 +1657,7 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(po)
         return Response({'detail': 'Purchase order accepted', 'po': serializer.data})
     
-    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin) | IsVendor])
     def update_milestone(self, request, pk=None):
         """Update PO milestone (production stage)"""
         po = self.get_object()
@@ -1649,6 +1757,35 @@ class PurchaseOrderViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(po)
         return Response({'detail': 'Purchase order completed', 'po': serializer.data})
+    
+    @decorators.action(detail=False, methods=['get'], permission_classes=[IsAuthenticated, IsVendor | IsProductionTeam | IsAdmin])
+    def vendor_dashboard(self, request):
+        """Get vendor dashboard statistics"""
+        vendor_id = request.query_params.get('vendor_id')
+        if not vendor_id:
+            return Response(
+                {'error': 'vendor_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        from django.db.models import Sum, Count
+        
+        pos = PurchaseOrder.objects.filter(vendor_id=vendor_id)
+        
+        stats = {
+            'total_pos': pos.count(),
+            'active_pos': pos.exclude(status__in=['completed', 'cancelled']).count(),
+            'completed_pos': pos.filter(status='completed').count(),
+            'delayed_pos': pos.filter(
+                status__in=['in_production', 'quality_check'],
+                required_by__lt=timezone.now().date()
+            ).count(),
+            'total_value': pos.aggregate(Sum('total_cost'))['total_cost__sum'] or 0,
+            'pending_approval': pos.filter(status='awaiting_approval').count(),
+            'on_time_delivery': pos.filter(completed_on_time=True).count() if pos.filter(status='completed').exists() else 0,
+        }
+        
+        return Response(stats)
 
 
 @method_decorator(name='list', decorator=swagger_auto_schema(tags=['Finance & Purchasing']))
@@ -1663,11 +1800,30 @@ class VendorInvoiceViewSet(viewsets.ModelViewSet):
     """
     queryset = VendorInvoice.objects.select_related('purchase_order', 'vendor', 'job', 'job__client').all()
     serializer_class = VendorInvoiceDetailedSerializer
-    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager | IsVendor]
     filterset_fields = ['vendor', 'purchase_order', 'job', 'status']
     search_fields = ['invoice_number', 'vendor_invoice_ref', 'job__job_number']
     ordering_fields = ['created_at', 'invoice_date', 'due_date', 'status']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter invoices based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # If user is a vendor, filter to their invoices only
+        try:
+            vendor = Vendor.objects.get(user=user, active=True)
+            queryset = queryset.filter(vendor=vendor)
+            return queryset
+        except Vendor.DoesNotExist:
+            pass  # Not a vendor, continue with PT logic
+        
+        # PT/Admin can view all, but can filter by vendor_id param
+        vendor_id = self.request.query_params.get('vendor_id', None)
+        if vendor_id:
+            queryset = queryset.filter(vendor_id=vendor_id)
+        return queryset
     
     def create(self, request, *args, **kwargs):
         """Create invoice and notify PT team"""
@@ -4242,11 +4398,27 @@ class PurchaseOrderProofViewSet(viewsets.ModelViewSet):
     """
     queryset = PurchaseOrderProof.objects.select_related('purchase_order', 'reviewed_by', 'purchase_order__vendor').all()
     serializer_class = PurchaseOrderProofSerializer
-    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsVendor]
     filterset_fields = ['purchase_order', 'status', 'proof_type']
     search_fields = ['purchase_order__po_number']
     ordering_fields = ['submitted_at', 'reviewed_at']
     ordering = ['-submitted_at']
+    
+    def get_queryset(self):
+        """Filter proofs based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # If user is a vendor, filter to their PO proofs only
+        try:
+            vendor = Vendor.objects.get(user=user, active=True)
+            queryset = queryset.filter(purchase_order__vendor=vendor)
+            return queryset
+        except Vendor.DoesNotExist:
+            pass  # Not a vendor, continue with PT logic
+        
+        # PT/Admin can view all
+        return queryset
     
     @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
     def approve(self, request, pk=None):
@@ -4358,11 +4530,27 @@ class PurchaseOrderIssueViewSet(viewsets.ModelViewSet):
     """
     queryset = PurchaseOrderIssue.objects.select_related('purchase_order', 'resolved_by', 'purchase_order__vendor').all()
     serializer_class = PurchaseOrderIssueSerializer
-    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsVendor]
     filterset_fields = ['purchase_order', 'status', 'issue_type']
     search_fields = ['purchase_order__po_number', 'description']
     ordering_fields = ['created_at', 'resolved_at']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter issues based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # If user is a vendor, filter to their PO issues only
+        try:
+            vendor = Vendor.objects.get(user=user, active=True)
+            queryset = queryset.filter(purchase_order__vendor=vendor)
+            return queryset
+        except Vendor.DoesNotExist:
+            pass  # Not a vendor, continue with PT logic
+        
+        # PT/Admin can view all
+        return queryset
     
     @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
     def resolve(self, request, pk=None):
@@ -4431,11 +4619,27 @@ class PurchaseOrderNoteViewSet(viewsets.ModelViewSet):
     """
     queryset = PurchaseOrderNote.objects.select_related('purchase_order', 'sender', 'purchase_order__vendor').all()
     serializer_class = PurchaseOrderNoteSerializer
-    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsVendor]
     filterset_fields = ['purchase_order', 'category', 'sender']
     search_fields = ['purchase_order__po_number', 'message']
     ordering_fields = ['created_at']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter notes based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # If user is a vendor, filter to their PO notes only
+        try:
+            vendor = Vendor.objects.get(user=user, active=True)
+            queryset = queryset.filter(purchase_order__vendor=vendor)
+            return queryset
+        except Vendor.DoesNotExist:
+            pass  # Not a vendor, continue with PT logic
+        
+        # PT/Admin can view all
+        return queryset
     
     def perform_create(self, serializer):
         """Auto-set sender to current user"""
@@ -4455,11 +4659,27 @@ class MaterialSubstitutionRequestViewSet(viewsets.ModelViewSet):
     """
     queryset = MaterialSubstitutionRequest.objects.select_related('purchase_order', 'reviewed_by', 'purchase_order__vendor').all()
     serializer_class = MaterialSubstitutionRequestSerializer
-    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsVendor]
     filterset_fields = ['purchase_order', 'status']
     search_fields = ['purchase_order__po_number', 'original_material', 'proposed_material']
     ordering_fields = ['created_at', 'reviewed_at']
     ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Filter substitutions based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # If user is a vendor, filter to their PO substitutions only
+        try:
+            vendor = Vendor.objects.get(user=user, active=True)
+            queryset = queryset.filter(purchase_order__vendor=vendor)
+            return queryset
+        except Vendor.DoesNotExist:
+            pass  # Not a vendor, continue with PT logic
+        
+        # PT/Admin can view all
+        return queryset
     
     @decorators.action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
     def approve(self, request, pk=None):

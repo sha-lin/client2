@@ -89,8 +89,27 @@
         </div>
     </div>
 
+    <!-- Unsaved Changes Indicator -->
+    <div id="unsavedIndicator" class="hidden fixed bottom-6 right-6 flex items-center gap-3 bg-yellow-50 border border-yellow-200 rounded-lg p-4 shadow-lg z-50 animate-pulse">
+        <div class="flex items-center gap-2 text-yellow-700 text-sm font-medium">
+            <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+            <span id="unsavedText">You have unsaved changes</span>
+        </div>
+        <div class="flex gap-2">
+            <button type="button" id="autoSaveBtn" class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium rounded transition-colors">
+                Save Now
+            </button>
+        </div>
+    </div>
+
+    <!-- Auto-save Status -->
+    <div id="autoSaveStatus" class="fixed top-4 right-4 flex items-center gap-2 text-xs font-medium px-3 py-2 rounded-lg z-40 transition-all duration-300 opacity-0 pointer-events-none">
+        <div class="w-2 h-2 rounded-full bg-green-500"></div>
+        <span>Auto-saved at <span id="lastSaveTime">--:--</span></span>
+    </div>
+
     <!-- Main Form -->
-    <form id="productForm" method="post" enctype="multipart/form-data">
+    <form id="productForm" method="post" enctype="multipart/form-data" data-product-id="{{ product.id|default:'new' }}">
         {% csrf_token %}
         <input type="hidden" name="next_tab" id="next_tab_input" value="">
         
@@ -1398,6 +1417,237 @@
                 }
             });
         });
+
+        // ========== AUTO-SAVE & UNSAVED CHANGES FUNCTIONALITY ==========
+        const form = document.getElementById('productForm');
+        const unsavedIndicator = document.getElementById('unsavedIndicator');
+        const autoSaveStatus = document.getElementById('autoSaveStatus');
+        const autoSaveBtn = document.getElementById('autoSaveBtn');
+        const productId = form.dataset.productId;
+
+        let hasUnsavedChanges = false;
+        let autoSaveTimeout = null;
+        let initialFormState = null;
+
+        // Store initial form state
+        function storeInitialState() {
+            initialFormState = new FormData(form);
+        }
+
+        // Check if form has changes
+        function hasFormChanged() {
+            if (!initialFormState) return false;
+            
+            const currentFormData = new FormData(form);
+            const initialKeys = Array.from(initialFormState.keys());
+            const currentKeys = Array.from(currentFormData.keys());
+
+            if (initialKeys.length !== currentKeys.length) return true;
+
+            for (let key of initialKeys) {
+                const initialValue = initialFormState.get(key);
+                const currentValue = currentFormData.get(key);
+                if (initialValue !== currentValue) return true;
+            }
+
+            return false;
+        }
+
+        // Show unsaved changes indicator
+        function showUnsavedIndicator() {
+            hasUnsavedChanges = true;
+            unsavedIndicator.classList.remove('hidden');
+        }
+
+        // Hide unsaved changes indicator
+        function hideUnsavedIndicator() {
+            hasUnsavedChanges = false;
+            unsavedIndicator.classList.add('hidden');
+        }
+
+        // Show auto-save status
+        function showAutoSaveStatus() {
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('lastSaveTime').textContent = time;
+            
+            autoSaveStatus.classList.remove('opacity-0');
+            autoSaveStatus.classList.add('opacity-100');
+
+            setTimeout(() => {
+                autoSaveStatus.classList.add('opacity-0');
+                autoSaveStatus.classList.remove('opacity-100');
+            }, 3000);
+        }
+
+        // Auto-save function
+        async function autoSaveProduct() {
+            if (productId === 'new' || !hasUnsavedChanges) return;
+
+            try {
+                const formData = new FormData(form);
+                formData.set('action', 'auto_save');
+
+                const response = await fetch(`/production/product/${productId}/edit/`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+
+                if (response.ok) {
+                    hideUnsavedIndicator();
+                    showAutoSaveStatus();
+                    storeInitialState();
+                } else {
+                    console.error('Auto-save failed:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Auto-save error:', error);
+            }
+        }
+
+        // Real-time field validation
+        function validateField(field) {
+            const fieldName = field.name;
+            const fieldValue = field.value.trim();
+            let isValid = true;
+            let errorMessage = '';
+
+            // Remove existing error message
+            const existingError = field.parentElement.querySelector('.field-error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            // Validation rules
+            switch (fieldName) {
+                case 'name':
+                    if (!fieldValue) {
+                        isValid = false;
+                        errorMessage = 'Product name is required';
+                    } else if (fieldValue.length < 3) {
+                        isValid = false;
+                        errorMessage = 'Product name must be at least 3 characters';
+                    } else if (fieldValue.length > 255) {
+                        isValid = false;
+                        errorMessage = 'Product name cannot exceed 255 characters';
+                    }
+                    break;
+
+                case 'short_description':
+                    if (!fieldValue) {
+                        isValid = false;
+                        errorMessage = 'Short description is required';
+                    } else if (fieldValue.length > 150) {
+                        isValid = false;
+                        errorMessage = 'Short description cannot exceed 150 characters';
+                    }
+                    break;
+
+                case 'long_description':
+                    if (!fieldValue) {
+                        isValid = false;
+                        errorMessage = 'Long description is required';
+                    }
+                    break;
+
+                case 'base_price':
+                    if (fieldValue && isNaN(parseFloat(fieldValue))) {
+                        isValid = false;
+                        errorMessage = 'Base price must be a valid number';
+                    }
+                    break;
+
+                case 'weight':
+                case 'length':
+                case 'width':
+                case 'height':
+                    if (fieldValue && isNaN(parseFloat(fieldValue))) {
+                        isValid = false;
+                        errorMessage = `${fieldName.charAt(0).toUpperCase() + fieldName.slice(1)} must be a valid number`;
+                    }
+                    break;
+            }
+
+            // Show/hide error
+            if (!isValid) {
+                field.classList.add('border-red-500', 'focus:ring-red-500');
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'field-error text-xs text-red-600 mt-1';
+                errorDiv.textContent = errorMessage;
+                field.parentElement.appendChild(errorDiv);
+            } else {
+                field.classList.remove('border-red-500', 'focus:ring-red-500');
+            }
+
+            return isValid;
+        }
+
+        // Attach change listeners to all form fields
+        form.querySelectorAll('input, select, textarea').forEach(field => {
+            // Skip hidden fields
+            if (field.type === 'hidden') return;
+
+            field.addEventListener('change', () => {
+                if (hasFormChanged()) {
+                    showUnsavedIndicator();
+                    
+                    // Clear existing auto-save timeout
+                    if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
+                    
+                    // Set new auto-save timeout (30 seconds)
+                    autoSaveTimeout = setTimeout(autoSaveProduct, 30000);
+                }
+            });
+
+            field.addEventListener('blur', () => {
+                if (field.type !== 'hidden' && field.name) {
+                    validateField(field);
+                }
+            });
+
+            // Character counter for text fields
+            if (field.type === 'text' || field.tagName === 'TEXTAREA') {
+                field.addEventListener('input', () => {
+                    const maxLength = field.maxLength;
+                    if (maxLength && maxLength > 0) {
+                        const charCount = field.value.length;
+                        let counter = field.parentElement.querySelector('.char-count');
+                        if (!counter) {
+                            counter = document.createElement('div');
+                            counter.className = 'char-count text-xs text-gray-500 mt-1';
+                            field.parentElement.appendChild(counter);
+                        }
+                        counter.textContent = `${charCount}/${maxLength} characters`;
+                        if (charCount >= maxLength * 0.8) {
+                            counter.classList.add('limit');
+                        } else {
+                            counter.classList.remove('limit');
+                        }
+                    }
+                });
+            }
+        });
+
+        // Manual save button
+        autoSaveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            autoSaveProduct();
+        });
+
+        // Warn about unsaved changes when leaving page
+        window.addEventListener('beforeunload', (e) => {
+            if (hasUnsavedChanges) {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            }
+        });
+
+        // Initialize
+        storeInitialState();
     });
 </script>
 <style>

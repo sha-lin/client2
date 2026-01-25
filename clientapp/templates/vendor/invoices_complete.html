@@ -1,0 +1,511 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoices - Vendor Portal</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-500: #6b7280;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { background-color: var(--gray-50); color: var(--gray-900); }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+        .header { margin-bottom: 32px; display: flex; justify-content: space-between; align-items: center; }
+        .header-content h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+        .header-content p { color: var(--gray-500); font-size: 0.9rem; }
+        .btn-new { padding: 10px 16px; border-radius: 6px; border: none; background: var(--primary); color: white; font-weight: 600; cursor: pointer; }
+
+        .filters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+        .filter-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--gray-200); background: white; cursor: pointer; font-size: 0.875rem; font-weight: 600; transition: all 0.2s; }
+        .filter-btn:hover { background: var(--gray-100); }
+        .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+        .invoices-table { width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+        .invoices-table thead { background: var(--gray-50); border-bottom: 2px solid var(--gray-200); }
+        .invoices-table th { padding: 12px 16px; text-align: left; font-weight: 700; font-size: 0.8rem; color: var(--gray-500); text-transform: uppercase; }
+        .invoices-table td { padding: 12px 16px; border-bottom: 1px solid var(--gray-100); font-size: 0.875rem; }
+        .invoices-table tr:hover { background: var(--gray-50); }
+
+        .invoice-id { color: var(--primary); font-weight: 700; }
+        .invoice-status { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+        .invoice-status.draft { background: #dbeafe; color: #1e40af; }
+        .invoice-status.submitted { background: #fef3c7; color: #92400e; }
+        .invoice-status.approved { background: #d1fae5; color: #065f46; }
+        .invoice-status.rejected { background: #fee2e2; color: #991b1b; }
+        .invoice-status.paid { background: #dcfce7; color: #15803d; }
+
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; border-radius: 12px; width: 90%; max-width: 900px; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
+        .modal-header { padding: 20px; border-bottom: 1px solid var(--gray-200); display: flex; justify-content: space-between; align-items: center; }
+        .modal-title { font-size: 1.25rem; font-weight: 700; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--gray-500); }
+        .modal-body { padding: 20px; max-height: calc(90vh - 150px); overflow-y: auto; }
+        .modal-footer { padding: 16px 20px; border-top: 1px solid var(--gray-200); display: flex; gap: 12px; justify-content: flex-end; }
+
+        .form-section { margin-bottom: 24px; }
+        .form-section-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid var(--gray-200); }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .form-grid.full { grid-template-columns: 1fr; }
+        .form-group { margin-bottom: 16px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.875rem; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 10px 12px; border-radius: 6px; border: 1px solid var(--gray-200); font-family: 'Inter', sans-serif; font-size: 0.875rem; }
+        .form-group input:focus { outline: none; border-color: var(--primary); background: #eff6ff; }
+        .form-group textarea { resize: vertical; min-height: 80px; }
+
+        .line-items { width: 100%; border-collapse: collapse; background: var(--gray-50); border-radius: 8px; overflow: hidden; margin-top: 12px; }
+        .line-items th { padding: 12px; text-align: left; font-weight: 700; font-size: 0.8rem; background: var(--gray-100); border-bottom: 1px solid var(--gray-200); }
+        .line-items td { padding: 12px; border-bottom: 1px solid var(--gray-200); font-size: 0.875rem; }
+        .line-items input { width: 100%; padding: 6px; border-radius: 4px; border: 1px solid var(--gray-200); font-size: 0.875rem; }
+
+        .summary-section { background: var(--gray-50); padding: 16px; border-radius: 8px; margin-top: 16px; }
+        .summary-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.875rem; }
+        .summary-row.total { font-weight: 700; font-size: 1rem; color: var(--primary); border-top: 1px solid var(--gray-200); padding-top: 8px; margin-top: 8px; }
+
+        .button { padding: 10px 16px; border-radius: 6px; border: none; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: #2563eb; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-secondary { background: var(--gray-200); color: var(--gray-900); }
+        .btn-secondary:hover { background: var(--gray-300); }
+        .btn-danger { background: var(--danger); color: white; }
+
+        .alert { padding: 12px 16px; border-radius: 8px; margin-bottom: 16px; font-size: 0.875rem; display: flex; gap: 12px; align-items: center; }
+        .alert.success { background: #d1fae5; border: 1px solid #6ee7b7; color: #065f46; }
+        .alert.error { background: #fee2e2; border: 1px solid #fca5a5; color: #991b1b; }
+        .alert.warning { background: #fef3c7; border: 1px solid #fcd34d; color: #92400e; }
+
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--gray-500); }
+        .empty-state i { font-size: 3rem; color: var(--gray-200); margin-bottom: 16px; display: block; }
+
+        @media (max-width: 768px) { .form-grid { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-content">
+                <h1>Invoices</h1>
+                <p>Create, submit, and track your invoices</p>
+            </div>
+            <button class="btn-new" onclick="openNewInvoiceModal()">
+                <i class="fas fa-plus"></i> New Invoice
+            </button>
+        </div>
+
+        <div id="alertContainer" style="margin-bottom: 24px;"></div>
+
+        <div class="filters">
+            <button class="filter-btn active" onclick="filterInvoices('all')">All</button>
+            <button class="filter-btn" onclick="filterInvoices('draft')">Draft</button>
+            <button class="filter-btn" onclick="filterInvoices('submitted')">Submitted</button>
+            <button class="filter-btn" onclick="filterInvoices('approved')">Approved</button>
+            <button class="filter-btn" onclick="filterInvoices('rejected')">Rejected</button>
+            <button class="filter-btn" onclick="filterInvoices('paid')">Paid</button>
+        </div>
+
+        <div id="loadingIndicator" style="text-align: center; padding: 40px; color: var(--gray-500);">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary); animation: spin 1s linear infinite;"></i>
+            <p style="margin-top: 16px;">Loading invoices...</p>
+        </div>
+
+        <div id="invoicesContainer" style="display: none;">
+            <table class="invoices-table" id="invoicesTable"></table>
+            <div id="emptyState" class="empty-state" style="display: none;">
+                <i class="fas fa-file-invoice"></i>
+                <p>No invoices found</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Form Modal -->
+    <div id="invoiceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">
+                    <span id="modalTitle">Create Invoice</span>
+                </div>
+                <button class="modal-close" onclick="closeInvoiceModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div id="invoiceFormContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/vendor_api.js' %}"></script>
+    <script>
+        const vendorId = "{{ vendor.id }}" || "1";
+        let vendorAPI;
+        let allInvoices = [];
+        let allPOs = [];
+        let currentInvoiceId = null;
+
+        async function initPage() {
+            try {
+                vendorAPI = new VendorAPI(vendorId);
+                await Promise.all([loadInvoices(), loadPOs()]);
+            } catch (error) {
+                showAlert('Error initializing page: ' + error.message, 'error');
+            }
+        }
+
+        async function loadInvoices() {
+            try {
+                const data = await vendorAPI.getInvoices({ limit: 100 });
+                allInvoices = Array.isArray(data) ? data : (data.results || []);
+                renderInvoicesTable(allInvoices);
+                document.getElementById('loadingIndicator').style.display = 'none';
+                document.getElementById('invoicesContainer').style.display = 'block';
+            } catch (error) {
+                showAlert('Failed to load invoices: ' + error.message, 'error');
+            }
+        }
+
+        async function loadPOs() {
+            try {
+                const data = await vendorAPI.getPurchaseOrders({ limit: 100 });
+                allPOs = Array.isArray(data) ? data : (data.results || []);
+            } catch (error) {
+                console.warn('Failed to load POs:', error);
+            }
+        }
+
+        function renderInvoicesTable(invoices) {
+            if (invoices.length === 0) {
+                document.getElementById('invoicesTable').parentElement.style.display = 'none';
+                document.getElementById('emptyState').style.display = 'block';
+                return;
+            }
+
+            document.getElementById('invoicesTable').parentElement.style.display = 'block';
+            document.getElementById('emptyState').style.display = 'none';
+
+            let html = `
+                <thead>
+                    <tr>
+                        <th>Invoice #</th>
+                        <th>PO #</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+            `;
+
+            invoices.forEach(inv => {
+                html += `
+                    <tr>
+                        <td><span class="invoice-id">${inv.invoice_number || '#' + inv.id}</span></td>
+                        <td>${inv.po_number || 'N/A'}</td>
+                        <td>KES ${formatCurrency(inv.total_amount || 0)}</td>
+                        <td><span class="invoice-status ${inv.status}">${getInvoiceStatusDisplay(inv.status)}</span></td>
+                        <td>${formatDate(inv.submitted_at) || 'Not submitted'}</td>
+                        <td>
+                            <button onclick="viewInvoice(${inv.id})" style="margin-right: 8px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--primary); background: white; color: var(--primary); cursor: pointer; font-size: 0.75rem;">View</button>
+                            ${inv.status === 'draft' ? `<button onclick="editInvoice(${inv.id})" style="margin-right: 8px; padding: 4px 8px; border-radius: 4px; border: 1px solid var(--primary); background: white; color: var(--primary); cursor: pointer; font-size: 0.75rem;">Edit</button>` : ''}
+                            ${inv.status === 'draft' ? `<button onclick="submitInvoice(${inv.id})" style="margin-right: 8px; padding: 4px 8px; border-radius: 4px; border: none; background: var(--success); color: white; cursor: pointer; font-size: 0.75rem;">Submit</button>` : ''}
+                            ${inv.status === 'approved' ? `<a href="${inv.pdf_url}" target="_blank" style="padding: 4px 8px; border-radius: 4px; border: 1px solid var(--primary); background: white; color: var(--primary); text-decoration: none; font-size: 0.75rem;">PDF</a>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody>';
+            document.getElementById('invoicesTable').innerHTML = html;
+        }
+
+        function openNewInvoiceModal() {
+            currentInvoiceId = null;
+            document.getElementById('modalTitle').textContent = 'Create New Invoice';
+            document.getElementById('invoiceFormContent').innerHTML = renderInvoiceForm(null);
+            document.getElementById('invoiceModal').classList.add('active');
+        }
+
+        async function editInvoice(invoiceId) {
+            try {
+                const invoice = await vendorAPI.getInvoice(invoiceId);
+                currentInvoiceId = invoiceId;
+                document.getElementById('modalTitle').textContent = 'Edit Invoice - ' + invoice.invoice_number;
+                document.getElementById('invoiceFormContent').innerHTML = renderInvoiceForm(invoice);
+                document.getElementById('invoiceModal').classList.add('active');
+            } catch (error) {
+                showAlert('Failed to load invoice: ' + error.message, 'error');
+            }
+        }
+
+        function viewInvoice(invoiceId) {
+            editInvoice(invoiceId);
+        }
+
+        function renderInvoiceForm(invoice) {
+            const isEdit = !!invoice;
+            const lineItems = invoice?.line_items || [{ description: '', quantity: 1, unit_price: 0 }];
+
+            let html = `
+                <div class="form-section">
+                    <div class="form-section-title">Invoice Header</div>
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Purchase Order *</label>
+                            <select id="poSelect" required>
+                                <option value="">Select PO</option>
+                                ${allPOs.map(po => `<option value="${po.id}" ${invoice?.po === po.id ? 'selected' : ''}>${po.po_number} - ${po.product_type}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Invoice Date</label>
+                            <input type="date" id="invoiceDate" value="${invoice?.invoice_date || new Date().toISOString().split('T')[0]}">
+                        </div>
+                        <div class="form-group">
+                            <label>Due Date</label>
+                            <input type="date" id="dueDate" value="${invoice?.due_date || ''}">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-title">Line Items</div>
+                    <table class="line-items">
+                        <thead>
+                            <tr>
+                                <th style="width: 50%;">Description</th>
+                                <th style="width: 15%;">Qty</th>
+                                <th style="width: 20%;">Unit Price (KES)</th>
+                                <th style="width: 15%;">Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lineItemsBody">
+                            ${lineItems.map((item, idx) => `
+                                <tr>
+                                    <td><input type="text" value="${item.description || ''}" class="line-desc" placeholder="Item description"></td>
+                                    <td><input type="number" value="${item.quantity || 1}" class="line-qty" min="0.01" step="0.01" onchange="calculateLineItems()"></td>
+                                    <td><input type="number" value="${item.unit_price || 0}" class="line-price" min="0" step="0.01" onchange="calculateLineItems()"></td>
+                                    <td style="text-align: right; font-weight: 700;" class="line-amount">${formatCurrency((item.quantity || 1) * (item.unit_price || 0))}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <button class="button btn-secondary" onclick="addLineItem()" style="margin-top: 12px;">
+                        <i class="fas fa-plus"></i> Add Line
+                    </button>
+                </div>
+
+                <div class="summary-section">
+                    <div class="summary-row">
+                        <span>Subtotal:</span>
+                        <span id="subtotalAmount">KES ${formatCurrency(invoice?.subtotal || 0)}</span>
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax (%):</span>
+                        <input type="number" id="taxPercent" value="${invoice?.tax_percent || 0}" min="0" max="100" step="0.01" style="width: 60px; padding: 4px; border-radius: 4px; border: 1px solid var(--gray-200); text-align: right;" onchange="calculateLineItems()">
+                    </div>
+                    <div class="summary-row">
+                        <span>Tax Amount:</span>
+                        <span id="taxAmount">KES ${formatCurrency(invoice?.tax_amount || 0)}</span>
+                    </div>
+                    <div class="summary-row total">
+                        <span>Total Amount:</span>
+                        <span id="totalAmount">KES ${formatCurrency(invoice?.total_amount || 0)}</span>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <div class="form-section-title">Additional Information</div>
+                    <div class="form-group full">
+                        <label>Notes / Terms</label>
+                        <textarea id="notes">${invoice?.notes || ''}</textarea>
+                    </div>
+                </div>
+            `;
+
+            if (isEdit && invoice.status !== 'draft') {
+                html += `
+                    <div class="alert warning">
+                        <i class="fas fa-info-circle"></i>
+                        <span>This invoice cannot be edited as it is ${getInvoiceStatusDisplay(invoice.status)}</span>
+                    </div>
+                `;
+            }
+
+            return html;
+        }
+
+        function addLineItem() {
+            const tbody = document.getElementById('lineItemsBody');
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><input type="text" class="line-desc" placeholder="Item description"></td>
+                <td><input type="number" value="1" class="line-qty" min="0.01" step="0.01" onchange="calculateLineItems()"></td>
+                <td><input type="number" value="0" class="line-price" min="0" step="0.01" onchange="calculateLineItems()"></td>
+                <td style="text-align: right; font-weight: 700;" class="line-amount">KES 0</td>
+            `;
+            tbody.appendChild(row);
+        }
+
+        function calculateLineItems() {
+            let subtotal = 0;
+            document.querySelectorAll('#lineItemsBody tr').forEach(row => {
+                const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.line-price').value) || 0;
+                const amount = qty * price;
+                row.querySelector('.line-amount').textContent = 'KES ' + formatCurrency(amount);
+                subtotal += amount;
+            });
+
+            const taxPercent = parseFloat(document.getElementById('taxPercent').value) || 0;
+            const taxAmount = subtotal * (taxPercent / 100);
+            const total = subtotal + taxAmount;
+
+            document.getElementById('subtotalAmount').textContent = 'KES ' + formatCurrency(subtotal);
+            document.getElementById('taxAmount').textContent = 'KES ' + formatCurrency(taxAmount);
+            document.getElementById('totalAmount').textContent = 'KES ' + formatCurrency(total);
+        }
+
+        async function saveInvoice() {
+            const poId = document.getElementById('poSelect').value;
+            if (!poId) {
+                showAlert('Please select a Purchase Order', 'warning');
+                return;
+            }
+
+            const lineItems = [];
+            document.querySelectorAll('#lineItemsBody tr').forEach(row => {
+                const desc = row.querySelector('.line-desc').value;
+                const qty = parseFloat(row.querySelector('.line-qty').value) || 0;
+                const price = parseFloat(row.querySelector('.line-price').value) || 0;
+                if (desc && qty && price) {
+                    lineItems.push({ description: desc, quantity: qty, unit_price: price });
+                }
+            });
+
+            if (lineItems.length === 0) {
+                showAlert('Please add at least one line item', 'warning');
+                return;
+            }
+
+            const totalAmount = lineItems.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+
+            try {
+                const invoiceData = {
+                    po: poId,
+                    invoice_date: document.getElementById('invoiceDate').value,
+                    due_date: document.getElementById('dueDate').value,
+                    line_items: lineItems,
+                    tax_percent: parseFloat(document.getElementById('taxPercent').value) || 0,
+                    total_amount: totalAmount,
+                    notes: document.getElementById('notes').value
+                };
+
+                if (currentInvoiceId) {
+                    await vendorAPI.updateInvoice(currentInvoiceId, invoiceData);
+                    showAlert('Invoice updated successfully', 'success');
+                } else {
+                    await vendorAPI.createInvoice(invoiceData);
+                    showAlert('Invoice created successfully', 'success');
+                }
+
+                closeInvoiceModal();
+                await loadInvoices();
+            } catch (error) {
+                showAlert('Failed to save invoice: ' + error.message, 'error');
+            }
+        }
+
+        async function submitInvoice(invoiceId) {
+            if (!confirm('Submit this invoice for review?')) return;
+            try {
+                await vendorAPI.submitInvoice(invoiceId);
+                showAlert('Invoice submitted for review', 'success');
+                await loadInvoices();
+            } catch (error) {
+                showAlert('Failed to submit invoice: ' + error.message, 'error');
+            }
+        }
+
+        function filterInvoices(status) {
+            const filtered = status === 'all' ? allInvoices : allInvoices.filter(inv => inv.status === status);
+            renderInvoicesTable(filtered);
+
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function closeInvoiceModal() {
+            document.getElementById('invoiceModal').classList.remove('active');
+            currentInvoiceId = null;
+        }
+
+        function getInvoiceStatusDisplay(status) {
+            const map = {
+                'draft': 'Draft',
+                'submitted': 'Submitted',
+                'approved': 'Approved',
+                'rejected': 'Rejected',
+                'paid': 'Paid'
+            };
+            return map[status] || status;
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-KE', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Math.round(amount));
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-KE', { year: 'numeric', month: 'short', day: 'numeric' });
+        }
+
+        function showAlert(message, type = 'info') {
+            const alert = document.createElement('div');
+            alert.className = `alert ${type}`;
+            alert.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
+                <span>${message}</span>
+            `;
+            document.getElementById('alertContainer').appendChild(alert);
+            setTimeout(() => alert.remove(), 4000);
+        }
+
+        // Add modal footer with action buttons
+        document.addEventListener('DOMContentLoaded', function() {
+            initPage();
+            const modalFooter = document.querySelector('.modal-footer');
+            if (modalFooter) {
+                modalFooter.innerHTML = `
+                    <button class="button btn-secondary" onclick="closeInvoiceModal()">Cancel</button>
+                    <button class="button btn-primary" onclick="saveInvoice()">Save Invoice</button>
+                `;
+            } else {
+                const modal = document.querySelector('.modal-content');
+                const footer = document.createElement('div');
+                footer.className = 'modal-footer';
+                footer.innerHTML = `
+                    <button class="button btn-secondary" onclick="closeInvoiceModal()">Cancel</button>
+                    <button class="button btn-primary" onclick="saveInvoice()">Save Invoice</button>
+                `;
+                modal.appendChild(footer);
+            }
+        });
+    </script>
+</body>
+</html>

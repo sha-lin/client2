@@ -131,6 +131,12 @@ class ClientSerializer(serializers.ModelSerializer):
         if self.instance and not client_type:
             client_type = self.instance.client_type
 
+        # Email is required for B2B, optional for B2C
+        if client_type == "B2B" and not attrs.get("email"):
+            raise serializers.ValidationError(
+                {"email": "Email is required for B2B clients."}
+            )
+
         if client_type == "B2C":
             # Fields that should not be set for B2C clients
             b2b_only_fields = [
@@ -244,6 +250,28 @@ class QuoteSerializer(serializers.ModelSerializer):
 class JobSerializer(serializers.ModelSerializer):
     person_in_charge_name = serializers.CharField(source='person_in_charge.get_full_name', read_only=True)
     person_in_charge_email = serializers.EmailField(source='person_in_charge.email', read_only=True)
+    # Nested serializers for related objects
+    client = serializers.SerializerMethodField()
+    person_in_charge = serializers.SerializerMethodField()
+    
+    def get_client(self, obj):
+        if obj.client:
+            return {
+                'id': obj.client.id,
+                'name': obj.client.name,
+                'email': obj.client.email if hasattr(obj.client, 'email') else None,
+            }
+        return None
+    
+    def get_person_in_charge(self, obj):
+        if obj.person_in_charge:
+            return {
+                'id': obj.person_in_charge.id,
+                'first_name': obj.person_in_charge.first_name,
+                'last_name': obj.person_in_charge.last_name,
+                'username': obj.person_in_charge.username,
+            }
+        return None
     
     class Meta:
         model = Job
@@ -873,6 +901,13 @@ class VendorInvoiceDetailedSerializer(serializers.ModelSerializer):
     po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
     job_number = serializers.CharField(source='job.job_number', read_only=True)
     client_name = serializers.CharField(source='job.client.name', read_only=True)
+    
+    # Make line_items optional with default empty list
+    line_items = serializers.JSONField(required=False, allow_null=False, default=list)
+    # Make optional fields not required
+    subtotal = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    tax_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
+    total_amount = serializers.DecimalField(max_digits=12, decimal_places=2, required=False, default=0)
     
     class Meta:
         model = VendorInvoice

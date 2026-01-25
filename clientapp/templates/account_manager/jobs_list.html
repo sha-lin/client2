@@ -4,99 +4,183 @@
 
 {% block content %}
 <div class="p-6">
+    <!-- Header -->
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-2xl font-semibold text-gray-900">Jobs</h1>
             <p class="text-sm text-gray-600">Manage and track production jobs</p>
         </div>
-        <!-- Add any actions here if needed -->
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <div class="text-sm text-gray-500">Total Jobs</div>
+            <div id="stat-total" class="text-3xl font-bold text-gray-900">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <div class="text-sm text-gray-500">Pending</div>
+            <div id="stat-pending" class="text-3xl font-bold text-gray-500">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <div class="text-sm text-gray-500">In Progress</div>
+            <div id="stat-in_progress" class="text-3xl font-bold text-yellow-600">0</div>
+        </div>
+        <div class="bg-white p-4 rounded-lg border border-gray-200">
+            <div class="text-sm text-gray-500">Overdue</div>
+            <div id="stat-overdue" class="text-3xl font-bold text-red-600">0</div>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="bg-white p-4 rounded-lg border border-gray-200 mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- Search -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Search</label>
+                <input type="text" id="filter-search" placeholder="Job #, name, product..." 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+
+            <!-- Status Filter -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select id="filter-status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="on_hold">On Hold</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+
+            <!-- Deadline Filter -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
+                <select id="filter-deadline" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">All Deadlines</option>
+                    <option value="overdue">Overdue</option>
+                    <option value="approaching">Approaching (3 days)</option>
+                </select>
+            </div>
+
+            <!-- Sort -->
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Sort By</label>
+                <select id="filter-sort" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="-created_at">Newest First</option>
+                    <option value="created_at">Oldest First</option>
+                    <option value="-expected_completion">Due Soon</option>
+                    <option value="expected_completion">Due Later</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jobs Table -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div id="jobs-container" class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Client</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job
-                            Description</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Quantity</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Status</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Person in Charge</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Timelines</th>
-                        <th scope="col"
-                            class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            Actions</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job #</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assigned To</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Due Date</th>
+                        <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                    {% for job in jobs %}
-                    <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="text-sm font-medium text-gray-900">{{ job.client.name }}</div>
-                            <div class="text-xs text-gray-500">{{ job.client.company }}</div>
-                        </td>
-                        <td class="px-6 py-4">
-                            <div class="text-sm text-gray-900">{{ job.job_name }}</div>
-                            <div class="text-xs text-gray-500">{{ job.product }}</div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ job.quantity }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            {% if job.delivery_status == 'delivered' %}
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                                Delivered
-                            </span>
-                            {% elif job.status == 'completed' %}
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
-                                Completed
-                            </span>
-                            {% elif job.status == 'in_progress' %}
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                                In Production
-                            </span>
-                            {% else %}
-                            <span
-                                class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">
-                                Pending
-                            </span>
-                            {% endif %}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {{ job.person_in_charge }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <div>Start: {{ job.start_date|date:"M d, Y" }}</div>
-                            <div class="{% if job.is_overdue %}text-red-600 font-medium{% endif %}">
-                                Due: {{ job.expected_completion|date:"M d, Y" }}
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                            <a href="{% url 'account_manager_job_detail' job.pk %}"
-                                class="text-black hover:text-gray-700 font-medium border border-gray-300 rounded px-3 py-1 hover:bg-gray-50 transition-colors">
-                                View
-                            </a>
+                <tbody id="jobs-tbody" class="bg-white divide-y divide-gray-200">
+                    <tr>
+                        <td colspan="8" class="px-6 py-12 text-center">
+                            <div class="animate-spin rounded-full h-10 w-10 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+                            <p class="text-gray-500">Loading jobs...</p>
                         </td>
                     </tr>
-                    {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
+
+<!-- Job Detail Modal -->
+<div id="jobDetailModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 py-6">
+        <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" id="modalBackdrop"></div>
+        <div class="relative bg-white rounded-lg shadow-xl max-w-2xl w-full">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center p-6 border-b border-gray-200">
+                <h2 id="modalJobNumber" class="text-xl font-semibold">Job #</h2>
+                <button onclick="closeJobDetail()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal Content -->
+            <div id="modalContent" class="p-6 space-y-4">
+                <!-- Job Info -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Client</label>
+                        <p id="modalClient" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Status</label>
+                        <p id="modalStatus" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Product</label>
+                        <p id="modalProduct" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Quantity</label>
+                        <p id="modalQuantity" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Assigned To</label>
+                        <p id="modalAssignedTo" class="text-gray-900">-</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-gray-500">Due Date</label>
+                        <p id="modalDueDate" class="text-gray-900">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex justify-end gap-3 p-6 border-t border-gray-200">
+                <button onclick="closeJobDetail()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Close</button>
+                <button id="btnAssignJob" onclick="openAssignModal()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Assign</button>
+                <button id="btnRemindJob" onclick="sendReminder()" class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700">Send Reminder</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Assign Job Modal -->
+<div id="assignModal" class="hidden fixed inset-0 z-50 overflow-y-auto">
+    <div class="flex items-center justify-center min-h-screen px-4 py-6">
+        <div class="fixed inset-0 bg-black bg-opacity-50" id="assignBackdrop"></div>
+        <div class="relative bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h2 class="text-xl font-semibold mb-4">Assign Job</h2>
+            <select id="selectPTUser" class="w-full px-3 py-2 border border-gray-300 rounded-lg mb-4">
+                <option value="">Select Production Team Member...</option>
+            </select>
+            <div class="flex justify-end gap-3">
+                <button onclick="closeAssignModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                <button onclick="assignJobConfirm()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Assign</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast Notifications -->
+<div id="toastContainer" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+<script src="/static/js/am-jobs.js"></script>
 {% endblock %}

@@ -24,18 +24,15 @@
                 Back to Jobs
             </a>
             {% if job.status != 'completed' %}
-            <form method="POST" action="{% url 'account_manager_send_reminder' job.pk %}">
-                {% csrf_token %}
-                <button type="submit"
-                    class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm font-medium flex items-center gap-2">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
-                        </path>
-                    </svg>
-                    Send Reminder
-                </button>
-            </form>
+            <button id="sendReminderBtn" onclick="sendJobReminder({{ job.pk }})"
+                class="px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm font-medium flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9">
+                    </path>
+                </svg>
+                Send Reminder
+            </button>
             {% endif %}
         </div>
     </div>
@@ -119,12 +116,10 @@
                     <h2 class="text-base font-semibold text-gray-900">Production Assignment</h2>
                 </div>
                 <div class="p-6">
-                    <form method="POST" action="{% url 'account_manager_job_update' job.pk %}">
-                        {% csrf_token %}
-
+                    <form id="jobUpdateForm">
                         <div class="mb-4">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Person in Charge</label>
-                            <select name="person_in_charge"
+                            <select id="personInCharge" name="person_in_charge"
                                 class="w-full rounded-lg border-gray-300 focus:border-black focus:ring-black text-sm">
                                 <option value="">-- Select Production User --</option>
                                 {% for user in production_users %}
@@ -140,7 +135,7 @@
 
                         <div class="mb-6">
                             <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
-                            <select name="status"
+                            <select id="jobStatus" name="status"
                                 class="w-full rounded-lg border-gray-300 focus:border-black focus:ring-black text-sm">
                                 {% for status_code, status_label in job.STATUS_CHOICES %}
                                 <option value="{{ status_code }}" {% if job.status == status_code %}selected{% endif %}>
@@ -150,7 +145,7 @@
                             </select>
                         </div>
 
-                        <button type="submit"
+                        <button type="submit" id="updateAssignmentBtn"
                             class="w-full px-4 py-2 bg-black text-white rounded-lg hover:bg-gray-800 text-sm font-medium transition-colors">
                             Update Assignment
                         </button>
@@ -178,4 +173,75 @@
         </div>
     </div>
 </div>
+<script src="/static/js/api-utils.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('jobUpdateForm');
+    if (form) {
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const personInCharge = document.getElementById('personInCharge').value;
+            const status = document.getElementById('jobStatus').value;
+            const updateBtn = document.getElementById('updateAssignmentBtn');
+            const originalText = updateBtn?.innerHTML;
+
+            if (!personInCharge || !status) {
+                showToast('Please fill in all fields', 'error');
+                return;
+            }
+
+            if (updateBtn) {
+                updateBtn.disabled = true;
+                updateBtn.innerHTML = 'Updating...';
+            }
+
+            try {
+                const jobId = {{ job.pk }};
+                await api.patch(`/jobs/${jobId}/`, {
+                    person_in_charge: personInCharge,
+                    status: status
+                });
+
+                showToast('Job updated successfully!', 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+
+            } catch (error) {
+                console.error('Error updating job:', error);
+                showToast(`Error: ${error.message || 'Failed to update job'}`, 'error');
+
+                if (updateBtn) {
+                    updateBtn.disabled = false;
+                    updateBtn.innerHTML = originalText;
+                }
+            }
+        });
+    }
+});
+
+async function sendJobReminder(jobId) {
+    const btn = document.getElementById('sendReminderBtn');
+    const originalText = btn?.innerHTML;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = 'Sending...';
+    }
+
+    try {
+        await api.post(`/jobs/${jobId}/send_reminder/`, {});
+        showToast('Reminder sent successfully!', 'success');
+    } catch (error) {
+        console.error('Error sending reminder:', error);
+        showToast(`Error: ${error.message || 'Failed to send reminder'}`, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+        }
+    }
+}
+</script>
 {% endblock %}

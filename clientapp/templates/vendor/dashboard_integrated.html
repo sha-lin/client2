@@ -105,7 +105,8 @@
         .right-panel { width: 300px; display: flex; flex-direction: column; gap: 20px; }
         .panel-card { background: white; border-radius: 12px; padding: 20px; border: 1px solid var(--border-color); box-shadow: var(--shadow); }
         .panel-title { font-size: 0.875rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-        .deadline-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; }
+        .deadline-item { padding: 12px 0; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+        .deadline-item:hover { background: #f8fafc; padding: 12px; margin: 0 -12px; border-radius: 6px; }
         .deadline-time { font-size: 0.75rem; color: var(--danger); font-weight: 700; margin-bottom: 4px; }
         .deadline-id { font-size: 0.8125rem; font-weight: 700; }
         .activity-item { display: flex; gap: 12px; margin-bottom: 16px; }
@@ -113,6 +114,11 @@
         .activity-icon.blue { background: #dbeafe; color: #1e40af; }
         .activity-text { font-size: 0.8125rem; line-height: 1.4; }
         .activity-time { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+        /* Loading and Error States */
+        .loading { text-align: center; padding: 40px; }
+        .spinner { font-size: 2rem; color: #3b82f6; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
 
         @media (max-width: 1400px) { .kanban-board { grid-template-columns: repeat(3, 1fr); } }
     </style>
@@ -127,7 +133,7 @@
         <nav class="sidebar-nav">
             <a href="{% url 'vendor_dashboard' %}" class="nav-item active"><i class="fas fa-th-large"></i> Dashboard</a>
             <a href="{% url 'active_jobs' %}" class="nav-item"><i class="fas fa-tasks"></i> Active Jobs</a>
-            <a href="{% url 'completed_jobs' %}" class="nav-item"><i class="fas fa-check-circle"></i> Completed Jobs</a>
+            <a href="{% url 'vendor_proofs' %}" class="nav-item"><i class="fas fa-file-pdf"></i> QC Proofs</a>
             <a href="{% url 'invoices' %}" class="nav-item"><i class="fas fa-file-invoice-dollar"></i> Invoices</a>
             <a href="{% url 'performance' %}" class="nav-item"><i class="fas fa-chart-line"></i> Performance</a>
             <a href="#" class="nav-item"><i class="fas fa-question-circle"></i> Help Center</a>
@@ -141,8 +147,8 @@
     <div class="main-wrapper">
         <div class="content-area">
             <!-- Loading Indicator -->
-            <div id="loadingIndicator" style="display: none; text-align: center; padding: 40px;">
-                <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: #3b82f6;"></i>
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin spinner"></i>
                 <p style="margin-top: 16px; color: #64748b;">Loading dashboard data...</p>
             </div>
 
@@ -154,9 +160,6 @@
                     <div id="urgentActionsContent"></div>
                 </div>
 
-                <!-- KPI Grid -->
-                <div id="kpiGrid" class="kpi-grid" style="margin-bottom: 24px;"></div>
-
                 <!-- PO Header -->
                 <div class="po-header">
                     <h2>Purchase Orders</h2>
@@ -165,14 +168,17 @@
                             <i class="fas fa-search"></i>
                             <input type="text" id="poSearch" placeholder="Search by PO Number or Product Type...">
                         </div>
-                        <button class="filter-btn active" data-filter="all">Show All</button>
-                        <button class="filter-btn" data-filter="action_needed">Action Needed</button>
-                        <button class="filter-btn" data-filter="overdue">Overdue</button>
+                        <button class="filter-btn active" onclick="filterPOs('all')">Show All</button>
+                        <button class="filter-btn" onclick="filterPOs('action_needed')">Action Needed</button>
+                        <button class="filter-btn" onclick="filterPOs('overdue')">Overdue</button>
                     </div>
                 </div>
 
                 <!-- Kanban Board -->
                 <div id="kanbanBoard" class="kanban-board"></div>
+
+                <!-- KPI Grid -->
+                <div id="kpiGrid" class="kpi-grid"></div>
 
                 <!-- Blocked Jobs -->
                 <div id="blockedJobsContainer" style="display: none;">
@@ -191,53 +197,70 @@
         <aside class="right-panel">
             <div class="panel-card">
                 <div class="panel-title"><i class="far fa-clock"></i> Upcoming Deadlines</div>
-                <div id="upcomingDeadlines"><p style="font-size: 0.75rem; color: var(--text-muted);">Loading...</p></div>
+                <div id="upcomingDeadlines">
+                    <div class="loading"><i class="fas fa-spinner fa-spin spinner"></i></div>
+                </div>
             </div>
 
             <div class="panel-card">
                 <div class="panel-title"><i class="fas fa-history"></i> Recent Activity</div>
-                <div id="recentActivity"><p style="font-size: 0.75rem; color: var(--text-muted);">Loading...</p></div>
+                <div id="recentActivity">
+                    <div class="loading"><i class="fas fa-spinner fa-spin spinner"></i></div>
+                </div>
             </div>
         </aside>
     </div>
 
-    <!-- Load Vendor API Service Layer -->
+    <!-- Load Vendor API Service -->
     <script src="{% static 'js/vendor_api.js' %}"></script>
+
+    <!-- Vendor ID for API -->
+    <script>
+        // Get vendor ID - adjust based on your auth system
+        const vendorId = "{{ vendor.id }}" || "1";
+    </script>
 
     <script>
         // ============================================================================
-        // VENDOR DASHBOARD - REAL API INTEGRATION
+        // VENDOR DASHBOARD - COMPLETE API INTEGRATION
         // ============================================================================
 
         let vendorAPI;
         let allPOs = [];
-        let dashboardStats = {};
+        let allInvoices = [];
+        let performanceData = {};
         let currentFilter = 'all';
 
-        // Initialize dashboard with real API data
+        // Initialize dashboard on page load
         async function initDashboard() {
             try {
-                // Extract vendor ID from page context
-                const vendorId = parseInt('{{ vendor.id }}');
-                
+                document.getElementById('loadingIndicator').style.display = 'block';
+
                 // Initialize API service
                 vendorAPI = new VendorAPI(vendorId);
 
-                // Show loading indicator
-                document.getElementById('loadingIndicator').style.display = 'block';
-                document.getElementById('contentContainer').style.display = 'none';
+                // Load all data in parallel
+                const [poStats, purchases, performance] = await Promise.all([
+                    vendorAPI.getDashboardStats().catch(err => {
+                        console.warn('Dashboard stats error:', err);
+                        return null;
+                    }),
+                    vendorAPI.getPurchaseOrders({ limit: 100 }).catch(err => {
+                        console.warn('POs error:', err);
+                        return [];
+                    }),
+                    vendorAPI.getPerformanceScorecard().catch(err => {
+                        console.warn('Performance error:', err);
+                        return {};
+                    })
+                ]);
 
-                // Load dashboard statistics
-                dashboardStats = await vendorAPI.getDashboardStats();
-                
-                // Load purchase orders
-                const posResponse = await vendorAPI.getPurchaseOrders({ limit: 100 });
-                allPOs = posResponse.results || [];
+                allPOs = Array.isArray(purchases) ? purchases : (purchases.results || []);
+                performanceData = performance || {};
 
-                // Render all components
-                renderKPICards();
+                // Render all sections
+                renderKPICards(poStats);
                 renderKanbanBoard(allPOs);
-                renderKPIGrid();
                 renderUrgentActions(allPOs);
                 renderUpcomingDeadlines(allPOs);
                 renderRecentActivity(allPOs);
@@ -246,147 +269,125 @@
                 // Setup event listeners
                 setupEventListeners();
 
-                // Hide loading, show content
+                // Show content, hide loading
                 document.getElementById('loadingIndicator').style.display = 'none';
                 document.getElementById('contentContainer').style.display = 'block';
 
-                // Auto-refresh every 30 seconds
-                setInterval(refreshDashboard, 30000);
             } catch (error) {
-                console.error('Dashboard init error:', error);
-                showError('Failed to load dashboard: ' + error);
+                console.error('Dashboard initialization error:', error);
                 document.getElementById('loadingIndicator').innerHTML = `
-                    <div style="color: #ef4444; font-weight: 700;">
-                        <i class="fas fa-exclamation-circle"></i> Error Loading Dashboard
-                    </div>
-                    <p style="margin-top: 8px; color: #64748b;">${error}</p>
+                    <i class="fas fa-exclamation-circle" style="font-size: 2rem; color: #ef4444;"></i>
+                    <p style="margin-top: 16px; color: #ef4444;">Error loading dashboard. Please refresh the page.</p>
                 `;
             }
         }
 
-        // Refresh dashboard data every 30 seconds
-        async function refreshDashboard() {
-            try {
-                dashboardStats = await vendorAPI.getDashboardStats();
-                const posResponse = await vendorAPI.getPurchaseOrders({ limit: 100 });
-                allPOs = posResponse.results || [];
-                
-                renderKPICards();
-                renderKanbanBoard(allPOs);
-                renderUpcomingDeadlines(allPOs);
-                renderRecentActivity(allPOs);
-            } catch (error) {
-                console.error('Refresh error:', error);
-            }
-        }
-
         // ============================================================================
-        // RENDERING FUNCTIONS
+        // RENDER FUNCTIONS
         // ============================================================================
 
-        function renderKPICards() {
-            const stats = dashboardStats;
-            const kpiContainer = document.getElementById('kpiGrid');
-            
-            kpiContainer.innerHTML = `
-                <div class="kpi-card">
-                    <div class="kpi-label"><i class="fas fa-list"></i> Total POs</div>
-                    <div class="kpi-value">${stats.total_pos || 0}</div>
+        function renderKPICards(stats) {
+            if (!stats) return;
+
+            const html = `
+                <div class="kpi-card performance">
+                    <div class="kpi-label">Performance Score</div>
+                    <div class="kpi-value large">${performanceData.score || 'N/A'}% <i class="fas fa-trending-up" style="font-size: 1rem;"></i></div>
+                    <div class="perf-stats">
+                        <div class="perf-row"><span>Jobs completed:</span><strong>${stats.completed_pos || 0}</strong></div>
+                        <div class="perf-row"><span>On-time rate:</span><strong>${performanceData.on_time_rate || 'N/A'}%</strong></div>
+                        <div class="perf-row"><span>Quality score:</span><strong>${performanceData.quality_score || 'N/A'}%</strong></div>
+                        <a href="{% url 'performance' %}" style="color: var(--info); text-decoration: none; font-weight: 700; font-size: 0.75rem; display: block; margin-top: 12px;">Full Scorecard →</a>
+                    </div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label"><i class="fas fa-clock"></i> Active POs</div>
+                    <div class="kpi-label"><i class="far fa-clock"></i> Active Jobs</div>
                     <div class="kpi-value">${stats.active_pos || 0}</div>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-label"><i class="fas fa-check-circle"></i> Completed</div>
-                    <div class="kpi-value">${stats.completed_pos || 0}</div>
+                    <div class="kpi-label"><i class="fas fa-exclamation-circle"></i> Awaiting Response</div>
+                    <div class="kpi-value" style="color: var(--danger);">${stats.delayed_pos || 0}</div>
                 </div>
-                <div class="kpi-card performance">
-                    <div class="kpi-label"><i class="fas fa-chart-line"></i> Performance</div>
-                    <div class="kpi-value large">${stats.stats?.on_time_rate || 0}<span style="font-size: 1rem; margin-left: 4px;">%</span></div>
-                    <div class="perf-stats">
-                        <div class="perf-row"><span>On-time Rate</span> <strong>${stats.stats?.on_time_rate || 0}%</strong></div>
-                        <div class="perf-row"><span>Quality Score</span> <strong>${stats.stats?.quality_score || 0}%</strong></div>
-                        <div class="perf-row"><span>Avg Turnaround</span> <strong>${stats.stats?.avg_turnaround || 0} days</strong></div>
-                        <div class="perf-row"><span>Total Jobs</span> <strong>${stats.stats?.total_jobs || 0}</strong></div>
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="far fa-file-alt"></i> Pending Invoices</div>
+                    <div class="kpi-value" style="color: var(--warning);">${stats.pending_invoices || 0}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="fas fa-dollar-sign"></i> Total Value</div>
+                    <div class="kpi-value">KES ${formatCurrency(stats.total_value || 0)}</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="far fa-hourglass"></i> Avg Completion</div>
+                    <div class="kpi-value">${performanceData.avg_completion_days || 'N/A'} days</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-label"><i class="far fa-calendar-alt"></i> Total POs</div>
+                    <div class="kpi-value">${stats.total_pos || 0}</div>
+                </div>
+            `;
+
+            document.getElementById('kpiGrid').innerHTML = html;
+        }
+
+        function renderKanbanBoard(pos) {
+            const statusMap = {
+                'new': { title: 'New POs', color: 'blue' },
+                'in_production': { title: 'In Production', color: 'green' },
+                'quality_check': { title: 'Quality Check', color: 'yellow' },
+                'completed': { title: 'Completed', color: 'green' },
+                'cancelled': { title: 'Cancelled', color: 'gray' }
+            };
+
+            const grouped = {};
+            Object.keys(statusMap).forEach(key => grouped[key] = []);
+            
+            pos.forEach(po => {
+                const status = po.status || 'new';
+                if (grouped[status]) grouped[status].push(po);
+            });
+
+            let html = '';
+            Object.entries(statusMap).forEach(([status, meta]) => {
+                const items = grouped[status] || [];
+                html += `
+                    <div class="kanban-col">
+                        <div class="col-title">${meta.title} <span class="col-count">${items.length}</span></div>
+                        ${items.map(po => renderPOCard(po, meta.color)).join('')}
+                    </div>
+                `;
+            });
+
+            document.getElementById('kanbanBoard').innerHTML = html;
+        }
+
+        function renderPOCard(po, color = 'blue') {
+            const daysUntilDue = getDaysUntilDue(po.required_by);
+            const statusBadge = po.status === 'completed' ? '<div style="color: var(--success); font-size: 0.7rem; font-weight: 700; margin-bottom: 8px;">COMPLETED</div>' : '';
+            
+            return `
+                <div class="po-card ${color === 'red' ? 'red' : color === 'yellow' ? 'yellow' : color === 'green' ? 'green' : ''}">
+                    <div class="po-id">${po.po_number}</div>
+                    <div class="po-type">${po.product_type || 'N/A'}</div>
+                    ${statusBadge}
+                    <div class="po-meta">
+                        <span>Qty: ${po.quantity || 0}</span>
+                        <span class="time">${daysUntilDue}d</span>
+                    </div>
+                    <div class="po-btn-group" style="display: flex; gap: 8px; margin-top: 8px;">
+                        <button class="po-btn" onclick="viewPODetail(${po.id})" style="flex: 1;">View</button>
+                        ${po.status === 'new' ? `<button class="po-btn primary" onclick="acceptPO(${po.id})" style="flex: 1;">Accept</button>` : ''}
                     </div>
                 </div>
             `;
         }
 
-        function renderKPIGrid() {
-            // Already handled in renderKPICards()
-        }
-
-        function renderKanbanBoard(pos) {
-            const board = document.getElementById('kanbanBoard');
-            const columns = ['new', 'in_production', 'quality_check', 'ready_for_delivery', 'completed'];
-            const columnTitles = {
-                'new': 'New',
-                'in_production': 'In Production',
-                'quality_check': 'Quality Check',
-                'ready_for_delivery': 'Ready for Delivery',
-                'completed': 'Completed'
-            };
-
-            let boardHTML = '';
-
-            columns.forEach(status => {
-                const posInColumn = pos.filter(p => p.status === status);
-                let columnHTML = `
-                    <div class="kanban-col">
-                        <div class="col-title">
-                            <span>${columnTitles[status]}</span>
-                            <span class="col-count">${posInColumn.length}</span>
-                        </div>
-                `;
-
-                posInColumn.forEach(po => {
-                    const daysUntilDue = getDaysUntilDue(po.required_by);
-                    const isOverdue = daysUntilDue < 0;
-                    const isAtRisk = daysUntilDue <= 3 && daysUntilDue >= 0;
-                    
-                    let colorClass = '';
-                    if (isOverdue) colorClass = 'red';
-                    else if (isAtRisk) colorClass = 'yellow';
-                    else colorClass = 'green';
-
-                    columnHTML += `
-                        <div class="po-card ${colorClass}">
-                            <div class="po-id">${po.po_number}</div>
-                            <div class="po-type">${po.product_type}</div>
-                            <div class="po-meta">
-                                <span>Qty: ${po.quantity}</span>
-                                <span class="${isOverdue ? 'overdue' : 'time'}">Due in ${daysUntilDue} days</span>
-                            </div>
-                            <div style="margin-bottom: 12px; font-size: 0.75rem; color: var(--text-muted);">
-                                <strong>${po.job?.client?.name || 'Unknown Client'}</strong>
-                            </div>
-                            <div class="po-btn-group">
-                                ${po.status === 'new' ? `
-                                    <button class="po-btn primary" onclick="acceptPO(${po.id})">Accept</button>
-                                    <button class="po-btn" onclick="declinePO(${po.id})">Decline</button>
-                                ` : `
-                                    ${po.status !== 'completed' ? `
-                                        <button class="po-btn primary" onclick="openMilestoneModal(${po.id})">Update</button>
-                                    ` : ''}
-                                    <button class="po-btn" onclick="viewPODetail(${po.id})">View</button>
-                                `}
-                            </div>
-                        </div>
-                    `;
-                });
-
-                columnHTML += `</div>`;
-                boardHTML += columnHTML;
-            });
-
-            board.innerHTML = boardHTML;
-        }
-
         function renderUrgentActions(pos) {
-            const newPOs = pos.filter(p => p.status === 'new' && !p.vendor_accepted);
-            const overduePOs = pos.filter(p => p.required_by && new Date(p.required_by) < new Date() && !['completed', 'cancelled'].includes(p.status));
+            const today = new Date();
+            const newPOs = pos.filter(p => p.status === 'new');
+            const overduePOs = pos.filter(p => {
+                if (['completed', 'cancelled'].includes(p.status)) return false;
+                return p.required_by && new Date(p.required_by) < today;
+            });
             const atRiskPOs = pos.filter(p => {
                 if (['completed', 'cancelled'].includes(p.status)) return false;
                 const daysUntilDue = getDaysUntilDue(p.required_by);
@@ -399,7 +400,7 @@
                 urgentHTML += `
                     <div class="urgent-alert red">
                         <span><i class="fas fa-clock"></i> ${overduePOs.length} PO(s) overdue - immediate action required</span>
-                        <button class="btn-action btn-red" data-filter="overdue">View POs</button>
+                        <button class="btn-action btn-red" onclick="filterPOs('overdue')">View POs</button>
                     </div>
                 `;
             }
@@ -408,7 +409,7 @@
                 urgentHTML += `
                     <div class="urgent-alert orange">
                         <span><i class="fas fa-bolt"></i> ${atRiskPOs.length} PO(s) at risk - due within 3 days</span>
-                        <button class="btn-action btn-red" data-filter="at_risk">Review</button>
+                        <button class="btn-action btn-red" onclick="filterPOs('at_risk')">Review</button>
                     </div>
                 `;
             }
@@ -419,7 +420,7 @@
                         <span><i class="fas fa-plus-circle"></i> ${newPOs.length} new PO(s) awaiting Accept/Decline</span>
                         <div style="display: flex; gap: 8px;">
                             <button class="btn-action btn-blue" onclick="acceptAllNewPOs()">Accept All</button>
-                            <button class="btn-action" style="background: white; border: 1px solid #3b82f6; color: #3b82f6;" data-filter="new">Review</button>
+                            <button class="btn-action" style="background: white; border: 1px solid #3b82f6; color: #3b82f6;" onclick="filterPOs('new')">Review</button>
                         </div>
                     </div>
                 `;
@@ -487,7 +488,7 @@
         }
 
         function renderBlockedJobs(pos) {
-            const blocked = pos.filter(p => p.status === 'cancelled');
+            const blocked = pos.filter(p => p.status === 'cancelled' || p.blocked);
             
             if (blocked.length === 0) {
                 document.getElementById('blockedJobsContainer').style.display = 'none';
@@ -499,7 +500,7 @@
 
             let html = '';
             blocked.forEach(po => {
-                html += `<p><strong>${po.po_number}</strong>: Cancelled</p>`;
+                html += `<p><strong>${po.po_number}</strong>: ${po.blocked_reason || 'No reason provided'}</p>`;
             });
 
             document.getElementById('blockedList').innerHTML = html;
@@ -510,7 +511,6 @@
         // ============================================================================
 
         function setupEventListeners() {
-            // Search functionality
             document.getElementById('poSearch').addEventListener('input', (e) => {
                 const query = e.target.value.toLowerCase();
                 const filtered = allPOs.filter(po => 
@@ -518,15 +518,6 @@
                     po.product_type?.toLowerCase().includes(query)
                 );
                 renderKanbanBoard(filtered);
-            });
-
-            // Filter buttons
-            document.querySelectorAll('[data-filter]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    filterPOs(e.target.dataset.filter);
-                });
             });
         }
 
@@ -537,7 +528,7 @@
 
             switch(filter) {
                 case 'new':
-                    filtered = filtered.filter(p => p.status === 'new' && !p.vendor_accepted);
+                    filtered = filtered.filter(p => p.status === 'new');
                     break;
                 case 'action_needed':
                     filtered = filtered.filter(p => p.status === 'new' || (p.required_by && new Date(p.required_by) < today));
@@ -558,72 +549,25 @@
         }
 
         async function acceptPO(poId) {
-            if (!confirm('Accept this Purchase Order?')) return;
-            
             try {
-                await vendorAPI.acceptPO(poId);
+                const result = await vendorAPI.acceptPO(poId);
                 showSuccess('Purchase Order accepted!');
-                setTimeout(() => refreshDashboard(), 1000);
+                setTimeout(() => location.reload(), 1000);
             } catch (error) {
-                showError('Failed to accept PO: ' + error);
-            }
-        }
-
-        async function declinePO(poId) {
-            const reason = prompt('Please provide a reason for declining this PO:');
-            if (!reason) return;
-
-            try {
-                await vendorAPI.declinePO(poId, reason);
-                showSuccess('Purchase Order declined');
-                setTimeout(() => refreshDashboard(), 1000);
-            } catch (error) {
-                showError('Failed to decline PO: ' + error);
+                showError('Failed to accept PO: ' + error.message);
             }
         }
 
         async function acceptAllNewPOs() {
-            const newPOs = allPOs.filter(p => p.status === 'new');
-            if (newPOs.length === 0) {
-                showError('No new POs to accept');
-                return;
-            }
-
-            if (!confirm(`Accept ${newPOs.length} Purchase Orders?`)) return;
-
             try {
+                const newPOs = allPOs.filter(p => p.status === 'new');
                 for (const po of newPOs) {
                     await vendorAPI.acceptPO(po.id);
                 }
                 showSuccess(`Accepted ${newPOs.length} Purchase Orders!`);
-                setTimeout(() => refreshDashboard(), 1000);
+                setTimeout(() => location.reload(), 1000);
             } catch (error) {
-                showError('Failed to accept POs: ' + error);
-            }
-        }
-
-        function openMilestoneModal(poId) {
-            const po = allPOs.find(p => p.id === poId);
-            if (!po) return;
-
-            const newMilestone = prompt(
-                `Update milestone for ${po.po_number}\n\nCurrent: ${getStatusDisplay(po.milestone)}\n\nNew milestone:\n- in_production\n- quality_check\n- ready_for_delivery`,
-                po.milestone
-            );
-
-            if (!newMilestone) return;
-
-            const notes = prompt('Add notes (optional):');
-            updateMilestone(poId, newMilestone, notes || '');
-        }
-
-        async function updateMilestone(poId, milestone, notes) {
-            try {
-                await vendorAPI.updateMilestone(poId, milestone, notes);
-                showSuccess('Milestone updated!');
-                setTimeout(() => refreshDashboard(), 1000);
-            } catch (error) {
-                showError('Failed to update milestone: ' + error);
+                showError('Failed to accept POs: ' + error.message);
             }
         }
 
@@ -642,7 +586,7 @@
             today.setHours(0, 0, 0, 0);
             due.setHours(0, 0, 0, 0);
             const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-            return diff;
+            return diff < 0 ? '0' : diff;
         }
 
         function getTimeAgo(date) {
@@ -661,14 +605,18 @@
                 'new': 'New',
                 'in_production': 'In Production',
                 'quality_check': 'Quality Check',
-                'ready_for_delivery': 'Ready for Delivery',
                 'completed': 'Completed',
-                'cancelled': 'Cancelled',
-                'awaiting_acceptance': 'Awaiting Acceptance',
-                'shipped': 'Shipped',
-                'delivered': 'Delivered'
+                'cancelled': 'Cancelled'
             };
             return map[status] || status;
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-KE', { 
+                style: 'decimal', 
+                minimumFractionDigits: 0, 
+                maximumFractionDigits: 0 
+            }).format(Math.round(amount));
         }
 
         function showSuccess(message) {
@@ -695,4 +643,5 @@
         }
     </script>
 </body>
+
 </html>

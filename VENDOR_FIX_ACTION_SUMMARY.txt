@@ -1,0 +1,62 @@
+# ⚡ IMMEDIATE ACTION REQUIRED - Vendor Endpoints Fixed
+
+## What Was Wrong
+Vendors were getting "403 Forbidden - You do not have permission" errors when trying to:
+- ❌ Upload quality proofs
+- ❌ Report production issues  
+- ❌ Add notes/comments
+- ❌ Request material substitutions
+- ❌ Create invoices
+
+## What Was Fixed
+✅ Added `IsVendor` permission to 5 ViewSets:
+1. **VendorInvoiceViewSet** - Vendors can now create/view invoices
+2. **PurchaseOrderProofViewSet** - Vendors can now upload proofs
+3. **PurchaseOrderIssueViewSet** - Vendors can now report issues
+4. **PurchaseOrderNoteViewSet** - Vendors can now add notes
+5. **MaterialSubstitutionRequestViewSet** - Vendors can now request substitutions
+
+Each ViewSet now includes:
+- ✅ Added `IsVendor` to permission_classes
+- ✅ Added get_queryset() for data isolation
+- ✅ Vendors see only THEIR own data
+
+## Files Changed
+- **clientapp/api_views.py** - 5 ViewSets updated
+
+## ⚠️ CRITICAL NEXT STEP
+
+**Restart Django Server NOW:**
+```bash
+python manage.py runserver 0.0.0.0:8000
+```
+
+**Why?** Permission changes require server restart to take effect.
+
+## Test It Works
+
+### Test 1: Upload Proof (as vendor)
+```
+POST /api/v1/purchase-order-proofs/
+Should return: 201 Created ✅ (not 403 Forbidden ❌)
+```
+
+### Test 2: Report Issue (as vendor)
+```
+POST /api/v1/purchase-order-issues/
+Should return: 201 Created ✅ (not 403 Forbidden ❌)
+```
+
+### Test 3: Create Invoice (as vendor)
+```
+POST /api/v1/vendor-invoices/
+Should return: 201 Created ✅ (not 403 Forbidden ❌)
+```
+
+## Security
+✅ Data isolation enforced - vendors can ONLY see their own data
+✅ Multi-layer protection (permission + object + queryset filtering)
+✅ PT functionality unchanged - backward compatible
+
+## Documentation
+See `VENDOR_ENDPOINTS_PERMISSION_FIX_EXTENDED.md` for full details.

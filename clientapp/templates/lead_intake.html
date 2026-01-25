@@ -4,7 +4,6 @@
 
 {% block content %}
 <div>
-
 <div class="space-y-6">
     <div class="flex items-center justify-between">
         <div>
@@ -62,12 +61,8 @@
             <p class="text-sm text-gray-600">Capture prospect information and qualification details</p>
         </div>
         
-        <form id="leadForm">
-            <div id="formError" class="hidden alert alert-error mb-4"></div>
-            <div id="duplicateWarning" class="hidden alert alert-warning mb-4">
-                <svg class="w-4 h-4 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
-                <span id="duplicateMessage"></span>
-            </div>
+        <form id="lead-form">
+            <div id="duplicate-warning" class="hidden mb-4"></div>
             
             <!-- Basic Information -->
             <div class="mb-6">
@@ -75,19 +70,19 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Name / Company *</label>
-                        <input type="text" id="leadName" required placeholder="Company or contact name" class="form-input">
+                        <input type="text" name="name" id="leadName" required placeholder="Company or contact name" class="form-input">
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Email</label>
-                        <input type="email" id="leadEmail" placeholder="email@company.com" class="form-input">
+                        <input type="email" name="email" id="leadEmail" placeholder="email@company.com" class="form-input">
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Phone *</label>
-                        <input type="tel" id="leadPhone" required placeholder="+1 (555) 000-0000" class="form-input">
+                        <input type="tel" name="phone" id="leadPhone" required placeholder="+1 (555) 000-0000" class="form-input">
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Preferred Contact</label>
-                        <select id="leadPreferredContact" class="form-input">
+                        <select name="preferred_contact" id="leadPreferredContact" class="form-input">
                             <option value="Email">Email</option>
                             <option value="Phone">Phone</option>
                             <option value="WhatsApp">WhatsApp</option>
@@ -102,7 +97,7 @@
                 <div class="grid grid-cols-2 gap-4">
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Lead Source</label>
-                        <select id="leadSource" class="form-input">
+                        <select name="source" id="leadSource" class="form-input">
                             <option value="">-- Select Source --</option>
                             <option value="Website">Website</option>
                             <option value="Referral">Referral</option>
@@ -114,18 +109,34 @@
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Client Type</label>
-                        <select id="leadClientType" class="form-input">
+                        <select name="preferred_client_type" id="leadClientType" class="form-input">
                             <option value="B2B">B2B Business</option>
                             <option value="B2C">B2C Retail</option>
                         </select>
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Product Interest</label>
-                        <input type="text" id="leadProductInterest" placeholder="e.g., Printing, Packaging" class="form-input">
+                        <div class="relative" id="productSelectContainer">
+                            <input type="hidden" name="product_interest" id="leadProductInterest" />
+                            <button type="button" id="productDropdownBtn" class="form-input w-full text-left flex justify-between items-center bg-white cursor-pointer">
+                                <span id="selectedProductsText" class="text-gray-500">Select products...</span>
+                                <svg class="w-4 h-4 text-gray-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="productDropdownMenu" class="hidden absolute z-20 w-full mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-y-auto">
+                                <div class="sticky top-0 bg-white border-b p-2">
+                                    <input type="text" id="productSearch" placeholder="Search products..." class="form-input w-full text-sm">
+                                </div>
+                                <div id="productList" class="divide-y">
+                                    <div class="p-4 text-center text-gray-500">Loading products...</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                     <div class="space-y-2">
                         <label class="text-sm font-medium">Follow-up Date</label>
-                        <input type="date" id="leadFollowUpDate" class="form-input">
+                        <input type="date" name="follow_up_date" id="leadFollowUpDate" class="form-input">
                     </div>
                 </div>
             </div>
@@ -135,7 +146,7 @@
                 <h3 class="text-sm font-semibold text-gray-700 mb-3">Additional Information</h3>
                 <div class="space-y-2">
                     <label class="text-sm font-medium">Notes</label>
-                    <textarea id="leadNotes" rows="3" placeholder="Any additional information about the lead..." class="form-input"></textarea>
+                    <textarea name="notes" id="leadNotes" rows="3" placeholder="Any additional information about the lead..." class="form-input"></textarea>
                 </div>
             </div>
             
@@ -143,226 +154,12 @@
                 <button type="button" onclick="closeModal('newLeadModal')" class="btn btn-secondary">Cancel</button>
                 <button type="submit" class="btn btn-primary">Create Lead</button>
             </div>
+        </form>
+    </div>
+</div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<script>
-// Get CSRF token from DOM
-function getCsrfToken() {
-    const name = 'csrftoken';
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
-}
-
-// API Configuration
-const API_BASE = '/api/v1';
-const CSRF_TOKEN = getCsrfToken();
-
-// Load leads from API and populate table
-async function loadLeads() {
-    try {
-        const searchQuery = document.getElementById('searchInput')?.value || '';
-        const url = `${API_BASE}/leads/?search=${encodeURIComponent(searchQuery)}`;
-        
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`API Error: ${response.status}`);
-        
-        const data = await response.json();
-        const leads = data.results || data;
-        
-        const tbody = document.getElementById('leadsTableBody');
-        const noLeadsMsg = document.getElementById('noLeadsMessage');
-        
-        if (!leads.length) {
-            tbody.innerHTML = '';
-            noLeadsMsg.classList.remove('hidden');
-            return;
-        }
-        
-        noLeadsMsg.classList.add('hidden');
-        tbody.innerHTML = leads.map(lead => `
-            <tr>
-                <td>${lead.lead_id || lead.id}</td>
-                <td>${lead.name}</td>
-                <td>
-                    <div class="text-sm">
-                        <div>${lead.email || '-'}</div>
-                        <div class="text-gray-600">${lead.phone || '-'}</div>
-                    </div>
-                </td>
-                <td>${lead.source || '-'}</td>
-                <td>${lead.product_interest || '-'}</td>
-                <td>
-                    ${lead.follow_up_date ? 
-                        `<span class="text-sm">${new Date(lead.follow_up_date).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}</span>` 
-                        : '<span class="text-sm text-gray-500">Not set</span>'
-                    }
-                </td>
-                <td>
-                    ${getStatusBadge(lead.status)}
-                </td>
-                <td>
-                    <div class="flex gap-2">
-                        ${lead.status === 'New' ? `
-                            <button onclick="qualifyLead(${lead.id})" class="btn btn-secondary text-sm py-1 px-3">Qualify</button>
-                            <button onclick="editLead(${lead.id})" class="btn btn-secondary text-sm py-1 px-3">Edit</button>
-                        ` : lead.status === 'Qualified' ? `
-                            <button onclick="convertLead(${lead.id})" class="btn btn-primary text-sm py-1 px-3">Convert</button>
-                            <button onclick="editLead(${lead.id})" class="btn btn-secondary text-sm py-1 px-3">Edit</button>
-                        ` : `
-                            <button onclick="editLead(${lead.id})" class="btn btn-secondary text-sm py-1 px-3">View</button>
-                        `}
-                    </div>
-                </td>
-            </tr>
-        `).join('');
-        
-    } catch (error) {
-        console.error('Error loading leads:', error);
-        showError('Failed to load leads');
-    }
-}
-
-// Get status badge HTML
-function getStatusBadge(status) {
-    const badges = {
-        'New': '<span class="badge badge-secondary"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>New</span>',
-        'Contacted': '<span class="badge badge-primary"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>Contacted</span>',
-        'Qualified': '<span class="badge badge-success"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>Qualified</span>',
-        'Converted': '<span class="badge badge-success"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>Converted</span>',
-        'Lost': '<span class="badge badge-secondary"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>Lost</span>'
-    };
-    return badges[status] || `<span class="badge badge-secondary">${status}</span>`;
-}
-
-// Handle form submission
-document.getElementById('leadForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    
-    const leadData = {
-        name: document.getElementById('leadName').value,
-        email: document.getElementById('leadEmail').value || null,
-        phone: document.getElementById('leadPhone').value,
-        source: document.getElementById('leadSource').value || null,
-        product_interest: document.getElementById('leadProductInterest').value || null,
-        preferred_contact: document.getElementById('leadPreferredContact').value,
-        preferred_client_type: document.getElementById('leadClientType').value,
-        follow_up_date: document.getElementById('leadFollowUpDate').value || null,
-        notes: document.getElementById('leadNotes').value || null,
-        status: 'New'
-    };
-    
-    try {
-        const response = await fetch(`${API_BASE}/leads/`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': CSRF_TOKEN
-            },
-            body: JSON.stringify(leadData)
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.detail || JSON.stringify(errorData));
-        }
-        
-        // Success - reload leads and close modal
-        closeModal('newLeadModal');
-        document.getElementById('leadForm').reset();
-        await loadLeads();
-        showSuccess('Lead created successfully');
-        
-    } catch (error) {
-        console.error('Error creating lead:', error);
-        showError(error.message || 'Failed to create lead');
-    }
-});
-
-// Qualify lead action
-async function qualifyLead(leadId) {
-    if (!confirm('Mark this lead as qualified?')) return;
-    
-    try {
-        const response = await fetch(`${API_BASE}/leads/${leadId}/qualify/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': CSRF_TOKEN
-            }
-        });
-        
-        if (!response.ok) throw new Error('Failed to qualify lead');
-        
-        await loadLeads();
-        showSuccess('Lead qualified successfully');
-        
-    } catch (error) {
-        console.error('Error qualifying lead:', error);
-        showError('Failed to qualify lead');
-    }
-}
-
-// Convert lead action
-async function convertLead(leadId) {
-    if (!confirm('Convert this lead to a client?')) return;
-    
-    try {
-        const response = await fetch(`${API_BASE}/leads/${leadId}/convert/`, {
-            method: 'POST',
-            headers: {
-                'X-CSRFToken': CSRF_TOKEN
-            }
-        });
-        
-        if (!response.ok) throw new Error('Failed to convert lead');
-        
-        await loadLeads();
-        showSuccess('Lead converted to client successfully');
-        
-    } catch (error) {
-        console.error('Error converting lead:', error);
-        showError('Failed to convert lead');
-    }
-}
-
-// Edit lead (placeholder - would open detail view)
-function editLead(leadId) {
-    window.location.href = `/leads/${leadId}/`;
-}
-
-// Search handler with debounce
-let searchTimeout;
-document.getElementById('searchInput').addEventListener('input', function() {
-    clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(loadLeads, 300);
-});
-
-// Show/hide messages
-function showError(message) {
-    const errorDiv = document.getElementById('formError');
-    errorDiv.textContent = message;
-    errorDiv.classList.remove('hidden');
-    setTimeout(() => errorDiv.classList.add('hidden'), 5000);
-}
-
-function showSuccess(message) {
-    // Use your existing success notification system if available
-    console.log('Success:', message);
-}
-
-// Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
-    loadLeads();
-});
-</script>
+<script src="/static/js/lead-intake.js"></script>
 {% endblock %}

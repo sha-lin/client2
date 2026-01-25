@@ -189,7 +189,7 @@
                 <span class="stat-title">Total Quotes</span>
                 <i class="fas fa-file-invoice stat-icon"></i>
             </div>
-            <div class="stat-value">{{ total_quotes }}</div>
+            <div class="stat-value" id="total-quotes">{{ total_quotes }}</div>
             <div class="stat-change">Live Data</div>
         </div>
 
@@ -198,7 +198,7 @@
                 <span class="stat-title">Conversion Rate</span>
                 <i class="fas fa-percent stat-icon"></i>
             </div>
-            <div class="stat-value">{{ conversion_rate }}%</div>
+            <div class="stat-value" id="conversion-rate">{{ conversion_rate }}%</div>
             <div class="stat-change">Approved / Total</div>
         </div>
 
@@ -207,7 +207,7 @@
                 <span class="stat-title">Avg Deal Size</span>
                 <i class="fas fa-coins stat-icon"></i>
             </div>
-            <div class="stat-value">KES {{ avg_deal_size|floatformat:0|intcomma }}</div>
+            <div class="stat-value" id="total-quotes-value">KES {{ avg_deal_size|floatformat:0|intcomma }}</div>
             <div class="stat-change">Per Approved Quote</div>
         </div>
 
@@ -375,4 +375,4 @@
     }
     });
 </script>
-{% endblock %}
+<script src="/static/js/analytics.js"></script>`r`n{% endblock %}

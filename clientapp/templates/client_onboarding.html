@@ -162,7 +162,7 @@
                                         </div>
                                         <script>
                                             // Make B2B lead source field readonly
-                                            document.addEventListener('DOMContentLoaded', function() {
+                                            document.addEventListener('DOMContentLoaded', function () {
                                                 const leadSourceField = document.getElementById('id_lead_source');
                                                 if (leadSourceField) {
                                                     leadSourceField.setAttribute('readonly', 'readonly');
@@ -194,250 +194,263 @@
                                                 {{ form.risk_rating }}
                                             </div>
                                         </div>
-<div class="flex items-center justify-between p-4 border rounded-lg mt-4">
-    <div class="space-y-1">
-        <label class="text-sm font-medium">Agency / Reseller</label>
-        <p class="text-sm text-gray-600">Mark if this client manages multiple
-            brands</p>
-    </div>
-    <label class="toggle-switch">
-        {{ form.is_reseller }}
-        <span class="toggle-slider"></span>
-    </label>
-</div>
+                                        <div class="flex items-center justify-between p-4 border rounded-lg mt-4">
+                                            <div class="space-y-1">
+                                                <label class="text-sm font-medium">Agency / Reseller</label>
+                                                <p class="text-sm text-gray-600">Mark if this client manages multiple
+                                                    brands</p>
+                                            </div>
+                                            <label class="toggle-switch">
+                                                {{ form.is_reseller }}
+                                                <span class="toggle-slider"></span>
+                                            </label>
+                                        </div>
 
-<!-- Delivery Details - B2B Only -->
-<div id="b2bDeliverySection" class="mt-6">
-    <h3 class="text-lg font-semibold">Delivery Details</h3>
-    <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
+                                        <!-- Delivery Details - B2B Only -->
+                                        <div id="b2bDeliverySection" class="mt-6">
+                                            <h3 class="text-lg font-semibold">Delivery Details</h3>
+                                            <p class="text-sm text-gray-600 mb-4">Set up default delivery information
+                                            </p>
 
-    <div class="grid grid-cols-1 gap-4">
-        <div class="space-y-2">
-            <label for="id_delivery_address" class="text-sm font-medium">Delivery Address</label>
-            {{ form.delivery_address }}
-        </div>
-    </div>
-</div>
-</div>
+                                            <div class="grid grid-cols-1 gap-4">
+                                                <div class="space-y-2">
+                                                    <label for="id_delivery_address"
+                                                        class="text-sm font-medium">Delivery Address</label>
+                                                    {{ form.delivery_address }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
 
-</div>
+                                <!-- B2C Fields -->
+                                <div id="b2cFields" class="hidden">
+                                    <div class="grid grid-cols-2 gap-4">
+                                        <div class="space-y-2">
+                                            <label for="id_company_b2c" class="text-sm font-medium">Company Name
+                                                (Optional)</label>
+                                            <input type="text" name="company_b2c" id="id_company_b2c"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label for="id_name_b2c" class="text-sm font-medium">Contact Person
+                                                *</label>
+                                            <input type="text" name="name_b2c" id="id_name_b2c"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                required>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label for="id_email_b2c" class="text-sm font-medium">Email
+                                                (Optional)</label>
+                                            <input type="email" name="email_b2c" id="id_email_b2c"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label for="id_phone_b2c" class="text-sm font-medium">Phone *</label>
+                                            <input type="text" name="phone_b2c" id="id_phone_b2c"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                required>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label for="id_preferred_channel_b2c" class="text-sm font-medium">Preferred
+                                                Channel</label>
+                                            <select name="preferred_channel_b2c" id="id_preferred_channel_b2c"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                                <option value="Email">Email</option>
+                                                <option value="Phone">Phone</option>
+                                                <option value="WhatsApp">WhatsApp</option>
+                                                <option value="In-Person">In-Person</option>
+                                            </select>
+                                        </div>
+                                        <div class="space-y-2">
+                                            <label for="id_lead_source_b2c" class="text-sm font-medium">Lead
+                                                Source</label>
+                                            <input type="text" name="lead_source_b2c" id="id_lead_source_b2c"
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                readonly>
+                                        </div>
+                                    </div>
+
+                                    <!-- Delivery Details - B2C -->
+                                    <div class="mt-6">
+                                        <h3 class="text-lg font-semibold">Delivery Details</h3>
+                                        <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
+
+                                        <div class="grid grid-cols-1 gap-4">
+                                            <div class="space-y-2">
+                                                <label for="id_delivery_address_b2c"
+                                                    class="text-sm font-medium">Delivery Address</label>
+                                                <input type="text" name="delivery_address_b2c"
+                                                    id="id_delivery_address_b2c"
+                                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                                    placeholder="Enter delivery address">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <!-- B2C Fields -->
-<div id="b2cFields" class="hidden">
-    <div class="grid grid-cols-2 gap-4">
-        <div class="space-y-2">
-            <label for="id_company_b2c" class="text-sm font-medium">Company Name
-                (Optional)</label>
-            <input type="text" name="company_b2c" id="id_company_b2c"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-        <div class="space-y-2">
-            <label for="id_name_b2c" class="text-sm font-medium">Contact Person
-                *</label>
-            <input type="text" name="name_b2c" id="id_name_b2c"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required>
-        </div>
-        <div class="space-y-2">
-            <label for="id_email_b2c" class="text-sm font-medium">Email
-                (Optional)</label>
-            <input type="email" name="email_b2c" id="id_email_b2c"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-        </div>
-        <div class="space-y-2">
-            <label for="id_phone_b2c" class="text-sm font-medium">Phone *</label>
-            <input type="text" name="phone_b2c" id="id_phone_b2c"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                required>
-        </div>
-        <div class="space-y-2">
-            <label for="id_preferred_channel_b2c" class="text-sm font-medium">Preferred
-                Channel</label>
-            <select name="preferred_channel_b2c" id="id_preferred_channel_b2c"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                <option value="Email">Email</option>
-                <option value="Phone">Phone</option>
-                <option value="WhatsApp">WhatsApp</option>
-                <option value="In-Person">In-Person</option>
-            </select>
-        </div>
-        <div class="space-y-2">
-            <label for="id_lead_source_b2c" class="text-sm font-medium">Lead
-                Source</label>
-            <input type="text" name="lead_source_b2c" id="id_lead_source_b2c"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                readonly>
-        </div>
-    </div>
-    
-    <!-- Delivery Details - B2C -->
-    <div class="mt-6">
-        <h3 class="text-lg font-semibold">Delivery Details</h3>
-        <p class="text-sm text-gray-600 mb-4">Set up default delivery information</p>
-        
-        <div class="grid grid-cols-1 gap-4">
-            <div class="space-y-2">
-                <label for="id_delivery_address" class="text-sm font-medium">Delivery Address</label>
-                {{ form.delivery_address }}
-            </div>
-        </div>
-    </div>
-</div>
-                        </div>
-
-                        <div id="validationErrors" class="hidden alert alert-error"></div>
-                    </div>
-            </div>
-
-            <!-- Step 2: Contacts & Brand (B2B Only) -->
-            <div id="step2" class="step-content hidden">
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-900">Contact Management & Approvals</h2>
-                        <p class="text-gray-600">Manage multiple contacts and assign approval roles for quotes
-                            and artwork</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                            <input type="text"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                placeholder="Enter full name">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                            <input type="email"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                placeholder="Enter email">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-                            <input type="text"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                                placeholder="Enter phone number">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-                            <select
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                <option>None</option>
-                                <option>Approve Quotes</option>
-                                <option>Approve Artwork</option>
-                                <option>Billing Contact</option>
-                            </select>
-                        </div>
-                        <div>
-                            <button type="button" id="addContactBtn"
-                                class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
-                                + Add New Contact
-                            </button>
+                            <div id="validationErrors" class="hidden alert alert-error"></div>
                         </div>
                     </div>
 
-                    <div
-                        class="border border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 bg-gray-50">
-                        <p>No contacts added yet.</p>
-                    </div>
-                </div>
+                    <!-- Step 2: Contacts & Brand (B2B Only) -->
+                    <div id="step2" class="step-content hidden">
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-900">Contact Management & Approvals</h2>
+                                <p class="text-gray-600">Manage multiple contacts and assign approval roles for quotes
+                                    and artwork</p>
+                            </div>
 
-                <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6 mt-8">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-900">Brand Asset Library</h2>
-                        <p class="text-gray-600">Upload brand guidelines, logos, and assets accessible to Design
-                            & Production teams</p>
-                    </div>
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                    <input type="text"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                        placeholder="Enter full name">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                    <input type="email"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                        placeholder="Enter email">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                    <input type="text"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                                        placeholder="Enter phone number">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                                    <select
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                                        <option>None</option>
+                                        <option>Approve Quotes</option>
+                                        <option>Approve Artwork</option>
+                                        <option>Billing Contact</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <button type="button" id="addContactBtn"
+                                        class="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                                        + Add New Contact
+                                    </button>
+                                </div>
+                            </div>
 
-                    <div
-                        class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 transition">
-                        <input type="file" id="brandFiles" multiple class="hidden" />
-                        <label for="brandFiles" class="block text-gray-500 cursor-pointer">
-                            <span class="text-gray-700 font-medium">Drag and drop files here, or click to
-                                browse</span>
-                        </label>
-                    </div>
-
-                    <div class="text-gray-500 text-sm text-center">
-                        Upload brand guides, logos, color palettes, and fonts
-                    </div>
-                </div>
-            </div>
-
-            <!-- Step 3: Compliance (B2B Only) -->
-            <div id="step3" class="step-content hidden">
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
-                    <div>
-                        <h2 class="text-xl font-semibold text-gray-900">Compliance & Legal Documents</h2>
-                        <p class="text-gray-600">Upload compliance documents for B2B clients</p>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
-                            <select id="doc_type" name="doc_type"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
-                                <option value="">Select Document Type</option>
-                                <option value="coi">Certificate of Incorporation (COI)</option>
-                                <option value="kra">KRA Pin Certificate</option>
-                                <option value="po_terms">Purchase Order Terms (PO Terms)</option>
-                                <option value="nda">Non-Disclosure Agreement (NDA)</option>
-                                <option value="other">Other Legal Document</option>
-                            </select>
+                            <div
+                                class="border border-dashed border-gray-300 rounded-lg p-6 text-center text-gray-500 bg-gray-50">
+                                <p>No contacts added yet.</p>
+                            </div>
                         </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
-                            <input id="doc_expiry" name="doc_expiry" type="date"
-                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" />
-                        </div>
+                        <div class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-6 mt-8">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-900">Brand Asset Library</h2>
+                                <p class="text-gray-600">Upload brand guidelines, logos, and assets accessible to Design
+                                    & Production teams</p>
+                            </div>
 
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Document</label>
-                            <div class="flex gap-2">
-                                <button type="button" id="uploadBtn"
-                                    class="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
-                                    Choose Files
-                                </button>
-                                <input id="complianceFiles" name="compliance_files" type="file" multiple
-                                    accept=".pdf,.doc,.docx,.jpg,.png" class="hidden" />
-                                <span id="filesCount" class="text-sm text-gray-600 self-center"></span>
+                            <div
+                                class="border-2 border-dashed border-gray-300 rounded-xl p-10 text-center cursor-pointer hover:border-blue-400 transition">
+                                <input type="file" id="brandFiles" multiple class="hidden" />
+                                <label for="brandFiles" class="block text-gray-500 cursor-pointer">
+                                    <span class="text-gray-700 font-medium">Drag and drop files here, or click to
+                                        browse</span>
+                                </label>
+                            </div>
+
+                            <div class="text-gray-500 text-sm text-center">
+                                Upload brand guides, logos, color palettes, and fonts
                             </div>
                         </div>
                     </div>
 
-                    <div id="selectedFiles" class="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-lg">
-                        <p id="noFiles" class="text-gray-600">No files selected</p>
-                        <ul id="filesList" class="mt-2 space-y-2"></ul>
-                    </div>
-                </div>
-            </div>
+                    <!-- Step 3: Compliance (B2B Only) -->
+                    <div id="step3" class="step-content hidden">
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
+                            <div>
+                                <h2 class="text-xl font-semibold text-gray-900">Compliance & Legal Documents</h2>
+                                <p class="text-gray-600">Upload compliance documents for B2B clients</p>
+                            </div>
 
-            <!-- Navigation Buttons -->
-            <div class="flex justify-between pt-4 border-t border-gray-200">
-                <button type="button" id="prevBtn" onclick="previousStep(event)" class="btn btn-secondary"
-                    disabled>Previous</button>
-                <button type="button" id="nextBtn" onclick="nextStep(event)" class="btn btn-primary">Next</button>
-                <button type="submit" id="submitBtn" class="btn btn-primary hidden">
-                    <svg class="w-4 h-4 mr-2 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    Save Client
-                </button>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Document Type</label>
+                                    <select id="doc_type" name="doc_type"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                                        <option value="">Select Document Type</option>
+                                        <option value="COI">Certificate of Incorporation (COI)</option>
+                                        <option value="KRA">KRA Pin Certificate</option>
+                                        <option value="PO Terms">Purchase Order Terms (PO Terms)</option>
+                                        <option value="NDA">Non-Disclosure Agreement (NDA)</option>
+                                        <option value="Other">Other Legal Document</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                                    <input id="doc_expiry" name="doc_expiry" type="date"
+                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white" />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Upload Document</label>
+                                    <div class="flex gap-2">
+                                        <button type="button" id="uploadBtn"
+                                            class="bg-blue-600 text-white px-5 py-2 rounded-lg font-medium hover:bg-blue-700 transition">
+                                            Choose Files
+                                        </button>
+                                        <input id="complianceFiles" name="compliance_files" type="file" multiple
+                                            accept=".pdf,.doc,.docx,.jpg,.png" class="hidden" />
+                                        <span id="filesCount" class="text-sm text-gray-600 self-center"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="selectedFiles"
+                                class="bg-gray-50 border border-dashed border-gray-300 p-4 rounded-lg">
+                                <p id="noFiles" class="text-gray-600">No files selected</p>
+                                <ul id="filesList" class="mt-2 space-y-2"></ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Buttons -->
+                    <div class="flex justify-between pt-4 border-t border-gray-200">
+                        <button type="button" id="prevBtn" onclick="previousStep(event)" class="btn btn-secondary"
+                            disabled>Previous</button>
+                        <button type="button" id="nextBtn" onclick="nextStep(event)"
+                            class="btn btn-primary">Next</button>
+                        <button type="submit" id="submitBtn" class="btn btn-primary hidden">
+                            <svg class="w-4 h-4 mr-2 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                            </svg>
+                            Save Client
+                        </button>
+                    </div>
+                </form>
             </div>
-            </form>
         </div>
     </div>
-</div>
 </div>
 
 <script>
-    // REPLACE THE ENTIRE <script> SECTION IN YOUR client_onboarding.html WITH THIS:
     let currentStep = 1;
     let totalSteps = 3;
     let clientType = 'B2B';
+
+    // Initialize fields on page load (B2B is default)
+    window.addEventListener('load', function() {
+        // Enable B2B fields by default
+        addRequiredToB2B();
+        // Disable B2C fields by default
+        removeRequiredFromB2C();
+    });
 
     // Client Type Selection
     document.querySelectorAll('.client-type-option').forEach(option => {
@@ -493,7 +506,13 @@
 
     // Helper functions to manage required attributes
     function removeRequiredFromB2B() {
-        const b2bFields = ['id_company', 'id_name', 'id_email', 'id_phone'];
+        // All B2B fields including B2B-only fields
+        const b2bFields = [
+            'id_company', 'id_name', 'id_email', 'id_phone',
+            'id_vat_tax_id', 'id_kra_pin', 'id_industry', 'id_payment_terms',
+            'id_credit_limit', 'id_default_markup', 'id_risk_rating', 'id_is_reseller',
+            'id_delivery_address'
+        ];
         b2bFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) {
@@ -504,7 +523,13 @@
     }
 
     function addRequiredToB2B() {
-        const b2bFields = ['id_company', 'id_name', 'id_email', 'id_phone'];
+        // All B2B fields including B2B-only fields
+        const b2bFields = [
+            'id_company', 'id_name', 'id_email', 'id_phone',
+            'id_vat_tax_id', 'id_kra_pin', 'id_industry', 'id_payment_terms',
+            'id_credit_limit', 'id_default_markup', 'id_risk_rating', 'id_is_reseller',
+            'id_delivery_address'
+        ];
         b2bFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) {
@@ -515,7 +540,7 @@
     }
 
     function removeRequiredFromB2C() {
-        const b2cFields = ['id_name_b2c', 'id_phone_b2c']; // Removed email from required
+        const b2cFields = ['id_name_b2c', 'id_phone_b2c'];
         b2cFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) {
@@ -524,7 +549,6 @@
             }
         });
 
-        // Explicitly remove required from email
         const emailField = document.getElementById('id_email_b2c');
         if (emailField) {
             emailField.removeAttribute('required');
@@ -532,7 +556,7 @@
     }
 
     function addRequiredToB2C() {
-        const b2cFields = ['id_name_b2c', 'id_phone_b2c']; // Removed email from required
+        const b2cFields = ['id_name_b2c', 'id_phone_b2c'];
         b2cFields.forEach(fieldId => {
             const field = document.getElementById(fieldId);
             if (field) {
@@ -541,7 +565,6 @@
             }
         });
 
-        // Explicitly remove required from email
         const emailField = document.getElementById('id_email_b2c');
         if (emailField) {
             emailField.removeAttribute('required');
@@ -626,7 +649,25 @@
         const errors = [];
         const errorDiv = document.getElementById('validationErrors');
 
-        // ... (validation logic unchanged)
+        if (clientType === 'B2B') {
+            if (step === 1) {
+                const company = document.getElementById('id_company');
+                const name = document.getElementById('id_name');
+                const email = document.getElementById('id_email');
+                const phone = document.getElementById('id_phone');
+
+                if (company && !company.value.trim()) errors.push('Company Name is required');
+                if (name && !name.value.trim()) errors.push('Contact Person is required');
+                if (email && !email.value.trim()) errors.push('Email is required');
+                if (phone && !phone.value.trim()) errors.push('Phone is required');
+            }
+        } else {
+            const name = document.getElementById('id_name_b2c');
+            const phone = document.getElementById('id_phone_b2c');
+
+            if (name && !name.value.trim()) errors.push('Contact Person is required');
+            if (phone && !phone.value.trim()) errors.push('Phone is required');
+        }
 
         if (errors.length > 0) {
             const html = '<strong>Please fix the following:</strong><ul>' +
@@ -636,7 +677,6 @@
                 errorDiv.innerHTML = html;
                 errorDiv.classList.remove('hidden');
             } else {
-                // defensive fallback if the div is missing in DOM
                 alert('Please fix the following:\n' + errors.join('\n'));
             }
             return false;
@@ -645,7 +685,6 @@
             return true;
         }
     }
-
 
     function updateButtons() {
         const prevBtn = document.getElementById('prevBtn');
@@ -678,7 +717,6 @@
             currentStepEl.textContent = currentStep;
         }
 
-        // Update step description
         const descriptions = {
             1: 'Core client details',
             2: 'Contacts & Brand',
@@ -690,54 +728,69 @@
         }
     }
 
-    // ================= Prefill Data Handling =================
+    // Prefill Data Handling
     {% if prefilled_lead %}
     document.addEventListener('DOMContentLoaded', function () {
         const prefilledData = {{ prefilled_lead| safe
     }};
 
-    // Always populate B2B fields (Django form fields get initial data automatically)
-    // For B2C fields, populate manually
     if (prefilledData.name) {
-        document.getElementById('id_name_b2c').value = prefilledData.name;
+        const b2bName = document.getElementById('id_name');
+        const b2cName = document.getElementById('id_name_b2c');
+        if (b2bName) b2bName.value = prefilledData.name;
+        if (b2cName) b2cName.value = prefilledData.name;
     }
     if (prefilledData.email) {
-        document.getElementById('id_email_b2c').value = prefilledData.email;
+        const b2bEmail = document.getElementById('id_email');
+        const b2cEmail = document.getElementById('id_email_b2c');
+        if (b2bEmail) b2bEmail.value = prefilledData.email;
+        if (b2cEmail) b2cEmail.value = prefilledData.email;
     }
     if (prefilledData.phone) {
-        document.getElementById('id_phone_b2c').value = prefilledData.phone;
+        const b2bPhone = document.getElementById('id_phone');
+        const b2cPhone = document.getElementById('id_phone_b2c');
+        if (b2bPhone) b2bPhone.value = prefilledData.phone;
+        if (b2cPhone) b2cPhone.value = prefilledData.phone;
     }
     if (prefilledData.preferred_channel) {
-        document.getElementById('id_preferred_channel_b2c').value = prefilledData.preferred_channel;
+        const b2bChannel = document.getElementById('id_preferred_channel');
+        const b2cChannel = document.getElementById('id_preferred_channel_b2c');
+        if (b2bChannel) b2bChannel.value = prefilledData.preferred_channel;
+        if (b2cChannel) b2cChannel.value = prefilledData.preferred_channel;
     }
     if (prefilledData.lead_source) {
-        document.getElementById('id_lead_source_b2c').value = prefilledData.lead_source;
+        const b2bSource = document.getElementById('id_lead_source');
+        const b2cSource = document.getElementById('id_lead_source_b2c');
+        if (b2bSource) b2bSource.value = prefilledData.lead_source;
+        if (b2cSource) b2cSource.value = prefilledData.lead_source;
     }
-
-    // Switch to B2C if that's the intended type (you might want to add logic here)
-    // For now, assume B2B is default but prefilled data indicates B2C
-});
+    });
     {% endif %}
 
-    // ================= Contact Management Fix =================
+    // Contact Management
     document.addEventListener('DOMContentLoaded', function () {
         const addContactBtn = document.getElementById('addContactBtn');
         if (addContactBtn) {
             addContactBtn.addEventListener('click', function (e) {
                 e.preventDefault();
 
-                // Get current input values
-                const nameInput = document.querySelector('input[placeholder="Enter full name"]');
-                const emailInput = document.querySelector('input[placeholder="Enter email"]');
-                const phoneInput = document.querySelector('input[placeholder="Enter phone number"]');
-                const roleSelect = document.querySelector('select');
+                const step2 = document.getElementById('step2');
+                const inputs = step2.querySelectorAll('input');
+                const nameInput = inputs[0];
+                const emailInput = inputs[1];
+                const phoneInput = inputs[2];
+                const roleSelect = step2.querySelector('select');
 
                 const currentName = nameInput ? nameInput.value : '';
                 const currentEmail = emailInput ? emailInput.value : '';
                 const currentPhone = phoneInput ? phoneInput.value : '';
                 const currentRole = roleSelect ? roleSelect.value : 'None';
 
-                // Create new contact container with current values
+                if (!currentName) {
+                    alert('Please enter a contact name');
+                    return;
+                }
+
                 const container = document.createElement('div');
                 container.classList.add('contact-item', 'p-4', 'border', 'rounded-lg', 'mt-4', 'bg-gray-50');
                 container.innerHTML = `
@@ -755,18 +808,16 @@
                 <button type="button" class="mt-2 text-red-600 text-sm hover:underline remove-contact">Remove</button>
             `;
 
-                // Add remove functionality
                 container.querySelector('.remove-contact').addEventListener('click', function () {
                     container.remove();
                 });
 
-                // Insert before the "No contacts added yet" message
                 const target = document.querySelector('#step2 .border-dashed');
                 if (target) {
                     target.parentNode.insertBefore(container, target);
+                    target.classList.add('hidden');
                 }
 
-                // Clear the input fields for next entry
                 if (nameInput) nameInput.value = '';
                 if (emailInput) emailInput.value = '';
                 if (phoneInput) phoneInput.value = '';
@@ -775,7 +826,7 @@
         }
     });
 
-    // ================= Brand Asset Upload Handling =================
+    // Brand Asset Upload
     document.addEventListener('DOMContentLoaded', function () {
         const brandDropZone = document.querySelector('.border-2.border-dashed');
         const brandFileInput = document.getElementById('brandFiles');
@@ -785,13 +836,12 @@
         brandAssetTypeSelect.className = 'w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white';
         brandAssetTypeSelect.innerHTML = `
         <option value="Logo">Logo</option>
-        <option value="Brand Guidelines">Brand Guidelines</option>
+        <option value="Brand Guide">Brand Guidelines</option>
         <option value="Color Palette">Color Palette</option>
-        <option value="Font Files">Font Files</option>
+        <option value="Font">Font Files</option>
         <option value="Other">Other</option>
     `;
 
-        // Add asset type selector above the drop zone
         if (brandDropZone) {
             const typeContainer = document.createElement('div');
             typeContainer.className = 'mb-4';
@@ -802,40 +852,14 @@
 
         let brandFiles = new Map();
 
-        // Drag and drop functionality
         if (brandDropZone && brandFileInput) {
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-                brandDropZone.addEventListener(eventName, preventDefaults, false);
+                brandDropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
             });
 
-            function preventDefaults(e) {
-                e.preventDefault();
-                e.stopPropagation();
-            }
-
-            ['dragenter', 'dragover'].forEach(eventName => {
-                brandDropZone.addEventListener(eventName, highlight, false);
-            });
-
-            ['dragleave', 'drop'].forEach(eventName => {
-                brandDropZone.addEventListener(eventName, unhighlight, false);
-            });
-
-            function highlight(e) {
-                brandDropZone.classList.add('border-blue-400', 'bg-blue-50');
-            }
-
-            function unhighlight(e) {
-                brandDropZone.classList.remove('border-blue-400', 'bg-blue-50');
-            }
-
-            brandDropZone.addEventListener('drop', handleDrop, false);
-
-            function handleDrop(e) {
-                const dt = e.dataTransfer;
-                const files = dt.files;
-                handleBrandFiles(files);
-            }
+            brandDropZone.addEventListener('drop', e => {
+                handleBrandFiles(e.dataTransfer.files);
+            }, false);
 
             brandDropZone.addEventListener('click', () => brandFileInput.click());
             brandFileInput.addEventListener('change', (e) => handleBrandFiles(e.target.files));
@@ -843,9 +867,7 @@
             function handleBrandFiles(files) {
                 Array.from(files).forEach(file => {
                     const key = `${file.name}_${file.size}_${file.lastModified}`;
-                    if (!brandFiles.has(key)) {
-                        brandFiles.set(key, file);
-                    }
+                    if (!brandFiles.has(key)) brandFiles.set(key, file);
                 });
                 renderBrandFiles();
             }
@@ -855,43 +877,34 @@
                 fileList.className = 'mt-4 space-y-2';
                 fileList.id = 'brandFileList';
 
-                if (brandFiles.size > 0) {
-                    brandFiles.forEach((file, key) => {
-                        const fileItem = document.createElement('div');
-                        fileItem.className = 'flex items-center justify-between bg-white p-2 rounded border';
-                        fileItem.innerHTML = `
+                brandFiles.forEach((file, key) => {
+                    const fileItem = document.createElement('div');
+                    fileItem.className = 'flex items-center justify-between bg-white p-2 rounded border';
+                    fileItem.innerHTML = `
                         <div class="text-sm">
                             <div>${file.name}</div>
                             <div class="text-xs text-gray-500">${(file.size / 1024).toFixed(1)} KB</div>
                         </div>
                         <button type="button" class="text-red-600 text-sm hover:underline remove-brand-file" data-key="${key}">Remove</button>
                     `;
-                        fileList.appendChild(fileItem);
-                    });
-                }
+                    fileList.appendChild(fileItem);
+                });
 
-                // Replace existing file list
                 const existingList = document.getElementById('brandFileList');
                 if (existingList) existingList.remove();
-
                 if (brandFiles.size > 0) {
                     brandDropZone.parentNode.appendChild(fileList);
-
-                    // Add remove functionality
                     document.querySelectorAll('.remove-brand-file').forEach(btn => {
                         btn.addEventListener('click', function () {
-                            const key = this.getAttribute('data-key');
-                            brandFiles.delete(key);
+                            brandFiles.delete(this.getAttribute('data-key'));
                             renderBrandFiles();
                         });
                     });
                 }
             }
         }
-    });
 
-    // ================= File Upload Handling (Compliance) =================
-    (function () {
+        // Compliance Upload
         const uploadBtn = document.getElementById('uploadBtn');
         const fileInput = document.getElementById('complianceFiles');
         const filesList = document.getElementById('filesList');
@@ -900,14 +913,9 @@
         const selected = new Map();
 
         if (uploadBtn && fileInput) {
-            uploadBtn.addEventListener('click', e => {
-                e.preventDefault();
-                fileInput.click();
-            });
-
+            uploadBtn.addEventListener('click', e => { e.preventDefault(); fileInput.click(); });
             fileInput.addEventListener('change', e => {
-                const files = Array.from(e.target.files);
-                files.forEach(file => {
+                Array.from(e.target.files).forEach(file => {
                     const key = `${file.name}__${file.size}__${file.lastModified}`;
                     if (!selected.has(key)) selected.set(key, file);
                 });
@@ -917,7 +925,6 @@
 
             function renderFiles() {
                 if (!filesList || !noFiles || !filesCount) return;
-
                 filesList.innerHTML = '';
                 if (selected.size === 0) {
                     noFiles.style.display = 'block';
@@ -930,108 +937,182 @@
                 selected.forEach((file, key) => {
                     const li = document.createElement('li');
                     li.className = 'flex items-center justify-between bg-white p-2 rounded border';
-
-                    const left = document.createElement('div');
-                    left.className = 'text-sm';
-                    left.innerHTML = `<div>${file.name}</div><div class="text-xs text-gray-500">${Math.round(file.size / 1024)} KB</div>`;
-
-                    const removeBtn = document.createElement('button');
-                    removeBtn.type = 'button';
-                    removeBtn.className = 'text-red-600 text-sm hover:underline';
-                    removeBtn.textContent = 'Remove';
-                    removeBtn.addEventListener('click', () => {
-                        selected.delete(key);
+                    li.innerHTML = `
+                        <div class="text-sm">
+                            <div>${file.name}</div>
+                            <div class="text-xs text-gray-500">${Math.round(file.size / 1024)} KB</div>
+                        </div>
+                        <button type="button" class="text-red-600 text-sm hover:underline remove-file" data-key="${key}">Remove</button>
+                    `;
+                    li.querySelector('.remove-file').addEventListener('click', function () {
+                        selected.delete(this.getAttribute('data-key'));
                         renderFiles();
                     });
-
-                    const right = document.createElement('div');
-                    right.appendChild(removeBtn);
-                    li.appendChild(left);
-                    li.appendChild(right);
                     filesList.appendChild(li);
                 });
             }
 
             const form = document.getElementById('onboardingForm');
             if (form) {
-                form.addEventListener('submit', function (e) {
-                    // Re-enable all fields before submission so they get sent
-                    if (clientType === 'B2C') {
-                        // Enable B2C fields, disable B2B fields
-                        document.querySelectorAll('#b2cFields input, #b2cFields select').forEach(field => {
-                            field.disabled = false;
-                        });
-                        document.querySelectorAll('#b2bFields input, #b2bFields select').forEach(field => {
-                            field.disabled = true;
-                        });
-                    } else {
-                        // Enable B2B fields, disable B2C fields
-                        document.querySelectorAll('#b2bFields input, #b2bFields select').forEach(field => {
-                            field.disabled = false;
-                        });
-                        document.querySelectorAll('#b2cFields input, #b2cFields select').forEach(field => {
-                            field.disabled = true;
-                        });
-                    }
-
-                    // Final validation before submit
-                    if (clientType === 'B2B' && currentStep !== totalSteps) {
-                        e.preventDefault();
-                        alert('Please complete all steps before submitting');
-                        return;
-                    }
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
 
                     if (!validateStep(currentStep)) {
-                        e.preventDefault();
                         return;
                     }
 
-                    // If B2B and has files, attach them properly
-                    if ((selected.size > 0 || brandFiles.size > 0) && clientType === 'B2B') {
-                        e.preventDefault();
-                        const url = form.action || window.location.href;
-                        const fd = new FormData(form);
-                        selected.forEach(file => fd.append('compliance_files', file));
-                        brandFiles.forEach(file => fd.append('brand_files', file));
+                    const submitBtn = document.getElementById('submitBtn');
+                    const originalText = submitBtn?.innerHTML;
+                    
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = 'Saving...';
+                    }
 
-                        // Disable submit button to prevent double submission
-                        const submitBtn = document.getElementById('submitBtn');
-                        if (submitBtn) {
-                            submitBtn.disabled = true;
-                            submitBtn.innerHTML = 'Saving...';
+                    try {
+                        // Collect form data BEFORE disabling fields
+                        const formData = new FormData(form);
+                        const clientData = {};
+                        
+                        // Get client type to know which fields are allowed
+                        const clientType = formData.get('client_type') || 'B2B';
+
+                        // Map B2C field names to API field names
+                        const fieldNameMap = {
+                            'name_b2c': 'name',
+                            'company_b2c': 'company',
+                            'email_b2c': 'email',
+                            'phone_b2c': 'phone',
+                            'preferred_channel_b2c': 'preferred_channel',
+                            'lead_source_b2c': 'lead_source',
+                            'delivery_address_b2c': 'delivery_address',
+                        };
+
+                        // Collect all fields (only client fields, not contact fields)
+                        const allFormData = new FormData(form);
+                        for (let [key, value] of allFormData.entries()) {
+                            // Skip contact fields, button values, and file inputs
+                            if (!key.includes('contact_') && !key.startsWith('submit') && !(value instanceof File)) {
+                                // Convert to string and trim, only add if not empty
+                                const stringValue = String(value).trim();
+                                if (stringValue !== '') {
+                                    // Map B2C field names to standard names
+                                    const apiKey = fieldNameMap[key] || key;
+                                    
+                                    if (key === 'is_reseller') {
+                                        // Handle checkbox
+                                        clientData[apiKey] = stringValue === 'on' || stringValue === 'true';
+                                    } else {
+                                        clientData[apiKey] = stringValue;
+                                    }
+                                }
+                            }
                         }
-
-                        fetch(url, {
-                            method: 'POST',
-                            body: fd,
-                            headers: { 'X-Requested-With': 'XMLHttpRequest' },
-                            credentials: 'same-origin'
-                        }).then(resp => {
-                            if (resp.redirected) {
-                                window.location.href = resp.url;
-                                return;
-                            }
-                            return resp.text();
-                        }).then(text => {
-                            if (text && text.includes('<!DOCTYPE')) {
-                                // It's HTML, probably a redirect page
-                                window.location.reload();
-                            }
-                        }).catch(err => {
-                            console.error(err);
-                            alert('Upload failed — check console for details.');
+                        
+                        // Validate required fields
+                        if (!clientData.name) {
+                            showToast('Contact Person is required', 'warning');
                             if (submitBtn) {
                                 submitBtn.disabled = false;
-                                submitBtn.innerHTML = '<svg class="w-4 h-4 mr-2 inline" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>Save Client';
+                                submitBtn.innerHTML = originalText;
                             }
-                        });
+                            return;
+                        }
+                        
+                        // Email is required for B2B, optional for B2C
+                        if (clientType === 'B2B' && !clientData.email) {
+                            showToast('Email is required for B2B clients', 'warning');
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalText;
+                            }
+                            return;
+                        }
+                        
+                        if (!clientData.phone) {
+                            showToast('Phone is required', 'warning');
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalText;
+                            }
+                            return;
+                        }
+                        
+                        // For B2B, ensure company is set
+                        if (clientType === 'B2B' && !clientData.company) {
+                            showToast('Company Name is required for B2B clients', 'warning');
+                            if (submitBtn) {
+                                submitBtn.disabled = false;
+                                submitBtn.innerHTML = originalText;
+                            }
+                            return;
+                        }
+
+                        // Collect contacts for later (contacts field is read-only, must be created separately)
+                        const contacts = [];
+                        const contactNames = formData.getAll('contact_name[]') || [];
+                        const contactEmails = formData.getAll('contact_email[]') || [];
+                        const contactPhones = formData.getAll('contact_phone[]') || [];
+                        const contactRoles = formData.getAll('contact_role[]') || [];
+
+                        for (let i = 0; i < contactNames.length; i++) {
+                            if (contactNames[i]) {
+                                contacts.push({
+                                    full_name: contactNames[i],
+                                    email: contactEmails[i] || '',
+                                    phone: contactPhones[i] || '',
+                                    role: contactRoles[i] || 'General Contact',
+                                    is_primary: i === 0
+                                });
+                            }
+                        }
+
+                        console.log('Client data to send:', clientData);
+
+                        // Create client via API (DO NOT include contacts - field is read-only)
+                        const response = await api.post('/clients/', clientData);
+
+                        showToast('Client created successfully!', 'success');
+                        
+                        setTimeout(() => {
+                            window.location.href = `/clients/${response.id}/`;
+                        }, 1500);
+
+                    } catch (error) {
+                        console.error('Error creating client:', error);
+                        console.error('Error details:', error.data || error.message);
+                        
+                        // Show detailed error message
+                        let errorMsg = 'Failed to create client';
+                        if (error.data && typeof error.data === 'object') {
+                            // If error.data has field-specific errors
+                            if (error.data.detail) {
+                                errorMsg = error.data.detail;
+                            } else {
+                                // Show first error if it's a dict of field errors
+                                const firstError = Object.values(error.data)[0];
+                                if (Array.isArray(firstError)) {
+                                    errorMsg = firstError[0];
+                                } else if (typeof firstError === 'string') {
+                                    errorMsg = firstError;
+                                } else {
+                                    errorMsg = JSON.stringify(error.data).substring(0, 200);
+                                }
+                            }
+                        } else if (error.message) {
+                            errorMsg = error.message;
+                        }
+                        
+                        showToast(`Error: ${errorMsg}`, 'error');
+                        
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.innerHTML = originalText;
+                        }
                     }
-                    // Otherwise let form submit normally
                 });
             }
         }
-    })();
+    });
 </script>
-
-
 {% endblock %}

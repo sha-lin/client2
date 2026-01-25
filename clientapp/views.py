@@ -768,6 +768,10 @@ def product_catalog(request):
     search = request.GET.get('search', '').strip()
     product_type = request.GET.get('product_type', 'all')
     availability = request.GET.get('availability', 'all')
+    category = request.GET.get('category', 'all')
+    customization = request.GET.get('customization', 'all')
+    stock_status = request.GET.get('stock_status', 'all')
+    status = request.GET.get('status', 'all')
 
     # Only show published and visible products
     products = Product.objects.filter(
@@ -784,12 +788,26 @@ def product_catalog(request):
     if availability != 'all':
         products = products.filter(availability=availability)
     
+    if category != 'all':
+        products = products.filter(primary_category=category)
+    
+    if customization != 'all':
+        products = products.filter(customization_level=customization)
+    
+    if stock_status != 'all':
+        products = products.filter(stock_status=stock_status)
+    
+    if status != 'all':
+        products = products.filter(status=status)
+    
     context = {
         'current_view': 'product_catalog',
         'products': products.order_by('name'),
         'search': search,
         'product_type': product_type,
         'availability': availability,
+        'selected_category': category,
+        'selected_status': status,
     }
     
     return render(request, 'product_catalog.html', context)
@@ -1034,6 +1052,7 @@ def client_onboarding(request):
                 phone = request.POST.get('phone_b2c', '').strip()  # Required
                 preferred_channel = request.POST.get('preferred_channel_b2c', 'Email')
                 lead_source = request.POST.get('lead_source_b2c', '')
+                delivery_address = request.POST.get('delivery_address_b2c', '').strip()
                 
                 # Validate required B2C fields
                 if not name:
@@ -1051,7 +1070,7 @@ def client_onboarding(request):
                     r'^254[17]\d{8}$',
                     r'^0[17]\d{8}$',
                 ]
-                is_valid_phone = any(re.match(pattern, phone_cleaned) for pattern in kenyan_patterns)
+                is_valid_phone = any(re.match(pattern, phone_cleaned) for pattern in kenyans_patterns)
 
                 if not is_valid_phone:
                     messages.error(request, 'Please enter a valid Kenya n phone number(+254)')
@@ -1074,14 +1093,8 @@ def client_onboarding(request):
                     return redirect('client_onboarding')
 
                 # LEAD CONVERSION CHECK (B2C)
-                # Check if this phone/email belongs to a Lead
+                # Check if this phone/email belongs to a Lead and link it
                 existing_lead = Lead.objects.filter(Q(phone=phone) | Q(email=email) if email else Q(phone=phone)).first()
-                if existing_lead:
-                    # Check if Lead has an APPROVED quote
-                    has_approved_quote = Quote.objects.filter(lead=existing_lead, status='Approved').exists()
-                    if not has_approved_quote:
-                        messages.error(request, f"Cannot onboard Lead '{existing_lead.name}' yet. They must approve a quote first.")
-                        return redirect('client_onboarding')
                 
                 # Create B2C client
                 client = Client.objects.create(
@@ -1098,8 +1111,17 @@ def client_onboarding(request):
                     is_reseller=False,
                     status='Active',
                     onboarded_by=request.user,
-                    account_manager=request.user
+                    account_manager=request.user,
+                    converted_from_lead=existing_lead,
+                    delivery_address=delivery_address
                 )
+                
+                # If lead exists, mark it as converted
+                if existing_lead:
+                    existing_lead.status = 'Converted'
+                    existing_lead.converted_to_client = True
+                    existing_lead.converted_at = timezone.now()
+                    existing_lead.save()
                 
                 # Log activity
                 ActivityLog.objects.create(
@@ -1125,6 +1147,7 @@ def client_onboarding(request):
                 phone = request.POST.get('phone', '').strip()
                 preferred_channel = request.POST.get('preferred_channel', 'Email')
                 lead_source = request.POST.get('lead_source', '')
+                delivery_address = request.POST.get('delivery_address', '').strip()
                 
                 # Financial fields
                 vat_tax_id = request.POST.get('vat_tax_id', '')
@@ -1142,14 +1165,9 @@ def client_onboarding(request):
                     messages.error(request, f'A client with email {email} already exists')
                     return redirect('client_onboarding')
 
-                # LEAD CONVERSION CHECK (B2B) - Enforce approved quote requirement
+                # LEAD CONVERSION CHECK (B2B) - Link lead if exists
                 existing_lead = Lead.objects.filter(Q(email=email) | Q(phone=phone)).first()
-                if existing_lead:
-                    # Check if Lead has an APPROVED quote
-                    has_approved_quote = Quote.objects.filter(lead=existing_lead, status='Approved').exists()
-                    if not has_approved_quote:
-                        messages.error(request, f"Cannot onboard Lead '{existing_lead.name}' yet. They must approve a quote first.")
-                        return redirect('client_onboarding')
+                # (Removed strict approved quote requirement for direct onboarding)
                 
                 # Create B2B client
                 client = Client.objects.create(
@@ -1166,8 +1184,17 @@ def client_onboarding(request):
                     is_reseller=is_reseller,
                     status='Active',
                     onboarded_by=request.user,
-                    account_manager=request.user
+                    account_manager=request.user,
+                    converted_from_lead=existing_lead,
+                    delivery_address=delivery_address
                 )
+
+                # If lead exists, mark it as converted
+                if existing_lead:
+                    existing_lead.status = 'Converted'
+                    existing_lead.converted_to_client = True
+                    existing_lead.converted_at = timezone.now()
+                    existing_lead.save()
                 
                 # STEP 2: Contacts
                 contact_names = request.POST.getlist('contact_name[]')
@@ -1575,6 +1602,8 @@ def quote_create(request):
                
                 
                 # Create line items with pricing
+                subtotal = Decimal('0')
+                discount_total = Decimal('0')
                 total_amount = Decimal('0')
                 has_fully_customizable = False
                 
@@ -1928,7 +1957,7 @@ def client_profile(request, pk):
 
     # DOCUMENTS
     compliance_documents = ComplianceDocument.objects.filter(client=client)
-    brand_assets = BrandAsset.objects.filter(client=client) if hasattr(client, 'brand_assets') else []
+    brand_assets = BrandAsset.objects.filter(client=client)
 
     # CONTACTS
     client_contacts = ClientContact.objects.filter(client=client)
@@ -3700,11 +3729,9 @@ def production2_dashboard(request):
             job.urgency_label = f"{days_left} days left"
     
     
-    # Show jobs created by user
+    # Show jobs created by user or assigned to user
     my_active_jobs = Job.objects.filter(
-        Q(created_by=user) | 
-        Q(person_in_charge__icontains=user.first_name) | 
-        Q(person_in_charge__icontains=user.username),
+        Q(created_by=user) | Q(person_in_charge=user),
         status__in=['pending', 'in_progress']
     ).select_related('client').order_by('expected_completion')[:5]
     
@@ -3724,9 +3751,8 @@ def production2_dashboard(request):
             job.deadline_warning = False
             job.deadline_text = job.expected_completion.strftime("%b %d")
 
-   
-    # Jobs completed byuser
-    user_jobs_query = Q(created_by=user) | Q(person_in_charge__icontains=user.first_name) | Q(person_in_charge__icontains=user.username)
+    # Jobs completed by user
+    user_jobs_query = Q(created_by=user) | Q(person_in_charge=user)
     
     user_jobs_total = Job.objects.filter(user_jobs_query).count()
     user_jobs_completed = Job.objects.filter(
@@ -4894,6 +4920,39 @@ import json
 from decimal import Decimal
 
 @login_required
+def product_detail(request, pk):
+    """Display comprehensive product details - Read-only view"""
+    product = get_object_or_404(Product, pk=pk)
+    
+    # Fetch all related data
+    images = ProductImage.objects.filter(product=product).order_by('display_order')
+    pricing = ProductPricing.objects.filter(product=product)
+    change_history = ProductChangeHistory.objects.filter(product=product).order_by('-changed_at')[:20]
+    
+    # Try to get SEO data if it exists
+    seo_data = None
+    try:
+        seo_data = ProductSEO.objects.get(product=product)
+    except ProductSEO.DoesNotExist:
+        pass
+    
+    # Check if user is in Production Team group
+    is_production_team = request.user.groups.filter(name='Production Team').exists()
+    
+    context = {
+        'product': product,
+        'images': images,
+        'pricing': pricing,
+        'seo_data': seo_data,
+        'change_history': change_history,
+        'is_production_team': is_production_team,
+        'current_view': 'product_catalog',
+    }
+    
+    return render(request, 'product_detail_view.html', context)
+
+
+@login_required
 @group_required('Production Team')
 @transaction.atomic
 def product_create(request):
@@ -5088,6 +5147,45 @@ def product_edit(request, pk):
         try:
             action = request.POST.get('action', 'save_draft')
             next_tab = request.POST.get('next_tab', '')
+            
+            # Handle auto-save - return JSON response
+            if action == 'auto_save':
+                try:
+                    from django.http import QueryDict
+                    general_post_data = QueryDict(mutable=True)
+                    for key in request.POST.keys():
+                        if key != 'base_price':
+                            values = request.POST.getlist(key)
+                            for value in values:
+                                general_post_data.appendlist(key, value)
+                    
+                    general_form = ProductGeneralInfoForm(general_post_data, instance=product)
+                    
+                    if general_form.is_valid():
+                        product = general_form.save(commit=False)
+                        product.updated_by = request.user
+                        customization_level = request.POST.get('customization_level', 'non_customizable')
+                        if customization_level:
+                            product.customization_level = customization_level
+                        product.save(skip_validation=True)
+                        general_form.save_m2m()
+                        
+                        return JsonResponse({
+                            'success': True,
+                            'message': 'Product auto-saved successfully',
+                            'timestamp': timezone.now().isoformat()
+                        })
+                    else:
+                        return JsonResponse({
+                            'success': False,
+                            'message': 'Validation failed',
+                            'errors': general_form.errors
+                        }, status=400)
+                except Exception as e:
+                    return JsonResponse({
+                        'success': False,
+                        'message': str(e)
+                    }, status=400)
            
             from django.http import QueryDict
             general_post_data = QueryDict(mutable=True)
@@ -6161,7 +6259,7 @@ def my_jobs(request):
     """Show jobs for production team"""
     
     # Get all jobs
-    jobs = Job.objects.select_related('client').order_by('-created_at')
+    jobs = Job.objects.select_related('client').prefetch_related('vendor_stages').order_by('-created_at')
     
     # Apply filters
     status_filter = request.GET.get('status', '')
@@ -6181,6 +6279,18 @@ def my_jobs(request):
     jobs_list = []
     
     for job in jobs:
+        # Check if job has been assigned to vendors
+        vendor_stages = job.vendor_stages.all()
+        vendor_count = vendor_stages.count()
+        
+        # Determine vendor assignment status
+        if vendor_count > 0:
+            # Get unique vendors assigned
+            vendors_assigned = list(set([vs.vendor.name for vs in vendor_stages]))
+            vendor_status = f"Assigned to {', '.join(vendors_assigned[:2])}" + ("..." if len(vendors_assigned) > 2 else "")
+        else:
+            vendor_status = "Not Assigned"
+        
         # Determine status class
         days_until_deadline = (job.expected_completion - today).days
         
@@ -6213,6 +6323,8 @@ def my_jobs(request):
             'quantity': job.quantity,
             'status_class': status_class,
             'status_label': job.get_status_display(),
+            'vendor_status': vendor_status,
+            'vendor_count': vendor_count,
             'deadline': job.expected_completion,
             'deadline_time': job.expected_completion.strftime("%I:%M %p") if hasattr(job.expected_completion, 'strftime') else "12:00 PM",
             'days_remaining': f"{days_until_deadline} days" if days_until_deadline > 0 else f"Overdue by {abs(days_until_deadline)} days",
@@ -9388,6 +9500,21 @@ def performance(request):
         'quality_score': 98,
         'avg_turnaround': 4.2,
         'current_view': 'performance'
+    })
+
+@login_required
+def vendor_proofs(request):
+    """QC Proofs page for vendors"""
+    vendor = get_object_or_404(Vendor, user=request.user)
+    
+    proofs = PurchaseOrderProof.objects.filter(
+        purchase_order__vendor=vendor
+    ).select_related('purchase_order', 'uploaded_by').order_by('-created_at')
+    
+    return render(request, 'vendor/proofs_complete.html', {
+        'proofs': proofs,
+        'vendor': vendor,
+        'current_view': 'proofs'
     })
 
 @login_required

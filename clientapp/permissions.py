@@ -72,3 +72,31 @@ class IsClientOwner(permissions.BasePermission):
         
         return portal_user.client == obj_client
 
+
+class IsVendor(permissions.BasePermission):
+    """Allow Vendor Portal Users - vendors who have active user profile"""
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        # Check if user is associated with an active vendor
+        try:
+            from .models import Vendor
+            return Vendor.objects.filter(user=request.user, active=True).exists()
+        except:
+            return False
+    
+    def has_object_permission(self, request, view, obj):
+        """Vendor can only access their own purchase orders"""
+        if not request.user or not request.user.is_authenticated:
+            return False
+        try:
+            from .models import Vendor
+            vendor = Vendor.objects.get(user=request.user, active=True)
+            # Check if object is owned by this vendor
+            if hasattr(obj, 'vendor'):
+                return obj.vendor == vendor
+            return False
+        except:
+            return False
+
