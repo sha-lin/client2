@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Your Invoice</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        .header { background-color: #1f2937; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background-color: white; padding: 30px; border-radius: 0 0 5px 5px; }
+        .button { display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .invoice-box { background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .payment-details { background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background-color: #f3f4f6; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Invoice</h1>
+        </div>
+        <div class="content">
+            <h2>Hello {{ customer_name }}!</h2>
+            
+            <p>Thank you for your order! Your invoice is attached and also displayed below.</p>
+            
+            <div class="invoice-box">
+                <div style="display: flex; justify-content: space-between;">
+                    <div>
+                        <p><strong>Invoice #:</strong> {{ invoice_number }}</p>
+                        <p><strong>Invoice Date:</strong> {{ invoice_date }}</p>
+                        <p><strong>Due Date:</strong> {{ due_date }}</p>
+                    </div>
+                    <div>
+                        <p><strong>Order #:</strong> {{ order_number }}</p>
+                        <p><strong>Quote #:</strong> {{ quote_number }}</p>
+                        <p><strong>Status:</strong> <span style="color: #f59e0b;">{{ status }}</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <h3>Bill To:</h3>
+            <p>
+                {{ customer_name }}<br>
+                {{ customer_company }}<br>
+                {{ customer_address }}<br>
+                {{ customer_city }}, {{ customer_country }}<br>
+                Phone: <a href="tel:{{ customer_phone }}">{{ customer_phone }}</a><br>
+                Email: <a href="mailto:{{ customer_email }}">{{ customer_email }}</a>
+            </p>
+            
+            <h3>Order Details</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in line_items %}
+                    <tr>
+                        <td>{{ item.description }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>KES {{ item.unit_price|floatformat:2 }}</td>
+                        <td>KES {{ item.amount|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="invoice-box" style="text-align: right;">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Subtotal:</span>
+                    <span>KES {{ subtotal|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Tax (18%):</span>
+                    <span>KES {{ tax_amount|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 16px; font-weight: bold; margin-top: 10px; border-top: 2px solid #1f2937; padding-top: 10px;">
+                    <span>Total Amount:</span>
+                    <span style="color: #3b82f6;">KES {{ total_amount|floatformat:2 }}</span>
+                </div>
+            </div>
+            
+            <div class="payment-details">
+                <h3 style="margin-top: 0;">Payment Details</h3>
+                <p><strong>Payment Method:</strong> {{ payment_method }}</p>
+                <p><strong>Account Name:</strong> {{ account_name }}</p>
+                <p><strong>Account Number:</strong> {{ account_number }}</p>
+                <p><strong>Bank:</strong> {{ bank_name }}</p>
+                <p><strong>Reference:</strong> {{ payment_reference }}</p>
+                <p style="color: #92400e; margin-top: 10px;"><strong>Note:</strong> Please include the reference number in your payment for quick processing.</p>
+            </div>
+            
+            <h3>Delivery Information</h3>
+            <ul>
+                <li><strong>Delivery Address:</strong> {{ delivery_address }}</li>
+                <li><strong>Delivery Method:</strong> {{ delivery_method }}</li>
+                <li><strong>Expected Delivery Date:</strong> {{ delivery_date }}</li>
+                <li><strong>Tracking Number:</strong> {{ tracking_number }}</li>
+            </ul>
+            
+            <div style="text-align: center;">
+                <a href="{{ invoice_download_link }}" class="button">Download Invoice (PDF)</a>
+            </div>
+            
+            <p>
+                <strong>Questions about your invoice?</strong>
+                <ul>
+                    <li>Email: <a href="mailto:{{ support_email }}">{{ support_email }}</a></li>
+                    <li>Phone: <a href="tel:{{ phone_number }}">{{ phone_number }}</a></li>
+                    <li>WhatsApp: <a href="https://wa.me/{{ whatsapp_number }}">{{ whatsapp_number }}</a></li>
+                </ul>
+            </p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 {{ company_name }}. All rights reserved.</p>
+            <p>This is an automated email. Please do not reply directly.</p>
+        </div>
+    </div>
+</body>
+</html>

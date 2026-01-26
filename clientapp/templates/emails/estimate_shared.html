@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Your Estimate Quote</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        .header { background-color: #059669; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background-color: white; padding: 30px; border-radius: 0 0 5px 5px; }
+        .button { display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .quote-details { background-color: #f3f4f6; padding: 15px; border-radius: 5px; margin: 20px 0; }
+        .line-item { border-bottom: 1px solid #e5e7eb; padding: 10px 0; }
+        .line-item:last-child { border-bottom: none; }
+        .totals { border-top: 2px solid #1f2937; padding-top: 10px; margin-top: 10px; }
+        .total-amount { font-size: 18px; font-weight: bold; color: #059669; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin: 15px 0; }
+        th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+        th { background-color: #f3f4f6; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Your Estimate Quote is Ready</h1>
+        </div>
+        <div class="content">
+            <h2>Hello {{ customer_name }}!</h2>
+            
+            <p>Thank you for your interest! We've prepared an estimate quote based on your requirements.</p>
+            
+            <div class="quote-details">
+                <p><strong>Estimate ID:</strong> {{ estimate_id }}</p>
+                <p><strong>Quote Date:</strong> {{ created_date }}</p>
+                <p><strong>Valid Until:</strong> {{ expiry_date }}</p>
+            </div>
+            
+            <h3>Quote Summary</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in line_items %}
+                    <tr>
+                        <td>{{ item.product_name }}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>KES {{ item.unit_price|floatformat:2 }}</td>
+                        <td>KES {{ item.line_total|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="quote-details">
+                <div style="display: flex; justify-content: space-between;">
+                    <span><strong>Subtotal:</strong></span>
+                    <span>KES {{ subtotal|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span><strong>Tax (18%):</strong></span>
+                    <span>KES {{ tax_amount|floatformat:2 }}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 10px;">
+                    <span class="total-amount">Total Amount:</span>
+                    <span class="total-amount">KES {{ total_amount|floatformat:2 }}</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <p><strong>Turnaround Time:</strong> {{ turnaround_days }} days</p>
+                    <p><strong>Delivery Method:</strong> {{ delivery_method }}</p>
+                    <p><strong>Payment Terms:</strong> {{ payment_terms }}</p>
+                </div>
+            </div>
+            
+            <p><strong>Special Notes:</strong></p>
+            <p>{{ special_notes }}</p>
+            
+            <div style="text-align: center;">
+                <a href="{{ quote_link }}" class="button">View Full Quote</a>
+            </div>
+            
+            <p>
+                <strong>Next Steps:</strong>
+                <ol>
+                    <li>Review the quote details</li>
+                    <li>Contact us with any questions or modifications</li>
+                    <li>Approve the quote to proceed to invoice</li>
+                </ol>
+            </p>
+            
+            <p>Have questions? Reach out to us:</p>
+            <ul>
+                <li>WhatsApp: <a href="https://wa.me/{{ whatsapp_number }}">{{ whatsapp_number }}</a></li>
+                <li>Email: <a href="mailto:{{ support_email }}">{{ support_email }}</a></li>
+                <li>Phone: <a href="tel:{{ phone_number }}">{{ phone_number }}</a></li>
+            </ul>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 {{ company_name }}. All rights reserved.</p>
+            <p>This is an automated email. Please do not reply directly.</p>
+        </div>
+    </div>
+</body>
+</html>

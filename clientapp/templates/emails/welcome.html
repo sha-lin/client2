@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta content="width=device-width, initial-scale=1" name="viewport">
+    <title>Welcome to {{ company_name }}</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        .header { background-color: #1f2937; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { background-color: white; padding: 30px; border-radius: 0 0 5px 5px; }
+        .button { display: inline-block; background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+        .highlight { color: #3b82f6; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Welcome to {{ company_name }}!</h1>
+        </div>
+        <div class="content">
+            <h2>Hello {{ first_name }}!</h2>
+            
+            <p>Thank you for registering with us. We're excited to have you on board!</p>
+            
+            <p>Your account has been successfully created with the following details:</p>
+            <ul>
+                <li><strong>Email:</strong> {{ email }}</li>
+                <li><strong>Customer ID:</strong> <span class="highlight">{{ customer_id }}</span></li>
+            </ul>
+            
+            <p>You can now:</p>
+            <ul>
+                <li>Browse our product catalog</li>
+                <li>Create and share estimate quotes</li>
+                <li>Track your orders in real-time</li>
+                <li>Chat with our sales team</li>
+                <li>Manage your profile and preferences</li>
+            </ul>
+            
+            <p>
+                <a href="{{ login_url }}" class="button">Log In to Your Account</a>
+            </p>
+            
+            <p>If you have any questions or need assistance, feel free to:</p>
+            <ul>
+                <li>Chat with us on WhatsApp: <a href="https://wa.me/{{ whatsapp_number }}">{{ whatsapp_number }}</a></li>
+                <li>Call us: <a href="tel:{{ phone_number }}">{{ phone_number }}</a></li>
+                <li>Email us: <a href="mailto:{{ support_email }}">{{ support_email }}</a></li>
+            </ul>
+            
+            <p><strong>Welcome aboard!</strong></p>
+            <p>Best regards,<br>The {{ company_name }} Team</p>
+        </div>
+        <div class="footer">
+            <p>&copy; 2026 {{ company_name }}. All rights reserved.</p>
+            <p>This is an automated email. Please do not reply directly.</p>
+        </div>
+    </div>
+</body>
+</html>

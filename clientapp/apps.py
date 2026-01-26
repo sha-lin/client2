@@ -5,6 +5,6 @@ class ClientappConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
     name = 'clientapp'
 
-def ready(self):
-    import clientapp.signals
+    def ready(self):
+        import clientapp.storefront_signals
 

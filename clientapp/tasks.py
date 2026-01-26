@@ -385,3 +385,247 @@ try:
 except ImportError:
     # Celery not installed, tasks will be called directly via APScheduler
     logger.info("Celery not available, scheduled tasks will use APScheduler or direct calls")
+
+
+# ===================== STOREFRONT CELERY TASKS =====================
+
+try:
+    from celery import shared_task
+    from django.template.loader import render_to_string
+    from django.core.mail import EmailMultiAlternatives
+
+    # Email Tasks
+    @shared_task(bind=True, max_retries=3)
+    def send_email_async(self, email_type, recipient_email, context=None, **kwargs):
+        """Send email asynchronously with template rendering."""
+        context = context or {}
+        
+        email_templates = {
+            'welcome': 'emails/welcome.html',
+            'registration_verification': 'emails/registration_verification.html',
+            'estimate_shared': 'emails/estimate_shared.html',
+            'quote_approved': 'emails/quote_approved.html',
+            'invoice': 'emails/invoice_notification.html',
+        }
+        
+        try:
+            if email_type not in email_templates:
+                logger.error(f"Unknown email type: {email_type}")
+                return {'status': 'error', 'message': 'Unknown email type'}
+            
+            template_path = email_templates[email_type]
+            html_content = render_to_string(template_path, context)
+            
+            email = EmailMultiAlternatives(
+                subject=context.get('subject', f'{email_type} Notification'),
+                body=f"Please view this email in HTML format.",
+                from_email='noreply@storefront.local',
+                to=[recipient_email]
+            )
+            
+            email.attach_alternative(html_content, "text/html")
+            email.send(fail_silently=False)
+            
+            logger.info(f"Email sent: {email_type} to {recipient_email}")
+            return {'status': 'success', 'message': 'Email sent'}
+            
+        except Exception as exc:
+            logger.error(f"Error sending {email_type} email: {str(exc)}")
+            try:
+                raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+            except self.MaxRetriesExceededError:
+                logger.error(f"Max retries exceeded for {email_type} email")
+                return {'status': 'failed', 'message': 'Max retries exceeded'}
+
+    @shared_task(bind=True, max_retries=3)
+    def send_whatsapp_async(self, phone_number, message_text, media_url=None, **kwargs):
+        """Send WhatsApp message asynchronously."""
+        try:
+            from .storefront_utils import WhatsAppService
+            result = WhatsAppService.send_message(phone_number, message_text, media_url)
+            logger.info(f"WhatsApp sent to {phone_number}")
+            return {'status': 'success', 'result': result}
+        except Exception as exc:
+            logger.error(f"Error sending WhatsApp: {str(exc)}")
+            try:
+                raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+            except self.MaxRetriesExceededError:
+                logger.error(f"Max retries exceeded for WhatsApp")
+                return {'status': 'failed'}
+
+    # Webhook Tasks
+    @shared_task(bind=True, max_retries=3)
+    def process_webhook(self, webhook_type, webhook_data, **kwargs):
+        """Process incoming webhooks from payment gateways, WhatsApp, email."""
+        try:
+            logger.info(f"Processing {webhook_type} webhook")
+            
+            if webhook_type == 'payment':
+                transaction_id = webhook_data.get('transaction_id')
+                status = webhook_data.get('status')
+                amount = webhook_data.get('amount')
+                logger.info(f"Payment: {transaction_id} - {status} - {amount}")
+                
+            elif webhook_type == 'whatsapp_delivery':
+                message_id = webhook_data.get('message_id')
+                status = webhook_data.get('status')
+                logger.info(f"WhatsApp delivery: {message_id} - {status}")
+                
+            elif webhook_type == 'email_delivery':
+                message_id = webhook_data.get('message_id')
+                status = webhook_data.get('status')
+                logger.info(f"Email delivery: {message_id} - {status}")
+            
+            return {'status': 'processed', 'webhook_type': webhook_type}
+            
+        except Exception as exc:
+            logger.error(f"Error processing webhook: {str(exc)}")
+            try:
+                raise self.retry(exc=exc, countdown=60)
+            except self.MaxRetriesExceededError:
+                logger.error(f"Max retries exceeded for webhook")
+                return {'status': 'failed'}
+
+    # Scheduled Tasks
+    @shared_task
+    def archive_expired_estimates():
+        """Automatically archive expired estimate quotes. Runs daily via Celery Beat."""
+        try:
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            now = timezone.now()
+            expired = EstimateQuote.objects.filter(
+                expires_at__lt=now,
+                status__in=['draft_unsaved', 'shared_with_am']
+            )
+            
+            count = expired.count()
+            expired.update(status='archived')
+            
+            logger.info(f"Archived {count} expired estimates")
+            return {'status': 'success', 'archived_count': count}
+            
+        except Exception as exc:
+            logger.error(f"Error in archive_expired_estimates: {str(exc)}")
+            return {'status': 'error', 'message': str(exc)}
+
+    @shared_task
+    def send_expiring_estimate_reminders():
+        """Send reminders for estimates expiring within 2 days. Runs daily."""
+        try:
+            from datetime import timedelta
+            
+            now = timezone.now()
+            expiring_soon = EstimateQuote.objects.filter(
+                expires_at__gte=now,
+                expires_at__lte=now + timedelta(days=2),
+                status='shared_with_am'
+            )
+            
+            count = 0
+            for estimate in expiring_soon:
+                send_email_async.delay(
+                    'estimate_shared',
+                    estimate.customer_email,
+                    {'estimate_id': estimate.estimate_id}
+                )
+                count += 1
+            
+            logger.info(f"Sent {count} expiring estimate reminders")
+            return {'status': 'success', 'reminder_count': count}
+            
+        except Exception as exc:
+            logger.error(f"Error in send_expiring_estimate_reminders: {str(exc)}")
+            return {'status': 'error', 'message': str(exc)}
+
+    @shared_task
+    def update_production_unit_status():
+        """Update production unit statuses based on timelines. Runs every 6 hours."""
+        try:
+            now = timezone.now().date()
+            
+            units_to_start = ProductionUnit.objects.filter(
+                expected_start_date__lte=now,
+                status='pending_po'
+            )
+            units_to_start.update(status='in_progress')
+            started = units_to_start.count()
+            
+            overdue_units = ProductionUnit.objects.filter(
+                expected_end_date__lt=now,
+                status__in=['pending_po', 'in_progress']
+            )
+            overdue_units.update(status='delayed')
+            delayed = overdue_units.count()
+            
+            logger.info(f"Updated {started} units to in_progress, {delayed} to delayed")
+            return {'status': 'success', 'started': started, 'delayed': delayed}
+            
+        except Exception as exc:
+            logger.error(f"Error in update_production_unit_status: {str(exc)}")
+            return {'status': 'error', 'message': str(exc)}
+
+    @shared_task
+    def generate_daily_report():
+        """Generate daily report of new orders, quotes, messages. Runs daily at 8 AM."""
+        try:
+            from datetime import timedelta
+            
+            now = timezone.now()
+            yesterday = now - timedelta(days=1)
+            
+            new_estimates = EstimateQuote.objects.filter(
+                created_at__gte=yesterday,
+                created_at__lt=now
+            ).count()
+            
+            new_messages = StorefrontMessage.objects.filter(
+                created_at__gte=yesterday,
+                created_at__lt=now
+            ).count()
+            
+            unassigned_messages = StorefrontMessage.objects.filter(
+                status='new',
+                assigned_to__isnull=True
+            ).count()
+            
+            report = {
+                'date': now.strftime('%Y-%m-%d'),
+                'new_estimates': new_estimates,
+                'new_messages': new_messages,
+                'unassigned_messages': unassigned_messages,
+            }
+            
+            logger.info(f"Daily report: {report}")
+            return {'status': 'success', 'report': report}
+            
+        except Exception as exc:
+            logger.error(f"Error in generate_daily_report: {str(exc)}")
+            return {'status': 'error', 'message': str(exc)}
+
+    @shared_task
+    def cleanup_old_conversations():
+        """Archive old chatbot conversations (older than 90 days). Runs weekly."""
+        try:
+            from datetime import timedelta
+            
+            cutoff_date = timezone.now() - timedelta(days=90)
+            
+            old_conversations = ChatbotConversation.objects.filter(
+                ended_at__lt=cutoff_date,
+                resolved=True
+            )
+            
+            count = old_conversations.count()
+            old_conversations.delete()
+            
+            logger.info(f"Cleaned up {count} old conversations")
+            return {'status': 'success', 'deleted_count': count}
+            
+        except Exception as exc:
+            logger.error(f"Error in cleanup_old_conversations: {str(exc)}")
+            return {'status': 'error', 'message': str(exc)}
+
+except ImportError:
+    logger.info("Celery tasks for storefront available when Celery is installed")
