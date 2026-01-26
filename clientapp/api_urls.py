@@ -2,6 +2,7 @@ from rest_framework.routers import DefaultRouter
 from django.urls import path
 
 from . import api_views
+from . import storefront_views
 
 router = DefaultRouter()
 
@@ -117,21 +118,24 @@ router.register("client-documents", api_views.ClientDocumentLibraryViewSet, base
 router.register("client-notifications", api_views.ClientPortalNotificationViewSet, basename="client-notification")
 router.register("client-activity-logs", api_views.ClientActivityLogViewSet, basename="client-activity-log")
 
-# Storefront Ecommerce APIs
-# router.register("storefront/customers", api_views.CustomerViewSet, basename="storefront-customer")
-# router.register("storefront/addresses", api_views.CustomerAddressViewSet, basename="storefront-address")
-# router.register("storefront/carts", api_views.CartViewSet, basename="storefront-cart")
-# router.register("storefront/orders", api_views.OrderViewSet, basename="storefront-order")
-# router.register("storefront/coupons", api_views.CouponViewSet, basename="storefront-coupon")
-# router.register("storefront/design-templates", api_views.DesignTemplateViewSet, basename="storefront-design-template")
-# router.register("storefront/design-states", api_views.DesignStateViewSet, basename="storefront-design-state")
-# router.register("storefront/reviews", api_views.ProductReviewViewSet, basename="storefront-review")
-# router.register("storefront/shipping-methods", api_views.ShippingMethodViewSet, basename="storefront-shipping-method")
-# router.register("storefront/tax-configurations", api_views.TaxConfigurationViewSet, basename="storefront-tax-config")
-# router.register("storefront/design-sessions", api_views.DesignSessionViewSet, basename="storefront-design-session")
-# router.register("storefront/design-versions", api_views.DesignVersionViewSet, basename="storefront-design-version")
-# router.register("storefront/proof-approvals", api_views.ProofApprovalViewSet, basename="storefront-proof-approval")
-# router.register("storefront/promotions", api_views.PromotionViewSet, basename="storefront-promotion")
+# ============================================================================
+# STOREFRONT ECOMMERCE APIs
+# ============================================================================
+
+# Public product catalog (no auth)
+router.register("storefront/public-products", storefront_views.StorefrontProductViewSet, basename="storefront-public-product")
+
+# Estimate quotes
+router.register("storefront/estimates", storefront_views.EstimateQuoteViewSet, basename="storefront-estimate")
+
+# Production units
+router.register("storefront/production-units", storefront_views.ProductionUnitViewSet, basename="production-unit")
+
+# Chatbot conversations
+router.register("storefront/chatbot-conversations", storefront_views.ChatbotConversationViewSet, basename="chatbot-conversation")
+
+# Storefront messages (for AM)
+router.register("storefront/messages", storefront_views.StorefrontMessageViewSet, basename="storefront-message")
 
 
 urlpatterns = router.urls + [
@@ -141,5 +145,20 @@ urlpatterns = router.urls + [
     path('product-configurations/validate/', api_views.ProductConfigurationValidationView.as_view(), name='product-config-validate'),
     # Preflight Service
     path('files/preflight/', api_views.PreflightView.as_view(), name='preflight'),
+    
+    # ============================================================================
+    # STOREFRONT ECOMMERCE ENDPOINTS
+    # ============================================================================
+    
+    # Customer Authentication
+    path('storefront/auth/register/', storefront_views.CustomerRegistrationView.as_view(), name='storefront-register'),
+    path('storefront/auth/profile/', storefront_views.CustomerProfileViewSet.as_view({'get': 'list', 'put': 'update'}), name='storefront-profile'),
+    
+    # Contact & Messaging
+    path('storefront/contact/email/', storefront_views.ContactEmailView.as_view(), name='storefront-contact-email'),
+    path('storefront/contact/whatsapp/', storefront_views.ContactWhatsAppView.as_view(), name='storefront-contact-whatsapp'),
+    path('storefront/contact/call/', storefront_views.CallRequestView.as_view(), name='storefront-contact-call'),
+    
+    # Chatbot
+    path('storefront/chatbot/message/', storefront_views.ChatbotMessageView.as_view(), name='storefront-chatbot-message'),
 ]
-
