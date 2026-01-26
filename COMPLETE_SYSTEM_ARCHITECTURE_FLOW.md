@@ -1437,55 +1437,79 @@ GET    /api/v1/webhook-deliveries/             # Webhook delivery log
    └─ Logs ActivityLog entry
 
 3. QUOTE CREATION (Account Manager)
-   ├─ POST /api/v1/quotes/
-   ├─ Select qualified lead (convert to client)
+   ├─ POST /api/v1/quotes/create_from_lead/
+   ├─ Request: { "lead_id": 1, "quantity": 500 }
+   ├─ Quote linked to Lead (NOT to Client yet)
    ├─ Add quote line items with products
    ├─ System calculates pricing
    ├─ Status: "Draft"
    └─ Generate quote_id: QT-YYYY-XXX
+   
+   ⚠️ Note: At this stage, NO CLIENT is created
+       Lead remains a Lead, not yet converted
 
-4. SEND QUOTE TO CLIENT (Account Manager)
-   ├─ POST /api/v1/quotes/{id}/send/
-   ├─ Status: "Draft" → "Sent"
-   ├─ Send email to client
+4. SEND QUOTE TO LEAD (Account Manager)
+   ├─ POST /api/v1/quotes/{id}/send_to_customer/
+   ├─ Status: "Draft" → "Sent to Customer"
+   ├─ Send email to lead (prospect, not yet a client)
    ├─ Create notification
    ├─ Set valid_until (3 days default)
    └─ Logs ActivityLog entry
 
-5. CLIENT REVIEWS QUOTE (Client Portal User)
-   ├─ Link in email → Client Portal
-   ├─ Status: "Sent" → "Viewed"
+5. LEAD REVIEWS QUOTE (Prospect/Lead)
+   ├─ Link in email → Review quote
+   ├─ Status: "Sent to Customer" → "Viewed"
    ├─ Notification to AM about view
    └─ 7-day countdown started
 
-6. CLIENT APPROVES QUOTE (Client Portal User)
+6. LEAD APPROVES QUOTE (Prospect/Lead)
    ├─ POST /api/v1/quotes/{id}/approve/
    ├─ Status: "Viewed" → "Approved"
    ├─ Recorded approval_by, approval_date
+   ├─ Creates LPO automatically
+   ├─ Creates Job automatically
    ├─ Notification to AM
    └─ Logs ActivityLog entry
 
 7. CONVERT TO JOB (Account Manager)
-   ├─ POST /api/v1/quotes/{id}/convert_to_job/
+   ├─ POST /api/v1/quotes/{id}/approve/
    ├─ Check if approved (precondition)
    ├─ Status: "Approved" → "Converted"
    ├─ Create Job from quote:
    │  ├─ job_number: JOB-YYYY-XXX
    │  ├─ Link to quote
-   │  ├─ Link to client
+   │  ├─ Link to client (if exists)
    │  ├─ Copy product details
    │  └─ Status: "pending"
    ├─ Assign to PT member (optional)
-   ├─ Lead marked as converted_to_client = true
-   ├─ Create Client from Lead (if new)
-   │  ├─ client_id: CL-YYYY-XXX
-   │  ├─ Convert lead details
-   │  ├─ Set account_manager
-   │  └─ Status: "Active"
    ├─ Create Notification to PT
    └─ Logs ActivityLog entry
 
-8. LEAD REJECTED (Client Portal User)
+   ⚠️ Important: Job is created from approved quote
+      BUT Lead is NOT automatically converted to Client yet
+
+8. LEAD CONVERTED TO CLIENT (Account Manager - SEPARATE STEP)
+   ├─ POST /api/v1/leads/{id}/convert/
+   ├─ MANDATORY PRECONDITION: Lead must have at least ONE approved quote
+   ├─ If precondition met:
+   │  ├─ Request body: { "client_type": "B2B", "company": "...", ... }
+   │  ├─ Create Client from Lead:
+   │  │  ├─ client_id: CL-YYYY-XXX
+   │  │  ├─ Convert lead details
+   │  │  ├─ Set account_manager
+   │  │  ├─ Set converted_from_lead = Lead
+   │  │  └─ Status: "Active"
+   │  ├─ Link all quotes from this lead to the new client
+   │  ├─ Create B2B details: contacts, compliance docs, brand assets (optional)
+   │  ├─ Update Lead.converted_to_client = true
+   │  ├─ Update Lead.status = "Converted"
+   │  ├─ Create Notification to AM
+   │  └─ Logs ActivityLog entry
+   │
+   └─ If NO approved quote exists:
+      └─ Return 400 Error: "Lead can only be converted after at least one approved quote"
+
+8. LEAD REJECTED (Prospect/Lead - Optional Path)
    ├─ POST /api/v1/quotes/{id}/reject/
    ├─ Status: "Viewed" → "Rejected"
    ├─ Notification to AM
