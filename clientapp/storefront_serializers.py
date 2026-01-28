@@ -64,7 +64,24 @@ class EstimateQuoteCreateSerializer(serializers.ModelSerializer):
         ]
     
     def create(self, validated_data):
-        return EstimateQuote.objects.create(**validated_data)
+        # Extract line_items from validated_data since it's a nested serializer
+        line_items_data = validated_data.pop('line_items', [])
+        
+        # Convert Decimal fields to strings for JSON storage
+        for item in line_items_data:
+            if 'unit_price' in item:
+                item['unit_price'] = str(item['unit_price'])
+            if 'line_total' in item:
+                item['line_total'] = str(item['line_total'])
+        
+        # Create the estimate
+        estimate = EstimateQuote.objects.create(**validated_data)
+        
+        # Store line items as JSON (they're already dictionaries from the nested serializer)
+        estimate.line_items = line_items_data
+        estimate.save()
+        
+        return estimate
 
 
 class EstimateQuoteSerializer(serializers.ModelSerializer):
@@ -275,3 +292,16 @@ class CustomerPreferencesSerializer(serializers.ModelSerializer):
         fields = [
             'communication_channel', 'language', 'newsletter_subscribed'
         ]
+
+
+class QuoteListSerializer(serializers.Serializer):
+    """Serializer for customer's saved quotes list"""
+    id = serializers.IntegerField()
+    quote_id = serializers.CharField()
+    status = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=15, decimal_places=2)
+    created_at = serializers.DateTimeField()
+    modified_at = serializers.DateTimeField()
+    customer_name = serializers.CharField(source='customer.name', read_only=True)
+    customer_email = serializers.CharField(source='customer.email', read_only=True)
+

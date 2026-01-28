@@ -7,4 +7,5 @@ class ClientappConfig(AppConfig):
 
     def ready(self):
         import clientapp.storefront_signals
+        import clientapp.signals  # Auto-audit signals for product changes
 

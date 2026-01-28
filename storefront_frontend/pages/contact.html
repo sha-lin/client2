@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - Storefront</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/storefront_frontend/css/styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="/storefront/">🛍️ Storefront</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storefront/products/">Products</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storefront/quote-builder/">Quote Builder</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/storefront/contact/">Contact</a>
+                    </li>
+                    <li class="nav-item" id="navbar-auth">
+                        <a class="nav-link" href="/storefront/login/">Login</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="py-4 bg-light">
+        <div class="container">
+            <h1>Contact Us</h1>
+            <p class="text-muted">Get in touch with our team</p>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row">
+                <!-- Contact Info -->
+                <div class="col-lg-4 mb-5">
+                    <div class="card mb-4">
+                        <div class="card-body text-center">
+                            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📧</div>
+                            <h5 class="card-title">Email</h5>
+                            <p class="card-text">
+                                <a href="mailto:support@storefront.com">support@storefront.com</a>
+                            </p>
+                            <p class="text-muted small">We'll respond within 24 hours</p>
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
+                        <div class="card-body text-center">
+                            <div style="font-size: 2.5rem; margin-bottom: 1rem;">📞</div>
+                            <h5 class="card-title">Phone</h5>
+                            <p class="card-text">
+                                <a href="tel:+15551234567">+1 (555) 123-4567</a>
+                            </p>
+                            <p class="text-muted small">Mon-Fri 9AM-5PM EST</p>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-body text-center">
+                            <div style="font-size: 2.5rem; margin-bottom: 1rem;">💬</div>
+                            <h5 class="card-title">Live Chat</h5>
+                            <p class="card-text">Chat with our support team</p>
+                            <button class="btn btn-sm btn-primary" onclick="openChatbot()">Start Chat</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Form -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Send us a Message</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="contact-form">
+                                <div class="form-group mb-3">
+                                    <label for="contact-name" class="form-label">Full Name *</label>
+                                    <input type="text" class="form-control" id="contact-name" required>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label for="contact-email" class="form-label">Email Address *</label>
+                                    <input type="email" class="form-control" id="contact-email" required>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label for="contact-phone" class="form-label">Phone Number</label>
+                                    <input type="tel" class="form-control" id="contact-phone">
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label for="contact-channel" class="form-label">Preferred Contact Method *</label>
+                                    <select class="form-select" id="contact-channel" required>
+                                        <option value="">Select method...</option>
+                                        <option value="email">Email</option>
+                                        <option value="phone">Phone Call</option>
+                                        <option value="whatsapp">WhatsApp</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label for="contact-subject" class="form-label">Subject *</label>
+                                    <select class="form-select" id="contact-subject" required>
+                                        <option value="">Select subject...</option>
+                                        <option value="pricing">Pricing Inquiry</option>
+                                        <option value="product">Product Question</option>
+                                        <option value="order">Order Status</option>
+                                        <option value="support">Technical Support</option>
+                                        <option value="feedback">Feedback</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group mb-3">
+                                    <label for="contact-message" class="form-label">Message *</label>
+                                    <textarea class="form-control" id="contact-message" rows="5" required></textarea>
+                                </div>
+
+                                <div class="form-check mb-3">
+                                    <input type="checkbox" class="form-check-input" id="contact-subscribe" checked>
+                                    <label class="form-check-label" for="contact-subscribe">
+                                        Subscribe to our newsletter
+                                    </label>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-lg w-100">Send Message</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <h2 class="text-center mb-5">Frequently Asked Questions</h2>
+            <div class="row">
+                <div class="col-lg-8 offset-lg-2">
+                    <div class="accordion" id="faqAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                                    How long does it take to get a quote?
+                                </button>
+                            </h2>
+                            <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Most quotes are generated instantly using our quote builder. For custom requests, our team will respond within 24 hours.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                                    What payment methods do you accept?
+                                </button>
+                            </h2>
+                            <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    We accept all major credit cards, bank transfers, and purchase orders for qualified customers.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                                    Can I track my order?
+                                </button>
+                            </h2>
+                            <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Yes! Log into your account to track your order in real-time from production to delivery.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4">
+                                    Do you offer bulk discounts?
+                                </button>
+                            </h2>
+                            <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Yes, our pricing tiers offer discounts for larger quantities. Contact us for volume pricing.
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="accordion-item">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5">
+                                    What is your return policy?
+                                </button>
+                            </h2>
+                            <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    We stand behind our products 100%. If you're not satisfied, contact us within 30 days for a full refund or replacement.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>About Us</h5>
+                    <p>We provide high-quality products and exceptional service to our customers worldwide.</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/storefront/products/" class="text-white-50">Products</a></li>
+                        <li><a href="/storefront/contact/" class="text-white-50">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>Contact Info</h5>
+                    <p class="mb-1"><strong>Email:</strong> support@storefront.com</p>
+                    <p class="mb-1"><strong>Phone:</strong> +1 (555) 123-4567</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/storefront_frontend/js/utils.js"></script>
+    <script src="/static/storefront_frontend/js/api-client.js"></script>
+    <script>
+        const api = new StorefrontAPIClient();
+
+        document.getElementById('contact-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('contact-name').value;
+            const email = document.getElementById('contact-email').value;
+            const phone = document.getElementById('contact-phone').value;
+            const channel = document.getElementById('contact-channel').value;
+            const subject = document.getElementById('contact-subject').value;
+            const message = document.getElementById('contact-message').value;
+
+            if (!StorefrontUtils.isValidEmail(email)) {
+                StorefrontUtils.showToast('Please enter a valid email', 'error');
+                return;
+            }
+
+            try {
+                StorefrontUtils.showLoading('Sending message...');
+
+                if (channel === 'email') {
+                    await api.sendEmailInquiry(subject, message, email, name, phone);
+                } else if (channel === 'phone') {
+                    await api.requestCall(phone, null, message);
+                } else if (channel === 'whatsapp') {
+                    await api.sendWhatsAppInquiry(phone, message, name);
+                }
+
+                StorefrontUtils.hideLoading();
+                StorefrontUtils.showToast('Message sent successfully! We\'ll be in touch soon.', 'success');
+
+                // Clear form
+                this.reset();
+            } catch (error) {
+                StorefrontUtils.hideLoading();
+                StorefrontUtils.showToast(error.message || 'Error sending message', 'error');
+            }
+        });
+
+        function openChatbot() {
+            StorefrontUtils.showToast('Chat widget coming soon!', 'info');
+        }
+    </script>
+</body>
+</html>

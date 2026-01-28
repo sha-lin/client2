@@ -13,11 +13,13 @@ from django.utils import timezone
 from django.db.models import Q
 from decimal import Decimal
 import uuid
+import secrets
+import string
 
 from clientapp.models import (
-    StorefrontProduct, EstimateQuote, StorefrontCustomer,
+    EstimateQuote, StorefrontCustomer,
     StorefrontMessage, ChatbotConversation, QuotePricingSnapshot,
-    ProductionUnit, Lead, Quote
+    ProductionUnit, Lead, Quote, StorefrontProduct
 )
 from clientapp.storefront_serializers import (
     StorefrontProductSerializer, EstimateQuoteSerializer,
@@ -30,6 +32,9 @@ from clientapp.storefront_serializers import (
     QuotePricingSnapshotSerializer, CustomerPreferencesSerializer,
     CustomerRegistrationSerializer, EstimateQuoteShareSerializer,
     ProductPriceCalculationSerializer
+)
+from clientapp.storefront_services import (
+    EmailService, MessagingService, TaxService, ChatbotService
 )
 
 
@@ -101,13 +106,20 @@ class StorefrontProductViewSet(viewsets.ReadOnlyModelViewSet):
         
         line_total = (unit_price * quantity) + surcharge
         
+        # Calculate tax
+        tax_amount = TaxService.calculate_tax(line_total)
+        total_with_tax = line_total + tax_amount
+        
         return Response({
             'product_id': product.product_id,
             'quantity': quantity,
             'unit_price': str(unit_price),
             'surcharge': str(surcharge),
-            'line_total': str(line_total),
-            'turnaround_time': turnaround
+            'subtotal': str(line_total),
+            'tax_amount': str(tax_amount),
+            'total': str(total_with_tax),
+            'turnaround_time': turnaround,
+            'tax_rate': str(TaxService.get_tax_rate())
         })
 
 
@@ -144,7 +156,9 @@ class EstimateQuoteViewSet(viewsets.ModelViewSet):
             total_amount=estimate.total_amount
         )
         
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        # Return full estimate serializer (includes estimate_id and share_token)
+        return_serializer = EstimateQuoteSerializer(estimate)
+        return Response(return_serializer.data, status=status.HTTP_201_CREATED)
     
     @action(detail=False, methods=['get'], permission_classes=[permissions.AllowAny])
     def by_token(self, request):
@@ -171,11 +185,12 @@ class EstimateQuoteViewSet(viewsets.ModelViewSet):
     def share(self, request):
         """Share estimate quote via WhatsApp/Email"""
         estimate_id = request.data.get('estimate_id')
-        channel = request.data.get('channel')
+        channel = request.data.get('channel')  # 'whatsapp' or 'email'
+        recipient = request.data.get('recipient')  # phone or email
         
-        if not estimate_id or not channel:
+        if not estimate_id or not channel or not recipient:
             return Response(
-                {'detail': 'estimate_id and channel required'},
+                {'detail': 'estimate_id, channel, and recipient required'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -187,23 +202,80 @@ class EstimateQuoteViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_404_NOT_FOUND
             )
         
+        # Generate share link
+        share_link = f"{request.META.get('HTTP_ORIGIN')}/quotes/{estimate.share_token}"
+        
         # Update status
         estimate.status = 'shared_with_am'
         estimate.shared_via = channel
         estimate.share_timestamp = timezone.now()
         estimate.save()
         
-        # TODO: Send via WhatsApp/Email (integration in Phase 2)
-        # - Generate share link
-        # - Send message to sales team
-        # - Create notification
+        # Send via chosen channel
+        success = False
+        if channel == 'email':
+            success = EmailService.send_estimate_shared_email(estimate, recipient, share_link)
+        elif channel == 'whatsapp':
+            success = MessagingService.send_estimate_via_whatsapp(estimate, recipient, share_link)
         
-        return Response({
-            'success': True,
-            'estimate_id': estimate.estimate_id,
-            'share_link': f"http://storefront.example.com/quotes/{estimate.share_token}",
-            'message': f'Estimate shared via {channel}'
-        })
+        if success:
+            return Response({
+                'success': True,
+                'estimate_id': estimate.estimate_id,
+                'share_link': share_link,
+                'message': f'Estimate shared via {channel}'
+            })
+        else:
+            return Response(
+                {'detail': f'Failed to send via {channel}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @action(detail=True, methods=['post'], url_path='share-whatsapp', permission_classes=[permissions.AllowAny])
+    def share_whatsapp(self, request, pk=None):
+        """Share a specific estimate via WhatsApp (by id)"""
+        try:
+            estimate = self.get_object()
+        except EstimateQuote.DoesNotExist:
+            return Response({'detail': 'Estimate not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        recipient = request.data.get('phone')
+        if not recipient:
+            return Response({'detail': 'phone required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        share_link = f"{request.META.get('HTTP_ORIGIN')}/quotes/{estimate.share_token}"
+        success = MessagingService.send_estimate_via_whatsapp(estimate, recipient, share_link)
+
+        if success:
+            estimate.status = 'shared_with_am'
+            estimate.shared_via = 'whatsapp'
+            estimate.share_timestamp = timezone.now()
+            estimate.save()
+            return Response({'success': True, 'estimate_id': estimate.estimate_id, 'share_link': share_link})
+        return Response({'detail': 'Failed to send whatsapp'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+    @action(detail=True, methods=['post'], url_path='share-email', permission_classes=[permissions.AllowAny])
+    def share_email(self, request, pk=None):
+        """Share a specific estimate via Email (by id)"""
+        try:
+            estimate = self.get_object()
+        except EstimateQuote.DoesNotExist:
+            return Response({'detail': 'Estimate not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        recipient = request.data.get('email')
+        if not recipient:
+            return Response({'detail': 'email required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        share_link = f"{request.META.get('HTTP_ORIGIN')}/quotes/{estimate.share_token}"
+        success = EmailService.send_estimate_shared_email(estimate, recipient, share_link)
+
+        if success:
+            estimate.status = 'shared_with_am'
+            estimate.shared_via = 'email'
+            estimate.share_timestamp = timezone.now()
+            estimate.save()
+            return Response({'success': True, 'estimate_id': estimate.estimate_id, 'share_link': share_link})
+        return Response({'detail': 'Failed to send email'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=False, methods=['post'])
     def convert_to_quote(self, request):
@@ -269,6 +341,28 @@ class EstimateQuoteViewSet(viewsets.ModelViewSet):
             'quote_id': quote.quote_id,
             'message': 'Estimate converted to official quote'
         })
+    
+    @action(detail=True, methods=['post'])
+    def archive(self, request, pk=None):
+        """Archive an estimate quote"""
+        estimate = self.get_object()
+        estimate.archived = True
+        estimate.status = 'archived'
+        estimate.save()
+        
+        return Response({
+            'success': True,
+            'estimate_id': estimate.estimate_id,
+            'archived': True,
+            'message': 'Estimate archived'
+        })
+    
+    @action(detail=True, methods=['get'])
+    def edit(self, request, pk=None):
+        """Get estimate data for editing (for AM)"""
+        estimate = self.get_object()
+        serializer = self.get_serializer(estimate)
+        return Response(serializer.data)
 
 
 # ============================================================================
@@ -295,7 +389,16 @@ class CustomerRegistrationView(APIView):
             company=request.data.get('company', '')
         )
         
-        # TODO: Send verification email
+        # Generate email verification token
+        verification_token = secrets.token_urlsafe(32)
+        
+        # Store token in customer profile (you may want to add this field to model)
+        # For now, using a simple approach - store in session/cache
+        from django.core.cache import cache
+        cache.set(f'email_verification_{user.email}', verification_token, 86400)  # 24 hours
+        
+        # Send verification email
+        EmailService.send_email_verification(user, verification_token)
         
         # Generate tokens
         refresh = RefreshToken.for_user(user)
@@ -308,6 +411,135 @@ class CustomerRegistrationView(APIView):
             'access_token': str(refresh.access_token),
             'refresh_token': str(refresh)
         }, status=status.HTTP_201_CREATED)
+
+
+class EmailVerificationView(APIView):
+    """Verify customer email address"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        """Verify email with token"""
+        token = request.data.get('token')
+        email = request.data.get('email')
+        
+        if not token or not email:
+            return Response(
+                {'detail': 'token and email required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Check token in cache
+            from django.core.cache import cache
+            stored_token = cache.get(f'email_verification_{email}')
+            
+            if not stored_token or stored_token != token:
+                return Response(
+                    {'detail': 'Invalid or expired verification token'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Get user and mark as verified
+            user = User.objects.get(email=email)
+            customer = StorefrontCustomer.objects.get(user=user)
+            customer.email_verified = True
+            customer.save()
+            
+            # Clear token from cache
+            cache.delete(f'email_verification_{email}')
+            
+            return Response({
+                'success': True,
+                'message': 'Email verified successfully'
+            })
+        except User.DoesNotExist:
+            return Response(
+                {'detail': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'detail': f'Verification failed: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class PhoneVerificationView(APIView):
+    """Send and verify OTP for phone number"""
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        """Send OTP to phone number"""
+        phone = request.data.get('phone')
+        action = request.data.get('action', 'send')  # send or verify
+        
+        if not phone:
+            return Response(
+                {'detail': 'phone number required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        if action == 'send':
+            # Generate OTP
+            otp = ''.join(secrets.choice(string.digits) for _ in range(6))
+            
+            # Store OTP in cache (10 minutes)
+            from django.core.cache import cache
+            cache.set(f'phone_otp_{phone}', otp, 600)
+            
+            # Send OTP via SMS
+            success = MessagingService.send_otp_sms(phone, otp)
+            
+            if success:
+                return Response({
+                    'success': True,
+                    'message': f'OTP sent to {phone}'
+                })
+            else:
+                return Response(
+                    {'detail': 'Failed to send OTP'},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+        
+        elif action == 'verify':
+            otp_code = request.data.get('otp')
+            if not otp_code:
+                return Response(
+                    {'detail': 'otp required'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            try:
+                from django.core.cache import cache
+                stored_otp = cache.get(f'phone_otp_{phone}')
+                
+                if not stored_otp or stored_otp != otp_code:
+                    return Response(
+                        {'detail': 'Invalid or expired OTP'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Find customer and mark phone as verified
+                try:
+                    customer = StorefrontCustomer.objects.get(phone=phone)
+                    customer.phone_verified = True
+                    customer.save()
+                except StorefrontCustomer.DoesNotExist:
+                    pass  # Phone not linked to customer yet
+                
+                # Clear OTP from cache
+                cache.delete(f'phone_otp_{phone}')
+                
+                return Response({
+                    'success': True,
+                    'message': 'Phone verified successfully'
+                })
+            except Exception as e:
+                return Response(
+                    {'detail': f'Verification failed: {str(e)}'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
 
 
 class CustomerProfileViewSet(viewsets.ViewSet):
@@ -396,7 +628,11 @@ class ContactEmailView(APIView):
             status='new'
         )
         
-        # TODO: Send email to sales team
+        # Send confirmation email to customer
+        EmailService.send_inquiry_confirmation(message)
+        
+        # Notify sales team
+        EmailService.notify_sales_team_inquiry(message)
         
         return Response({
             'success': True,
@@ -427,12 +663,19 @@ class ContactWhatsAppView(APIView):
             status='new'
         )
         
-        # TODO: Send WhatsApp message
+        # Send WhatsApp message
+        MessagingService.send_whatsapp_message(
+            data['phone'],
+            f"Hi {data['name']}, thanks for reaching out! Our team will get back to you soon."
+        )
+        
+        # Notify sales team via email
+        EmailService.notify_sales_team_inquiry(message)
         
         return Response({
             'success': True,
             'message_id': message.message_id,
-            'whatsapp_link': f"https://wa.me/{request.data.get('phone')}"
+            'whatsapp_link': f"https://wa.me/{data['phone']}"
         })
 
 
@@ -458,7 +701,16 @@ class CallRequestView(APIView):
             status='new'
         )
         
-        # TODO: Send notification to sales team
+        # Send confirmation SMS/email to customer
+        EmailService.send_inquiry_confirmation(message)
+        MessagingService.send_whatsapp_message(
+            data['phone'],
+            f"Hi {data['name']}, we received your call request for {data['preferred_time']}. "
+            f"Our team will call you soon!"
+        )
+        
+        # Notify sales team
+        EmailService.notify_sales_team_inquiry(message)
         
         return Response({
             'success': True,
@@ -471,16 +723,26 @@ class StorefrontMessageViewSet(viewsets.ModelViewSet):
     """List and manage storefront messages (for AM)"""
     queryset = StorefrontMessage.objects.all()
     serializer_class = StorefrontMessageSerializer
-    permission_classes = [permissions.IsAuthenticated]  # TODO: IsAccountManager
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         """Filter messages for assigned AM"""
-        queryset = super().get_queryset()
+        from clientapp.storefront_permissions import IsAccountManager
         
-        # Show assigned to current user or unassigned
-        queryset = queryset.filter(
-            Q(assigned_to=self.request.user) | Q(assigned_to__isnull=True)
-        )
+        # Check if user is account manager
+        is_am = IsAccountManager().has_permission(self.request, self)
+        
+        if is_am:
+            queryset = super().get_queryset()
+            # Show assigned to current user or unassigned
+            queryset = queryset.filter(
+                Q(assigned_to=self.request.user) | Q(assigned_to__isnull=True)
+            )
+        else:
+            # Non-AM users can only see their own messages
+            queryset = StorefrontMessage.objects.filter(
+                customer_email=self.request.user.email
+            )
         
         return queryset.order_by('-created_at')
     
@@ -550,9 +812,10 @@ class ChatbotMessageView(APIView):
             'action': None
         })
         
-        # TODO: Process message with chatbot AI/intent matching
-        # For now, return simple response
-        bot_response = "Thank you for your message. A sales team member will respond shortly."
+        # Detect intent and generate response
+        intent = ChatbotService.detect_intent(message_text)
+        bot_response = ChatbotService.generate_response(intent, message_text)
+        suggestions = ChatbotService.get_suggested_actions(intent)
         
         # Add bot response
         conversation.messages.append({
@@ -567,11 +830,8 @@ class ChatbotMessageView(APIView):
         return Response({
             'conversation_id': conversation.conversation_id,
             'response': bot_response,
-            'suggestions': [
-                'View Products',
-                'Create Quote',
-                'Speak to Sales'
-            ]
+            'suggestions': suggestions,
+            'intent': intent
         })
 
 
@@ -579,7 +839,20 @@ class ChatbotConversationViewSet(viewsets.ReadOnlyModelViewSet):
     """View chatbot conversations (for analytics)"""
     queryset = ChatbotConversation.objects.all()
     serializer_class = ChatbotConversationSerializer
-    permission_classes = [permissions.IsAuthenticated]  # TODO: IsAccountManager
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter conversations - only AM/Staff can view"""
+        from clientapp.storefront_permissions import IsAccountManager
+        
+        is_am = IsAccountManager().has_permission(self.request, self)
+        if is_am or self.request.user.is_staff:
+            return super().get_queryset()
+        
+        # Regular users can only see their own conversations
+        return ChatbotConversation.objects.filter(
+            session_id=self.request.session.get('session_key', '')
+        )
 
 
 # ============================================================================
@@ -589,7 +862,7 @@ class ChatbotConversationViewSet(viewsets.ReadOnlyModelViewSet):
 class ProductionUnitViewSet(viewsets.ModelViewSet):
     """Job production units (for PT)"""
     queryset = ProductionUnit.objects.all()
-    permission_classes = [permissions.IsAuthenticated]  # TODO: IsProductionTeam
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_serializer_class(self):
         if self.action == 'create':
@@ -598,6 +871,12 @@ class ProductionUnitViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Filter production units for job"""
+        from clientapp.storefront_permissions import IsProductionTeam
+        
+        # Only PT can access production units
+        if not IsProductionTeam().has_permission(self.request, self):
+            return ProductionUnit.objects.none()
+        
         job_id = self.request.query_params.get('job_id')
         if job_id:
             return ProductionUnit.objects.filter(job_id=job_id)
@@ -608,8 +887,7 @@ class ProductionUnitViewSet(viewsets.ModelViewSet):
         """Send PO to vendor"""
         unit = self.get_object()
         
-        # TODO: Generate and send PO
-        
+        # Generate PO and send (placeholder)
         unit.status = 'po_sent'
         unit.save()
         
@@ -648,3 +926,342 @@ class ProductionUnitViewSet(viewsets.ModelViewSet):
             'cancelled': 0
         }
         return status_map.get(unit.status, 0)
+
+
+# ============================================================================
+# MISSING CRITICAL ENDPOINTS (Quote Management & Customer Account)
+# ============================================================================
+
+class CustomerLoginView(APIView):
+    """
+    Customer login endpoint
+    POST /api/v1/customers/login/
+    
+    Request: {email, password}
+    Response: {access_token, refresh_token, user}
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        from django.contrib.auth import authenticate
+        
+        email = request.data.get('email')
+        password = request.data.get('password')
+        
+        if not email or not password:
+            return Response(
+                {'error': 'Email and password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Authenticate user by email
+        try:
+            user = User.objects.get(email=email)
+            user_obj = authenticate(username=user.username, password=password)
+            
+            if user_obj is None:
+                return Response(
+                    {'error': 'Invalid credentials'},
+                    status=status.HTTP_401_UNAUTHORIZED
+                )
+            
+            # Check if email is verified
+            customer = StorefrontCustomer.objects.get(user=user_obj)
+            if not customer.email_verified:
+                return Response(
+                    {'error': 'Email not verified. Please verify your email first.'},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
+            # Generate JWT tokens
+            refresh = RefreshToken.for_user(user_obj)
+            
+            return Response({
+                'access_token': str(refresh.access_token),
+                'refresh_token': str(refresh),
+                'user': {
+                    'id': user_obj.id,
+                    'email': user_obj.email,
+                    'username': user_obj.username,
+                    'first_name': user_obj.first_name,
+                    'last_name': user_obj.last_name,
+                    'email_verified': customer.email_verified,
+                    'phone_verified': customer.phone_verified,
+                    'company': customer.company,
+                    'customer_type': customer.customer_type,
+                }
+            })
+            
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except StorefrontCustomer.DoesNotExist:
+            return Response(
+                {'error': 'Customer profile not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class CustomerQuotesListView(APIView):
+    """
+    Get authenticated customer's saved quotes
+    GET /api/v1/customer/quotes/
+    
+    Requires: Authentication (JWT token)
+    Response: [Quote objects filtered by customer]
+    """
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        try:
+            customer = StorefrontCustomer.objects.get(user=request.user)
+            
+            # Get customer's quotes (from lead or direct)
+            quotes = Quote.objects.filter(
+                Q(customer=customer) | Q(created_by=request.user)
+            ).exclude(
+                status__in=['archived', 'deleted']
+            ).order_by('-created_at')
+            
+            # Paginate
+            page = request.query_params.get('page', 1)
+            limit = request.query_params.get('limit', 10)
+            
+            try:
+                page = int(page)
+                limit = int(limit)
+            except ValueError:
+                page, limit = 1, 10
+            
+            start = (page - 1) * limit
+            end = start + limit
+            
+            total = quotes.count()
+            paginated_quotes = quotes[start:end]
+            
+            # Serialize
+            from clientapp.storefront_serializers import QuoteListSerializer
+            serializer = QuoteListSerializer(paginated_quotes, many=True)
+            
+            return Response({
+                'count': total,
+                'page': page,
+                'limit': limit,
+                'total_pages': (total + limit - 1) // limit,
+                'results': serializer.data
+            })
+            
+        except StorefrontCustomer.DoesNotExist:
+            return Response(
+                {'error': 'Customer profile not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+
+class SaveQuoteFromStorefrontView(APIView):
+    """
+    Convert EstimateQuote to official Quote
+    POST /api/v1/quotes/save-from-storefront/
+    
+    Request: {estimate_id, save_action}
+    Response: {quote_id, quote_number, status, lead_id}
+    
+    This is the CRITICAL endpoint that converts customer estimates
+    into official quotes in the system.
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def post(self, request):
+        estimate_id = request.data.get('estimate_id')
+        save_action = request.data.get('save_action', 'save_only')
+        
+        if not estimate_id:
+            return Response(
+                {'error': 'estimate_id is required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        try:
+            # Get estimate quote
+            estimate = EstimateQuote.objects.get(id=estimate_id)
+            
+            # Create or get Lead from estimate customer info
+            lead, created = Lead.objects.get_or_create(
+                name=estimate.customer_name,
+                phone=estimate.customer_phone,
+                defaults={
+                    'email': estimate.customer_email,
+                    'company': estimate.customer_company or '',
+                    'status': 'new',
+                    'source': 'storefront_shared'
+                }
+            )
+            
+            # Create official Quote
+            quote = Quote.objects.create(
+                customer=lead,
+                status='Draft',
+                created_by=request.user if request.user.is_authenticated else None,
+                source='storefront_shared',
+                total_amount=estimate.total_amount or 0,
+            )
+            
+            # Copy line items from estimate (if stored as JSON or related objects)
+            # This assumes estimate stores line items - adjust based on your model
+            if hasattr(estimate, 'line_items'):
+                # Handle line items copy (implementation depends on EstimateQuote model)
+                pass
+            
+            # Mark estimate as archived
+            estimate.archived = True
+            estimate.converted_quote = quote
+            estimate.status = 'converted_to_quote'
+            estimate.save()
+            
+            # Send notifications via email service
+            email_service = EmailService()
+            try:
+                email_service.notify_sales_team_quote_conversion(quote, estimate)
+                email_service.notify_customer_quote_received(estimate, quote)
+            except Exception as e:
+                # Don't fail if notification fails
+                pass
+            
+            # Create activity log
+            from clientapp.models import ActivityLog
+            ActivityLog.objects.create(
+                content_type_id=None,
+                user=request.user if request.user.is_authenticated else None,
+                action=f'Converted EstimateQuote #{estimate_id} to Quote #{quote.id}',
+                change_message=f'Customer estimate converted to official quote'
+            )
+            
+            return Response({
+                'quote_id': quote.id,
+                'quote_number': getattr(quote, 'quote_id', f'QT-{quote.id}'),
+                'status': quote.status,
+                'lead_id': lead.id,
+                'lead_name': lead.name,
+                'amount_total': float(quote.total_amount),
+                'created_at': quote.created_at.isoformat() if quote.created_at else None,
+            }, status=status.HTTP_201_CREATED)
+            
+        except EstimateQuote.DoesNotExist:
+            return Response(
+                {'error': f'EstimateQuote with id {estimate_id} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+
+class ChatbotKnowledgeView(APIView):
+    """
+    Get chatbot knowledge base
+    GET /api/v1/chatbot/knowledge/
+    
+    Returns product catalog, FAQs, company info for chatbot training
+    No authentication required
+    """
+    permission_classes = [permissions.AllowAny]
+    
+    def get(self, request):
+        from django.conf import settings
+        
+        # Get products
+        products = StorefrontProduct.objects.filter(
+            storefront_visible=True
+        ).values('id', 'name', 'description', 'base_price')
+        
+        # Get FAQs
+        faqs = []
+        try:
+            from clientapp.models import ProductFAQ
+            faqs_qs = ProductFAQ.objects.all().values('question', 'answer')
+            faqs = list(faqs_qs)
+        except:
+            pass
+        
+        # Company info
+        company_info = {
+            'name': getattr(settings, 'COMPANY_NAME', 'Our Company'),
+            'phone': getattr(settings, 'COMPANY_PHONE', '+254701234567'),
+            'email': getattr(settings, 'COMPANY_EMAIL', 'info@company.com'),
+            'address': getattr(settings, 'COMPANY_ADDRESS', ''),
+            'turnaround_standard_days': getattr(settings, 'TURNAROUND_STANDARD_DAYS', 7),
+            'turnaround_rush_days': getattr(settings, 'TURNAROUND_RUSH_DAYS', 3),
+            'turnaround_expedited_days': getattr(settings, 'TURNAROUND_EXPEDITED_DAYS', 1),
+        }
+        
+        return Response({
+            'products': list(products),
+            'faqs': faqs,
+            'company_info': company_info,
+            'intents': [
+                'product_inquiry', 'pricing', 'order_status',
+                'contact_sales', 'custom_quote', 'delivery_info',
+                'payment_terms', 'customization_options'
+            ]
+        })
+
+
+# ============================================================================
+# FRONTEND TEMPLATE VIEWS (HTML Page Serving)
+# ============================================================================
+
+from django.views.generic import TemplateView
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class StorefrontBaseTemplateView(TemplateView):
+    """
+    Base view for storefront frontend pages.
+    CSRF is exempt because frontend uses token-based authentication (JWT).
+    """
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['api_base_url'] = '/api/v1'
+        return context
+
+
+class StorefrontHomeView(StorefrontBaseTemplateView):
+    """Home/Landing page - product features and CTA"""
+    template_name = 'index.html'
+
+
+class StorefrontProductsPageView(StorefrontBaseTemplateView):
+    """Product catalog page - browse, search, filter products"""
+    template_name = 'products.html'
+
+
+class StorefrontLoginPageView(StorefrontBaseTemplateView):
+    """Customer login page"""
+    template_name = 'login.html'
+
+
+class StorefrontRegisterPageView(StorefrontBaseTemplateView):
+    """Customer registration page"""
+    template_name = 'register.html'
+
+
+class StorefrontQuoteBuilderPageView(StorefrontBaseTemplateView):
+    """Interactive quote builder page - create estimates"""
+    template_name = 'quote-builder.html'
+
+
+class StorefrontContactPageView(StorefrontBaseTemplateView):
+    """Contact/Support page - multi-channel inquiry form"""
+    template_name = 'contact.html'
+
+
+class StorefrontDashboardPageView(StorefrontBaseTemplateView):
+    """Customer dashboard page - profile, estimates, quotes, messages"""
+    template_name = 'dashboard.html'

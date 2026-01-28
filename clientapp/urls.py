@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.shortcuts import redirect
 from django.urls import include
 from django.contrib.auth.decorators import login_required
+from django.views.generic import TemplateView
 from . import admin_views, admin_api
 
 urlpatterns = [
@@ -145,7 +146,7 @@ urlpatterns = [
 
     path('vendor-comparison/<int:job_id>/', views.vendor_comparison, name='vendor_comparison'),
     path('ajax/create-vendor/', views.ajax_create_vendor, name='ajax_create_vendor'),
-    # path('vendors/<int:vendor_id>/', views.vendor_profile, name='vendor_profile'),
+    path('vendors/<int:vendor_id>/', views.vendor_profile, name='vendor_profile'),
     # Quality control inspection page
     path('qc-inspection/<int:inspection_id>/', views.qc_inspection, name='qc_inspection'),
     path('vendors/', views.vendor_list, name='vendor_list'),
@@ -391,7 +392,10 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     # ==================== ALERTS ====================
     # path('alerts/', admin_views.admin_alerts_list, name='admin_alerts_list'),
     
-    # Vendor Portal URLs
+    # Vendor Portal URLs - Main SPA Entry Point
+    path('vendor/', views.vendor_portal_spa, name='vendor_portal'),
+    
+    # Individual vendor endpoints (backward compatibility)
     path('vendor/dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
     
     # Jobs Management

@@ -1430,6 +1430,70 @@ class ProductChangeHistory(models.Model):
         return f"{self.product.internal_code} - {self.change_type} at {self.changed_at}"
 
 
+class ProductApprovalRequest(models.Model):
+    """
+    Track approval requests for sensitive product changes
+    (e.g., price changes below threshold, margin adjustments)
+    """
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('auto_approved', 'Auto-Approved'),
+    ]
+    
+    REQUEST_TYPE_CHOICES = [
+        ('price_change', 'Price Change'),
+        ('margin_change', 'Margin Adjustment'),
+        ('category_change', 'Category Change'),
+        ('visibility_change', 'Visibility Change'),
+        ('publish', 'Publish Product'),
+    ]
+    
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='approval_requests')
+    request_type = models.CharField(max_length=50, choices=REQUEST_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    
+    # Who made the request
+    requested_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='approval_requests_made')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    
+    # Who will approve it
+    assigned_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approval_requests_assigned')
+    
+    # Approval details
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approval_requests_approved')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    
+    # Change details
+    old_value = models.TextField(blank=True)
+    new_value = models.TextField(blank=True)
+    reason_for_change = models.TextField(blank=True, help_text="Why is this change needed?")
+    
+    # Approval notes
+    approval_notes = models.TextField(blank=True, help_text="Approver's notes")
+    
+    # Is this urgent?
+    is_urgent = models.BooleanField(default=False)
+    
+    class Meta:
+        ordering = ['-requested_at']
+        verbose_name_plural = "Product Approval Requests"
+    
+    def __str__(self):
+        return f"{self.product.internal_code} - {self.request_type} ({self.status})"
+    
+    def is_pending(self):
+        """Check if approval is still pending"""
+        return self.status == 'pending'
+    
+    def can_auto_approve(self):
+        """Check if this request can be auto-approved based on criteria"""
+        # Auto-approve non-critical changes
+        auto_approvable_types = ['visibility_change']  # Add more as needed
+        return self.request_type in auto_approvable_types
+
+
 class ProductMaterialLink(models.Model):
     """
     Links a finished product to raw materials in inventory

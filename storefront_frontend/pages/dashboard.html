@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Storefront</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/storefront_frontend/css/styles.css">
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="/storefront/">🛍️ Storefront</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storefront/products/">Products</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storefront/quote-builder/">Quote Builder</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/storefront/dashboard/">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="logout-btn">Logout</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3">
+                <div class="sidebar sticky-top">
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h6 class="card-title" id="user-name">Loading...</h6>
+                            <small class="text-muted" id="user-email"></small>
+                        </div>
+                    </div>
+
+                    <div class="sidebar-item active" onclick="switchTab('overview')">📊 Overview</div>
+                    <div class="sidebar-item" onclick="switchTab('estimates')">📋 Estimates</div>
+                    <div class="sidebar-item" onclick="switchTab('quotes')">💰 Quotes</div>
+                    <div class="sidebar-item" onclick="switchTab('messages')">💬 Messages</div>
+                    <div class="sidebar-item" onclick="switchTab('profile')">⚙️ Profile Settings</div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="col-md-9">
+                <!-- Overview Tab -->
+                <div id="overview-tab" class="tab-content">
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">📝</div>
+                                    <p class="text-muted small">Active Estimates</p>
+                                    <h3 id="active-estimates-count">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">✅</div>
+                                    <p class="text-muted small">Converted Quotes</p>
+                                    <h3 id="converted-quotes-count">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">💬</div>
+                                    <p class="text-muted small">New Messages</p>
+                                    <h3 id="new-messages-count">0</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card text-center">
+                                <div class="card-body">
+                                    <div style="font-size: 2rem; margin-bottom: 0.5rem;">💵</div>
+                                    <p class="text-muted small">Total Value</p>
+                                    <h3 id="total-value">$0.00</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Recent Activity</h5>
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>Description</th>
+                                                <th>Date</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="activity-table">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted">Loading...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Estimates Tab -->
+                <div id="estimates-tab" class="tab-content d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Your Estimates</h5>
+                            <a href="/storefront/quote-builder/" class="btn btn-sm btn-primary">+ New Estimate</a>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Estimate ID</th>
+                                        <th>Date</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="estimates-table">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quotes Tab -->
+                <div id="quotes-tab" class="tab-content d-none">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Your Quotes</h5>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Quote ID</th>
+                                        <th>Date</th>
+                                        <th>Total</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="quotes-table">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Messages Tab -->
+                <div id="messages-tab" class="tab-content d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Messages</h5>
+                            <a href="/storefront/contact/" class="btn btn-sm btn-primary">+ Send Message</a>
+                        </div>
+                        <div class="card-body">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>From/To</th>
+                                        <th>Subject</th>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="messages-table">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Settings Tab -->
+                <div id="profile-tab" class="tab-content d-none">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Profile Information</h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="profile-form">
+                                        <div class="row">
+                                            <div class="col-md-6 form-group mb-3">
+                                                <label for="profile-first-name" class="form-label">First Name</label>
+                                                <input type="text" class="form-control" id="profile-first-name">
+                                            </div>
+                                            <div class="col-md-6 form-group mb-3">
+                                                <label for="profile-last-name" class="form-label">Last Name</label>
+                                                <input type="text" class="form-control" id="profile-last-name">
+                                            </div>
+                                        </div>
+
+                                        <div class="form-group mb-3">
+                                            <label for="profile-email" class="form-label">Email Address</label>
+                                            <input type="email" class="form-control" id="profile-email" disabled>
+                                        </div>
+
+                                        <div class="form-group mb-3">
+                                            <label for="profile-phone" class="form-label">Phone Number</label>
+                                            <input type="tel" class="form-control" id="profile-phone">
+                                        </div>
+
+                                        <div class="form-group mb-3">
+                                            <label for="profile-company" class="form-label">Company</label>
+                                            <input type="text" class="form-control" id="profile-company">
+                                        </div>
+
+                                        <h6 class="mt-4 mb-3">Communication Preferences</h6>
+                                        <div class="form-check mb-2">
+                                            <input type="checkbox" class="form-check-input" id="email-opt-in" checked>
+                                            <label class="form-check-label" for="email-opt-in">Receive email updates</label>
+                                        </div>
+                                        <div class="form-check mb-2">
+                                            <input type="checkbox" class="form-check-input" id="whatsapp-opt-in">
+                                            <label class="form-check-label" for="whatsapp-opt-in">Receive WhatsApp messages</label>
+                                        </div>
+                                        <div class="form-check mb-4">
+                                            <input type="checkbox" class="form-check-input" id="call-opt-in">
+                                            <label class="form-check-label" for="call-opt-in">Allow phone calls</label>
+                                        </div>
+
+                                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">Account Actions</h5>
+                                </div>
+                                <div class="card-body">
+                                    <button class="btn btn-outline-warning w-100 mb-2" onclick="changePassword()">Change Password</button>
+                                    <button class="btn btn-outline-danger w-100" onclick="deleteAccount()">Delete Account</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="text-center text-white-50">
+                <p>&copy; 2026 Storefront. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/storefront_frontend/js/utils.js"></script>
+    <script src="/static/storefront_frontend/js/api-client.js"></script>
+    <script>
+        const api = new StorefrontAPIClient();
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (!StorefrontUtils.isAuthenticated()) {
+                window.location.href = 'login.html';
+                return;
+            }
+
+            loadProfile();
+            loadEstimates();
+            loadMessages();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            document.getElementById('logout-btn').addEventListener('click', logout);
+            document.getElementById('profile-form').addEventListener('submit', updateProfile);
+        }
+
+        async function loadProfile() {
+            try {
+                const profile = await api.getProfile();
+                document.getElementById('user-name').textContent = `${profile.first_name} ${profile.last_name}`;
+                document.getElementById('user-email').textContent = profile.email;
+
+                // Load form data
+                document.getElementById('profile-first-name').value = profile.first_name || '';
+                document.getElementById('profile-last-name').value = profile.last_name || '';
+                document.getElementById('profile-email').value = profile.email || '';
+                document.getElementById('profile-phone').value = profile.phone || '';
+                document.getElementById('profile-company').value = profile.company || '';
+
+                // Preferences
+                document.getElementById('email-opt-in').checked = profile.email_opt_in !== false;
+                document.getElementById('whatsapp-opt-in').checked = profile.whatsapp_opt_in !== false;
+                document.getElementById('call-opt-in').checked = profile.call_opt_in !== false;
+            } catch (error) {
+                console.error('Error loading profile:', error);
+                StorefrontUtils.showToast('Error loading profile', 'error');
+            }
+        }
+
+        async function loadEstimates() {
+            try {
+                const estimates = await api.getEstimates();
+                const table = document.getElementById('estimates-table');
+
+                if (!estimates || estimates.length === 0) {
+                    table.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No estimates yet</td></tr>';
+                    return;
+                }
+
+                table.innerHTML = estimates.map(est => `
+                    <tr>
+                        <td>${est.estimate_id}</td>
+                        <td>${StorefrontUtils.formatDate(est.created_at)}</td>
+                        <td>${StorefrontUtils.formatCurrency(est.total_price)}</td>
+                        <td><span class="badge ${StorefrontUtils.getStatusBadgeClass(est.status)}">${StorefrontUtils.getStatusDisplayName(est.status)}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewEstimate(${est.id})">View</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('active-estimates-count').textContent = estimates.filter(e => e.status === 'draft').length;
+                document.getElementById('converted-quotes-count').textContent = estimates.filter(e => e.status === 'converted_to_quote').length;
+            } catch (error) {
+                console.error('Error loading estimates:', error);
+            }
+        }
+
+        async function loadMessages() {
+            try {
+                const messages = await api.getMessages();
+                const table = document.getElementById('messages-table');
+
+                if (!messages || messages.length === 0) {
+                    table.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No messages</td></tr>';
+                    return;
+                }
+
+                table.innerHTML = messages.map(msg => `
+                    <tr>
+                        <td>${msg.sender_name || msg.sender_email}</td>
+                        <td>${msg.subject || msg.message.substring(0, 30)}</td>
+                        <td>${StorefrontUtils.formatDate(msg.created_at)}</td>
+                        <td><span class="badge ${StorefrontUtils.getStatusBadgeClass(msg.status)}">${StorefrontUtils.getStatusDisplayName(msg.status)}</span></td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="viewMessage(${msg.id})">View</button>
+                        </td>
+                    </tr>
+                `).join('');
+
+                document.getElementById('new-messages-count').textContent = messages.filter(m => m.status === 'unassigned').length;
+            } catch (error) {
+                console.error('Error loading messages:', error);
+            }
+        }
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('d-none'));
+            
+            // Deactivate all sidebar items
+            document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+            
+            // Show selected tab
+            const tab = document.getElementById(`${tabName}-tab`);
+            if (tab) {
+                tab.classList.remove('d-none');
+            }
+            
+            // Activate sidebar item
+            event.target.classList.add('active');
+        }
+
+        async function updateProfile(e) {
+            e.preventDefault();
+
+            try {
+                StorefrontUtils.showLoading('Saving profile...');
+
+                const data = {
+                    first_name: document.getElementById('profile-first-name').value,
+                    last_name: document.getElementById('profile-last-name').value,
+                    phone: document.getElementById('profile-phone').value,
+                    company: document.getElementById('profile-company').value,
+                    email_opt_in: document.getElementById('email-opt-in').checked,
+                    whatsapp_opt_in: document.getElementById('whatsapp-opt-in').checked,
+                    call_opt_in: document.getElementById('call-opt-in').checked
+                };
+
+                await api.updateProfile(data);
+                StorefrontUtils.hideLoading();
+                StorefrontUtils.showToast('Profile updated successfully', 'success');
+            } catch (error) {
+                StorefrontUtils.hideLoading();
+                StorefrontUtils.showToast('Error updating profile', 'error');
+            }
+        }
+
+        function viewEstimate(id) {
+            StorefrontUtils.showToast('Estimate detail view coming soon', 'info');
+        }
+
+        function viewMessage(id) {
+            StorefrontUtils.showToast('Message detail view coming soon', 'info');
+        }
+
+        function changePassword() {
+            StorefrontUtils.showToast('Password change feature coming soon', 'info');
+        }
+
+        function deleteAccount() {
+            if (confirm('Are you sure? This action cannot be undone.')) {
+                StorefrontUtils.showToast('Account deletion feature coming soon', 'info');
+            }
+        }
+
+        function logout() {
+            api.clearTokens();
+            StorefrontUtils.clearCurrentUser();
+            StorefrontUtils.showToast('Logged out successfully', 'success');
+            setTimeout(() => {
+                window.location.href = 'index.html';
+            }, 1000);
+        }
+    </script>
+</body>
+</html>

@@ -3,6 +3,7 @@ from django.urls import path
 
 from . import api_views
 from . import storefront_views
+from . import vendor_portal_views
 
 router = DefaultRouter()
 
@@ -16,6 +17,7 @@ router.register("compliance-documents", api_views.ComplianceDocumentViewSet, bas
 # Catalog / Products
 router.register("products", api_views.ProductViewSet, basename="product")
 router.register("storefront-products", api_views.StorefrontProductViewSet, basename="storefront-product")
+router.register("product-approvals", api_views.ProductApprovalRequestViewSet, basename="product-approval")
 router.register("property-types", api_views.PropertyTypeViewSet, basename="property-type")
 router.register("property-values", api_views.PropertyValueViewSet, basename="property-value")
 router.register("product-properties", api_views.ProductPropertyViewSet, basename="product-property")
@@ -108,6 +110,16 @@ router.register("sla-escalations", api_views.SLAEscalationViewSet, basename="sla
 router.register("vendor-performance-metrics", api_views.VendorPerformanceMetricsViewSet, basename="vendor-performance-metrics")
 router.register("profitability-analysis", api_views.ProfitabilityAnalysisViewSet, basename="profitability-analysis")
 
+# Vendor Portal APIs
+router.register("vendor-self-info", vendor_portal_views.VendorSelfInfoViewSet, basename="vendor-self-info")
+router.register("vendor-portal-pos", vendor_portal_views.PurchaseOrderViewSet, basename="vendor-portal-po")
+router.register("vendor-portal-invoices", vendor_portal_views.VendorInvoiceViewSet, basename="vendor-portal-invoice")
+router.register("vendor-portal-proofs", vendor_portal_views.PurchaseOrderProofViewSet, basename="vendor-portal-proof")
+router.register("vendor-portal-issues", vendor_portal_views.PurchaseOrderIssueViewSet, basename="vendor-portal-issue")
+router.register("vendor-portal-notes", vendor_portal_views.PurchaseOrderNoteViewSet, basename="vendor-portal-note")
+router.register("vendor-portal-substitutions", vendor_portal_views.MaterialSubstitutionRequestViewSet, basename="vendor-portal-substitution")
+router.register("vendor-portal-performance", vendor_portal_views.VendorPerformanceViewSet, basename="vendor-portal-performance")
+
 # Client Portal APIs
 router.register("client-portal-users", api_views.ClientPortalUserViewSet, basename="client-portal-user")
 router.register("client-orders", api_views.ClientOrderViewSet, basename="client-order")
@@ -119,23 +131,24 @@ router.register("client-notifications", api_views.ClientPortalNotificationViewSe
 router.register("client-activity-logs", api_views.ClientActivityLogViewSet, basename="client-activity-log")
 
 # ============================================================================
-# STOREFRONT ECOMMERCE APIs
+# STOREFRONT ECOMMERCE APIs (v1)
 # ============================================================================
 
-# Public product catalog (no auth)
-router.register("storefront/public-products", storefront_views.StorefrontProductViewSet, basename="storefront-public-product")
-
 # Estimate quotes
-router.register("storefront/estimates", storefront_views.EstimateQuoteViewSet, basename="storefront-estimate")
+router.register("v1/storefront-estimates", storefront_views.EstimateQuoteViewSet, basename="storefront-estimate")
+
+# Expose the main QuoteViewSet under the v1 prefix so AM and storefront flows
+# can access quote actions at /api/v1/quotes/{id}/send-to-customer/ etc.
+router.register("v1/quotes", api_views.QuoteViewSet, basename="v1-quote")
 
 # Production units
-router.register("storefront/production-units", storefront_views.ProductionUnitViewSet, basename="production-unit")
+router.register("v1/production-units", storefront_views.ProductionUnitViewSet, basename="production-unit")
 
 # Chatbot conversations
-router.register("storefront/chatbot-conversations", storefront_views.ChatbotConversationViewSet, basename="chatbot-conversation")
+router.register("v1/chatbot-conversations", storefront_views.ChatbotConversationViewSet, basename="chatbot-conversation")
 
 # Storefront messages (for AM)
-router.register("storefront/messages", storefront_views.StorefrontMessageViewSet, basename="storefront-message")
+router.register("v1/storefront-messages", storefront_views.StorefrontMessageViewSet, basename="storefront-message")
 
 
 urlpatterns = router.urls + [
@@ -147,18 +160,26 @@ urlpatterns = router.urls + [
     path('files/preflight/', api_views.PreflightView.as_view(), name='preflight'),
     
     # ============================================================================
-    # STOREFRONT ECOMMERCE ENDPOINTS
+    # STOREFRONT ECOMMERCE ENDPOINTS (v1)
     # ============================================================================
     
-    # Customer Authentication
-    path('storefront/auth/register/', storefront_views.CustomerRegistrationView.as_view(), name='storefront-register'),
-    path('storefront/auth/profile/', storefront_views.CustomerProfileViewSet.as_view({'get': 'list', 'put': 'update'}), name='storefront-profile'),
+    # Customer Authentication & Verification
+    path('v1/customers/register/', storefront_views.CustomerRegistrationView.as_view(), name='storefront-register'),
+    path('v1/customers/verify-email/', storefront_views.EmailVerificationView.as_view(), name='storefront-verify-email'),
+    path('v1/customers/verify-phone/', storefront_views.PhoneVerificationView.as_view(), name='storefront-verify-phone'),
+    path('v1/customers/login/', storefront_views.CustomerLoginView.as_view(), name='storefront-login'),
+    path('v1/customers/profile/', storefront_views.CustomerProfileViewSet.as_view({'get': 'list', 'put': 'update'}), name='storefront-profile'),
+    path('v1/customer/quotes/', storefront_views.CustomerQuotesListView.as_view(), name='customer-quotes'),
     
     # Contact & Messaging
-    path('storefront/contact/email/', storefront_views.ContactEmailView.as_view(), name='storefront-contact-email'),
-    path('storefront/contact/whatsapp/', storefront_views.ContactWhatsAppView.as_view(), name='storefront-contact-whatsapp'),
-    path('storefront/contact/call/', storefront_views.CallRequestView.as_view(), name='storefront-contact-call'),
+    path('v1/contact/email/', storefront_views.ContactEmailView.as_view(), name='storefront-contact-email'),
+    path('v1/contact/whatsapp/', storefront_views.ContactWhatsAppView.as_view(), name='storefront-contact-whatsapp'),
+    path('v1/contact/call/', storefront_views.CallRequestView.as_view(), name='storefront-contact-call'),
     
     # Chatbot
-    path('storefront/chatbot/message/', storefront_views.ChatbotMessageView.as_view(), name='storefront-chatbot-message'),
+    path('v1/chatbot/message/', storefront_views.ChatbotMessageView.as_view(), name='storefront-chatbot-message'),
+    path('v1/chatbot/knowledge/', storefront_views.ChatbotKnowledgeView.as_view(), name='chatbot-knowledge'),
+    
+    # Quote Management
+    path('v1/quotes/save-from-storefront/', storefront_views.SaveQuoteFromStorefrontView.as_view(), name='save-quote-from-storefront'),
 ]

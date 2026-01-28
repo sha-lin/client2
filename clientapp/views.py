@@ -4929,6 +4929,20 @@ def product_detail(request, pk):
     pricing = ProductPricing.objects.filter(product=product)
     change_history = ProductChangeHistory.objects.filter(product=product).order_by('-changed_at')[:20]
     
+    # If no pricing tiers exist but product has base_price, create a default one
+    if not pricing.exists() and product.base_price and product.base_price > 0:
+        pricing_tier, created = ProductPricing.objects.get_or_create(
+            product=product,
+            defaults={
+                'pricing_model': 'fixed',
+                'base_cost': product.base_price * 0.5,  # Assume 50% cost
+                'price_display': 'from',
+                'default_margin': 30,
+                'minimum_margin': 15,
+            }
+        )
+        pricing = ProductPricing.objects.filter(product=product)
+    
     # Try to get SEO data if it exists
     seo_data = None
     try:
@@ -4962,6 +4976,76 @@ def product_create(request):
         try:
             action = request.POST.get('action', 'save_draft')
             next_tab = request.POST.get('next_tab', '')
+            
+            # Handle auto-save for new products - return JSON response
+            if action == 'auto_save':
+                try:
+                    from django.http import QueryDict
+                    general_post_data = QueryDict(mutable=True)
+                    for key in request.POST.keys():
+                        if key not in ['action', 'next_tab', 'base_price'] and not key.startswith('delete_'):
+                            values = request.POST.getlist(key)
+                            for value in values:
+                                general_post_data.appendlist(key, value)
+                    
+                    # Create product if not exists
+                    # Use 'fully_customizable' as default for draft (can be changed later)
+                    # This avoids base_price validation error for non_customizable products
+                    customization_level = request.POST.get('customization_level', 'fully_customizable')
+                    if not customization_level:
+                        customization_level = 'fully_customizable'
+                    
+                    # Create product without validation
+                    product = Product(
+                        name=request.POST.get('name', 'Unnamed Product'),
+                        created_by=request.user,
+                        updated_by=request.user,
+                        status='draft',
+                        customization_level=customization_level,
+                        base_price=None  # Fully customizable must have NULL base_price
+                    )
+                    product.save(skip_validation=True)
+                    
+                    # Now save general form
+                    general_form = ProductGeneralInfoForm(general_post_data, instance=product)
+                    
+                    if general_form.is_valid():
+                        product = general_form.save(commit=False)
+                        product.updated_by = request.user
+                        product.save(skip_validation=True)
+                        general_form.save_m2m()
+                        
+                        # Handle pricing tab auto-save if data exists
+                        try:
+                            _handle_pricing_tab(request, product)
+                        except:
+                            pass
+                        
+                        # Handle images if data exists
+                        try:
+                            _handle_images_tab(request, product)
+                        except:
+                            pass
+                        
+                        return JsonResponse({
+                            'success': True,
+                            'message': 'Product auto-saved successfully',
+                            'product_id': product.id,
+                            'timestamp': timezone.now().isoformat()
+                        })
+                    else:
+                        return JsonResponse({
+                            'success': False,
+                            'message': 'Validation failed',
+                            'errors': general_form.errors
+                        }, status=400)
+                except Exception as e:
+                    import traceback
+                    traceback.print_exc()
+                    return JsonResponse({
+                        'success': False,
+                        'message': str(e)
+                    }, status=400)
             
             # TAB 1: GENERAL INFO
             
@@ -5043,36 +5127,44 @@ def product_create(request):
                     product.unit_of_measure_custom = custom_unit
                     product.save()
             
-            # Handle all tabs
+            # Handle all tabs - use savepoints to isolate each handler
+            from django.db import transaction
+            
             try:
                 _handle_pricing_tab(request, product)
             except Exception as e:
-                messages.warning(request, f'Error saving pricing: {str(e)}')
+                transaction.set_rollback(True)
+                messages.error(request, f'Error saving pricing: {str(e)}')
             
             try:
                 _handle_images_tab(request, product)
             except Exception as e:
-                messages.warning(request, f'Error saving images: {str(e)}')
+                transaction.set_rollback(True)
+                messages.error(request, f'Error saving images: {str(e)}')
             
             try:
                 _handle_seo_tab(request, product)
             except Exception as e:
-                messages.warning(request, f'Error saving SEO: {str(e)}')
+                transaction.set_rollback(True)
+                messages.error(request, f'Error saving SEO: {str(e)}')
             
             try:
                 _handle_shipping_tab(request, product)
             except Exception as e:
-                messages.warning(request, f'Error saving shipping: {str(e)}')
+                transaction.set_rollback(True)
+                messages.error(request, f'Error saving shipping: {str(e)}')
             
             try:
                 _handle_legal_tab(request, product)
             except Exception as e:
-                messages.warning(request, f'Error saving legal: {str(e)}')
+                transaction.set_rollback(True)
+                messages.error(request, f'Error saving legal: {str(e)}')
             
             try:
                 _handle_production_tab(request, product)
             except Exception as e:
-                messages.warning(request, f'Error saving production: {str(e)}')
+                transaction.set_rollback(True)
+                messages.error(request, f'Error saving production: {str(e)}')
             
             
             try:
@@ -5083,9 +5175,15 @@ def product_create(request):
                 if action == 'publish':
                     product.status = 'draft'
                     product.save(skip_validation=True)
-                for field, errors in e.error_dict.items():
-                    for error in errors:
-                        messages.error(request, f"{field}: {error}")
+                # Handle both dict and non-dict ValidationError formats
+                if hasattr(e, 'error_dict'):
+                    for field, errors in e.error_dict.items():
+                        for error in errors:
+                            messages.error(request, f"{field}: {error}")
+                elif hasattr(e, 'message'):
+                    messages.error(request, str(e.message))
+                else:
+                    messages.error(request, str(e))
                 context = _get_product_form_context(product)
                 return render(request, 'product_create_edit.html', context)
             
@@ -5154,7 +5252,7 @@ def product_edit(request, pk):
                     from django.http import QueryDict
                     general_post_data = QueryDict(mutable=True)
                     for key in request.POST.keys():
-                        if key != 'base_price':
+                        if key not in ['action', 'next_tab', 'base_price'] and not key.startswith('delete_'):
                             values = request.POST.getlist(key)
                             for value in values:
                                 general_post_data.appendlist(key, value)
@@ -5170,6 +5268,37 @@ def product_edit(request, pk):
                         product.save(skip_validation=True)
                         general_form.save_m2m()
                         
+                        # Auto-save all tabs that have data
+                        try:
+                            _handle_pricing_tab(request, product)
+                        except:
+                            pass  # Don't fail auto-save if pricing fails
+                        
+                        try:
+                            _handle_images_tab(request, product)
+                        except:
+                            pass  # Don't fail auto-save if images fail
+                        
+                        try:
+                            _handle_seo_tab(request, product)
+                        except:
+                            pass
+                        
+                        try:
+                            _handle_shipping_tab(request, product)
+                        except:
+                            pass
+                        
+                        try:
+                            _handle_legal_tab(request, product)
+                        except:
+                            pass
+                        
+                        try:
+                            _handle_production_tab(request, product)
+                        except:
+                            pass
+                        
                         return JsonResponse({
                             'success': True,
                             'message': 'Product auto-saved successfully',
@@ -5182,6 +5311,8 @@ def product_edit(request, pk):
                             'errors': general_form.errors
                         }, status=400)
                 except Exception as e:
+                    import traceback
+                    traceback.print_exc()
                     return JsonResponse({
                         'success': False,
                         'message': str(e)
@@ -5298,9 +5429,15 @@ def product_edit(request, pk):
                 if action == 'publish':
                     product.status = 'draft'
                     product.save(skip_validation=True)
-                for field, errors in e.error_dict.items():
-                    for error in errors:
-                        messages.error(request, f"{field}: {error}")
+                # Handle both dict and non-dict ValidationError formats
+                if hasattr(e, 'error_dict'):
+                    for field, errors in e.error_dict.items():
+                        for error in errors:
+                            messages.error(request, f"{field}: {error}")
+                elif hasattr(e, 'message'):
+                    messages.error(request, str(e.message))
+                else:
+                    messages.error(request, str(e))
                 context = _get_product_form_context(product)
                 return render(request, 'product_create_edit.html', context)
             
@@ -5545,7 +5682,7 @@ def _handle_pricing_tab(request, product):
         # Fully customizable: base_price must be NULL
         product.base_price = None
     
-    product.save(update_fields=['base_price'])
+    product.save(skip_validation=True, update_fields=['base_price'])
     
     # Handle alternative vendors (many-to-many)
     alt_vendor_ids = request.POST.getlist('alternative_vendors')
@@ -5797,9 +5934,17 @@ def _handle_seo_tab(request, product):
     # Slug handling
     seo.auto_generate_slug = request.POST.get('auto_generate_slug') == 'on'
     if seo.auto_generate_slug or not seo.slug:
-        seo.slug = slugify(product.name)
+        slug_value = slugify(product.name)
+        # If slug is empty (e.g., product has no name yet), use product ID
+        if not slug_value:
+            slug_value = f'product-{product.id}'
+        seo.slug = slug_value
     else:
-        seo.slug = slugify(request.POST.get('slug', product.name))
+        slug_value = slugify(request.POST.get('slug', product.name))
+        # Ensure slug is not empty
+        if not slug_value:
+            slug_value = f'product-{product.id}'
+        seo.slug = slug_value
     
     # Display settings
     seo.show_price = request.POST.get('show_price') == 'on'
@@ -9535,3 +9680,25 @@ def decline_job(request, po_number):
     po.save()
     messages.warning(request, f"Job {po_number} declined.")
     return redirect('vendor_dashboard')
+
+
+@login_required
+def vendor_portal_spa(request):
+    """
+    Serve the Vendor Portal SPA (Single Page Application)
+    This view is protected with @login_required to ensure authentication
+    """
+    # Check if user belongs to a vendor
+    try:
+        vendor = request.user.vendor_profile
+    except Vendor.DoesNotExist:
+        messages.error(request, 'Your account is not linked to a vendor profile.')
+        return redirect('vendor_dashboard')
+    
+    # Render the SPA template
+    from django.template.response import TemplateResponse
+    return TemplateResponse(request, 'vendor/vendor_portal_spa.html', {
+        'vendor': vendor,
+        'vendor_name': vendor.name,
+        'user': request.user
+    })

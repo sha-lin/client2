@@ -31,6 +31,7 @@ from .vendor_portal_serializers import (
     MaterialSubstitutionRequestSerializer,
     VendorPerformanceSerializer,
 )
+from .api_serializers import VendorSerializer
 
 
 class PurchaseOrderViewSet(viewsets.ModelViewSet):
@@ -372,6 +373,53 @@ class MaterialSubstitutionRequestViewSet(viewsets.ModelViewSet):
         sub_request.save()
         
         return Response({'status': 'success', 'message': 'Substitution request rejected'})
+
+
+class VendorSelfInfoViewSet(viewsets.ViewSet):
+    """
+    ViewSet for Vendor's own information.
+    Allows vendors to access and update their own profile data.
+    """
+    permission_classes = [IsAuthenticated]
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Get current vendor's info"""
+        try:
+            vendor = Vendor.objects.get(user=request.user, active=True)
+            serializer = VendorSerializer(vendor)
+            return Response({
+                'count': 1,
+                'results': [serializer.data]
+            })
+        except Vendor.DoesNotExist:
+            return Response(
+                {'error': 'You are not linked to an active vendor profile'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+    
+    @action(detail=False, methods=['patch'])
+    def update_me(self, request):
+        """Update current vendor's info"""
+        try:
+            vendor = Vendor.objects.get(user=request.user, active=True)
+            serializer = VendorSerializer(vendor, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response({
+                    'success': True,
+                    'message': 'Vendor information updated successfully',
+                    'results': [serializer.data]
+                })
+            return Response(
+                {'error': 'Invalid data', 'details': serializer.errors},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Vendor.DoesNotExist:
+            return Response(
+                {'error': 'You are not linked to an active vendor profile'},
+                status=status.HTTP_403_FORBIDDEN
+            )
 
 
 class VendorPerformanceViewSet(viewsets.ViewSet):

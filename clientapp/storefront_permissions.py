@@ -49,10 +49,26 @@ class IsAccountManager(permissions.BasePermission):
     def has_permission(self, request, view):
         if not request.user or not request.user.is_authenticated:
             return False
+        # Check if user is in Account Managers group
         return request.user.groups.filter(name='Account Managers').exists()
 
     def has_object_permission(self, request, view, obj):
         return request.user.groups.filter(name='Account Managers').exists()
+
+
+class IsProductionTeam(permissions.BasePermission):
+    """
+    Allow access only to Production Team members.
+    """
+
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        # Check if user is in Production Team group
+        return request.user.groups.filter(name='Production Team').exists()
+
+    def has_object_permission(self, request, view, obj):
+        return request.user.groups.filter(name='Production Team').exists()
 
 
 class IsAccountManagerOrOwner(permissions.BasePermission):

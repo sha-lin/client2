@@ -443,6 +443,10 @@
     let currentStep = 1;
     let totalSteps = 3;
     let clientType = 'B2B';
+    
+    // Global file storage Maps
+    let brandFiles = new Map();  // For brand assets
+    let complianceFiles = new Map();  // For compliance documents
 
     // Initialize fields on page load (B2B is default)
     window.addEventListener('load', function() {
@@ -850,8 +854,6 @@
             brandDropZone.parentNode.insertBefore(typeContainer, brandDropZone);
         }
 
-        let brandFiles = new Map();
-
         if (brandDropZone && brandFileInput) {
             ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
                 brandDropZone.addEventListener(eventName, e => { e.preventDefault(); e.stopPropagation(); }, false);
@@ -910,14 +912,13 @@
         const filesList = document.getElementById('filesList');
         const noFiles = document.getElementById('noFiles');
         const filesCount = document.getElementById('filesCount');
-        const selected = new Map();
 
         if (uploadBtn && fileInput) {
             uploadBtn.addEventListener('click', e => { e.preventDefault(); fileInput.click(); });
             fileInput.addEventListener('change', e => {
                 Array.from(e.target.files).forEach(file => {
                     const key = `${file.name}__${file.size}__${file.lastModified}`;
-                    if (!selected.has(key)) selected.set(key, file);
+                    if (!complianceFiles.has(key)) complianceFiles.set(key, file);
                 });
                 renderFiles();
                 fileInput.value = '';
@@ -926,15 +927,15 @@
             function renderFiles() {
                 if (!filesList || !noFiles || !filesCount) return;
                 filesList.innerHTML = '';
-                if (selected.size === 0) {
+                if (complianceFiles.size === 0) {
                     noFiles.style.display = 'block';
                     filesCount.textContent = '';
                     return;
                 }
                 noFiles.style.display = 'none';
-                filesCount.textContent = `${selected.size} file(s) selected`;
+                filesCount.textContent = `${complianceFiles.size} file(s) selected`;
 
-                selected.forEach((file, key) => {
+                complianceFiles.forEach((file, key) => {
                     const li = document.createElement('li');
                     li.className = 'flex items-center justify-between bg-white p-2 rounded border';
                     li.innerHTML = `
@@ -945,7 +946,7 @@
                         <button type="button" class="text-red-600 text-sm hover:underline remove-file" data-key="${key}">Remove</button>
                     `;
                     li.querySelector('.remove-file').addEventListener('click', function () {
-                        selected.delete(this.getAttribute('data-key'));
+                        complianceFiles.delete(this.getAttribute('data-key'));
                         renderFiles();
                     });
                     filesList.appendChild(li);
@@ -998,6 +999,17 @@
                                 if (stringValue !== '') {
                                     // Map B2C field names to standard names
                                     const apiKey = fieldNameMap[key] || key;
+                                    
+                                    // For B2C clients, exclude B2B-only fields
+                                    if (clientType === 'B2C') {
+                                        const b2bOnlyFields = [
+                                            'company', 'vat_tax_id', 'kra_pin', 'industry',
+                                            'credit_limit', 'default_markup', 'risk_rating', 'is_reseller'
+                                        ];
+                                        if (b2bOnlyFields.includes(apiKey)) {
+                                            continue; // Skip this field for B2C
+                                        }
+                                    }
                                     
                                     if (key === 'is_reseller') {
                                         // Handle checkbox
@@ -1073,6 +1085,74 @@
                         const response = await api.post('/clients/', clientData);
 
                         showToast('Client created successfully!', 'success');
+
+                        // For B2B clients, save contacts, brand assets, and compliance documents
+                        if (clientType === 'B2B') {
+                            try {
+                                // Save contacts
+                                for (const contact of contacts) {
+                                    contact.client = response.id;
+                                    await api.post('/client-contacts/', contact);
+                                }
+
+                                // Save brand assets (files)
+                                if (brandFiles.size > 0) {
+                                    for (const [key, file] of brandFiles.entries()) {
+                                        const brandFormData = new FormData();
+                                        brandFormData.append('file', file);
+                                        brandFormData.append('client', response.id);
+                                        brandFormData.append('asset_type', document.getElementById('brand_asset_type')?.value || 'Logo');
+                                        
+                                        // Upload brand asset
+                                        const csrfToken = getCookie('csrftoken');
+                                        const brandResponse = await fetch('/api/v1/brand-assets/', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRFToken': csrfToken,
+                                            },
+                                            body: brandFormData
+                                        });
+                                        if (!brandResponse.ok) {
+                                            console.error('Failed to upload brand asset:', file.name);
+                                        }
+                                    }
+                                }
+
+                                // Save compliance documents (files)
+                                const docType = document.getElementById('doc_type')?.value;
+                                const docExpiry = document.getElementById('doc_expiry')?.value;
+                                
+                                if (complianceFiles.size > 0 && docType) {
+                                    for (const [key, file] of complianceFiles.entries()) {
+                                        const complianceFormData = new FormData();
+                                        complianceFormData.append('file', file);
+                                        complianceFormData.append('client', response.id);
+                                        complianceFormData.append('document_type', docType);
+                                        if (docExpiry) {
+                                            complianceFormData.append('expiry_date', docExpiry);
+                                        }
+                                        
+                                        // Upload compliance document
+                                        const csrfToken = getCookie('csrftoken');
+                                        const compResponse = await fetch('/api/v1/compliance-documents/', {
+                                            method: 'POST',
+                                            headers: {
+                                                'X-CSRFToken': csrfToken,
+                                            },
+                                            body: complianceFormData
+                                        });
+                                        if (!compResponse.ok) {
+                                            console.error('Failed to upload compliance document:', file.name);
+                                        }
+                                    }
+                                }
+
+                                showToast('All client data saved successfully!', 'success');
+                            } catch (error) {
+                                console.error('Error saving contacts/assets/documents:', error);
+                                showToast('Client created but some attachments could not be saved', 'warning');
+                            }
+                        }
                         
                         setTimeout(() => {
                             window.location.href = `/clients/${response.id}/`;

@@ -76,7 +76,10 @@ ROOT_URLCONF = 'client.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [BASE_DIR / 'clientapp' / 'templates'],
+        'DIRS': [
+            BASE_DIR / 'clientapp' / 'templates',
+            BASE_DIR / 'storefront_frontend' / 'pages',  # Frontend HTML pages
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -339,3 +342,95 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_fixed": True,
     "sidebar": "sidebar-dark-primary",
 }
+
+
+# ============================================================================
+# STOREFRONT CONFIGURATION
+# ============================================================================
+
+# Company Information
+COMPANY_NAME = config('COMPANY_NAME', default='PrintDuka')
+COMPANY_EMAIL = config('COMPANY_EMAIL', default='sales@printduka.com')
+COMPANY_PHONE = config('COMPANY_PHONE', default='+254-700-000-000')
+SALES_TEAM_EMAIL = config('SALES_TEAM_EMAIL', default='sales@printduka.com')
+
+# Storefront URL
+STOREFRONT_URL = config('STOREFRONT_URL', default='http://localhost:3000')
+
+# Email Configuration
+EMAIL_BACKEND = config(
+    'EMAIL_BACKEND',
+    default='django.core.mail.backends.console.EmailBackend'
+)
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
+EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@printduka.com')
+
+# Messaging Configuration (Africastalking for SMS/WhatsApp)
+AFRICASTALKING_API_KEY = config('AFRICASTALKING_API_KEY', default='')
+AFRICASTALKING_USERNAME = config('AFRICASTALKING_USERNAME', default='')
+
+# Tax Configuration
+TAX_RATE_KE = config('TAX_RATE_KE', default='18.00')  # Kenya VAT
+TAX_RATE_UG = config('TAX_RATE_UG', default='18.00')  # Uganda VAT
+TAX_RATE_TZ = config('TAX_RATE_TZ', default='18.00')  # Tanzania VAT
+TAX_RATE_RW = config('TAX_RATE_RW', default='18.00')  # Rwanda VAT
+TAX_RATE_ZA = config('TAX_RATE_ZA', default='15.00')  # South Africa VAT
+TAX_RATE_US = config('TAX_RATE_US', default='0.00')   # US (varies by state)
+
+# Turnaround Times (in days)
+TURNAROUND_STANDARD_DAYS = config('TURNAROUND_STANDARD_DAYS', default=7, cast=int)
+TURNAROUND_RUSH_DAYS = config('TURNAROUND_RUSH_DAYS', default=3, cast=int)
+TURNAROUND_EXPEDITED_DAYS = config('TURNAROUND_EXPEDITED_DAYS', default=1, cast=int)
+
+# Estimate Quote Settings
+ESTIMATE_EXPIRY_DAYS = config('ESTIMATE_EXPIRY_DAYS', default=7, cast=int)
+EMAIL_VERIFICATION_EXPIRY_HOURS = config('EMAIL_VERIFICATION_EXPIRY_HOURS', default=24, cast=int)
+OTP_EXPIRY_MINUTES = config('OTP_EXPIRY_MINUTES', default=10, cast=int)
+
+# Cache Configuration for OTP/Tokens
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'storefront-cache',
+    }
+}
+
+# Logging Configuration
+# Create logs directory if it doesn't exist
+import os as _os
+_logs_dir = BASE_DIR / 'logs'
+if not _os.path.exists(_logs_dir):
+    _os.makedirs(_logs_dir, exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': str(BASE_DIR / 'logs' / 'storefront.log'),
+        },
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'clientapp.storefront_services': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'clientapp.storefront_views': {
+            'handlers': ['file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+

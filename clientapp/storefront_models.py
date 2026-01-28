@@ -1,7 +1,10 @@
 """
 Storefront Models for Public/Customer-Facing Features
-Includes: EstimateQuote, StorefrontProduct, Customer profiles,
+Includes: EstimateQuote, Customer profiles,
 Messaging, Chatbot, and Production Units
+
+NOTE: StorefrontProduct is defined in models.py (line ~5625)
+to avoid model conflicts. This file contains other storefront models only.
 """
 
 from django.db import models
@@ -12,119 +15,6 @@ from django.utils.text import slugify
 from decimal import Decimal
 import uuid
 import json
-
-
-class StorefrontProduct(models.Model):
-    """
-    Public product view for storefront catalog
-    Links to existing Product model for storefront visibility
-    """
-    product_id = models.CharField(max_length=20, unique=True, editable=False)
-    name = models.CharField(max_length=255)
-    description_short = models.CharField(max_length=500, blank=True)
-    description_long = models.TextField(blank=True)
-    
-    # Product category & visibility
-    category = models.CharField(max_length=100, db_index=True)
-    storefront_visible = models.BooleanField(default=True, db_index=True)
-    show_price = models.BooleanField(default=True)
-    
-    # Pricing
-    base_price = models.DecimalField(
-        max_digits=12, 
-        decimal_places=2, 
-        validators=[MinValueValidator(Decimal('0.01'))]
-    )
-    price_range_min = models.DecimalField(
-        max_digits=12, 
-        decimal_places=2, 
-        null=True, 
-        blank=True
-    )
-    price_range_max = models.DecimalField(
-        max_digits=12, 
-        decimal_places=2, 
-        null=True, 
-        blank=True
-    )
-    
-    # Pricing tiers (JSON: [{min_qty, max_qty, price_per_unit}, ...])
-    pricing_tiers = models.JSONField(
-        default=list,
-        help_text="Quantity-based pricing: [{min_qty, max_qty, price_per_unit}]"
-    )
-    
-    # Images
-    hero_image = models.URLField(blank=True)
-    gallery_images = models.JSONField(default=list, blank=True)
-    
-    # Customization
-    customization_level = models.CharField(
-        max_length=50,
-        choices=[
-            ('non_customizable', 'Non-Customizable'),
-            ('semi_customizable', 'Semi-Customizable'),
-            ('fully_customizable', 'Fully Customizable'),
-        ],
-        default='semi_customizable'
-    )
-    available_customizations = models.JSONField(
-        default=dict,
-        help_text="Available properties: {size, color, material, finish, ...}"
-    )
-    
-    # Turnaround times
-    turnaround_standard_days = models.IntegerField(default=7)
-    turnaround_rush_days = models.IntegerField(default=3)
-    turnaround_rush_surcharge = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=1000,
-        help_text="Additional cost for rush turnaround per item"
-    )
-    turnaround_expedited_days = models.IntegerField(default=1)
-    turnaround_expedited_surcharge = models.DecimalField(
-        max_digits=10, 
-        decimal_places=2, 
-        default=2500,
-        help_text="Additional cost for expedited turnaround per item"
-    )
-    
-    # Minimum order quantity
-    minimum_order_quantity = models.IntegerField(default=1)
-    
-    # Management
-    featured = models.BooleanField(default=False, db_index=True)
-    sort_order = models.IntegerField(default=0)
-    rating = models.DecimalField(max_digits=3, decimal_places=2, default=0)
-    review_count = models.IntegerField(default=0)
-    
-    # Dates
-    published_at = models.DateTimeField(auto_now_add=True)
-    unpublished_at = models.DateTimeField(null=True, blank=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['sort_order', '-featured', 'name']
-        indexes = [
-            models.Index(fields=['storefront_visible', 'category']),
-            models.Index(fields=['featured']),
-            models.Index(fields=['category']),
-        ]
-    
-    def __str__(self):
-        return f"{self.product_id} - {self.name}"
-    
-    def get_price_for_quantity(self, quantity):
-        """Calculate unit price based on quantity tier"""
-        if not self.pricing_tiers:
-            return self.base_price
-        
-        for tier in self.pricing_tiers:
-            if tier['min_qty'] <= quantity <= tier.get('max_qty', float('inf')):
-                return Decimal(str(tier['price_per_unit']))
-        
-        return self.base_price
 
 
 class EstimateQuote(models.Model):

@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quote Builder - Storefront</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/storefront_frontend/css/styles.css">
+    <style>
+        .quote-form-section {
+            border-left: 4px solid #0d6efd;
+            padding: 25px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+
+        .quote-form-section h4 {
+            color: #0d6efd;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .quote-form-section h4::before {
+            counter-increment: section-counter;
+            content: counter(section-counter);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background-color: #0d6efd;
+            color: white;
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .line-item-card {
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background-color: white;
+            transition: all 0.3s ease;
+        }
+
+        .line-item-card:hover {
+            border-color: #0d6efd;
+            box-shadow: 0 0 10px rgba(13, 110, 253, 0.1);
+        }
+
+        .line-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .line-item-header h6 {
+            margin: 0;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .line-item-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            font-weight: 500;
+            color: #555;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .line-item-price-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            padding: 15px;
+            background-color: #f0f6ff;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+
+        .price-item {
+            text-align: center;
+        }
+
+        .price-item-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 5px;
+        }
+
+        .price-item-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #0d6efd;
+        }
+
+        .quote-summary-sticky {
+            background-color: white;
+            border: 2px solid #0d6efd;
+            border-radius: 8px;
+            padding: 20px;
+            position: sticky;
+            top: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #dee2e6;
+            font-size: 14px;
+        }
+
+        .summary-row.total {
+            border: none;
+            font-size: 18px;
+            font-weight: bold;
+            color: #0d6efd;
+            padding: 15px 0;
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 2px solid #0d6efd;
+        }
+
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .action-buttons .btn {
+            padding: 12px;
+            font-weight: 600;
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .action-buttons .btn-whatsapp {
+            background-color: #25d366;
+            border-color: #25d366;
+            color: white;
+        }
+
+        .action-buttons .btn-whatsapp:hover {
+            background-color: #1da852;
+            border-color: #1da852;
+        }
+
+        .action-buttons .btn-email {
+            background-color: #ea4335;
+            border-color: #ea4335;
+            color: white;
+        }
+
+        .action-buttons .btn-email:hover {
+            background-color: #c5221f;
+            border-color: #c5221f;
+        }
+
+        .customization-section {
+            background-color: #f9f9f9;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+        }
+
+        .customization-section h6 {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .special-notes-input {
+            background-color: #fff9e6;
+            border: 1px solid #ffc107;
+        }
+
+        body {
+            counter-reset: section-counter;
+        }
+
+        .text-muted-sm {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .remove-btn {
+            color: #dc3545;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .remove-btn:hover {
+            color: #bb2d3b;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand" href="/storefront/">🛍️ Storefront</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storefront/products/">Products</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/storefront/quote-builder/">Quote Builder</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/storefront/contact/">Contact</a>
+                    </li>
+                    <li class="nav-item" id="navbar-auth">
+                        <a class="nav-link" href="/storefront/login/">Login</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Page Header -->
+    <section class="py-5 bg-light">
+        <div class="container">
+            <h1 class="mb-2">📋 Create a Quote</h1>
+            <p class="text-muted">Fill out the form below to get a custom quote for your needs</p>
+        </div>
+    </section>
+
+    <!-- Quote Form -->
+    <section class="py-5">
+        <div class="container">
+            <form id="quote-form">
+                <div class="row">
+                    <!-- Main Form (Left) -->
+                    <div class="col-lg-8">
+                        
+                        <!-- STEP 1: CUSTOMER INFORMATION -->
+                        <div class="quote-form-section">
+                            <h4>YOUR INFORMATION</h4>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="customer-name" class="form-label">Full Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="customer-name" name="customer_name" required placeholder="John Doe">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="customer-email" class="form-label">Email Address <span class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="customer-email" name="customer_email" required placeholder="john@example.com">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="customer-phone" class="form-label">Phone Number <span class="text-danger">*</span></label>
+                                    <input type="tel" class="form-control" id="customer-phone" name="customer_phone" required placeholder="+254701234567">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="customer-company" class="form-label">Company <span class="text-muted-sm">(Optional)</span></label>
+                                    <input type="text" class="form-control" id="customer-company" name="customer_company" placeholder="Your Company Name">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STEP 2: QUOTE ITEMS -->
+                        <div class="quote-form-section">
+                            <h4>QUOTE ITEMS</h4>
+                            <p class="text-muted mb-4">Add products to your quote. Prices will be calculated automatically.</p>
+                            
+                            <div id="line-items-container">
+                                <!-- Line items will be rendered here -->
+                            </div>
+
+                            <button type="button" class="btn btn-outline-primary btn-lg w-100" id="add-product-btn">
+                                <i class="bi bi-plus-circle"></i> Add Product
+                            </button>
+                        </div>
+
+                        <!-- STEP 3: DELIVERY & TERMS -->
+                        <div class="quote-form-section">
+                            <h4>DELIVERY & TERMS</h4>
+                            
+                            <!-- Turnaround Time -->
+                            <div class="mb-4">
+                                <h6 class="mb-3">
+                                    <i class="bi bi-hourglass-split"></i> Turnaround Time
+                                </h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="turnaround_time" id="turnaround-standard" value="standard" checked>
+                                    <label class="form-check-label" for="turnaround-standard">
+                                        <strong>Standard</strong> - 7 days (No additional charge)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="turnaround_time" id="turnaround-rush" value="rush">
+                                    <label class="form-check-label" for="turnaround-rush">
+                                        <strong>Rush</strong> - 3 days (+1,000 KES per item)
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="turnaround_time" id="turnaround-expedited" value="expedited">
+                                    <label class="form-check-label" for="turnaround-expedited">
+                                        <strong>Expedited</strong> - 1 day (+2,500 KES per item)
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Delivery Method -->
+                            <div class="mb-4">
+                                <h6 class="mb-3">
+                                    <i class="bi bi-truck"></i> Delivery Method
+                                </h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="delivery_method" id="delivery-pickup" value="pickup" checked>
+                                    <label class="form-check-label" for="delivery-pickup">
+                                        <strong>Pickup</strong> - Free
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="delivery_method" id="delivery-courier-nairobi" value="courier_nairobi">
+                                    <label class="form-check-label" for="delivery-courier-nairobi">
+                                        <strong>Courier (Nairobi)</strong> - 500 KES
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="delivery_method" id="delivery-courier-nationwide" value="courier_nationwide">
+                                    <label class="form-check-label" for="delivery-courier-nationwide">
+                                        <strong>Courier (Nationwide)</strong> - 1,500 KES
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Payment Terms -->
+                            <div class="mb-4">
+                                <h6 class="mb-3">
+                                    <i class="bi bi-credit-card"></i> Payment Terms
+                                </h6>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_terms" id="payment-prepaid" value="prepaid" checked>
+                                    <label class="form-check-label" for="payment-prepaid">
+                                        <strong>Prepaid</strong> - Full payment before production
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_terms" id="payment-net7" value="net_7">
+                                    <label class="form-check-label" for="payment-net7">
+                                        <strong>Net 7 Days</strong>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_terms" id="payment-net15" value="net_15">
+                                    <label class="form-check-label" for="payment-net15">
+                                        <strong>Net 15 Days</strong>
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="payment_terms" id="payment-net30" value="net_30">
+                                    <label class="form-check-label" for="payment-net30">
+                                        <strong>Net 30 Days</strong>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Special Requests -->
+                            <div class="mb-3">
+                                <label for="special-requests" class="form-label">
+                                    <i class="bi bi-chat-dots"></i> Special Requests / Instructions
+                                </label>
+                                <textarea class="form-control special-notes-input" id="special-requests" name="special_requests" rows="4" placeholder="Delivery instructions, design notes, custom requirements..."></textarea>
+                                <small class="text-muted">Include any special instructions or custom requirements for your order</small>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- QUOTE SUMMARY (Right Sidebar) -->
+                    <div class="col-lg-4">
+                        <div class="quote-summary-sticky">
+                            <h5 class="mb-4">
+                                <i class="bi bi-calculator"></i> Quote Summary
+                            </h5>
+
+                            <!-- Summary Rows -->
+                            <div class="summary-row">
+                                <span>Subtotal:</span>
+                                <strong id="summary-subtotal">KES 0</strong>
+                            </div>
+
+                            <div class="summary-row">
+                                <span>Turnaround Surcharge:</span>
+                                <strong id="summary-turnaround">KES 0</strong>
+                            </div>
+
+                            <div class="summary-row">
+                                <span>Delivery Charge:</span>
+                                <strong id="summary-delivery">KES 0</strong>
+                            </div>
+
+                            <div class="summary-row">
+                                <span>Subtotal (w/ Charges):</span>
+                                <strong id="summary-subtotal-with-charges">KES 0</strong>
+                            </div>
+
+                            <div class="summary-row">
+                                <span>Tax (18%):</span>
+                                <strong id="summary-tax">KES 0</strong>
+                            </div>
+
+                            <!-- Total -->
+                            <div class="summary-row total">
+                                <span>TOTAL:</span>
+                                <strong id="summary-total">KES 0</strong>
+                            </div>
+
+                            <!-- Items Count -->
+                            <div class="mt-3 p-3 bg-light rounded text-center" id="items-count">
+                                <small>No items added yet</small>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="action-buttons">
+                                <button type="button" class="btn btn-whatsapp" id="share-whatsapp-btn">
+                                    <i class="bi bi-whatsapp"></i> Share via WhatsApp
+                                </button>
+                                <button type="button" class="btn btn-email" id="share-email-btn">
+                                    <i class="bi bi-envelope"></i> Share via Email
+                                </button>
+                                <button type="button" class="btn btn-primary" id="login-save-btn">
+                                    <i class="bi bi-lock"></i> Login to Save
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" id="register-save-btn">
+                                    <i class="bi bi-person-plus"></i> Register & Save
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" id="clear-quote-btn">
+                                    <i class="bi bi-trash"></i> Clear Quote
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-4">
+                    <h5>About Us</h5>
+                    <p>We provide high-quality products and exceptional service to our customers worldwide.</p>
+                </div>
+                <div class="col-md-4">
+                    <h5>Quick Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a href="/storefront/products/" class="text-white-50">Products</a></li>
+                        <li><a href="/storefront/contact/" class="text-white-50">Contact</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-4">
+                    <h5>Contact Info</h5>
+                    <p class="mb-1"><strong>Email:</strong> support@storefront.com</p>
+                    <p class="mb-1"><strong>Phone:</strong> +254 701 234 567</p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Product Selector Modal -->
+    <div class="modal fade" id="productSelectorModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select a Product</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <input type="text" class="form-control" id="product-search" placeholder="Search products...">
+                    </div>
+                    <div id="product-list" style="max-height: 400px; overflow-y: auto;">
+                        <!-- Products loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/storefront_frontend/js/utils.js"></script>
+    <script src="/static/storefront_frontend/js/api-client.js"></script>
+    <script>
+        const api = new StorefrontAPIClient();
+        let allProducts = [];
+        let lineItems = [];
+        let productSelectorModal = null;
+        let selectedProductForLineItem = null;
+
+        // Pricing constants
+        const TURNAROUND_SURCHARGES = {
+            'standard': 0,
+            'rush': 1000,
+            'expedited': 2500
+        };
+
+        const DELIVERY_CHARGES = {
+            'pickup': 0,
+            'courier_nairobi': 500,
+            'courier_nationwide': 1500
+        };
+
+        const TAX_RATE = 0.18; // 18%
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async function() {
+            await loadProducts();
+            loadFromStorage();
+            setupEventListeners();
+            updateSummary();
+            productSelectorModal = new bootstrap.Modal(document.getElementById('productSelectorModal'));
+        });
+
+        function setupEventListeners() {
+            // Product addition
+            document.getElementById('add-product-btn').addEventListener('click', openProductSelector);
+            document.getElementById('product-search').addEventListener('input', filterProducts);
+
+            // Share buttons
+            document.getElementById('share-whatsapp-btn').addEventListener('click', shareViaWhatsApp);
+            document.getElementById('share-email-btn').addEventListener('click', shareViaEmail);
+
+            // Auth buttons
+            document.getElementById('login-save-btn').addEventListener('click', loginToSave);
+            document.getElementById('register-save-btn').addEventListener('click', registerToSave);
+
+            // Clear quote
+            document.getElementById('clear-quote-btn').addEventListener('click', clearQuote);
+
+            // Form changes for summary updates
+            document.querySelectorAll('input[name="turnaround_time"], input[name="delivery_method"]').forEach(el => {
+                el.addEventListener('change', updateSummary);
+            });
+        }
+
+        async function loadProducts() {
+            try {
+                StorefrontUtils.showLoading('Loading products...');
+                const response = await api.getProducts({ limit: 100 });
+                allProducts = response.results || response;
+                StorefrontUtils.hideLoading();
+                renderProductList();
+            } catch (error) {
+                StorefrontUtils.hideLoading();
+                console.error('Error loading products:', error);
+                StorefrontUtils.showToast('Error loading products', 'error');
+            }
+        }
+
+        function openProductSelector() {
+            renderProductList();
+            productSelectorModal.show();
+        }
+
+        function renderProductList() {
+            const container = document.getElementById('product-list');
+            const searchTerm = document.getElementById('product-search').value.toLowerCase();
+
+            const filtered = allProducts.filter(p => 
+                p.name.toLowerCase().includes(searchTerm) ||
+                (p.description_short && p.description_short.toLowerCase().includes(searchTerm))
+            );
+
+            if (filtered.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center py-4">No products found</p>';
+                return;
+            }
+
+            container.innerHTML = filtered.map(product => `
+                <div class="p-3 border rounded mb-2 cursor-pointer" onclick="selectProduct('${product.product_id}', '${product.name}', ${product.base_price})" style="cursor: pointer; transition: all 0.2s;">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <h6 class="mb-1">${product.name}</h6>
+                            <small class="text-muted">${product.description_short || ''}</small>
+                        </div>
+                        <strong class="text-primary">From KES ${product.base_price.toLocaleString()}</strong>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterProducts() {
+            renderProductList();
+        }
+
+        function selectProduct(productId, productName, basePrice) {
+            selectedProductForLineItem = {
+                id: productId,
+                name: productName,
+                base_price: basePrice
+            };
+            
+            productSelectorModal.hide();
+            addLineItemForm(productId, productName, basePrice);
+        }
+
+        function addLineItemForm(productId, productName, basePrice) {
+            const lineItemId = StorefrontUtils.generateId('item-');
+            
+            const html = `
+                <div class="line-item-card" id="${lineItemId}">
+                    <div class="line-item-header">
+                        <h6>${productName}</h6>
+                        <a href="javascript:removeLineItem('${lineItemId}')" class="remove-btn">
+                            <i class="bi bi-trash"></i> Remove
+                        </a>
+                    </div>
+
+                    <div class="line-item-grid">
+                        <div class="form-group">
+                            <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control quantity-input" min="1" value="100" data-item-id="${lineItemId}" data-product-id="${productId}" data-base-price="${basePrice}" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Size</label>
+                            <select class="form-select customization-select" data-item-id="${lineItemId}">
+                                <option value="">Standard</option>
+                                <option value="small">Small</option>
+                                <option value="medium">Medium</option>
+                                <option value="large">Large</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Color</label>
+                            <select class="form-select customization-select" data-item-id="${lineItemId}">
+                                <option value="">Full Color</option>
+                                <option value="bw">Black & White</option>
+                                <option value="custom">Custom (+500 KES)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="line-item-grid">
+                        <div class="form-group">
+                            <label class="form-label">Material</label>
+                            <select class="form-select customization-select" data-item-id="${lineItemId}">
+                                <option value="">Standard</option>
+                                <option value="premium">Premium (+1000 KES)</option>
+                                <option value="luxury">Luxury (+2000 KES)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Finish</label>
+                            <select class="form-select customization-select" data-item-id="${lineItemId}">
+                                <option value="">Matte</option>
+                                <option value="glossy">Glossy</option>
+                                <option value="textured">Textured (+500 KES)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Price Display -->
+                    <div class="line-item-price-display">
+                        <div class="price-item">
+                            <div class="price-item-label">Unit Price</div>
+                            <div class="price-item-value" data-item-id="${lineItemId}" data-type="unit">KES ${basePrice.toLocaleString()}</div>
+                        </div>
+                        <div class="price-item">
+                            <div class="price-item-label">Quantity</div>
+                            <div class="price-item-value" data-item-id="${lineItemId}" data-type="qty">100</div>
+                        </div>
+                        <div class="price-item">
+                            <div class="price-item-label">Line Total</div>
+                            <div class="price-item-value" data-item-id="${lineItemId}" data-type="total">KES ${(basePrice * 100).toLocaleString()}</div>
+                        </div>
+                    </div>
+
+                    <!-- Special Instructions -->
+                    <div class="customization-section">
+                        <h6>Special Instructions for this item</h6>
+                        <textarea class="form-control form-control-sm" data-item-id="${lineItemId}" placeholder="e.g., Specific design notes, branding requirements, etc." rows="2"></textarea>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('line-items-container').innerHTML += html;
+
+            // Add event listeners for this line item
+            document.querySelector(`#${lineItemId} .quantity-input`).addEventListener('change', () => {
+                updateLineItemPrices(lineItemId, productId, basePrice);
+                updateSummary();
+            });
+
+            document.querySelectorAll(`#${lineItemId} .customization-select`).forEach(select => {
+                select.addEventListener('change', () => {
+                    updateLineItemPrices(lineItemId, productId, basePrice);
+                    updateSummary();
+                });
+            });
+
+            updateLineItemPrices(lineItemId, productId, basePrice);
+            updateSummary();
+            StorefrontUtils.showToast('Product added to quote', 'success');
+        }
+
+        function updateLineItemPrices(lineItemId, productId, basePrice) {
+            const card = document.getElementById(lineItemId);
+            const quantity = parseInt(card.querySelector('.quantity-input').value) || 1;
+
+            // Calculate customization surcharge
+            let customizationSurcharge = 0;
+            card.querySelectorAll('.customization-select').forEach(select => {
+                if (select.value === 'custom' || select.value === 'premium' || select.value === 'luxury' || select.value === 'textured') {
+                    customizationSurcharge += 500; // Simplified - could vary
+                }
+            });
+
+            const unitPrice = basePrice + customizationSurcharge;
+            const lineTotal = unitPrice * quantity;
+
+            // Update price display
+            card.querySelector('[data-type="unit"]').textContent = `KES ${unitPrice.toLocaleString()}`;
+            card.querySelector('[data-type="qty"]').textContent = quantity;
+            card.querySelector('[data-type="total"]').textContent = `KES ${lineTotal.toLocaleString()}`;
+        }
+
+        function removeLineItem(lineItemId) {
+            if (confirm('Remove this item from the quote?')) {
+                document.getElementById(lineItemId).remove();
+                updateSummary();
+                StorefrontUtils.showToast('Item removed', 'info');
+            }
+        }
+
+        function updateSummary() {
+            // Calculate subtotal from all line items
+            let subtotal = 0;
+            document.querySelectorAll('.line-item-card').forEach(card => {
+                const totalText = card.querySelector('[data-type="total"]').textContent;
+                const total = parseInt(totalText.replace(/[^0-9]/g, '')) || 0;
+                subtotal += total;
+            });
+
+            // Get selected options
+            const turnaroundTime = document.querySelector('input[name="turnaround_time"]:checked')?.value || 'standard';
+            const deliveryMethod = document.querySelector('input[name="delivery_method"]:checked')?.value || 'pickup';
+
+            // Calculate surcharges
+            const itemCount = document.querySelectorAll('.line-item-card').length;
+            const turnaroundSurcharge = TURNAROUND_SURCHARGES[turnaroundTime] * itemCount;
+            const deliveryCharge = DELIVERY_CHARGES[deliveryMethod];
+
+            const subtotalWithCharges = subtotal + turnaroundSurcharge + deliveryCharge;
+            const tax = subtotalWithCharges * TAX_RATE;
+            const total = subtotalWithCharges + tax;
+
+            // Update summary display
+            document.getElementById('summary-subtotal').textContent = `KES ${subtotal.toLocaleString()}`;
+            document.getElementById('summary-turnaround').textContent = `KES ${turnaroundSurcharge.toLocaleString()}`;
+            document.getElementById('summary-delivery').textContent = `KES ${deliveryCharge.toLocaleString()}`;
+            document.getElementById('summary-subtotal-with-charges').textContent = `KES ${subtotalWithCharges.toLocaleString()}`;
+            document.getElementById('summary-tax').textContent = `KES ${Math.round(tax).toLocaleString()}`;
+            document.getElementById('summary-total').textContent = `KES ${Math.round(total).toLocaleString()}`;
+
+            // Update items count
+            const countText = itemCount === 0 
+                ? '<small>No items added yet</small>'
+                : `<small><strong>${itemCount}</strong> item${itemCount !== 1 ? 's' : ''} in quote</small>`;
+            document.getElementById('items-count').innerHTML = countText;
+
+            // Save to storage
+            saveToStorage();
+        }
+
+        async function shareViaWhatsApp() {
+            if (document.querySelectorAll('.line-item-card').length === 0) {
+                StorefrontUtils.showToast('Please add at least one product', 'error');
+                return;
+            }
+
+            if (!validateCustomerInfo()) return;
+
+            try {
+                StorefrontUtils.showLoading('Creating estimate...');
+                
+                const estimate = await createEstimateQuote();
+                
+                StorefrontUtils.hideLoading();
+
+                // Compose WhatsApp message
+                const totalText = document.getElementById('summary-total').textContent;
+                const message = `Hi, I'm interested in your printing services.%0A%0AHere's my quote request:%0A%0ACustomer: ${document.getElementById('customer-name').value}%0APhone: ${document.getElementById('customer-phone').value}%0AEmail: ${document.getElementById('customer-email').value}%0A%0ATotal Amount: ${totalText}%0A%0AView full quote: ${window.location.origin}/storefront/quote-view/?token=${estimate.share_token}`;
+                
+                const whatsappURL = `https://wa.me/254701234567?text=${message}`;
+                window.open(whatsappURL, '_blank');
+                
+                StorefrontUtils.showToast('Shared via WhatsApp! Sales team will respond shortly.', 'success');
+                clearQuote();
+            } catch (error) {
+                StorefrontUtils.hideLoading();
+                StorefrontUtils.showToast(error.message || 'Error sharing quote', 'error');
+            }
+        }
+
+        async function shareViaEmail() {
+            if (document.querySelectorAll('.line-item-card').length === 0) {
+                StorefrontUtils.showToast('Please add at least one product', 'error');
+                return;
+            }
+
+            if (!validateCustomerInfo()) return;
+
+            try {
+                StorefrontUtils.showLoading('Creating estimate...');
+                
+                const estimate = await createEstimateQuote();
+                
+                StorefrontUtils.hideLoading();
+
+                // Compose email
+                const totalText = document.getElementById('summary-total').textContent;
+                const subject = `Quote Request - ${document.getElementById('customer-name').value}`;
+                const body = `Hi,\n\nI'm interested in your printing services.\n\nHere's my quote request:\n\nCustomer: ${document.getElementById('customer-name').value}\nPhone: ${document.getElementById('customer-phone').value}\nEmail: ${document.getElementById('customer-email').value}\n\nTotal Amount: ${totalText}\n\nView full quote: ${window.location.origin}/storefront/quote-view/?token=${estimate.share_token}`;
+                
+                const mailtoURL = `mailto:sales@storefront.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.location.href = mailtoURL;
+                
+                StorefrontUtils.showToast('Email compose opened. Please send to complete sharing.', 'success');
+            } catch (error) {
+                StorefrontUtils.hideLoading();
+                StorefrontUtils.showToast(error.message || 'Error sharing quote', 'error');
+            }
+        }
+
+        function loginToSave() {
+            if (document.querySelectorAll('.line-item-card').length === 0) {
+                StorefrontUtils.showToast('Please add at least one product', 'error');
+                return;
+            }
+
+            // Save quote to session storage
+            saveToStorage();
+            
+            // Redirect to login
+            window.location.href = '/storefront/login/?next=/storefront/quote-builder/';
+        }
+
+        function registerToSave() {
+            if (document.querySelectorAll('.line-item-card').length === 0) {
+                StorefrontUtils.showToast('Please add at least one product', 'error');
+                return;
+            }
+
+            // Save quote to session storage
+            saveToStorage();
+            
+            // Redirect to register
+            window.location.href = '/storefront/register/?next=/storefront/quote-builder/';
+        }
+
+        function validateCustomerInfo() {
+            const name = document.getElementById('customer-name').value.trim();
+            const email = document.getElementById('customer-email').value.trim();
+            const phone = document.getElementById('customer-phone').value.trim();
+
+            if (!name || !email || !phone) {
+                StorefrontUtils.showToast('Please fill in all customer information', 'error');
+                return false;
+            }
+
+            if (!StorefrontUtils.isValidEmail(email)) {
+                StorefrontUtils.showToast('Please enter a valid email address', 'error');
+                return false;
+            }
+
+            return true;
+        }
+
+        async function createEstimateQuote() {
+            // Get line items data
+            const lineItemsData = [];
+            document.querySelectorAll('.line-item-card').forEach(card => {
+                const productId = card.querySelector('.quantity-input').dataset.productId;
+                const quantity = parseInt(card.querySelector('.quantity-input').value);
+                const unitPrice = parseInt(card.querySelector('[data-type="unit"]').textContent.replace(/[^0-9]/g, ''));
+                const lineTotal = parseInt(card.querySelector('[data-type="total"]').textContent.replace(/[^0-9]/g, ''));
+
+                lineItemsData.push({
+                    product_id: productId,
+                    quantity: quantity,
+                    unit_price: unitPrice,
+                    line_total: lineTotal,
+                    notes: card.querySelector('textarea').value || '',
+                    properties: {}
+                });
+            });
+
+            // Calculate total amount
+            const totalText = document.getElementById('summary-total').textContent;
+            const totalAmount = parseInt(totalText.replace(/[^0-9]/g, ''));
+
+            const customerName = document.getElementById('customer-name').value;
+            const customerEmail = document.getElementById('customer-email').value;
+            const customerPhone = document.getElementById('customer-phone').value;
+            const customerCompany = document.getElementById('customer-company').value;
+
+            // Call API to create estimate
+            try {
+                const response = await api.createEstimate(customerName, customerEmail, customerPhone, customerCompany, lineItemsData);
+                // Backend will set total_amount, so we don't need to worry about it
+                return response;
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        function saveToStorage() {
+            const formData = {
+                customer_name: document.getElementById('customer-name').value,
+                customer_email: document.getElementById('customer-email').value,
+                customer_phone: document.getElementById('customer-phone').value,
+                customer_company: document.getElementById('customer-company').value,
+                turnaround_time: document.querySelector('input[name="turnaround_time"]:checked').value,
+                delivery_method: document.querySelector('input[name="delivery_method"]:checked').value,
+                payment_terms: document.querySelector('input[name="payment_terms"]:checked').value,
+                special_requests: document.getElementById('special-requests').value
+            };
+
+            sessionStorage.setItem('quote_form', JSON.stringify(formData));
+        }
+
+        function loadFromStorage() {
+            const saved = sessionStorage.getItem('quote_form');
+            if (saved) {
+                const formData = JSON.parse(saved);
+                document.getElementById('customer-name').value = formData.customer_name || '';
+                document.getElementById('customer-email').value = formData.customer_email || '';
+                document.getElementById('customer-phone').value = formData.customer_phone || '';
+                document.getElementById('customer-company').value = formData.customer_company || '';
+                document.getElementById('special-requests').value = formData.special_requests || '';
+                
+                // Set radio buttons
+                const turnaround = document.querySelector(`input[name="turnaround_time"][value="${formData.turnaround_time || 'standard'}"]`);
+                if (turnaround) turnaround.checked = true;
+                
+                const delivery = document.querySelector(`input[name="delivery_method"][value="${formData.delivery_method || 'pickup'}"]`);
+                if (delivery) delivery.checked = true;
+
+                const payment = document.querySelector(`input[name="payment_terms"][value="${formData.payment_terms || 'prepaid'}"]`);
+                if (payment) payment.checked = true;
+            }
+        }
+
+        function clearQuote() {
+            if (confirm('Are you sure you want to clear the entire quote? This cannot be undone.')) {
+                document.getElementById('quote-form').reset();
+                document.getElementById('line-items-container').innerHTML = '';
+                sessionStorage.removeItem('quote_form');
+                updateSummary();
+                StorefrontUtils.showToast('Quote cleared', 'info');
+            }
+        }
+    </script>
+</body>
+</html>

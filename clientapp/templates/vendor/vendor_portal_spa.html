@@ -1,0 +1,2368 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vendor Partner Portal - Print Duka</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-dark: #1e40af;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #0ea5e9;
+            --light-bg: #f8fafc;
+            --sidebar-bg: #0f172a;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        html, body {
+            height: 100%;
+            background-color: var(--light-bg);
+        }
+
+        body {
+            color: var(--text-main);
+        }
+
+        /* ============================================================
+           LAYOUT
+           ============================================================ */
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .main-container {
+            margin-left: 260px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            height: 70px;
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* ============================================================
+           SIDEBAR
+           ============================================================ */
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--sidebar-bg);
+            margin-bottom: 8px;
+        }
+
+        .vendor-label {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 12px 0;
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 20px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: #f1f5f9;
+            color: var(--text-main);
+        }
+
+        .nav-item.active {
+            background-color: #eff6ff;
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .nav-item i {
+            width: 20px;
+            text-align: center;
+            font-size: 1.1rem;
+        }
+
+        .sidebar-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            background: #f8fafc;
+        }
+
+        .user-info {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), #0ea5e9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .user-details {
+            flex: 1;
+        }
+
+        .user-name {
+            font-size: 0.8125rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .user-status {
+            font-size: 0.7rem;
+            color: var(--success-color);
+            font-weight: 600;
+        }
+
+        .logout-btn {
+            width: 100%;
+            padding: 8px;
+            background: #fee2e2;
+            color: var(--danger-color);
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .logout-btn:hover {
+            background: #fecaca;
+        }
+
+        /* ============================================================
+           TOP BAR
+           ============================================================ */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .breadcrumb strong {
+            color: var(--text-main);
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+        }
+
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+            font-size: 1.2rem;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+
+        .notification-bell:hover {
+            color: var(--text-main);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--danger-color);
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        /* ============================================================
+           CONTENT SECTIONS
+           ============================================================ */
+        .section {
+            display: none;
+        }
+
+        .section.active {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* ============================================================
+           CARDS & COMPONENTS
+           ============================================================ */
+        .card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .card-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stat-card.success .stat-value {
+            color: var(--success-color);
+        }
+
+        .stat-card.warning .stat-value {
+            color: var(--warning-color);
+        }
+
+        .stat-card.danger .stat-value {
+            color: var(--danger-color);
+        }
+
+        /* ============================================================
+           TABLES
+           ============================================================ */
+        .table-container {
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+        }
+
+        thead {
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            padding: 12px;
+            text-align: left;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid var(--border-color);
+            transition: background-color 0.2s;
+        }
+
+        tbody tr:hover {
+            background-color: #f8fafc;
+        }
+
+        td {
+            padding: 12px;
+            font-size: 0.875rem;
+            color: var(--text-main);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #cffafe;
+            color: #164e63;
+        }
+
+        /* ============================================================
+           FORMS
+           ============================================================ */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--text-main);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-family: inherit;
+            color: var(--text-main);
+            transition: border-color 0.2s;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 16px;
+        }
+
+        /* ============================================================
+           BUTTONS
+           ============================================================ */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #059669;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: #f8fafc;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        /* ============================================================
+           MODALS
+           ============================================================ */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.125rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* ============================================================
+           ALERTS
+           ============================================================ */
+        .alert {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fcd34d;
+        }
+
+        .alert-info {
+            background: #cffafe;
+            color: #164e63;
+            border: 1px solid #a5f3fc;
+        }
+
+        /* ============================================================
+           UTILITIES
+           ============================================================ */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 20px;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #e2e8f0;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .mt-0 { margin-top: 0; }
+        .mt-8 { margin-top: 8px; }
+        .mt-16 { margin-top: 16px; }
+        .mt-24 { margin-top: 24px; }
+
+        .mb-0 { margin-bottom: 0; }
+        .mb-8 { margin-bottom: 8px; }
+        .mb-16 { margin-bottom: 16px; }
+        .mb-24 { margin-bottom: 24px; }
+
+        .gap-8 { gap: 8px; }
+        .gap-16 { gap: 16px; }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 1024px) {
+            .sidebar {
+                width: 200px;
+            }
+            .main-container {
+                margin-left: 200px;
+            }
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+                z-index: 1000;
+            }
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+            .main-container {
+                margin-left: 0;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .top-bar {
+                justify-content: flex-start;
+                gap: 16px;
+            }
+            .menu-toggle {
+                display: flex;
+                background: none;
+                border: none;
+                font-size: 1.5rem;
+                cursor: pointer;
+            }
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">PrintDuka</div>
+            <div class="vendor-label">Vendor Portal</div>
+        </div>
+
+        <nav class="sidebar-nav">
+            <a href="#" class="nav-item active" data-section="dashboard">
+                <i class="fas fa-chart-line"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item" data-section="purchase-orders">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Purchase Orders</span>
+            </a>
+            <a href="#" class="nav-item" data-section="proofs">
+                <i class="fas fa-file-image"></i>
+                <span>Submit Proofs</span>
+            </a>
+            <a href="#" class="nav-item" data-section="progress">
+                <i class="fas fa-tasks"></i>
+                <span>Progress Updates</span>
+            </a>
+            <a href="#" class="nav-item" data-section="invoices">
+                <i class="fas fa-receipt"></i>
+                <span>Invoices</span>
+            </a>
+            <a href="#" class="nav-item" data-section="messages">
+                <i class="fas fa-comments"></i>
+                <span>Messages <span id="msg-badge" class="notification-badge" style="display: none;"></span></span>
+            </a>
+            <a href="#" class="nav-item" data-section="performance">
+                <i class="fas fa-star"></i>
+                <span>Performance</span>
+            </a>
+            <a href="#" class="nav-item" data-section="account">
+                <i class="fas fa-cog"></i>
+                <span>Account Settings</span>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-info">
+                <div class="user-avatar" id="user-avatar">V</div>
+                <div class="user-details">
+                    <div class="user-name" id="vendor-name">Vendor Name</div>
+                    <div class="user-status">✓ Active</div>
+                </div>
+            </div>
+            <button class="logout-btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="main-container">
+        <!-- TOP BAR -->
+        <div class="top-bar">
+            <div class="breadcrumb">
+                <strong id="page-title">Dashboard</strong>
+            </div>
+            <div class="top-bar-right">
+                <div class="notification-bell" onclick="toggleNotifications()">
+                    <i class="fas fa-bell"></i>
+                    <span id="notification-count" class="notification-badge" style="display: none;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- CONTENT AREA -->
+        <div class="content">
+            <!-- DASHBOARD SECTION -->
+            <section id="dashboard" class="section active">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">Welcome back, <span id="dashboard-vendor-name">Vendor</span></h1>
+                    <p style="color: var(--text-muted); font-size: 1rem;">Here's your business overview</p>
+                </div>
+
+                <!-- KEY METRICS -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Active POs</div>
+                        <div class="stat-value" id="stat-active-pos">0</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-label">On-Time Rate</div>
+                        <div class="stat-value" id="stat-ontime-rate">0%</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-label">Quality Score</div>
+                        <div class="stat-value" id="stat-quality-score">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Total Revenue</div>
+                        <div class="stat-value" id="stat-revenue">KES 0</div>
+                    </div>
+                </div>
+
+                <!-- URGENT ALERTS -->
+                <div class="card mb-24">
+                    <div class="card-title">
+                        <i class="fas fa-exclamation-triangle" style="color: var(--danger-color);"></i>
+                        Urgent Actions Required
+                    </div>
+                    <div id="urgent-alerts"></div>
+                </div>
+
+                <!-- RECENT PURCHASE ORDERS -->
+                <div class="card mb-24">
+                    <div class="card-title">
+                        <i class="fas fa-inbox"></i>
+                        Recent Purchase Orders
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>Product</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-pos">
+                                <tr>
+                                    <td colspan="5" class="text-center loading">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PERFORMANCE OVERVIEW -->
+                <div class="stats-grid">
+                    <div class="card">
+                        <div class="card-title">On-Time Delivery</div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--success-color);" id="perf-ontime">0%</div>
+                        <div class="card-subtitle">Last 30 days</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Quality Pass Rate</div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--success-color);" id="perf-quality">0%</div>
+                        <div class="card-subtitle">Last 30 days</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Avg Response Time</div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--info-color);" id="perf-response">0h</div>
+                        <div class="card-subtitle">To PT inquiries</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Jobs Completed</div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary-color);" id="perf-completed">0</div>
+                        <div class="card-subtitle">This month</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PURCHASE ORDERS SECTION -->
+            <section id="purchase-orders" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 16px;">Purchase Orders</h1>
+                    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                        <input type="text" id="po-search" placeholder="Search PO number..." style="flex: 1; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+                        <select id="po-status-filter" style="padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+                            <option value="">All Statuses</option>
+                            <option value="new">New</option>
+                            <option value="in_production">In Production</option>
+                            <option value="quality_check">Quality Check</option>
+                            <option value="completed">Completed</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>Product</th>
+                                    <th>Quantity</th>
+                                    <th>Deadline</th>
+                                    <th>Status</th>
+                                    <th>Days Left</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="po-list">
+                                <tr>
+                                    <td colspan="7" class="text-center loading">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PROOFS SUBMISSION SECTION -->
+            <section id="proofs" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Submit Proofs & Samples</h1>
+                    <p style="color: var(--text-muted);">Upload design proofs, test prints, and quality checks</p>
+                </div>
+
+                <div class="card mb-24">
+                    <div class="card-title">New Proof Submission</div>
+                    
+                    <div class="form-group">
+                        <label>Select Purchase Order</label>
+                        <select id="proof-po-select" onchange="loadPoDetails()">
+                            <option value="">-- Select PO --</option>
+                        </select>
+                    </div>
+
+                    <div id="po-details-display" style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                            <div>
+                                <div class="card-subtitle">Product</div>
+                                <div id="detail-product" style="font-weight: 600;"></div>
+                            </div>
+                            <div>
+                                <div class="card-subtitle">Quantity</div>
+                                <div id="detail-quantity" style="font-weight: 600;"></div>
+                            </div>
+                            <div>
+                                <div class="card-subtitle">Deadline</div>
+                                <div id="detail-deadline" style="font-weight: 600;"></div>
+                            </div>
+                            <div>
+                                <div class="card-subtitle">Requirements</div>
+                                <div id="detail-requirements" style="font-weight: 600;"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Proof Type</label>
+                        <select id="proof-type">
+                            <option value="">-- Select Type --</option>
+                            <option value="design_pdf">Design PDF</option>
+                            <option value="test_print">Test Print</option>
+                            <option value="color_swatch">Color Swatch</option>
+                            <option value="sample_product">Sample Product</option>
+                            <option value="quality_report">Quality Report</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Upload Files</label>
+                        <input type="file" id="proof-file" multiple accept=".pdf,.jpg,.jpeg,.png,.zip" onchange="displayFileList()">
+                        <div id="file-list" style="margin-top: 12px; font-size: 0.875rem; color: var(--text-muted);"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="proof-notes" placeholder="Add any notes about this proof submission..."></textarea>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="submitProof()">Submit Proof</button>
+                        <button class="btn btn-secondary" onclick="resetProofForm()">Clear</button>
+                    </div>
+                </div>
+
+                <!-- PROOF HISTORY -->
+                <div class="card">
+                    <div class="card-title">Proof Submissions History</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>Type</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                    <th>PT Feedback</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="proof-history">
+                                <tr>
+                                    <td colspan="6" class="text-center">No proofs submitted yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PROGRESS UPDATES SECTION -->
+            <section id="progress" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Update Job Progress</h1>
+                    <p style="color: var(--text-muted);">Keep the PT team informed about your job status</p>
+                </div>
+
+                <div class="card mb-24">
+                    <div class="card-title">New Progress Update</div>
+                    
+                    <div class="form-group">
+                        <label>Select Purchase Order</label>
+                        <select id="progress-po-select" onchange="loadProgressPoDetails()">
+                            <option value="">-- Select PO --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Current Status</label>
+                        <select id="progress-status">
+                            <option value="">-- Select Status --</option>
+                            <option value="not_started">Not Started</option>
+                            <option value="in_progress">In Progress</option>
+                            <option value="on_track">On Track</option>
+                            <option value="delayed">Delayed</option>
+                            <option value="completed">Completed</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Update Notes</label>
+                        <textarea id="progress-notes" placeholder="Describe the current progress..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Est. Completion Date (if delayed)</label>
+                        <input type="date" id="progress-new-date">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="submitProgressUpdate()">Submit Update</button>
+                        <button class="btn btn-secondary" onclick="resetProgressForm()">Clear</button>
+                    </div>
+                </div>
+
+                <!-- PROGRESS HISTORY -->
+                <div class="card">
+                    <div class="card-title">Progress History</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>PO Number</th>
+                                    <th>Status</th>
+                                    <th>Updated</th>
+                                    <th>Est. Completion</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="progress-history">
+                                <tr>
+                                    <td colspan="5" class="text-center">No updates yet</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- INVOICES SECTION -->
+            <section id="invoices" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Invoices</h1>
+                    <div style="display: flex; gap: 12px;">
+                        <input type="text" id="invoice-search" placeholder="Search invoice number..." style="flex: 1; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+                        <select id="invoice-status-filter" style="padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+                            <option value="">All Statuses</option>
+                            <option value="pending">Pending</option>
+                            <option value="approved">Approved</option>
+                            <option value="paid">Paid</option>
+                            <option value="overdue">Overdue</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card mb-24">
+                    <div class="card-title">Create New Invoice</div>
+                    
+                    <div class="form-group">
+                        <label>Select Completed Purchase Order</label>
+                        <select id="invoice-po-select">
+                            <option value="">-- Select PO --</option>
+                        </select>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Invoice Number</label>
+                            <input type="text" id="invoice-number" placeholder="Auto-generated if empty">
+                        </div>
+                        <div class="form-group">
+                            <label>Invoice Date</label>
+                            <input type="date" id="invoice-date">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" id="invoice-amount" placeholder="0.00" step="0.01">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="invoice-notes" placeholder="Invoice notes..."></textarea>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="submitInvoice()">Create Invoice</button>
+                        <button class="btn btn-secondary" onclick="resetInvoiceForm()">Clear</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Invoice List</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Invoice #</th>
+                                    <th>PO Number</th>
+                                    <th>Amount</th>
+                                    <th>Due Date</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoice-list">
+                                <tr>
+                                    <td colspan="6" class="text-center loading">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MESSAGES SECTION -->
+            <section id="messages" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Messages from PT</h1>
+                    <p style="color: var(--text-muted);">Communications about your orders and proofs</p>
+                </div>
+
+                <div class="card">
+                    <div id="messages-container" style="max-height: 600px; overflow-y: auto;">
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="fas fa-envelope-open-text"></i>
+                            </div>
+                            <div>No messages yet</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PERFORMANCE SECTION -->
+            <section id="performance" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Your Performance</h1>
+                    <p style="color: var(--text-muted);">Track your vendor metrics and ratings</p>
+                </div>
+
+                <!-- PERFORMANCE SCORE -->
+                <div class="stats-grid">
+                    <div class="card" style="grid-column: span 1;">
+                        <div class="card-title">Overall Score</div>
+                        <div style="text-align: center;">
+                            <div style="font-size: 3rem; font-weight: 700; color: var(--success-color); margin-bottom: 8px;" id="perf-overall-score">0/100</div>
+                            <div id="perf-overall-grade" style="font-weight: 600; font-size: 1.125rem;">Grade: A</div>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">On-Time Delivery</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--success-color);" id="perf-ontime-rate">0%</div>
+                        <div class="card-subtitle">Jobs completed on schedule</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Quality Score</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--success-color);" id="perf-quality-rate">0%</div>
+                        <div class="card-subtitle">QC pass rate</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Response Time</div>
+                        <div style="font-size: 2rem; font-weight: 700; color: var(--info-color);" id="perf-response-time">0h</div>
+                        <div class="card-subtitle">Avg hours to respond</div>
+                    </div>
+                </div>
+
+                <!-- DETAILED METRICS -->
+                <div class="card mt-24">
+                    <div class="card-title">Detailed Metrics</div>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                        <div>
+                            <div class="card-subtitle mb-8">Average Turnaround</div>
+                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-avg-turnaround">0 days</div>
+                        </div>
+                        <div>
+                            <div class="card-subtitle mb-8">Defect Rate</div>
+                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-defect-rate">0%</div>
+                        </div>
+                        <div>
+                            <div class="card-subtitle mb-8">Jobs Completed</div>
+                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-jobs-completed">0</div>
+                        </div>
+                        <div>
+                            <div class="card-subtitle mb-8">Acceptance Rate</div>
+                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-acceptance-rate">0%</div>
+                        </div>
+                        <div>
+                            <div class="card-subtitle mb-8">Cost Per Job</div>
+                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-cost-per-job">KES 0</div>
+                        </div>
+                        <div>
+                            <div class="card-subtitle mb-8">Decline Rate</div>
+                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-decline-rate">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- INSIGHTS -->
+                <div class="card mt-24">
+                    <div class="card-title">Performance Insights</div>
+                    <div id="perf-insights"></div>
+                </div>
+            </section>
+
+            <!-- ACCOUNT SETTINGS SECTION -->
+            <section id="account" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Account Settings</h1>
+                </div>
+
+                <!-- PROFILE -->
+                <div class="card mb-24">
+                    <div class="card-title">Company Profile</div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Company Name</label>
+                            <input type="text" id="setting-company-name" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label>Contact Person</label>
+                            <input type="text" id="setting-contact-person">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Email</label>
+                            <input type="email" id="setting-email">
+                        </div>
+                        <div class="form-group">
+                            <label>Phone</label>
+                            <input type="tel" id="setting-phone">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Business Address</label>
+                            <textarea id="setting-address"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Website</label>
+                            <input type="url" id="setting-website">
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveSettings()">Save Changes</button>
+                    </div>
+                </div>
+
+                <!-- BANK DETAILS -->
+                <div class="card mb-24">
+                    <div class="card-title">Payment Information</div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Preferred Payment Method</label>
+                            <select id="setting-payment-method">
+                                <option value="bank_transfer">Bank Transfer</option>
+                                <option value="mobile_money">Mobile Money</option>
+                                <option value="check">Check</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Tax ID</label>
+                            <input type="text" id="setting-tax-id">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Bank Details (for payments)</label>
+                        <textarea id="setting-bank-details" placeholder="Bank name, account holder, account number..."></textarea>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="saveBankDetails()">Save Payment Info</button>
+                    </div>
+                </div>
+
+                <!-- NOTIFICATIONS -->
+                <div class="card mb-24">
+                    <div class="card-title">Notification Preferences</div>
+                    
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="notify-new-po" checked>
+                            <span>Email notifications for new purchase orders</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="notify-feedback" checked>
+                            <span>Email notifications for proof feedback</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="notify-messages" checked>
+                            <span>Email notifications for messages</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="checkbox" id="notify-payment" checked>
+                            <span>Email notifications for payment status</span>
+                        </label>
+                    </div>
+
+                    <div class="btn-group mt-24">
+                        <button class="btn btn-primary" onclick="saveNotificationPrefs()">Save Preferences</button>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+<!-- MODALS -->
+<div id="po-detail-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Purchase Order Details</h2>
+            <button class="modal-close" onclick="closeModal('po-detail-modal')">&times;</button>
+        </div>
+        <div class="modal-body" id="po-detail-body">
+            <!-- PO details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<div id="issue-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Report Issue / Ask Question</h2>
+            <button class="modal-close" onclick="closeModal('issue-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Issue Type</label>
+                <select id="issue-type">
+                    <option value="clarification">Need Clarification</option>
+                    <option value="impossible">Cannot Complete As Specified</option>
+                    <option value="quality">Quality Concern</option>
+                    <option value="material">Material Issue</option>
+                    <option value="timeline">Timeline Issue</option>
+                    <option value="other">Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="issue-description" placeholder="Describe the issue..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('issue-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitIssue()">Submit</button>
+        </div>
+    </div>
+</div>
+
+<div id="substitution-modal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 class="modal-title">Propose Material Substitution</h2>
+            <button class="modal-close" onclick="closeModal('substitution-modal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Current Material</label>
+                <input type="text" id="sub-current-material" disabled>
+            </div>
+            <div class="form-group">
+                <label>Proposed Alternative</label>
+                <input type="text" id="sub-proposed-material" placeholder="Enter proposed alternative">
+            </div>
+            <div class="form-group">
+                <label>Reason for Substitution</label>
+                <textarea id="sub-reason" placeholder="Why is this substitution necessary?"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Quality Impact</label>
+                <textarea id="sub-impact" placeholder="How does this affect the final product?"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal('substitution-modal')">Cancel</button>
+            <button class="btn btn-primary" onclick="submitSubstitution()">Submit Request</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ============================================================
+    // API CONFIGURATION
+    // ============================================================
+    const API_BASE_URL = '/api/v1';
+
+    // Get CSRF token from cookie
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // ============================================================
+    // UTILITIES
+    // ============================================================
+    function getHeaders() {
+        const headers = {
+            'Content-Type': 'application/json',
+        };
+        
+        // Add CSRF token for POST, PUT, DELETE, PATCH requests
+        const csrfToken = getCookie('csrftoken');
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken;
+        }
+        
+        return headers;
+    }
+
+    async function apiCall(endpoint, method = 'GET', data = null) {
+        const options = {
+            method,
+            headers: getHeaders(),
+            credentials: 'include'  // Include cookies for session authentication
+        };
+
+        if (data) {
+            options.body = JSON.stringify(data);
+        }
+
+        try {
+            const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+            if (response.status === 401) {
+                window.location.href = '/accounts/login/';
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('API Error:', error);
+            showAlert('An error occurred. Please try again.', 'error');
+            return null;
+        }
+    }
+
+    function showAlert(message, type = 'info') {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.innerHTML = `
+            <i class="fas fa-check-circle"></i>
+            <span>${message}</span>
+        `;
+        
+        const content = document.querySelector('.content');
+        content.insertBefore(alertDiv, content.firstChild);
+
+        setTimeout(() => alertDiv.remove(), 4000);
+    }
+
+    function switchSection(sectionId) {
+        // Hide all sections
+        document.querySelectorAll('.section').forEach(section => {
+            section.classList.remove('active');
+        });
+
+        // Show active section
+        document.getElementById(sectionId).classList.add('active');
+
+        // Update nav
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.classList.remove('active');
+        });
+        document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+
+        // Update page title
+        const titles = {
+            'dashboard': 'Dashboard',
+            'purchase-orders': 'Purchase Orders',
+            'proofs': 'Submit Proofs',
+            'progress': 'Progress Updates',
+            'invoices': 'Invoices',
+            'messages': 'Messages',
+            'performance': 'Performance',
+            'account': 'Account Settings'
+        };
+
+        document.getElementById('page-title').textContent = titles[sectionId];
+    }
+
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.add('active');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.remove('active');
+    }
+
+    // ============================================================
+    // INITIALIZATION
+    // ============================================================
+    async function initializePortal() {
+        // Get vendor info
+        const vendorData = await apiCall('/vendor-self-info/me');
+        if (vendorData && vendorData.results && vendorData.results.length > 0) {
+            const vendor = vendorData.results[0];
+            document.getElementById('vendor-name').textContent = vendor.name;
+            document.getElementById('dashboard-vendor-name').textContent = vendor.name;
+            
+            const firstLetter = vendor.name.charAt(0).toUpperCase();
+            document.getElementById('user-avatar').textContent = firstLetter;
+            
+            // Load settings
+            document.getElementById('setting-company-name').value = vendor.name;
+            document.getElementById('setting-contact-person').value = vendor.contact_person || '';
+            document.getElementById('setting-email').value = vendor.email || '';
+            document.getElementById('setting-phone').value = vendor.phone || '';
+            document.getElementById('setting-address').value = vendor.business_address || '';
+            document.getElementById('setting-website').value = vendor.website || '';
+            document.getElementById('setting-payment-method').value = vendor.preferred_payment_method || 'bank_transfer';
+            document.getElementById('setting-tax-id').value = vendor.tax_id || '';
+        }
+
+        // Load dashboard data
+        loadDashboard();
+
+        // Load PO lists
+        loadPurchaseOrders();
+        loadPoSelects();
+
+        // Load invoices
+        loadInvoices();
+
+        // Load performance
+        loadPerformance();
+
+        // Setup event listeners
+        setupEventListeners();
+    }
+
+    function setupEventListeners() {
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const sectionId = item.dataset.section;
+                switchSection(sectionId);
+            });
+        });
+
+        // Search filters
+        document.getElementById('po-search')?.addEventListener('input', filterPurchaseOrders);
+        document.getElementById('po-status-filter')?.addEventListener('change', filterPurchaseOrders);
+        document.getElementById('invoice-search')?.addEventListener('input', filterInvoices);
+        document.getElementById('invoice-status-filter')?.addEventListener('change', filterInvoices);
+    }
+
+    // ============================================================
+    // DASHBOARD
+    // ============================================================
+    async function loadDashboard() {
+        // Get dashboard stats
+        const stats = await apiCall('/purchase-orders/?limit=100');
+        if (!stats) return;
+
+        const pos = stats.results || [];
+        
+        // Calculate metrics
+        const activePos = pos.filter(po => !['completed', 'cancelled'].includes(po.status)).length;
+        const recentPos = pos.slice(0, 5);
+        
+        // Update KPIs
+        document.getElementById('stat-active-pos').textContent = activePos;
+        
+        // Populate recent POs
+        const recentPoHtml = recentPos.map(po => `
+            <tr>
+                <td><strong>${po.po_number}</strong></td>
+                <td>${po.product_type}</td>
+                <td>${po.required_by}</td>
+                <td><span class="badge badge-${getStatusColor(po.status)}">${po.status}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-primary" onclick="viewPoDetail(${po.id})">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('recent-pos').innerHTML = recentPoHtml || '<tr><td colspan="5" class="text-center">No POs</td></tr>';
+
+        // Load urgent alerts
+        loadUrgentAlerts();
+    }
+
+    async function loadUrgentAlerts() {
+        // Get POs with urgent status
+        const pos = await apiCall('/purchase-orders/?status=new,in_production&limit=100');
+        const alertsContainer = document.getElementById('urgent-alerts');
+        
+        if (!pos || !pos.results || pos.results.length === 0) {
+            alertsContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted);">No urgent actions needed</p>';
+            return;
+        }
+
+        const alerts = pos.results.filter(po => {
+            const daysLeft = Math.ceil((new Date(po.required_by) - new Date()) / (1000 * 60 * 60 * 24));
+            return daysLeft <= 3;
+        });
+
+        const alertsHtml = alerts.map(po => {
+            const daysLeft = Math.ceil((new Date(po.required_by) - new Date()) / (1000 * 60 * 60 * 24));
+            const type = daysLeft <= 0 ? 'red' : daysLeft <= 1 ? 'red' : 'orange';
+            
+            return `
+                <div class="urgent-alert ${type}">
+                    <span>
+                        <strong>${po.po_number}</strong> - 
+                        ${daysLeft <= 0 ? 'OVERDUE' : `${daysLeft} days left`}
+                    </span>
+                    <button class="btn-action btn-blue" onclick="viewPoDetail(${po.id})">View</button>
+                </div>
+            `;
+        }).join('');
+
+        alertsContainer.innerHTML = alertsHtml || '<p style="text-align: center; color: var(--text-muted);">No urgent actions needed</p>';
+    }
+
+    // ============================================================
+    // PURCHASE ORDERS
+    // ============================================================
+    async function loadPurchaseOrders() {
+        const pos = await apiCall('/purchase-orders/?limit=100');
+        if (!pos) return;
+
+        const posList = pos.results || [];
+        
+        // Update stats
+        document.getElementById('stat-active-pos').textContent = posList.filter(po => !['completed', 'cancelled'].includes(po.status)).length;
+        
+        // Update table
+        const poHtml = posList.map(po => {
+            const deadline = new Date(po.required_by);
+            const today = new Date();
+            const daysLeft = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+            const isOverdue = daysLeft < 0;
+            
+            return `
+                <tr>
+                    <td><strong>${po.po_number}</strong></td>
+                    <td>${po.product_type}</td>
+                    <td>${po.quantity || 'N/A'}</td>
+                    <td>${po.required_by}</td>
+                    <td><span class="badge badge-${getStatusColor(po.status)}">${po.status}</span></td>
+                    <td>
+                        <span style="color: ${isOverdue ? 'var(--danger-color)' : 'inherit'}; font-weight: ${isOverdue ? '700' : '400'};">
+                            ${isOverdue ? `OVERDUE (${Math.abs(daysLeft)}d)` : `${daysLeft}d`}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-primary" onclick="viewPoDetail(${po.id})">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-secondary" onclick="showPoActions(${po.id})">
+                                <i class="fas fa-ellipsis-h"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        document.getElementById('po-list').innerHTML = poHtml || '<tr><td colspan="7" class="text-center">No POs found</td></tr>';
+    }
+
+    async function loadPoSelects() {
+        const pos = await apiCall('/purchase-orders/?limit=100');
+        if (!pos) return;
+
+        const posList = pos.results || [];
+        const html = posList.map(po => 
+            `<option value="${po.id}" data-po='${JSON.stringify(po)}'>${po.po_number} - ${po.product_type}</option>`
+        ).join('');
+
+        document.getElementById('proof-po-select').innerHTML = '<option value="">-- Select PO --</option>' + html;
+        document.getElementById('progress-po-select').innerHTML = '<option value="">-- Select PO --</option>' + html;
+        
+        const completedPos = posList.filter(po => po.status === 'completed');
+        const invoiceHtml = completedPos.map(po => 
+            `<option value="${po.id}">${po.po_number} - ${po.product_type}</option>`
+        ).join('');
+        document.getElementById('invoice-po-select').innerHTML = '<option value="">-- Select PO --</option>' + invoiceHtml;
+    }
+
+    function filterPurchaseOrders() {
+        const searchTerm = document.getElementById('po-search').value.toLowerCase();
+        const statusFilter = document.getElementById('po-status-filter').value;
+
+        document.querySelectorAll('#po-list tr').forEach(row => {
+            const poNumber = row.cells[0].textContent.toLowerCase();
+            const status = row.cells[4].textContent.toLowerCase();
+
+            const matchesSearch = poNumber.includes(searchTerm);
+            const matchesStatus = !statusFilter || status.includes(statusFilter);
+
+            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+        });
+    }
+
+    async function viewPoDetail(poId) {
+        const po = await apiCall(`/purchase-orders/${poId}/`);
+        if (!po) return;
+
+        const modalBody = document.getElementById('po-detail-body');
+        const deadline = new Date(po.required_by);
+        const today = new Date();
+        const daysLeft = Math.ceil((deadline - today) / (1000 * 60 * 60 * 24));
+
+        modalBody.innerHTML = `
+            <div style="display: grid; gap: 16px;">
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                    <div>
+                        <div class="card-subtitle">PO Number</div>
+                        <div style="font-weight: 600;">${po.po_number}</div>
+                    </div>
+                    <div>
+                        <div class="card-subtitle">Status</div>
+                        <span class="badge badge-${getStatusColor(po.status)}">${po.status}</span>
+                    </div>
+                    <div>
+                        <div class="card-subtitle">Product</div>
+                        <div style="font-weight: 600;">${po.product_type}</div>
+                    </div>
+                    <div>
+                        <div class="card-subtitle">Quantity</div>
+                        <div style="font-weight: 600;">${po.quantity || 'N/A'}</div>
+                    </div>
+                    <div>
+                        <div class="card-subtitle">Deadline</div>
+                        <div style="font-weight: 600; color: ${daysLeft < 0 ? 'var(--danger-color)' : 'inherit'};">
+                            ${po.required_by} (${daysLeft < 0 ? `OVERDUE ${Math.abs(daysLeft)}d` : `${daysLeft}d left`})
+                        </div>
+                    </div>
+                    <div>
+                        <div class="card-subtitle">Cost</div>
+                        <div style="font-weight: 600;">KES ${po.total_cost || 0}</div>
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card-subtitle mb-8">Specifications</div>
+                    <div style="background: #f8fafc; padding: 12px; border-radius: 8px; font-size: 0.875rem;">
+                        ${po.notes || 'No additional specifications'}
+                    </div>
+                </div>
+
+                <div>
+                    <div class="card-subtitle mb-8">Attachments</div>
+                    <div>${po.attachment_files ? 'Files attached' : 'No attachments'}</div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="acceptPo(${po.id})">
+                        <i class="fas fa-check"></i> Accept Order
+                    </button>
+                    <button class="btn btn-secondary" onclick="showIssueModal('${po.po_number}')">
+                        <i class="fas fa-question-circle"></i> Ask Question
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeModal('po-detail-modal')">Close</button>
+                </div>
+            </div>
+        `;
+
+        openModal('po-detail-modal');
+    }
+
+    function showPoActions(poId) {
+        // Can be extended to show more actions
+        console.log('PO Actions for:', poId);
+    }
+
+    async function acceptPo(poId) {
+        const result = await apiCall(`/purchase-orders/${poId}/accept/`, 'POST', {});
+        if (result) {
+            showAlert('Purchase order accepted!', 'success');
+            loadPurchaseOrders();
+            closeModal('po-detail-modal');
+        }
+    }
+
+    function getStatusColor(status) {
+        const colors = {
+            'new': 'info',
+            'in_production': 'warning',
+            'quality_check': 'warning',
+            'completed': 'success',
+            'cancelled': 'danger'
+        };
+        return colors[status] || 'info';
+    }
+
+    // ============================================================
+    // PROOFS
+    // ============================================================
+    function loadPoDetails() {
+        const selectElement = document.getElementById('proof-po-select');
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        
+        if (!selectedOption.value) {
+            document.getElementById('po-details-display').style.display = 'none';
+            return;
+        }
+
+        const poData = JSON.parse(selectedOption.dataset.po || '{}');
+        
+        document.getElementById('detail-product').textContent = poData.product_type;
+        document.getElementById('detail-quantity').textContent = poData.quantity || 'N/A';
+        document.getElementById('detail-deadline').textContent = poData.required_by;
+        document.getElementById('detail-requirements').textContent = poData.notes || 'None';
+        
+        document.getElementById('po-details-display').style.display = 'block';
+    }
+
+    function displayFileList() {
+        const fileInput = document.getElementById('proof-file');
+        const fileList = document.getElementById('file-list');
+
+        if (fileInput.files.length === 0) {
+            fileList.innerHTML = '';
+            return;
+        }
+
+        const files = Array.from(fileInput.files).map((file, index) => 
+            `<div style="padding: 4px 0;"><i class="fas fa-file"></i> ${file.name} (${(file.size / 1024).toFixed(2)} KB)</div>`
+        ).join('');
+
+        fileList.innerHTML = `<strong>${fileInput.files.length} file(s) selected:</strong><br>` + files;
+    }
+
+    async function submitProof() {
+        const poId = document.getElementById('proof-po-select').value;
+        const proofType = document.getElementById('proof-type').value;
+        const notes = document.getElementById('proof-notes').value;
+        const files = document.getElementById('proof-file').files;
+
+        if (!poId || !proofType || files.length === 0) {
+            showAlert('Please fill in all fields and select files', 'error');
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('purchase_order', poId);
+        formData.append('proof_type', proofType);
+        formData.append('notes', notes);
+        Array.from(files).forEach((file, index) => {
+            formData.append(`file_${index}`, file);
+        });
+
+        try {
+            const csrfToken = getCookie('csrftoken');
+            const headers = {};
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+
+            const response = await fetch(`${API_BASE_URL}/purchase-order-proofs/`, {
+                method: 'POST',
+                headers: headers,
+                credentials: 'include',
+                body: formData
+            });
+
+            if (response.ok) {
+                showAlert('Proof submitted successfully!', 'success');
+                resetProofForm();
+                loadProofHistory();
+            } else {
+                showAlert('Failed to submit proof', 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showAlert('An error occurred', 'error');
+        }
+    }
+
+    function resetProofForm() {
+        document.getElementById('proof-po-select').value = '';
+        document.getElementById('proof-type').value = '';
+        document.getElementById('proof-notes').value = '';
+        document.getElementById('proof-file').value = '';
+        document.getElementById('file-list').innerHTML = '';
+        document.getElementById('po-details-display').style.display = 'none';
+    }
+
+    async function loadProofHistory() {
+        const proofs = await apiCall('/purchase-order-proofs/?limit=100');
+        if (!proofs) return;
+
+        const proofsData = proofs.results || [];
+        const historyHtml = proofsData.map(proof => `
+            <tr>
+                <td><strong>${proof.purchase_order_data?.po_number || 'N/A'}</strong></td>
+                <td>${proof.proof_type}</td>
+                <td>${new Date(proof.created_at).toLocaleDateString()}</td>
+                <td><span class="badge badge-${proof.status === 'approved' ? 'success' : proof.status === 'rejected' ? 'danger' : 'warning'}">${proof.status}</span></td>
+                <td>${proof.pt_feedback || '-'}</td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick="viewProof(${proof.id})">View</button>
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('proof-history').innerHTML = historyHtml || '<tr><td colspan="6" class="text-center">No proofs submitted yet</td></tr>';
+    }
+
+    // ============================================================
+    // PROGRESS UPDATES
+    // ============================================================
+    function loadProgressPoDetails() {
+        const selectElement = document.getElementById('progress-po-select');
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        
+        if (!selectedOption.value) {
+            return;
+        }
+
+        const poData = JSON.parse(selectedOption.dataset.po || '{}');
+        // This can be extended to show more details
+    }
+
+    async function submitProgressUpdate() {
+        const poId = document.getElementById('progress-po-select').value;
+        const status = document.getElementById('progress-status').value;
+        const notes = document.getElementById('progress-notes').value;
+        const newDate = document.getElementById('progress-new-date').value;
+
+        if (!poId || !status) {
+            showAlert('Please select a PO and status', 'error');
+            return;
+        }
+
+        const data = {
+            purchase_order: poId,
+            milestone: status,
+            vendor_notes: notes,
+            ...(newDate && { estimated_completion: newDate })
+        };
+
+        const result = await apiCall(`/purchase-orders/${poId}/update_milestone/`, 'POST', data);
+        if (result) {
+            showAlert('Progress updated!', 'success');
+            resetProgressForm();
+            loadProgressHistory();
+        }
+    }
+
+    function resetProgressForm() {
+        document.getElementById('progress-po-select').value = '';
+        document.getElementById('progress-status').value = '';
+        document.getElementById('progress-notes').value = '';
+        document.getElementById('progress-new-date').value = '';
+    }
+
+    async function loadProgressHistory() {
+        // Load from purchase orders with recent updates
+        const pos = await apiCall('/purchase-orders/?limit=100');
+        if (!pos) return;
+
+        const posList = (pos.results || []).filter(po => po.vendor_notes);
+        
+        const historyHtml = posList.map(po => `
+            <tr>
+                <td><strong>${po.po_number}</strong></td>
+                <td><span class="badge badge-${getStatusColor(po.status)}">${po.status}</span></td>
+                <td>${po.updated_at || 'N/A'}</td>
+                <td>${po.required_by}</td>
+                <td>${po.vendor_notes}</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('progress-history').innerHTML = historyHtml || '<tr><td colspan="5" class="text-center">No updates yet</td></tr>';
+    }
+
+    // ============================================================
+    // INVOICES
+    // ============================================================
+    async function loadInvoices() {
+        const invoices = await apiCall('/vendor-invoices/?limit=100');
+        if (!invoices) return;
+
+        const invoicesData = invoices.results || [];
+        
+        // Calculate stats
+        const pending = invoicesData.filter(inv => inv.status === 'pending').length;
+        const overdue = invoicesData.filter(inv => inv.status === 'overdue').length;
+
+        // Update table
+        const invoiceHtml = invoicesData.map(inv => `
+            <tr>
+                <td><strong>${inv.invoice_number}</strong></td>
+                <td>${inv.purchase_order_data?.po_number || 'N/A'}</td>
+                <td>KES ${inv.amount || 0}</td>
+                <td>${inv.due_date || 'N/A'}</td>
+                <td><span class="badge badge-${inv.status === 'paid' ? 'success' : inv.status === 'overdue' ? 'danger' : 'warning'}">${inv.status}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick="viewInvoice(${inv.id})">View</button>
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('invoice-list').innerHTML = invoiceHtml || '<tr><td colspan="6" class="text-center">No invoices</td></tr>';
+    }
+
+    function filterInvoices() {
+        const searchTerm = document.getElementById('invoice-search').value.toLowerCase();
+        const statusFilter = document.getElementById('invoice-status-filter').value;
+
+        document.querySelectorAll('#invoice-list tr').forEach(row => {
+            const invoiceNumber = row.cells[0].textContent.toLowerCase();
+            const status = row.cells[4].textContent.toLowerCase();
+
+            const matchesSearch = invoiceNumber.includes(searchTerm);
+            const matchesStatus = !statusFilter || status.includes(statusFilter);
+
+            row.style.display = matchesSearch && matchesStatus ? '' : 'none';
+        });
+    }
+
+    async function submitInvoice() {
+        const poId = document.getElementById('invoice-po-select').value;
+        const invoiceNumber = document.getElementById('invoice-number').value;
+        const invoiceDate = document.getElementById('invoice-date').value;
+        const amount = document.getElementById('invoice-amount').value;
+        const notes = document.getElementById('invoice-notes').value;
+
+        if (!poId || !invoiceDate || !amount) {
+            showAlert('Please fill in all required fields', 'error');
+            return;
+        }
+
+        const data = {
+            purchase_order: poId,
+            invoice_number: invoiceNumber || undefined,
+            invoice_date: invoiceDate,
+            amount: parseFloat(amount),
+            notes: notes,
+            vendor_invoice_ref: invoiceNumber || undefined
+        };
+
+        const result = await apiCall('/vendor-invoices/', 'POST', data);
+        if (result) {
+            showAlert('Invoice created successfully!', 'success');
+            resetInvoiceForm();
+            loadInvoices();
+        }
+    }
+
+    function resetInvoiceForm() {
+        document.getElementById('invoice-po-select').value = '';
+        document.getElementById('invoice-number').value = '';
+        document.getElementById('invoice-date').value = '';
+        document.getElementById('invoice-amount').value = '';
+        document.getElementById('invoice-notes').value = '';
+    }
+
+    // ============================================================
+    // PERFORMANCE
+    // ============================================================
+    async function loadPerformance() {
+        // Get vendor performance data
+        const vendorData = await apiCall('/vendor-self-info/me');
+        if (!vendorData || !vendorData.results) return;
+
+        const vendor = vendorData.results[0];
+        
+        // Calculate performance metrics
+        const metrics = {
+            overall_score: Math.floor(Math.random() * 20) + 80, // Mock data
+            ontime_rate: Math.floor(Math.random() * 20) + 85,
+            quality_rate: Math.floor(Math.random() * 15) + 90,
+            response_time: Math.floor(Math.random() * 12) + 2,
+            avg_turnaround: Math.floor(Math.random() * 3) + 2,
+            defect_rate: Math.floor(Math.random() * 8),
+            jobs_completed: Math.floor(Math.random() * 50) + 20,
+            acceptance_rate: Math.floor(Math.random() * 10) + 90,
+            cost_per_job: Math.floor(Math.random() * 50000) + 10000,
+            decline_rate: Math.floor(Math.random() * 5)
+        };
+
+        // Update display
+        document.getElementById('perf-overall-score').textContent = `${metrics.overall_score}/100`;
+        document.getElementById('perf-overall-grade').textContent = `Grade: ${getGrade(metrics.overall_score)}`;
+        document.getElementById('perf-ontime-rate').textContent = `${metrics.ontime_rate}%`;
+        document.getElementById('perf-quality-rate').textContent = `${metrics.quality_rate}%`;
+        document.getElementById('perf-response-time').textContent = `${metrics.response_time}h`;
+        document.getElementById('perf-avg-turnaround').textContent = `${metrics.avg_turnaround} days`;
+        document.getElementById('perf-defect-rate').textContent = `${metrics.defect_rate}%`;
+        document.getElementById('perf-jobs-completed').textContent = `${metrics.jobs_completed}`;
+        document.getElementById('perf-acceptance-rate').textContent = `${metrics.acceptance_rate}%`;
+        document.getElementById('perf-cost-per-job').textContent = `KES ${metrics.cost_per_job}`;
+        document.getElementById('perf-decline-rate').textContent = `${metrics.decline_rate}%`;
+
+        // Dashboard stats
+        document.getElementById('stat-ontime-rate').textContent = `${metrics.ontime_rate}%`;
+        document.getElementById('stat-quality-score').textContent = `${metrics.quality_rate}%`;
+        document.getElementById('perf-ontime').textContent = `${metrics.ontime_rate}%`;
+        document.getElementById('perf-quality').textContent = `${metrics.quality_rate}%`;
+        document.getElementById('perf-response').textContent = `${metrics.response_time}h`;
+        document.getElementById('perf-completed').textContent = `${metrics.jobs_completed}`;
+
+        // Insights
+        const insights = generateInsights(metrics);
+        const insightsHtml = insights.map(insight => `
+            <div style="padding: 12px; background: #f8fafc; border-left: 4px solid ${insight.type === 'positive' ? 'var(--success-color)' : 'var(--warning-color)'}; border-radius: 6px; margin-bottom: 8px;">
+                <div style="font-weight: 600;">${insight.title}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted);">${insight.message}</div>
+            </div>
+        `).join('');
+
+        document.getElementById('perf-insights').innerHTML = insightsHtml;
+    }
+
+    function getGrade(score) {
+        if (score >= 90) return 'A';
+        if (score >= 80) return 'B';
+        if (score >= 70) return 'C';
+        if (score >= 60) return 'D';
+        return 'F';
+    }
+
+    function generateInsights(metrics) {
+        const insights = [];
+
+        if (metrics.ontime_rate >= 95) {
+            insights.push({
+                type: 'positive',
+                title: 'Excellent On-Time Performance',
+                message: 'You\'re consistently meeting deadlines. Keep up the great work!'
+            });
+        } else if (metrics.ontime_rate < 80) {
+            insights.push({
+                type: 'negative',
+                title: 'On-Time Performance Needs Attention',
+                message: 'Consider improving your timeline management to boost your score.'
+            });
+        }
+
+        if (metrics.quality_rate >= 95) {
+            insights.push({
+                type: 'positive',
+                title: 'Outstanding Quality',
+                message: 'Your products consistently pass QC inspections!'
+            });
+        }
+
+        if (metrics.decline_rate > 5) {
+            insights.push({
+                type: 'negative',
+                title: 'High Decline Rate',
+                message: 'You\'re declining more jobs than average. Review and improve capacity.'
+            });
+        }
+
+        return insights;
+    }
+
+    // ============================================================
+    // ISSUES & SUBSTITUTIONS
+    // ============================================================
+    function showIssueModal(poNumber) {
+        document.getElementById('issue-po-number').value = poNumber;
+        openModal('issue-modal');
+    }
+
+    async function submitIssue() {
+        const poNumber = document.getElementById('issue-po-number').value;
+        const issueType = document.getElementById('issue-type').value;
+        const description = document.getElementById('issue-description').value;
+
+        if (!issueType || !description) {
+            showAlert('Please fill in all fields', 'error');
+            return;
+        }
+
+        // Get PO ID from number
+        const pos = await apiCall(`/purchase-orders/?po_number=${poNumber}`);
+        if (!pos || !pos.results) {
+            showAlert('PO not found', 'error');
+            return;
+        }
+
+        const poId = pos.results[0].id;
+        const data = {
+            purchase_order: poId,
+            issue_type: issueType,
+            description: description
+        };
+
+        const result = await apiCall('/purchase-order-issues/', 'POST', data);
+        if (result) {
+            showAlert('Issue submitted!', 'success');
+            closeModal('issue-modal');
+            document.getElementById('issue-description').value = '';
+        }
+    }
+
+    function showSubstitutionModal(poId, material) {
+        document.getElementById('sub-current-material').value = material;
+        openModal('substitution-modal');
+    }
+
+    async function submitSubstitution() {
+        const currentMaterial = document.getElementById('sub-current-material').value;
+        const proposedMaterial = document.getElementById('sub-proposed-material').value;
+        const reason = document.getElementById('sub-reason').value;
+        const impact = document.getElementById('sub-impact').value;
+
+        if (!proposedMaterial || !reason) {
+            showAlert('Please fill in all fields', 'error');
+            return;
+        }
+
+        const data = {
+            current_material: currentMaterial,
+            proposed_material: proposedMaterial,
+            reason_for_substitution: reason,
+            quality_impact: impact
+        };
+
+        const result = await apiCall('/material-substitutions/', 'POST', data);
+        if (result) {
+            showAlert('Substitution request submitted!', 'success');
+            closeModal('substitution-modal');
+            document.getElementById('sub-proposed-material').value = '';
+            document.getElementById('sub-reason').value = '';
+            document.getElementById('sub-impact').value = '';
+        }
+    }
+
+    // ============================================================
+    // ACCOUNT SETTINGS
+    // ============================================================
+    async function saveSettings() {
+        const vendorData = {
+            contact_person: document.getElementById('setting-contact-person').value,
+            email: document.getElementById('setting-email').value,
+            phone: document.getElementById('setting-phone').value,
+            business_address: document.getElementById('setting-address').value,
+            website: document.getElementById('setting-website').value
+        };
+
+        const result = await apiCall(`/vendor-self-info/update_me/`, 'PATCH', vendorData);
+        
+        if (result && result.success) {
+            showAlert('Settings updated successfully!', 'success');
+        } else {
+            showAlert('Failed to update settings', 'error');
+        }
+    }
+
+    async function saveBankDetails() {
+        const vendorData = {
+            preferred_payment_method: document.getElementById('setting-payment-method').value,
+            tax_id: document.getElementById('setting-tax-id').value,
+            bank_details: document.getElementById('setting-bank-details').value
+        };
+
+        const result = await apiCall(`/vendor-self-info/update_me/`, 'PATCH', vendorData);
+        
+        if (result && result.success) {
+            showAlert('Payment information updated!', 'success');
+        } else {
+            showAlert('Failed to update payment information', 'error');
+        }
+    }
+
+    function saveNotificationPrefs() {
+        const prefs = {
+            notify_new_po: document.getElementById('notify-new-po').checked,
+            notify_feedback: document.getElementById('notify-feedback').checked,
+            notify_messages: document.getElementById('notify-messages').checked,
+            notify_payment: document.getElementById('notify-payment').checked
+        };
+
+        localStorage.setItem('vendor_notification_prefs', JSON.stringify(prefs));
+        showAlert('Notification preferences saved!', 'success');
+    }
+
+    // ============================================================
+    // LOGOUT
+    // ============================================================
+    function logout() {
+        // Clear session by navigating to logout endpoint
+        window.location.href = '/accounts/logout/';
+    }
+
+    // ============================================================
+    // STARTUP
+    // ============================================================
+    document.addEventListener('DOMContentLoaded', initializePortal);
+</script>
+</body>
+</html>

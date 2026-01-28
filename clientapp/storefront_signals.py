@@ -10,8 +10,8 @@ from datetime import timedelta
 
 from .models import (
     EstimateQuote, StorefrontMessage, ChatbotConversation,
-    StorefrontCustomer, ProductionUnit, StorefrontProduct,
-    QuotePricingSnapshot
+    StorefrontCustomer, ProductionUnit,
+    QuotePricingSnapshot, Product
 )
 from .storefront_utils import (
     EmailService, WhatsAppService, ChatbotService,
@@ -316,29 +316,3 @@ def pricing_snapshot_created(sender, instance, created, **kwargs):
         instance.snapshot_id = f"SNAP-{timezone.now().strftime('%Y%m%d%H%M%S')}-{instance.id}"
         instance.save(update_fields=['snapshot_id'])
 
-
-# ===================== StorefrontProduct Signals =====================
-
-@receiver(post_save, sender=StorefrontProduct)
-def product_price_changed(sender, instance, created, **kwargs):
-    """
-    Handle StorefrontProduct price changes.
-    - Create pricing snapshot
-    - Log changes for admin review
-    """
-    if not created:
-        # Check if price changed by comparing with last snapshot
-        try:
-            last_snapshot = QuotePricingSnapshot.objects.filter(
-                product_id=instance.id
-            ).latest('snapshot_at')
-            
-            if Decimal(last_snapshot.total_amount or 0) != Decimal(instance.base_price or 0):
-                QuotePricingSnapshot.objects.create(
-                    snapshot_type='product_price_updated',
-                    base_amount=instance.base_price,
-                    total_amount=instance.base_price,
-                    reason=f'Product {instance.name} price updated'
-                )
-        except QuotePricingSnapshot.DoesNotExist:
-            pass

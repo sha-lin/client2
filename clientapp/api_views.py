@@ -1,15 +1,19 @@
 from django.utils import timezone
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import Q
 from rest_framework import viewsets, status, decorators, serializers
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from decimal import Decimal
 from drf_yasg.utils import swagger_auto_schema
 from django.utils.decorators import method_decorator
 from .quickbooks_services import QuickBooksService, QuickBooksAuthService
 import logging
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +61,14 @@ from .models import (
     ProductVideo,
     ProductDownloadableFile,
     ProductSEO,
+    ProductPricing,
     ProductReviewSettings,
     ProductFAQ,
     ProductShipping,
     ProductLegal,
     ProductProduction,
     ProductChangeHistory,
+    ProductApprovalRequest,
     ProductTemplate,
     # Operations / QC / delivery / attachments
     JobVendorStage,
@@ -159,8 +165,8 @@ from .api_serializers import (
     PricingTierSerializer,
     VendorTierPricingSerializer,
     ProcessVariableRangeSerializer,
-    ProductImageSerializer,
-    ProductVideoSerializer,
+    ProductImageMetadataSerializer,
+    ProductVideoMetadataSerializer,
     ProductDownloadableFileSerializer,
     ProductSEOSerializer,
     ProductReviewSettingsSerializer,
@@ -183,6 +189,7 @@ from .api_serializers import (
     ProductLegalSerializer,
     ProductProductionSerializer,
     ProductChangeHistorySerializer,
+    ProductApprovalRequestSerializer,
     ProductTemplateSerializer,
     # Client Portal serializers
     ClientPortalUserSerializer,
@@ -530,7 +537,7 @@ class BrandAssetViewSet(viewsets.ModelViewSet):
         client = serializer.validated_data.get("client")
         if client:
             self._ensure_b2b(client)
-        serializer.save()
+        serializer.save(uploaded_by=self.request.user)
 
     def perform_update(self, serializer):
         client = serializer.validated_data.get("client") or serializer.instance.client
@@ -560,7 +567,7 @@ class ComplianceDocumentViewSet(viewsets.ModelViewSet):
         client = serializer.validated_data.get("client")
         if client:
             self._ensure_b2b(client)
-        serializer.save()
+        serializer.save(uploaded_by=self.request.user)
 
     def perform_update(self, serializer):
         client = serializer.validated_data.get("client") or serializer.instance.client
@@ -576,12 +583,586 @@ class ComplianceDocumentViewSet(viewsets.ModelViewSet):
 @method_decorator(name='partial_update', decorator=swagger_auto_schema(tags=['Product Catalog']))
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
 class ProductViewSet(viewsets.ModelViewSet):
-    queryset = Product.objects.all()
+    """
+    Production Team product management viewset.
+    
+    Supports create, retrieve, update, delete, and publish/archive workflows.
+    Handles nested pricing, media uploads, and pricing calculations.
+    
+    Endpoints:
+    - GET /api/v1/products/ - List products with filters
+    - POST /api/v1/products/ - Create product
+    - GET /api/v1/products/{id}/ - Retrieve product
+    - PATCH /api/v1/products/{id}/ - Update product
+    - DELETE /api/v1/products/{id}/ - Delete product
+    - POST /api/v1/products/{id}/upload-primary-image/ - Upload primary image
+    - POST /api/v1/products/{id}/upload-gallery-images/ - Upload gallery images
+    - POST /api/v1/products/{id}/add-video/ - Add video
+    - POST /api/v1/products/{id}/calculate-price/ - Calculate price
+    - POST /api/v1/products/{id}/publish/ - Publish product
+    - POST /api/v1/products/{id}/archive/ - Archive product
+    - POST /api/v1/products/{id}/save-draft/ - Save as draft
+    - GET /api/v1/products/{id}/change-history/ - Get change history
+    """
     serializer_class = ProductSerializer
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
     filterset_fields = ["customization_level", "status", "is_visible", "primary_category", "sub_category"]
     search_fields = ["name", "internal_code"]
     ordering_fields = ["created_at", "updated_at", "base_price"]
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Optimize queries based on action"""
+        queryset = Product.objects.all()
+        
+        if self.action == 'list':
+            # Optimize for list view
+            queryset = queryset.select_related(
+                'created_by', 'updated_by'
+            ).prefetch_related(
+                'images', 'videos', 'tags'
+            )
+        
+        if self.action == 'retrieve':
+            # Include all relationships for detail view
+            queryset = queryset.prefetch_related(
+                'images', 'videos', 'tags', 'change_history'
+            ).select_related(
+                'created_by', 'updated_by'
+            )
+        
+        return queryset
+    
+    @action(detail=True, methods=['post'], parser_classes=(MultiPartParser, FormParser), permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def upload_primary_image(self, request, pk=None):
+        """Upload or replace primary product image"""
+        product = self.get_object()
+        image_file = request.FILES.get('image')
+        
+        if not image_file:
+            return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Validate image
+            self._validate_image_file(image_file)
+            
+            # Remove old primary images
+            product.images.filter(is_primary=True).delete()
+            
+            # Create new primary image
+            image = ProductImage.objects.create(
+                product=product,
+                image=image_file,
+                is_primary=True,
+                alt_text=request.data.get('alt_text', product.name)
+            )
+            
+            return Response({
+                'id': image.id,
+                'url': image.image.url,
+                'is_primary': True,
+                'message': 'Primary image uploaded successfully'
+            }, status=status.HTTP_201_CREATED)
+        
+        except serializers.ValidationError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], parser_classes=(MultiPartParser, FormParser), permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def upload_gallery_images(self, request, pk=None):
+        """Upload gallery images (bulk upload, max 10)"""
+        product = self.get_object()
+        files = request.FILES.getlist('images')
+        
+        if not files:
+            return Response({'error': 'No images provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        created_images = []
+        errors = []
+        
+        for idx, file in enumerate(files[:10]):  # Max 10 images
+            try:
+                self._validate_image_file(file)
+                
+                image = ProductImage.objects.create(
+                    product=product,
+                    image=file,
+                    is_primary=False,
+                    alt_text=request.data.get('alt_text', f"{product.name} - {idx+1}"),
+                    display_order=idx
+                )
+                
+                created_images.append({
+                    'id': image.id,
+                    'url': image.image.url,
+                    'order': image.display_order
+                })
+            
+            except serializers.ValidationError as e:
+                errors.append({'file': file.name, 'error': str(e)})
+        
+        return Response({
+            'count': len(created_images),
+            'images': created_images,
+            'errors': errors,
+            'message': f'Uploaded {len(created_images)} images'
+        }, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def add_video(self, request, pk=None):
+        """Add product video from URL"""
+        product = self.get_object()
+        video_url = request.data.get('video_url')
+        
+        if not video_url:
+            return Response({'error': 'No video URL provided'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Detect video type and validate
+            video_type = self._detect_video_type(video_url)
+            
+            video = ProductVideo.objects.create(
+                product=product,
+                video_url=video_url,
+                video_type=video_type
+            )
+            
+            return Response({
+                'id': video.id,
+                'url': video.video_url,
+                'type': video.video_type,
+                'message': 'Video added successfully'
+            }, status=status.HTTP_201_CREATED)
+        
+        except ValueError as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def calculate_price(self, request, pk=None):
+        """
+        Calculate product price for given quantity and variables.
+        
+        Request body:
+        {
+            "quantity": 100,
+            "variables": {"size": "A4", "finish": "glossy"},
+            "include_breakdown": true
+        }
+        """
+        product = self.get_object()
+        quantity = request.data.get('quantity', 1)
+        variables = request.data.get('variables', {})
+        include_breakdown = request.data.get('include_breakdown', False)
+        
+        if quantity < 1:
+            return Response({'error': 'Quantity must be at least 1'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            # Get pricing info
+            if not hasattr(product, 'pricing'):
+                return Response({
+                    'quantity': quantity,
+                    'unit_cost': str(product.base_price or 0),
+                    'total_cost': str((product.base_price or 0) * quantity),
+                    'unit_price': str(product.base_price or 0),
+                    'total_price': str((product.base_price or 0) * quantity),
+                    'margin_percentage': 0,
+                }, status=status.HTTP_200_OK)
+            
+            pricing = product.pricing
+            
+            # Simple pricing calculation
+            base_cost = pricing.base_cost or Decimal('0.00')
+            base_price = product.base_price or Decimal('0.00')
+            
+            if product.customization_level == 'fully_customizable':
+                # For fully customizable, use base cost + margin
+                margin_multiplier = (pricing.return_margin or Decimal('30')) / Decimal('100')
+                unit_price = base_cost * (1 + margin_multiplier)
+            else:
+                unit_price = base_price
+            
+            total_cost = base_cost * quantity
+            total_price = unit_price * quantity
+            
+            margin = ((unit_price - base_cost) / unit_price * 100) if unit_price > 0 else Decimal('0')
+            
+            response_data = {
+                'quantity': quantity,
+                'unit_cost': str(base_cost),
+                'total_cost': str(total_cost),
+                'unit_price': str(unit_price),
+                'total_price': str(total_price),
+                'margin_percentage': str(margin),
+            }
+            
+            if include_breakdown:
+                response_data['breakdown'] = {
+                    'base_cost': str(base_cost),
+                    'margin_multiplier': str(pricing.return_margin or 0),
+                    'unit_price': str(unit_price),
+                    'quantity': quantity,
+                    'total_cost': str(total_cost),
+                    'total_price': str(total_price),
+                }
+            
+            return Response(response_data)
+        
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def publish(self, request, pk=None):
+        """Publish product (make visible and available)"""
+        product = self.get_object()
+        
+        # Check if product can be published
+        can_publish, error_msg = product.can_be_published()
+        if not can_publish:
+            return Response({'detail': error_msg}, status=status.HTTP_400_BAD_REQUEST)
+        
+        old_status = product.status
+        product.status = 'published'
+        product.updated_by = request.user
+        product.save()
+        
+        # Record change
+        ProductChangeHistory.objects.create(
+            product=product,
+            changed_by=request.user,
+            change_type='status_change',
+            field_changed='status',
+            old_value=old_status,
+            new_value='published',
+        )
+        
+        return Response({
+            'id': product.id,
+            'status': 'published',
+            'message': f'Product "{product.name}" published successfully',
+            'published_at': timezone.now().isoformat()
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def archive(self, request, pk=None):
+        """Archive product (hide from catalog)"""
+        product = self.get_object()
+        
+        old_status = product.status
+        product.status = 'archived'
+        product.updated_by = request.user
+        product.save()
+        
+        # Record change
+        ProductChangeHistory.objects.create(
+            product=product,
+            changed_by=request.user,
+            change_type='status_change',
+            field_changed='status',
+            old_value=old_status,
+            new_value='archived',
+        )
+        
+        return Response({
+            'id': product.id,
+            'status': 'archived',
+            'message': f'Product "{product.name}" archived successfully'
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def save_draft(self, request, pk=None):
+        """Save product as draft without publishing"""
+        product = self.get_object()
+        
+        serializer = self.get_serializer(product, data=request.data, partial=True)
+        if serializer.is_valid():
+            old_status = product.status
+            product = serializer.save(status='draft', updated_by=request.user)
+            
+            # Record change
+            ProductChangeHistory.objects.create(
+                product=product,
+                changed_by=request.user,
+                change_type='draft_save',
+                field_changed='status',
+                old_value=old_status,
+                new_value='draft',
+            )
+            
+            return Response({
+                'id': product.id,
+                'status': 'draft',
+                'message': 'Product saved as draft',
+                'saved_at': timezone.now().isoformat()
+            })
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    
+    @action(detail=True, methods=['get'])
+    def change_history(self, request, pk=None):
+        """Get product change history (audit trail)"""
+        from .api_serializers import ProductChangeHistorySerializer
+        
+        product = self.get_object()
+        
+        changes = ProductChangeHistory.objects.filter(
+            product=product
+        ).order_by('-changed_at')[:50]  # Last 50 changes
+        
+        serializer = ProductChangeHistorySerializer(changes, many=True)
+        
+        return Response({
+            'product_id': product.id,
+            'product_name': product.name,
+            'total_changes': ProductChangeHistory.objects.filter(product=product).count(),
+            'changes': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, (IsProductionTeam | IsAdmin | IsAccountManager)])
+    def update_inventory(self, request, pk=None):
+        """Update product inventory levels and settings"""
+        product = self.get_object()
+        
+        try:
+            # Extract inventory fields from request
+            stock_quantity = request.data.get('stock_quantity')
+            min_stock_level = request.data.get('min_stock_level')
+            reorder_quantity = request.data.get('reorder_quantity')
+            backorder_allowed = request.data.get('backorder_allowed')
+            
+            # Validate and update fields
+            updated_fields = {}
+            
+            if stock_quantity is not None:
+                stock_quantity = int(stock_quantity)
+                if stock_quantity < 0:
+                    return Response(
+                        {'detail': 'Stock quantity cannot be negative'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                product.stock_quantity = stock_quantity
+                updated_fields['stock_quantity'] = stock_quantity
+            
+            if min_stock_level is not None:
+                min_stock_level = int(min_stock_level)
+                if min_stock_level < 0:
+                    return Response(
+                        {'detail': 'Minimum stock level cannot be negative'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                product.min_stock_level = min_stock_level
+                updated_fields['min_stock_level'] = min_stock_level
+            
+            if reorder_quantity is not None:
+                reorder_quantity = int(reorder_quantity)
+                if reorder_quantity < 0:
+                    return Response(
+                        {'detail': 'Reorder quantity cannot be negative'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                product.reorder_quantity = reorder_quantity
+                updated_fields['reorder_quantity'] = reorder_quantity
+            
+            if backorder_allowed is not None:
+                product.backorder_allowed = backorder_allowed in [True, 'true', 'True', 1, '1']
+                updated_fields['backorder_allowed'] = product.backorder_allowed
+            
+            # Save product
+            product.updated_by = request.user
+            product.save()
+            
+            # Record changes in history
+            for field_name, new_value in updated_fields.items():
+                old_value = getattr(product, f'_meta').get_field(field_name).get_default() if hasattr(product, f'_meta') else None
+                ProductChangeHistory.objects.create(
+                    product=product,
+                    changed_by=request.user,
+                    change_type='field_update',
+                    field_changed=field_name,
+                    old_value=old_value,
+                    new_value=new_value,
+                    notes=f'Updated via inventory management form'
+                )
+            
+            return Response({
+                'id': product.id,
+                'stock_quantity': product.stock_quantity,
+                'min_stock_level': product.min_stock_level,
+                'reorder_quantity': product.reorder_quantity,
+                'backorder_allowed': product.backorder_allowed,
+                'message': 'Inventory updated successfully',
+                'updated_fields': updated_fields,
+                'updated_at': timezone.now().isoformat()
+            }, status=status.HTTP_200_OK)
+        
+        except (ValueError, TypeError) as e:
+            return Response(
+                {'detail': f'Invalid input: {str(e)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            logger.error(f'Error updating inventory for product {pk}: {str(e)}')
+            return Response(
+                {'detail': f'Error updating inventory: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def perform_create(self, serializer):
+        """Set created_by when creating product"""
+        serializer.save(created_by=self.request.user, updated_by=self.request.user)
+    
+    def perform_update(self, serializer):
+        """Set updated_by when updating product"""
+        serializer.save(updated_by=self.request.user)
+    
+    @staticmethod
+    def _validate_image_file(image_file):
+        """Validate image file"""
+        MAX_SIZE = 2 * 1024 * 1024  # 2MB
+        ALLOWED_FORMATS = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+        
+        # Check size
+        if image_file.size > MAX_SIZE:
+            raise serializers.ValidationError(f"Image exceeds 2MB limit ({image_file.size / 1024 / 1024:.1f}MB)")
+        
+        # Check format
+        ext = image_file.name.split('.')[-1].lower()
+        if ext not in ALLOWED_FORMATS:
+            raise serializers.ValidationError(f"Invalid format. Allowed: {', '.join(ALLOWED_FORMATS)}")
+        
+        # Check dimensions with PIL
+        try:
+            from PIL import Image
+            from django.core.files.uploadedfile import InMemoryUploadedFile
+            
+            if isinstance(image_file, InMemoryUploadedFile):
+                image_file.seek(0)
+            
+            img = Image.open(image_file)
+            if img.width < 300 or img.height < 300:
+                raise serializers.ValidationError(
+                    f"Image too small. Minimum 300x300px (yours: {img.width}x{img.height}px)"
+                )
+        except serializers.ValidationError:
+            raise
+        except Exception as e:
+            raise serializers.ValidationError(f"Invalid image file: {str(e)}")
+    
+    @staticmethod
+    def _detect_video_type(url):
+        """Detect video type from URL"""
+        url_lower = url.lower()
+        
+        if 'youtube.com' in url_lower or 'youtu.be' in url_lower:
+            return 'youtube'
+        elif 'vimeo.com' in url_lower:
+            return 'vimeo'
+        else:
+            raise ValueError("Only YouTube and Vimeo URLs are supported")
+
+
+class ProductApprovalRequestViewSet(viewsets.ModelViewSet):
+    """
+    API endpoints for product approval requests
+    Manages approval workflow for sensitive product changes
+    """
+    queryset = ProductApprovalRequest.objects.select_related(
+        'product', 'requested_by', 'approved_by', 'assigned_to'
+    ).order_by('-requested_at')
+    serializer_class = ProductApprovalRequestSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['status', 'request_type', 'product', 'is_urgent']
+    search_fields = ['product__name', 'product__internal_code', 'reason_for_change']
+    ordering_fields = ['requested_at', 'status', 'is_urgent']
+    
+    def get_queryset(self):
+        """Filter approval requests based on user role"""
+        user = self.request.user
+        queryset = ProductApprovalRequest.objects.all()
+        
+        # Admins see all
+        if user.groups.filter(name='Admin').exists():
+            return queryset
+        
+        # Production Team sees their own and assigned to them
+        if user.groups.filter(name='Production Team').exists():
+            return queryset.filter(
+                models.Q(requested_by=user) | models.Q(assigned_to=user)
+            )
+        
+        # Others see only their own requests
+        return queryset.filter(requested_by=user)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
+    def approve(self, request, pk=None):
+        """Approve a pending request"""
+        approval = self.get_object()
+        
+        if approval.status != 'pending':
+            return Response(
+                {'error': f'Cannot approve {approval.status} request'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update approval
+        approval.status = 'approved'
+        approval.approved_by = request.user
+        approval.approved_at = timezone.now()
+        approval.save()
+        
+        # Create change history entry
+        ProductChangeHistory.objects.create(
+            product=approval.product,
+            changed_by=request.user,
+            change_type='approved',
+            field_changed=approval.request_type,
+            old_value=approval.old_value,
+            new_value=approval.new_value,
+            notes=f'Approval request {approval.id} approved'
+        )
+        
+        serializer = self.get_serializer(approval)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAdmin])
+    def reject(self, request, pk=None):
+        """Reject a pending request"""
+        approval = self.get_object()
+        reason = request.data.get('reason', '')
+        
+        if approval.status != 'pending':
+            return Response(
+                {'error': f'Cannot reject {approval.status} request'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update approval
+        approval.status = 'rejected'
+        approval.approved_by = request.user
+        approval.approved_at = timezone.now()
+        approval.approval_notes = reason
+        approval.save()
+        
+        serializer = self.get_serializer(approval)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def pending(self, request):
+        """Get all pending approval requests"""
+        pending_requests = self.get_queryset().filter(status='pending')
+        
+        # Apply sorting
+        ordering = request.query_params.get('ordering', '-requested_at')
+        pending_requests = pending_requests.order_by(ordering)
+        
+        # Paginate
+        page = self.paginate_queryset(pending_requests)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+        
+        serializer = self.get_serializer(pending_requests, many=True)
+        return Response(serializer.data)
 
 
 #storefront- for later use
@@ -1236,6 +1817,41 @@ class JobViewSet(viewsets.ModelViewSet):
                 {"detail": "User not found"}, 
                 status=status.HTTP_404_NOT_FOUND
             )
+
+    @decorators.action(detail=True, methods=["get"], url_path='production-units', permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
+    def production_units(self, request, pk=None):
+        """
+        List production units for a specific job.
+        URL: GET /api/v1/jobs/{job_id}/production-units/
+        """
+        try:
+            job = self.get_object()
+        except Exception:
+            return Response({"detail": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Filter units by job
+        units_qs = ProductionUnit.objects.filter(job=job)
+
+        # Import storefront serializer to avoid circular imports at module level
+        try:
+            from clientapp.storefront_serializers import ProductionUnitSerializer
+        except Exception:
+            # Fallback to a simple serializer representation
+            data = [
+                {
+                    'unit_id': u.id,
+                    'unit_type': u.unit_type,
+                    'status': u.status,
+                    'vendor': getattr(u.vendor, 'id', None),
+                    'estimated_start': u.expected_start_date,
+                    'estimated_end': u.expected_end_date,
+                }
+                for u in units_qs
+            ]
+            return Response({'job_id': job.id, 'production_units': data})
+
+        serializer = ProductionUnitSerializer(units_qs, many=True, context={'request': request})
+        return Response({'job_id': job.id, 'production_units': serializer.data})
 
     @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsAccountManager | IsAdmin])
     def remind(self, request, pk=None):
@@ -2244,7 +2860,7 @@ class SystemSettingViewSet(viewsets.ModelViewSet):
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
 class ProductImageViewSet(viewsets.ModelViewSet):
     queryset = ProductImage.objects.select_related("product").all()
-    serializer_class = ProductImageSerializer
+    serializer_class = ProductImageMetadataSerializer
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
     filterset_fields = ["product", "image_type", "is_primary"]
 
@@ -2257,7 +2873,7 @@ class ProductImageViewSet(viewsets.ModelViewSet):
 @method_decorator(name='destroy', decorator=swagger_auto_schema(tags=['Product Catalog']))
 class ProductVideoViewSet(viewsets.ModelViewSet):
     queryset = ProductVideo.objects.select_related("product").all()
-    serializer_class = ProductVideoSerializer
+    serializer_class = ProductVideoMetadataSerializer
     permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin | IsAccountManager]
     filterset_fields = ["product", "video_type"]
 

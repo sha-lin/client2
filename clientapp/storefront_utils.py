@@ -85,7 +85,7 @@ class PriceCalculator:
         subtotal = sum(Decimal(str(item['line_total'])) for item in line_items)
         
         if not tax_rate:
-            tax_rate = Decimal('0.00')
+            tax_rate = Decimal('18.00')  # Default 18% tax rate
         
         tax_amount = subtotal * (tax_rate / Decimal('100'))
         total = subtotal + tax_amount
@@ -163,9 +163,10 @@ class EmailService:
     """Send transactional emails"""
     
     @staticmethod
-    def send_registration_email(user_email: str, verification_token: str):
-        """Send email verification link"""
-        subject = "Verify Your Email - PrintDuka Storefront"
+    def send_registration_email(user_email: str, verification_token: str = '', **kwargs):
+        """Send email verification link or other notifications"""
+        # Accept flexible kwargs for signal compatibility
+        subject = kwargs.get('subject', "Verify Your Email - PrintDuka Storefront")
         
         context = {
             'email': user_email,

@@ -563,9 +563,7 @@ class ProductAdmin(admin.ModelAdmin):
         )
 
 
-# ==================== PRODUCT VARIABLE ADMIN ====================
-
-@admin.register(ProductVariable)
+# ==================== PRODUCT VARIABLE ADMIN ====================@admin.register(ProductVariable)
 class ProductVariableAdmin(admin.ModelAdmin):
     list_display = ['name', 'product', 'display_order', 'variable_type', 'pricing_type', 'is_active']
     list_filter = ['variable_type', 'pricing_type', 'is_active', 'product__primary_category']

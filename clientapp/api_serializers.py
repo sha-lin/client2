@@ -37,12 +37,14 @@ from .models import (
     ProductVideo,
     ProductDownloadableFile,
     ProductSEO,
+    ProductPricing,
     ProductReviewSettings,
     ProductFAQ,
     ProductShipping,
     ProductLegal,
     ProductProduction,
     ProductChangeHistory,
+    ProductApprovalRequest,
     ProductTemplate,
     # Operations / QC / delivery / attachments
     JobVendorStage,
@@ -195,10 +197,266 @@ class ComplianceDocumentSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+import json
+from django.utils import timezone
+
+class ProductPricingSerializer(serializers.ModelSerializer):
+    """Serializer for ProductPricing with nested write support"""
+    class Meta:
+        model = ProductPricing
+        fields = [
+            'id', 'pricing_model', 'base_cost', 'price_display', 'default_margin',
+            'minimum_margin', 'minimum_order_value', 'tier_process', 'formula_process',
+            'return_margin', 'lead_time_value', 'lead_time_unit', 'production_method',
+            'primary_vendor', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class ProductImageSerializer(serializers.ModelSerializer):
+    """Serializer for ProductImage"""
+    class Meta:
+        model = ProductImage
+        fields = ['id', 'image', 'alt_text', 'is_primary', 'display_order', 'uploaded_at']
+        read_only_fields = ['id', 'uploaded_at']
+
+
+class ProductVideoSerializer(serializers.ModelSerializer):
+    """Serializer for ProductVideo"""
+    class Meta:
+        model = ProductVideo
+        fields = ['id', 'video_url', 'video_type', 'display_order', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class ProductSEOSerializer(serializers.ModelSerializer):
+    """Serializer for ProductSEO with validation"""
+    class Meta:
+        model = ProductSEO
+        fields = [
+            'id', 'meta_title', 'meta_description', 'keywords',
+            'canonical_url', 'og_image', 'og_title', 'og_description',
+            'schema_markup', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+    
+    def validate_meta_title(self, value):
+        """Meta title must be max 60 characters"""
+        if value and len(value) > 60:
+            raise serializers.ValidationError(
+                "Meta title must be 60 characters or less (currently {})".format(len(value))
+            )
+        return value
+    
+    def validate_meta_description(self, value):
+        """Meta description must be max 160 characters"""
+        if value and len(value) > 160:
+            raise serializers.ValidationError(
+                "Meta description must be 160 characters or less (currently {})".format(len(value))
+            )
+        return value
+
+
+class ProductChangeHistorySerializer(serializers.ModelSerializer):
+    """Serializer for ProductChangeHistory"""
+    changed_by_name = serializers.CharField(source='changed_by.get_full_name', read_only=True)
+    before_data_parsed = serializers.SerializerMethodField()
+    after_data_parsed = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = ProductChangeHistory
+        fields = [
+            'id', 'changed_by', 'changed_by_name', 'change_type',
+            'before_data', 'after_data', 'before_data_parsed', 'after_data_parsed',
+            'changed_at'
+        ]
+        read_only_fields = fields
+    
+    def get_before_data_parsed(self, obj):
+        try:
+            return json.loads(obj.before_data) if obj.before_data else {}
+        except:
+            return {}
+    
+    def get_after_data_parsed(self, obj):
+        try:
+            return json.loads(obj.after_data) if obj.after_data else {}
+        except:
+            return {}
+
+
+class ProductApprovalRequestSerializer(serializers.ModelSerializer):
+    """Serializer for ProductApprovalRequest"""
+    requested_by_name = serializers.CharField(source='requested_by.get_full_name', read_only=True)
+    approved_by_name = serializers.CharField(source='approved_by.get_full_name', read_only=True, allow_null=True)
+    assigned_to_name = serializers.CharField(source='assigned_to.get_full_name', read_only=True, allow_null=True)
+    product_name = serializers.CharField(source='product.name', read_only=True)
+    product_code = serializers.CharField(source='product.internal_code', read_only=True)
+    
+    class Meta:
+        model = ProductApprovalRequest
+        fields = [
+            'id', 'product', 'product_name', 'product_code',
+            'request_type', 'status', 'is_urgent',
+            'requested_by', 'requested_by_name', 'requested_at',
+            'assigned_to', 'assigned_to_name',
+            'approved_by', 'approved_by_name', 'approved_at',
+            'old_value', 'new_value', 'reason_for_change',
+            'approval_notes'
+        ]
+        read_only_fields = [
+            'id', 'requested_by', 'requested_at', 'product_name', 'product_code',
+            'approved_by', 'approved_at'
+        ]
+
+
+
 class ProductSerializer(serializers.ModelSerializer):
+    """Complete Product serializer with nested relationships"""
+    pricing = ProductPricingSerializer(read_only=False, required=False)
+    seo = ProductSEOSerializer(read_only=False, required=False)
+    images = ProductImageSerializer(many=True, read_only=True)
+    videos = ProductVideoSerializer(many=True, read_only=True)
+    
+    # Computed fields
+    can_be_published = serializers.SerializerMethodField()
+    has_pricing = serializers.SerializerMethodField()
+    image_count = serializers.SerializerMethodField()
+    primary_image_url = serializers.SerializerMethodField()
+    completion_percentage = serializers.SerializerMethodField()
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True)
+    updated_by_name = serializers.CharField(source='updated_by.get_full_name', read_only=True)
+    
     class Meta:
         model = Product
-        fields = "__all__"
+        fields = [
+            'id', 'name', 'internal_code', 'short_description', 'long_description',
+            'technical_specs', 'primary_category', 'sub_category', 'product_family',
+            'visibility', 'feature_product', 'bestseller_badge', 'new_arrival',
+            'new_arrival_expires', 'status', 'is_visible', 'customization_level',
+            'unit_of_measure', 'unit_of_measure_custom', 'weight', 'weight_unit',
+            'length', 'width', 'height', 'dimension_unit', 'warranty',
+            'country_of_origin', 'base_price', 'stock_status', 'stock_quantity',
+            'track_inventory', 'allow_backorders', 'internal_notes', 'client_notes',
+            'product_type',
+            'pricing', 'seo', 'images', 'videos',
+            'can_be_published', 'has_pricing', 'image_count', 'primary_image_url',
+            'completion_percentage', 'created_at', 'updated_at',
+            'created_by', 'created_by_name', 'updated_by', 'updated_by_name'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'created_by', 'created_by_name', 'updated_by', 'updated_by_name']
+    
+    def validate(self, data):
+        """Validate product pricing rules"""
+        # Get current instance status if updating
+        instance_status = None
+        if self.instance:
+            instance_status = self.instance.status
+        
+        # Allow lenient validation for draft products
+        request_status = data.get('status') or instance_status
+        is_draft = request_status == 'draft'
+        
+        customization_level = data.get('customization_level') or (self.instance.customization_level if self.instance else None)
+        base_price = data.get('base_price') or (self.instance.base_price if self.instance else None)
+        
+        # Skip base_price validation for draft mode - only enforce on publish
+        if not is_draft:
+            if customization_level in ['non_customizable', 'semi_customizable']:
+                if base_price is None or base_price <= 0:
+                    raise serializers.ValidationError({
+                        'base_price': 'Non/Semi-customizable products must have a base price > 0'
+                    })
+            
+            if customization_level == 'fully_customizable':
+                if base_price is not None:
+                    raise serializers.ValidationError({
+                        'base_price': 'Fully customizable products must not have a base price'
+                    })
+        
+        return data
+    
+    def create(self, validated_data):
+        """Create product with nested relationships"""
+        pricing_data = validated_data.pop('pricing', {})
+        seo_data = validated_data.pop('seo', {})
+        
+        # Create product
+        product = Product.objects.create(**validated_data)
+        
+        # Create pricing if provided
+        if pricing_data:
+            ProductPricing.objects.create(product=product, **pricing_data)
+        
+        # Create SEO if provided
+        if seo_data:
+            ProductSEO.objects.create(product=product, **seo_data)
+        
+        return product
+    
+    def update(self, instance, validated_data):
+        """Update product with nested relationships"""
+        pricing_data = validated_data.pop('pricing', None)
+        seo_data = validated_data.pop('seo', None)
+        
+        # Update product fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        
+        # Validate before saving
+        instance.full_clean()
+        instance.save()
+        
+        # Update or create pricing
+        if pricing_data:
+            pricing, _ = ProductPricing.objects.get_or_create(product=instance)
+            for attr, value in pricing_data.items():
+                setattr(pricing, attr, value)
+            pricing.save()
+        
+        # Update or create SEO
+        if seo_data:
+            seo, _ = ProductSEO.objects.get_or_create(product=instance)
+            for attr, value in seo_data.items():
+                setattr(seo, attr, value)
+            seo.save()
+        
+        return instance
+    
+    def get_can_be_published(self, obj):
+        """Check if product can be published"""
+        can_publish, _ = obj.can_be_published()
+        return can_publish
+    
+    def get_has_pricing(self, obj):
+        """Check if product has pricing configured"""
+        return obj.has_costing_process()
+    
+    def get_image_count(self, obj):
+        """Get number of product images"""
+        return obj.images.count()
+    
+    def get_primary_image_url(self, obj):
+        """Get primary image URL"""
+        primary = obj.images.filter(is_primary=True).first()
+        return primary.image.url if primary else None
+    
+    def get_completion_percentage(self, obj):
+        """Calculate product completion percentage"""
+        completed_fields = 0
+        total_fields = 12
+        
+        # Check required fields
+        if obj.name: completed_fields += 1
+        if obj.short_description: completed_fields += 1
+        if obj.long_description: completed_fields += 1
+        if obj.primary_category: completed_fields += 1
+        if obj.base_price and obj.customization_level != 'fully_customizable': completed_fields += 1
+        if hasattr(obj, 'images') and obj.images.count() > 0: completed_fields += 1
+        if hasattr(obj, 'seo') and obj.seo: completed_fields += 1
+        if obj.status == 'published': completed_fields += 1
+        
+        return int((completed_fields / total_fields) * 100)
 
 
 class PropertyTypeSerializer(serializers.ModelSerializer):
@@ -374,13 +632,13 @@ class ProcessVariableRangeSerializer(serializers.ModelSerializer):
 
 # ===== Product Metadata Serializers =====
 
-class ProductImageSerializer(serializers.ModelSerializer):
+class ProductImageMetadataSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductImage
         fields = "__all__"
 
 
-class ProductVideoSerializer(serializers.ModelSerializer):
+class ProductVideoMetadataSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProductVideo
         fields = "__all__"

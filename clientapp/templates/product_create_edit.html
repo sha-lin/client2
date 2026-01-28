@@ -345,7 +345,7 @@
                                     <div class="grid grid-cols-3 gap-4">
                                         <label
                                             class="relative flex flex-col p-4 border rounded-xl cursor-pointer hover:bg-gray-50 transition-all group">
-                                            <input type="radio" name="customization_level" value="non_customizable" {% if product.customization_level == 'non_customizable' or not product %}checked{% endif %} class="sr-only peer">
+                                            <input type="radio" name="customization_level" value="non_customizable" {% if product.customization_level == 'non_customizable' %}checked{% endif %} class="sr-only peer">
                                             <div
                                                 class="w-full h-full border-2 border-transparent peer-checked:border-black rounded-xl absolute inset-0 pointer-events-none">
                                             </div>
@@ -365,7 +365,7 @@
                                         </label>
                                         <label
                                             class="relative flex flex-col p-4 border rounded-xl cursor-pointer hover:bg-gray-50 transition-all group">
-                                            <input type="radio" name="customization_level" value="fully_customizable" {% if product.customization_level == 'fully_customizable' %}checked{% endif %} class="sr-only peer">
+                                            <input type="radio" name="customization_level" value="fully_customizable" {% if product.customization_level == 'fully_customizable' or not product %}checked{% endif %} class="sr-only peer">
                                             <div
                                                 class="w-full h-full border-2 border-transparent peer-checked:border-black rounded-xl absolute inset-0 pointer-events-none">
                                             </div>
@@ -1055,16 +1055,18 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/product-api-handler.js' %}?v=20260128001"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         lucide.createIcons();
 
-        // --- TAB SYSTEM ---
+        // --- TAB SYSTEM (FIRST - this must work regardless of API) ---
         const tabButtons = document.querySelectorAll('.tab-button');
         const tabContents = document.querySelectorAll('.tab-content');
         const nextTabInput = document.getElementById('next_tab_input');
 
         function switchTab(tabId) {
+            console.log('Switching to tab:', tabId);
             tabButtons.forEach(btn => {
                 if (btn.dataset.tab === tabId) {
                     btn.classList.add('active', 'border-black', 'text-black');
@@ -1092,7 +1094,10 @@
         }
 
         tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            btn.addEventListener('click', () => {
+                console.log('Tab button clicked:', btn.dataset.tab);
+                switchTab(btn.dataset.tab);
+            });
         });
 
         // Handle initial tab from URL
@@ -1100,6 +1105,49 @@
         const initialTab = urlParams.get('tab');
         if (initialTab) switchTab(initialTab);
 
+        // === API HANDLER INITIALIZATION (wrapped in try-catch) ===
+        let apiHandler = null;
+        try {
+            if (typeof ProductAPIHandler !== 'undefined') {
+                const productId = document.getElementById('productForm').dataset.productId;
+                apiHandler = new ProductAPIHandler(productId);
+
+                apiHandler.initializeFormHandlers({
+                    onSaveDraft: () => {
+                        console.log('Draft saved via API');
+                    },
+                    onPublish: () => {
+                        apiHandler.showNotification('Product published successfully!', 'success');
+                        setTimeout(() => {
+                            window.location.href = '{% url "production_catalog" %}';
+                        }, 2000);
+                    },
+                    onImageUpload: (result) => {
+                        // Reload image preview
+                        const primaryImagePreview = document.getElementById('primary-image-preview');
+                        if (primaryImagePreview && result.image) {
+                            primaryImagePreview.src = result.image;
+                        }
+                    },
+                    onGalleryUpload: (result) => {
+                        // Reload gallery
+                        location.reload();
+                    },
+                    onVideoAdd: (result) => {
+                        // Refresh video list
+                        location.reload();
+                    }
+                });
+
+                // Setup auto-save
+                apiHandler.setupAutoSave(30000);
+                console.log('API Handler initialized successfully');
+            } else {
+                console.warn('ProductAPIHandler class not found - API functionality disabled');
+            }
+        } catch (e) {
+            console.error('Failed to initialize API Handler:', e);
+        }
 
         // --- PRICING LOGIC ---
         const customizationRadios = document.querySelectorAll('input[name="customization_level"]');
@@ -1423,7 +1471,7 @@
         const unsavedIndicator = document.getElementById('unsavedIndicator');
         const autoSaveStatus = document.getElementById('autoSaveStatus');
         const autoSaveBtn = document.getElementById('autoSaveBtn');
-        const productId = form.dataset.productId;
+        const currentProductId = form.dataset.productId;
 
         let hasUnsavedChanges = false;
         let autoSaveTimeout = null;
@@ -1482,13 +1530,21 @@
 
         // Auto-save function
         async function autoSaveProduct() {
-            if (productId === 'new' || !hasUnsavedChanges) return;
+            if (!hasUnsavedChanges) return;
 
             try {
                 const formData = new FormData(form);
                 formData.set('action', 'auto_save');
 
-                const response = await fetch(`/production/product/${productId}/edit/`, {
+                // Determine which endpoint to use based on whether product exists
+                let url;
+                if (currentProductId === 'new' || !currentProductId) {
+                    url = '/production/products/create/';  // CORRECTED URL
+                } else {
+                    url = `/production/products/${currentProductId}/edit/`;  // CORRECTED URL
+                }
+
+                const response = await fetch(url, {
                     method: 'POST',
                     body: formData,
                     headers: {
@@ -1497,6 +1553,19 @@
                 });
 
                 if (response.ok) {
+                    const data = await response.json();
+                    
+                    // If this was a new product auto-save, update the product ID
+                    if (data.product_id && (currentProductId === 'new' || !currentProductId)) {
+                        form.dataset.productId = data.product_id;
+                        window.currentProductId = data.product_id;
+                        
+                        // CRITICAL: Update API handler's productId so publish works
+                        if (typeof apiHandler !== 'undefined' && apiHandler) {
+                            apiHandler.productId = data.product_id;
+                        }
+                    }
+                    
                     hideUnsavedIndicator();
                     showAutoSaveStatus();
                     storeInitialState();
@@ -1668,6 +1737,11 @@
 
     .char-count.limit {
         color: #ef4444;
+    }
+
+    /* Hide unsaved changes indicator - using auto-save instead */
+    #unsavedIndicator {
+        display: none !important;
     }
 </style>
 {% endblock %}
