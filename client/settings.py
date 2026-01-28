@@ -246,15 +246,14 @@ else:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_PRELOAD = False
     
-# Email settings - Using Celery for async email sending
-# Emails are queued in database and sent asynchronously by Celery workers
-# Using Gmail SMTP for actual email delivery
+# Email settings - Using SendGrid SMTP (Render-compatible, not blocked)
+# Render blocks direct Gmail SMTP, so we use SendGrid SMTP relay instead
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_HOST = 'smtp.sendgrid.net'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_APP_PASSWORD', default='')  # Gmail App Password
+EMAIL_HOST_USER = 'apikey'  # SendGrid SMTP uses 'apikey' as username
+EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')  # SendGrid API Key from environment
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='PrintDuka <noreply@printduka.com>')
 
 # Celery Configuration - Using Database-Backed Broker (No Redis needed!)
