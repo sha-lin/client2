@@ -138,14 +138,18 @@ class QuotePDFGenerator:
             
             # Create PDF
             pdf_buffer = BytesIO()
-            pisa_status = pisa.CreatePDF(
-                html_string,
-                dest=pdf_buffer,
-                encoding='UTF-8'
-            )
-            
-            if pisa_status.err:
-                raise Exception(f"Error creating PDF: {pisa_status.err}")
+            try:
+                pisa_status = pisa.CreatePDF(
+                    html_string,
+                    dest=pdf_buffer,
+                    encoding='UTF-8'
+                )
+                
+                if pisa_status.err:
+                    raise Exception(f"Error creating PDF: {pisa_status.err}")
+            except Exception as pisa_error:
+                logger.error(f"xhtml2pdf error for quote {quote_id}: {pisa_error}")
+                raise
             
             pdf_buffer.seek(0)
             return pdf_buffer

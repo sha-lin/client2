@@ -137,6 +137,7 @@ class QuoteApprovalService:
         return token
     
     @staticmethod
+    @staticmethod
     def send_quote_via_email(quote, request=None):
         """
         Send quote to client/lead via email with approval link and PDF attachment
@@ -170,8 +171,6 @@ class QuoteApprovalService:
             }
         
         try:
-            from clientapp.pdf_utils import QuotePDFGenerator
-            
             # Generate approval token
             token = QuoteApprovalService.generate_approval_token(quote)
             
@@ -247,18 +246,27 @@ class QuoteApprovalService:
             # Attach HTML version
             email.attach_alternative(html_message, "text/html")
             
-            # Generate and attach PDF
+            # Try to generate and attach PDF - but don't fail if it errors
+            pdf_attached = False
             try:
+                from clientapp.pdf_utils import QuotePDFGenerator
+                logger.info(f"Attempting to generate PDF for quote {quote.quote_id}")
                 pdf_file = QuotePDFGenerator.generate_quote_pdf(quote.quote_id, request)
-                email.attach(
-                    filename=f'Quote_{quote.quote_id}.pdf',
-                    content=pdf_file.read(),
-                    mimetype='application/pdf'
-                )
-                logger.info(f"PDF attached to email for quote {quote.quote_id}")
+                if pdf_file and pdf_file.getbuffer().nbytes > 0:
+                    logger.info(f"PDF generated successfully, size: {pdf_file.getbuffer().nbytes} bytes")
+                    email.attach(
+                        filename=f'Quote_{quote.quote_id}.pdf',
+                        content=pdf_file.read(),
+                        mimetype='application/pdf'
+                    )
+                    pdf_attached = True
+                    logger.info(f"PDF attached to email for quote {quote.quote_id}")
+                else:
+                    logger.warning(f"PDF generated but empty for quote {quote.quote_id}")
             except Exception as pdf_error:
-                logger.warning(f"Could not attach PDF to email: {pdf_error}")
-                # Continue sending email without PDF
+                logger.error(f"Could not generate/attach PDF to email: {pdf_error}", exc_info=True)
+                # Don't fail the entire quote send if PDF fails
+                logger.info(f"Continuing to send quote {quote.quote_id} without PDF attachment")
             
             # Send email
             email.send(fail_silently=False)
@@ -268,7 +276,7 @@ class QuoteApprovalService:
             quote.production_status = 'sent_to_client'
             quote.save()
             
-            logger.info(f"Quote {quote.quote_id} sent to {recipient_email}")
+            logger.info(f"Quote {quote.quote_id} sent to {recipient_email}" + (" with PDF" if pdf_attached else " without PDF"))
             
             return {
                 'success': True,
@@ -276,7 +284,7 @@ class QuoteApprovalService:
             }
             
         except Exception as e:
-            logger.error(f"Error sending quote email: {e}")
+            logger.error(f"Error sending quote email: {e}", exc_info=True)
             return {
                 'success': False,
                 'message': str(e)
