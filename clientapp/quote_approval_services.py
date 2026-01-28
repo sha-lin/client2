@@ -231,25 +231,34 @@ class QuoteApprovalService:
                 'total_amount': total_amount,
             }
             
-            # Queue email send via Celery (asynchronous)
-            send_quote_email_task.delay(
-                quote_id=quote.pk,
-                recipient_email=recipient_email,
-                subject=f'Quote {quote.quote_id} - Awaiting Your Approval',
-                context=context
-            )
-            
-            # Update quote status to "Sent to Customer" immediately (email will be sent in background)
-            quote.status = 'Sent to Customer'
-            quote.production_status = 'sent_to_client'
-            quote.save()
-            
-            logger.info(f"Quote {quote.quote_id} queued for email send to {recipient_email} (Celery task)")
-            
-            return {
-                'success': True,
-                'message': f'Quote sent to {recipient_email}'
-            }
+            # Send email synchronously (no worker service available on free tier)
+            # In production with dedicated worker, switch back to: send_quote_email_task.delay(...)
+            try:
+                # Call the task function directly (synchronous execution)
+                result = send_quote_email_task(
+                    quote_id=quote.pk,
+                    recipient_email=recipient_email,
+                    subject=f'Quote {quote.quote_id} - Awaiting Your Approval',
+                    context=context
+                )
+                
+                # Update quote status to "Sent to Customer"
+                quote.status = 'Sent to Customer'
+                quote.production_status = 'sent_to_client'
+                quote.save()
+                
+                logger.info(f"Quote {quote.quote_id} sent to {recipient_email} (synchronous)")
+                
+                return {
+                    'success': True,
+                    'message': f'Quote sent to {recipient_email}'
+                }
+            except Exception as e:
+                logger.error(f"Error sending quote email synchronously: {e}", exc_info=True)
+                return {
+                    'success': False,
+                    'message': f'Error sending quote: {str(e)}'
+                }
             
         except Exception as e:
             logger.error(f"Error sending quote email: {e}", exc_info=True)

@@ -629,10 +629,10 @@ try:
 
     # ==================== EMAIL SENDING TASKS ====================
     
-    @shared_task(bind=True, max_retries=3)
-    def send_quote_email_task(self, quote_id, recipient_email, subject, context=None):
+    def send_quote_email_task(quote_id, recipient_email, subject, context=None):
         """
-        Async task to send quote emails via Celery.
+        Send quote email synchronously (no Celery worker required).
+        Can be called directly or as a Celery task.
         
         Args:
             quote_id: ID of the quote to send
@@ -648,6 +648,7 @@ try:
             from django.core.mail import EmailMessage
             from django.template.loader import render_to_string
             from django.utils.html import strip_tags
+            from django.conf import settings
             import io
             from reportlab.lib.pagesizes import letter
             from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
@@ -656,6 +657,10 @@ try:
             from reportlab.lib import colors
             from datetime import datetime
             
+            logger.info(f"🚀 CELERY TASK START: send_quote_email_task for quote {quote_id}")
+            logger.info(f"Email configuration - Backend: {settings.EMAIL_BACKEND}")
+            logger.info(f"Email HOST: {settings.EMAIL_HOST}, PORT: {settings.EMAIL_PORT}, TLS: {settings.EMAIL_USE_TLS}")
+            logger.info(f"Recipient: {recipient_email}, Subject: {subject}")
             logger.info(f"Starting async email send for quote {quote_id} to {recipient_email}")
             
             # Get the quote
@@ -762,8 +767,9 @@ try:
             
             # Send email with retry on failure
             try:
+                logger.info(f"📧 Attempting to send email via {settings.EMAIL_BACKEND}...")
                 email.send(fail_silently=False)
-                logger.info(f"Successfully sent email for quote {quote.quote_id} to {recipient_email}")
+                logger.info(f"✅ Successfully sent email for quote {quote.quote_id} to {recipient_email}")
                 
                 # Mark quote as sent in database
                 quote.email_sent = True
@@ -775,10 +781,13 @@ try:
                     'message': f'Quote email sent successfully to {recipient_email}'
                 }
             except Exception as smtp_error:
-                logger.error(f"SMTP Error sending quote {quote.quote_id}: {smtp_error}", exc_info=True)
+                logger.error(f"❌ SMTP Error sending quote {quote.quote_id}: {smtp_error}", exc_info=True)
+                logger.error(f"Error type: {type(smtp_error).__name__}")
+                logger.error(f"Error args: {smtp_error.args}")
                 
-                # Retry with exponential backoff (3, 9, 27 seconds)
-                raise self.retry(exc=smtp_error, countdown=3 ** self.request.retries)
+                # For synchronous execution, we can't retry with Celery
+                # Just log and return error
+                raise Exception(f"Failed to send email: {str(smtp_error)}")
         
         except Exception as e:
             logger.error(f"Unexpected error in send_quote_email_task: {e}", exc_info=True)
