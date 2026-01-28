@@ -766,8 +766,69 @@ try:
                 logger.info(f"Continuing to send quote {quote.quote_id} without PDF attachment")
             
             # Send email with retry on failure
+            # Try SendGrid API first (doesn't use SMTP, bypasses network restrictions)
+            sendgrid_api_key = settings.EMAIL_HOST_PASSWORD  # This is the SENDGRID_API_KEY
+            
+            if sendgrid_api_key and 'sendgrid' in settings.EMAIL_HOST.lower():
+                # Use SendGrid API directly
+                try:
+                    logger.info(f"📧 Attempting to send via SendGrid API...")
+                    from sendgrid import SendGridAPIClient
+                    from sendgrid.helpers.mail import Mail, Email, To, Content
+                    
+                    # Create SendGrid email object
+                    mail = Mail(
+                        from_email=Email(settings.DEFAULT_FROM_EMAIL),
+                        to_emails=To(recipient_email),
+                        subject=subject,
+                        plain_text_content=plain_message,
+                        html_content=html_message
+                    )
+                    
+                    # Add PDF attachment if available
+                    if pdf_attached and buffer:
+                        import base64
+                        buffer.seek(0)
+                        attachment_content = base64.b64encode(buffer.getvalue()).decode()
+                        from sendgrid.helpers.mail import Attachment, FileContent, FileName, FileType, Disposition
+                        attachment = Attachment(
+                            FileContent(attachment_content),
+                            FileName(f'Quote_{quote.quote_id}.pdf'),
+                            FileType('application/pdf'),
+                            Disposition('attachment')
+                        )
+                        mail.attachment = attachment
+                    
+                    # Send via SendGrid API
+                    sg = SendGridAPIClient(sendgrid_api_key)
+                    response = sg.send(mail)
+                    
+                    logger.info(f"✅ SendGrid API response: {response.status_code}")
+                    
+                    # Mark quote as sent in database
+                    quote.email_sent = True
+                    quote.email_sent_at = datetime.now()
+                    quote.save()
+                    
+                    return {
+                        'success': True,
+                        'message': f'Quote email sent successfully via SendGrid to {recipient_email}'
+                    }
+                    
+                except ImportError:
+                    logger.warning("SendGrid library not available, falling back to SMTP")
+                except Exception as sg_error:
+                    logger.error(f"SendGrid API error: {sg_error}", exc_info=True)
+                    logger.warning("SendGrid API failed, falling back to SMTP")
+            
+            # Fallback to SMTP if SendGrid API not available or failed
             try:
-                logger.info(f"📧 Attempting to send email via {settings.EMAIL_BACKEND}...")
+                logger.info(f"📧 Attempting to send email via SMTP {settings.EMAIL_HOST}:{settings.EMAIL_PORT}...")
+                logger.info(f"Email HOST: {settings.EMAIL_HOST}")
+                logger.info(f"Email PORT: {settings.EMAIL_PORT}")
+                logger.info(f"Email TLS: {settings.EMAIL_USE_TLS}")
+                logger.info(f"Email USER: {settings.EMAIL_HOST_USER}")
+                
                 email.send(fail_silently=False)
                 logger.info(f"✅ Successfully sent email for quote {quote.quote_id} to {recipient_email}")
                 
@@ -783,11 +844,18 @@ try:
             except Exception as smtp_error:
                 logger.error(f"❌ SMTP Error sending quote {quote.quote_id}: {smtp_error}", exc_info=True)
                 logger.error(f"Error type: {type(smtp_error).__name__}")
-                logger.error(f"Error args: {smtp_error.args}")
+                logger.error(f"Error details: {str(smtp_error)}")
+                
+                # Check if it's a connection error (likely missing API key on Render)
+                if 'Connection' in str(type(smtp_error).__name__) or 'socket' in str(smtp_error).lower():
+                    error_msg = "Email service connection failed. Check SENDGRID_API_KEY is set in Render environment."
+                    logger.error(f"⚠️  {error_msg}")
+                else:
+                    error_msg = str(smtp_error)
                 
                 # For synchronous execution, we can't retry with Celery
                 # Just log and return error
-                raise Exception(f"Failed to send email: {str(smtp_error)}")
+                raise Exception(f"Failed to send email: {error_msg}")
         
         except Exception as e:
             logger.error(f"Unexpected error in send_quote_email_task: {e}", exc_info=True)
