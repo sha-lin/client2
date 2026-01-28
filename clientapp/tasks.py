@@ -627,5 +627,165 @@ try:
             logger.error(f"Error in cleanup_old_conversations: {str(exc)}")
             return {'status': 'error', 'message': str(exc)}
 
+    # ==================== EMAIL SENDING TASKS ====================
+    
+    @shared_task(bind=True, max_retries=3)
+    def send_quote_email_task(self, quote_id, recipient_email, subject, context=None):
+        """
+        Async task to send quote emails via Celery.
+        
+        Args:
+            quote_id: ID of the quote to send
+            recipient_email: Email address to send to
+            subject: Email subject
+            context: Additional context for email template
+        
+        Returns:
+            dict with success status and message
+        """
+        try:
+            from .models import Quote
+            from django.core.mail import EmailMessage
+            from django.template.loader import render_to_string
+            from django.utils.html import strip_tags
+            import io
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            from datetime import datetime
+            
+            logger.info(f"Starting async email send for quote {quote_id} to {recipient_email}")
+            
+            # Get the quote
+            try:
+                quote = Quote.objects.get(id=quote_id)
+            except Quote.DoesNotExist:
+                logger.error(f"Quote {quote_id} not found")
+                return {
+                    'success': False,
+                    'message': f'Quote {quote_id} not found'
+                }
+            
+            # Prepare email context
+            if context is None:
+                context = {}
+            
+            context.update({
+                'quote': quote,
+                'quote_link': f"https://client2-o4ay.onrender.com/quotes/{quote.quote_id}/",
+            })
+            
+            # Render email template
+            try:
+                html_message = render_to_string('quote_email.html', context)
+                plain_message = strip_tags(html_message)
+            except Exception as template_error:
+                logger.error(f"Error rendering email template: {template_error}")
+                plain_message = f"Quote {quote.quote_id} is ready for review"
+                html_message = plain_message
+            
+            # Create email
+            email = EmailMessage(
+                subject=subject,
+                body=plain_message,
+                from_email='PrintDuka <noreply@printduka.com>',
+                to=[recipient_email],
+            )
+            email.content_subtype = 'html'
+            email.alternatives = [(html_message, "text/html")]
+            
+            # Try to attach PDF
+            pdf_attached = False
+            try:
+                # Generate quote PDF
+                buffer = io.BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter)
+                elements = []
+                styles = getSampleStyleSheet()
+                
+                # Title
+                title_style = ParagraphStyle(
+                    'CustomTitle',
+                    parent=styles['Heading1'],
+                    fontSize=24,
+                    textColor=colors.HexColor('#1f4788'),
+                    spaceAfter=30,
+                    alignment=1,  # Center
+                )
+                elements.append(Paragraph(f"Quote {quote.quote_id}", title_style))
+                elements.append(Spacer(1, 0.2*inch))
+                
+                # Quote details
+                details = [
+                    ['Quote ID:', quote.quote_id],
+                    ['Date:', quote.created_at.strftime('%Y-%m-%d')],
+                    ['Status:', quote.status or 'Pending'],
+                ]
+                
+                if hasattr(quote, 'client') and quote.client:
+                    details.append(['Client:', str(quote.client)])
+                
+                detail_table = Table(details, colWidths=[2*inch, 4*inch])
+                detail_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e8f0f8')),
+                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 11),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                ]))
+                
+                elements.append(detail_table)
+                elements.append(Spacer(1, 0.3*inch))
+                
+                # Build PDF
+                doc.build(elements)
+                buffer.seek(0)
+                
+                if buffer:
+                    email.attach(
+                        filename=f'Quote_{quote.quote_id}.pdf',
+                        content=buffer.getvalue(),
+                        mimetype='application/pdf'
+                    )
+                    pdf_attached = True
+                    logger.info(f"PDF attached to email for quote {quote.quote_id}")
+                else:
+                    logger.warning(f"PDF generated but empty for quote {quote.quote_id}")
+            except Exception as pdf_error:
+                logger.error(f"Could not generate/attach PDF to email: {pdf_error}", exc_info=True)
+                # Don't fail the entire quote send if PDF fails
+                logger.info(f"Continuing to send quote {quote.quote_id} without PDF attachment")
+            
+            # Send email with retry on failure
+            try:
+                email.send(fail_silently=False)
+                logger.info(f"Successfully sent email for quote {quote.quote_id} to {recipient_email}")
+                
+                # Mark quote as sent in database
+                quote.email_sent = True
+                quote.email_sent_at = datetime.now()
+                quote.save()
+                
+                return {
+                    'success': True,
+                    'message': f'Quote email sent successfully to {recipient_email}'
+                }
+            except Exception as smtp_error:
+                logger.error(f"SMTP Error sending quote {quote.quote_id}: {smtp_error}", exc_info=True)
+                
+                # Retry with exponential backoff (3, 9, 27 seconds)
+                raise self.retry(exc=smtp_error, countdown=3 ** self.request.retries)
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in send_quote_email_task: {e}", exc_info=True)
+            return {
+                'success': False,
+                'message': f'Failed to send quote email: {str(e)}'
+            }
+
 except ImportError:
     logger.info("Celery tasks for storefront available when Celery is installed")

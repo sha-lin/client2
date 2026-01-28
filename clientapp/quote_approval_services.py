@@ -140,7 +140,7 @@ class QuoteApprovalService:
     @staticmethod
     def send_quote_via_email(quote, request=None):
         """
-        Send quote to client/lead via email with approval link and PDF attachment
+        Queue quote email to be sent asynchronously via Celery.
         Quotes can be sent to customers at any time (no costed requirement)
         
         Args:
@@ -151,6 +151,7 @@ class QuoteApprovalService:
             dict: {'success': bool, 'message': str}
         """
         from clientapp.models import Quote
+        from clientapp.tasks import send_quote_email_task
         
         # Ensure quote is saved
         if not quote.pk:
@@ -231,60 +232,20 @@ class QuoteApprovalService:
                 'total_amount': total_amount,
             }
             
-            # Render email
-            html_message = render_to_string('emails/quote_email.html', context)
-            plain_message = render_to_string('emails/quote_email.txt', context)
-            
-            # Create email message using EmailMultiAlternatives for proper HTML support
-            email = EmailMultiAlternatives(
+            # Queue email send via Celery (asynchronous)
+            send_quote_email_task.delay(
+                quote_id=quote.pk,
+                recipient_email=recipient_email,
                 subject=f'Quote {quote.quote_id} - Awaiting Your Approval',
-                body=plain_message,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                to=[recipient_email],
+                context=context
             )
             
-            # Attach HTML version
-            email.attach_alternative(html_message, "text/html")
-            
-            # Try to generate and attach PDF - but don't fail if it errors
-            pdf_attached = False
-            try:
-                from clientapp.pdf_utils import QuotePDFGenerator
-                logger.info(f"Attempting to generate PDF for quote {quote.quote_id}")
-                pdf_file = QuotePDFGenerator.generate_quote_pdf(quote.quote_id, request)
-                if pdf_file and pdf_file.getbuffer().nbytes > 0:
-                    logger.info(f"PDF generated successfully, size: {pdf_file.getbuffer().nbytes} bytes")
-                    email.attach(
-                        filename=f'Quote_{quote.quote_id}.pdf',
-                        content=pdf_file.read(),
-                        mimetype='application/pdf'
-                    )
-                    pdf_attached = True
-                    logger.info(f"PDF attached to email for quote {quote.quote_id}")
-                else:
-                    logger.warning(f"PDF generated but empty for quote {quote.quote_id}")
-            except Exception as pdf_error:
-                logger.error(f"Could not generate/attach PDF to email: {pdf_error}", exc_info=True)
-                # Don't fail the entire quote send if PDF fails
-                logger.info(f"Continuing to send quote {quote.quote_id} without PDF attachment")
-            
-            # Send email with timeout handling
-            try:
-                email.send(fail_silently=False)
-            except Exception as smtp_error:
-                # Handle SMTP/network errors gracefully
-                logger.error(f"SMTP Error sending quote: {smtp_error}", exc_info=True)
-                return {
-                    'success': False,
-                    'message': f'Email sending failed. Please check your email configuration: {str(smtp_error)}'
-                }
-            
-            # Update quote status to "Sent to Customer"
+            # Update quote status to "Sent to Customer" immediately (email will be sent in background)
             quote.status = 'Sent to Customer'
             quote.production_status = 'sent_to_client'
             quote.save()
             
-            logger.info(f"Quote {quote.quote_id} sent to {recipient_email}" + (" with PDF" if pdf_attached else " without PDF"))
+            logger.info(f"Quote {quote.quote_id} queued for email send to {recipient_email} (Celery task)")
             
             return {
                 'success': True,

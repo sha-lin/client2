@@ -4319,6 +4319,7 @@ def send_quote(request, quote_id):
     """Send quote to client/lead via email"""
     if request.method == 'POST':
         from .quote_approval_services import QuoteApprovalService
+        import traceback
         
         try:
             quote = Quote.objects.filter(quote_id=quote_id).first()
@@ -4330,15 +4331,23 @@ def send_quote(request, quote_id):
             
             send_method = request.POST.get('send_method', 'email')
             
-            if send_method == 'email':
-                result = QuoteApprovalService.send_quote_via_email(quote, request)
-            elif send_method == 'whatsapp':
-                result = QuoteApprovalService.send_quote_via_whatsapp(quote)
-            else:
-                result = {
+            try:
+                if send_method == 'email':
+                    result = QuoteApprovalService.send_quote_via_email(quote, request)
+                elif send_method == 'whatsapp':
+                    result = QuoteApprovalService.send_quote_via_whatsapp(quote)
+                else:
+                    result = {
+                        'success': False,
+                        'message': 'Invalid send method'
+                    }
+            except Exception as e:
+                traceback.print_exc()
+                logger.error(f"Error in send_quote_via_{send_method}: {e}")
+                return JsonResponse({
                     'success': False,
-                    'message': 'Invalid send method'
-                }
+                    'message': f'Error sending quote: {str(e)}'
+                }, status=400)
             
             if result['success']:
                 # Create activity log
@@ -4357,10 +4366,11 @@ def send_quote(request, quote_id):
         except Exception as e:
             import traceback
             traceback.print_exc()
+            logger.error(f"Error in send_quote view: {e}")
             return JsonResponse({
                 'success': False,
                 'message': str(e)
-            })
+            }, status=500)
     
     return JsonResponse({
         'success': False,
