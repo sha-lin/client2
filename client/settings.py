@@ -246,14 +246,14 @@ else:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_PRELOAD = False
     
-# Email settings - Using SendGrid SMTP (Render-compatible, not blocked)
-# Render blocks direct Gmail SMTP, so we use SendGrid SMTP relay instead
+# Email settings - Using Mailgun SMTP (Render-compatible, free tier)
+# Render-friendly alternative to SendGrid
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.sendgrid.net'
+EMAIL_HOST = 'smtp.mailgun.org'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'apikey'  # SendGrid SMTP uses 'apikey' as username
-EMAIL_HOST_PASSWORD = config('SENDGRID_API_KEY', default='')  # SendGrid API Key from environment
+EMAIL_HOST_USER = config('MAILGUN_SMTP_LOGIN', default='')  # From Mailgun (format: postmaster@your-domain.mailgun.org)
+EMAIL_HOST_PASSWORD = config('MAILGUN_SMTP_PASSWORD', default='')  # From Mailgun
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='PrintDuka <noreply@printduka.com>')
 
 # Celery Configuration - Using Database-Backed Broker (No Redis needed!)
