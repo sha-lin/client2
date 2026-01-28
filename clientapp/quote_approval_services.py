@@ -268,8 +268,16 @@ class QuoteApprovalService:
                 # Don't fail the entire quote send if PDF fails
                 logger.info(f"Continuing to send quote {quote.quote_id} without PDF attachment")
             
-            # Send email
-            email.send(fail_silently=False)
+            # Send email with timeout handling
+            try:
+                email.send(fail_silently=False)
+            except Exception as smtp_error:
+                # Handle SMTP/network errors gracefully
+                logger.error(f"SMTP Error sending quote: {smtp_error}", exc_info=True)
+                return {
+                    'success': False,
+                    'message': f'Email sending failed. Please check your email configuration: {str(smtp_error)}'
+                }
             
             # Update quote status to "Sent to Customer"
             quote.status = 'Sent to Customer'
