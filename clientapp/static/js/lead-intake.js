@@ -312,7 +312,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td>
                         <div class="flex gap-2">
                             ${lead.status === 'Qualified' ? `
-                                <a href="/client-onboarding/?lead_id=${lead.id}" class="btn btn-primary text-sm py-1 px-3">Onboard</a>
+                                <a href="/clients/onboarding/?lead_id=${lead.id}" class="btn btn-primary text-sm py-1 px-3">Onboard</a>
                             ` : ''}
                             <a href="/leads/${lead.id}/" class="btn btn-secondary text-sm py-1 px-3">View</a>
                         </div>
