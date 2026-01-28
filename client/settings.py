@@ -255,24 +255,27 @@ DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='PrintDuka <noreply@pr
 # Celery Configuration - Using Database-Backed Broker (No Redis needed!)
 # Tasks are stored in database, processed by worker
 # Results stored in database via django-celery-results
-CELERY_BROKER_URL = 'sqla+postgresql://localhost/celery'  # Falls back to in-memory if DB unavailable
-CELERY_RESULT_BACKEND = 'db+postgresql://localhost/celery'
+if not DEBUG:
+    # Production: Use database broker (convert PostgreSQL URL to SQLAlchemy format)
+    database_url = config('DATABASE_URL', default='')
+    if database_url:
+        # Convert postgresql://user:pass@host/db to sqla+postgresql://user:pass@host/db
+        celery_broker_url = database_url.replace('postgres://', 'sqla+postgresql://').replace('postgresql://', 'sqla+postgresql://')
+        CELERY_BROKER_URL = celery_broker_url
+        CELERY_RESULT_BACKEND = celery_broker_url.replace('sqla+postgresql', 'db+postgresql')
+    else:
+        # Fallback if DATABASE_URL not set
+        CELERY_BROKER_URL = 'memory://'
+        CELERY_RESULT_BACKEND = 'cache+memory://'
+else:
+    # Local development: Use memory broker (simpler setup, no DB needed)
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+
 CELERY_BROKER_USE_SSL = False
 CELERY_BROKER_POOL_LIMIT = 1
 CELERY_BROKER_CONNECTION_RETRY = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-
-# For Render deployment, use simpler in-memory broker that degrades gracefully
-if not DEBUG:
-    # Production: Use database broker
-    CELERY_BROKER_URL = 'sqla+postgresql://' + (
-        config('DATABASE_URL', default='').replace('postgres://', '').replace('postgresql://', '')
-        if config('DATABASE_URL', default='') else 'localhost/celery'
-    )
-else:
-    # Local development: Use memory broker (simpler setup)
-    CELERY_BROKER_URL = 'memory://'
-    CELERY_RESULT_BACKEND = 'cache+memory://'
 
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
