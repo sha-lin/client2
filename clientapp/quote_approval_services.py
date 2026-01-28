@@ -2,7 +2,7 @@
 """
 Quote Approval Service - Handles quote sending, approval, and LPO generation
 """
-from django.core.mail import send_mail
+from django.core.mail import send_mail, EmailMultiAlternatives
 from django.template.loader import render_to_string
 from django.conf import settings
 from django.utils import timezone
@@ -170,7 +170,6 @@ class QuoteApprovalService:
             }
         
         try:
-            from django.core.mail import EmailMessage
             from clientapp.pdf_utils import QuotePDFGenerator
             
             # Generate approval token
@@ -237,17 +236,16 @@ class QuoteApprovalService:
             html_message = render_to_string('emails/quote_email.html', context)
             plain_message = render_to_string('emails/quote_email.txt', context)
             
-            # Create email message
-            email = EmailMessage(
+            # Create email message using EmailMultiAlternatives for proper HTML support
+            email = EmailMultiAlternatives(
                 subject=f'Quote {quote.quote_id} - Awaiting Your Approval',
                 body=plain_message,
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 to=[recipient_email],
             )
             
-            # Add HTML alternative
-            email.content_subtype = "html"
-            email.body = html_message
+            # Attach HTML version
+            email.attach_alternative(html_message, "text/html")
             
             # Generate and attach PDF
             try:
@@ -540,6 +538,13 @@ Thank you for choosing PrintDuka!
             quote.approved_at = timezone.now()
             quote.production_status = 'in_production'
             quote.save()
+            
+            # ===== UPDATE LEAD STATUS TO QUALIFIED =====
+            # When a quote is approved, the lead becomes qualified for onboarding
+            if quote.lead:
+                quote.lead.status = 'Qualified'
+                quote.lead.save()
+                logger.info(f"Lead {quote.lead.lead_id} marked as Qualified due to quote approval")
             
             # Mark token as used
             approval_token.used = True

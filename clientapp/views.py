@@ -1040,6 +1040,24 @@ def client_onboarding(request):
     """Client onboarding workflow - Matches HTML template B2B/B2C structure"""
     prefilled_data = request.session.get('prefilled_lead', None)
     
+    # Check if lead_id is passed as query parameter (from Onboard button click)
+    lead_id = request.GET.get('lead_id')
+    if lead_id and not prefilled_data:
+        try:
+            lead = Lead.objects.get(pk=lead_id)
+            # Prefill session with lead data
+            prefilled_data = {
+                'name': lead.name,
+                'email': lead.email,
+                'phone': lead.phone,
+                'lead_source': lead.source,
+                'product_interest': lead.product_interest,
+                'preferred_client_type': lead.preferred_client_type,
+            }
+            request.session['prefilled_lead'] = prefilled_data
+        except Lead.DoesNotExist:
+            logger.warning(f"Lead with id {lead_id} not found for onboarding")
+    
     if request.method == 'POST':
         client_type = request.POST.get('client_type', 'B2B')
         
@@ -7538,8 +7556,8 @@ def ajax_calculate_margin(request):
 
 @login_required
 @require_POST
-def ajax_create_vendor(request):
-    """Create or update a Vendor and return it for dropdowns."""
+def ajax_create_vendor_comprehensive(request):
+    """Create or update a Vendor with all fields and return it for dropdowns."""
     try:
         payload = json.loads(request.body.decode('utf-8'))
         
@@ -7662,22 +7680,28 @@ def ajax_create_vendor(request):
                 'message': f'Vendor "{vendor.name}" created successfully!'
             })
         
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error in ajax_create_vendor: {str(e)}")
         return JsonResponse({
             'success': False, 
-            'message': 'Invalid JSON data'
+            'message': 'Invalid JSON data: ' + str(e)
         }, status=400)
     except ValueError as e:
+        logger.error(f"Value error in ajax_create_vendor: {str(e)}")
         return JsonResponse({
             'success': False, 
             'message': f'Invalid number format: {str(e)}'
         }, status=400)
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        error_msg = str(e)
+        error_traceback = traceback.format_exc()
+        logger.error(f"Unexpected error in ajax_create_vendor: {error_msg}\n{error_traceback}")
+        print(f"ERROR in ajax_create_vendor: {error_msg}")
+        print(f"Traceback:\n{error_traceback}")
         return JsonResponse({
             'success': False, 
-            'message': str(e)
+            'message': f'Error creating vendor: {error_msg}'
         }, status=500)
 
 def delivery_list(request):
@@ -7732,9 +7756,8 @@ def get_product_price(request, product_id):
 
 
 @login_required
-@group_required('Account Manager')
 def api_product_catalog(request):
-    """Product catalog API endpoint for Account Managers - returns pricing metadata"""
+    """Product catalog API endpoint - returns pricing metadata for product selection in forms"""
     from clientapp.models import resolve_unit_price
     
     try:
@@ -7780,13 +7803,14 @@ def api_product_catalog(request):
 @login_required
 @require_POST
 def ajax_create_vendor(request):
-    """Create a new Vendor from the Process editor and return it for dropdowns."""
+    """Create or update a Vendor with full field support - handles both Process editor and Vendor portal."""
     try:
         payload = json.loads(request.body.decode('utf-8'))
+        
+        # Get required fields - these are mandatory
         name = (payload.get('name') or '').strip()
-        email = (payload.get('email') or '').strip() or 'vendor@example.com'
-        phone = (payload.get('phone') or '').strip() or 'N/A'
-        address = (payload.get('address') or '').strip()
+        email = (payload.get('email') or '').strip()
+        phone = (payload.get('phone') or '').strip()
         
         if not name:
             return JsonResponse({
@@ -7794,37 +7818,136 @@ def ajax_create_vendor(request):
                 'message': 'Vendor name is required.'
             }, status=400)
 
-        #vendor with default VPS score
-        vendor = Vendor.objects.create(
-            name=name,
-            email=email,
-            phone=phone,
-            address=address,
-            vps_score='B',  
-            vps_score_value=5.0, 
-            rating=4.0,  
-            active=True,
-        )
+        if not email:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Email is required.'
+            }, status=400)
 
-        return JsonResponse({
-            'success': True,
-            'id': vendor.id,
-            'name': vendor.name,
-            'vps_score_value': str(vendor.vps_score_value),
-            'message': f'Vendor "{vendor.name}" created successfully!'
-        })
+        if not phone:
+            return JsonResponse({
+                'success': False, 
+                'message': 'Phone is required.'
+            }, status=400)
         
-    except json.JSONDecodeError:
+        # Check if editing existing vendor
+        vendor_id = payload.get('vendor_id')
+        is_editing = vendor_id and str(vendor_id).strip()
+        
+        # Get all vendor fields from payload with sensible defaults
+        contact_person = (payload.get('contact_person') or '').strip()
+        business_address = (payload.get('business_address') or payload.get('address') or '').strip()
+        tax_pin = (payload.get('tax_pin') or '').strip()
+        payment_terms = payload.get('payment_terms', '')
+        payment_method = payload.get('payment_method', '')
+        services = payload.get('services', '')  
+        specialization = (payload.get('specialization') or '').strip()
+        minimum_order = float(payload.get('minimum_order', 0) or 0)
+        lead_time = (payload.get('lead_time') or '').strip()
+        rush_capable = payload.get('rush_capable', False)
+        quality_rating = payload.get('quality_rating', '')
+        reliability_rating = payload.get('reliability_rating', '')
+        vps_score = payload.get('vps_score', 'B')
+        vps_score_value = float(payload.get('vps_score_value', 5.0) or 5.0)
+        rating = float(payload.get('rating', 4.0) or 4.0)
+        recommended = payload.get('recommended', False)
+        
+        if is_editing:
+            # Update existing vendor
+            try:
+                vendor = Vendor.objects.get(id=vendor_id)
+                vendor.name = name
+                vendor.contact_person = contact_person
+                vendor.email = email
+                vendor.phone = phone
+                vendor.business_address = business_address
+                vendor.tax_pin = tax_pin
+                vendor.payment_terms = payment_terms
+                vendor.payment_method = payment_method
+                vendor.services = services
+                vendor.specialization = specialization
+                vendor.minimum_order = minimum_order
+                vendor.lead_time = lead_time
+                vendor.rush_capable = rush_capable
+                vendor.quality_rating = quality_rating
+                vendor.reliability_rating = reliability_rating
+                vendor.vps_score = vps_score
+                vendor.vps_score_value = vps_score_value
+                vendor.rating = rating
+                vendor.recommended = recommended
+                vendor.save()
+                
+                return JsonResponse({
+                    'success': True,
+                    'id': vendor.id,
+                    'name': vendor.name,
+                    'vps_score_value': str(vendor.vps_score_value),
+                    'vps_score': vendor.vps_score,
+                    'rating': str(vendor.rating),
+                    'message': f'Vendor "{vendor.name}" updated successfully!'
+                })
+            except Vendor.DoesNotExist:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Vendor not found.'
+                }, status=404)
+        else:
+            # Create new vendor
+            vendor = Vendor.objects.create(
+                name=name,
+                contact_person=contact_person,
+                email=email,
+                phone=phone,
+                business_address=business_address,
+                tax_pin=tax_pin,
+                payment_terms=payment_terms,
+                payment_method=payment_method,
+                services=services,
+                specialization=specialization,
+                minimum_order=minimum_order,
+                lead_time=lead_time,
+                rush_capable=rush_capable,
+                quality_rating=quality_rating,
+                reliability_rating=reliability_rating,
+                vps_score=vps_score,
+                vps_score_value=vps_score_value,
+                rating=rating,
+                recommended=recommended,
+                active=True,
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'id': vendor.id,
+                'name': vendor.name,
+                'vps_score_value': str(vendor.vps_score_value),
+                'vps_score': vendor.vps_score,
+                'rating': str(vendor.rating),
+                'message': f'Vendor "{vendor.name}" created successfully!'
+            })
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error in ajax_create_vendor: {str(e)}")
         return JsonResponse({
             'success': False, 
-            'message': 'Invalid JSON data'
+            'message': 'Invalid JSON data: ' + str(e)
+        }, status=400)
+    except ValueError as e:
+        logger.error(f"Value error in ajax_create_vendor: {str(e)}")
+        return JsonResponse({
+            'success': False, 
+            'message': f'Invalid number format: {str(e)}'
         }, status=400)
     except Exception as e:
         import traceback
-        traceback.print_exc()
+        error_msg = str(e)
+        error_traceback = traceback.format_exc()
+        logger.error(f"Unexpected error in ajax_create_vendor: {error_msg}\n{error_traceback}")
+        print(f"ERROR in ajax_create_vendor: {error_msg}")
+        print(f"Traceback:\n{error_traceback}")
         return JsonResponse({
             'success': False, 
-            'message': str(e)
+            'message': f'Error creating vendor: {error_msg}'
         }, status=500)
 
 

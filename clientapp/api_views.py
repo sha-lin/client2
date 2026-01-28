@@ -926,9 +926,9 @@ class ProductViewSet(viewsets.ModelViewSet):
         try:
             # Extract inventory fields from request
             stock_quantity = request.data.get('stock_quantity')
-            min_stock_level = request.data.get('min_stock_level')
-            reorder_quantity = request.data.get('reorder_quantity')
-            backorder_allowed = request.data.get('backorder_allowed')
+            low_stock_threshold = request.data.get('low_stock_threshold')
+            track_inventory = request.data.get('track_inventory')
+            allow_backorders = request.data.get('allow_backorders')
             
             # Validate and update fields
             updated_fields = {}
@@ -943,29 +943,23 @@ class ProductViewSet(viewsets.ModelViewSet):
                 product.stock_quantity = stock_quantity
                 updated_fields['stock_quantity'] = stock_quantity
             
-            if min_stock_level is not None:
-                min_stock_level = int(min_stock_level)
-                if min_stock_level < 0:
+            if low_stock_threshold is not None:
+                low_stock_threshold = int(low_stock_threshold)
+                if low_stock_threshold < 0:
                     return Response(
-                        {'detail': 'Minimum stock level cannot be negative'},
+                        {'detail': 'Low stock threshold cannot be negative'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-                product.min_stock_level = min_stock_level
-                updated_fields['min_stock_level'] = min_stock_level
+                product.low_stock_threshold = low_stock_threshold
+                updated_fields['low_stock_threshold'] = low_stock_threshold
             
-            if reorder_quantity is not None:
-                reorder_quantity = int(reorder_quantity)
-                if reorder_quantity < 0:
-                    return Response(
-                        {'detail': 'Reorder quantity cannot be negative'},
-                        status=status.HTTP_400_BAD_REQUEST
-                    )
-                product.reorder_quantity = reorder_quantity
-                updated_fields['reorder_quantity'] = reorder_quantity
+            if track_inventory is not None:
+                product.track_inventory = track_inventory in [True, 'true', 'True', 1, '1']
+                updated_fields['track_inventory'] = product.track_inventory
             
-            if backorder_allowed is not None:
-                product.backorder_allowed = backorder_allowed in [True, 'true', 'True', 1, '1']
-                updated_fields['backorder_allowed'] = product.backorder_allowed
+            if allow_backorders is not None:
+                product.allow_backorders = allow_backorders in [True, 'true', 'True', 1, '1']
+                updated_fields['allow_backorders'] = product.allow_backorders
             
             # Save product
             product.updated_by = request.user
@@ -987,9 +981,9 @@ class ProductViewSet(viewsets.ModelViewSet):
             return Response({
                 'id': product.id,
                 'stock_quantity': product.stock_quantity,
-                'min_stock_level': product.min_stock_level,
-                'reorder_quantity': product.reorder_quantity,
-                'backorder_allowed': product.backorder_allowed,
+                'low_stock_threshold': product.low_stock_threshold,
+                'track_inventory': product.track_inventory,
+                'allow_backorders': product.allow_backorders,
                 'message': 'Inventory updated successfully',
                 'updated_fields': updated_fields,
                 'updated_at': timezone.now().isoformat()

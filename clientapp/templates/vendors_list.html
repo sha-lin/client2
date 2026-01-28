@@ -119,6 +119,12 @@
             {% csrf_token %}
             <input type="hidden" id="vendor-id" name="vendor_id" value="">
             
+            <!-- Hidden fields for VPS score, rating, and recommended (required by backend) -->
+            <input type="hidden" id="vps-score" name="vps_score" value="B">
+            <input type="hidden" id="vps-score-value" name="vps_score_value" value="5.0">
+            <input type="hidden" id="rating" name="rating" value="4.0">
+            <input type="hidden" id="recommended" name="recommended" value="false">
+            
             <!-- BASIC INFORMATION -->
             <div style="margin-bottom: 2rem; padding-bottom: 2rem; border-bottom: 2px solid #e5e7eb;">
                 <div style="font-weight: 600; color: #1f2937; margin-bottom: 1rem; font-size: 14px;">BASIC INFORMATION</div>
@@ -396,9 +402,9 @@ function loadVendorData(vendorData) {
         'vendor-specialization': vendorData.specialization || '',
         'vendor-minimum-order': vendorData.minimumOrder || '0',
         'vendor-lead-time': vendorData.leadTime || '',
-        'vendor-vps-score': vendorData.vpsScore || 'B',
-        'vendor-vps-value': vendorData.vpsScoreValue || '5.0',
-        'vendor-rating': vendorData.rating || '4.0'
+        'vps-score': vendorData.vpsScore || 'B',
+        'vps-score-value': vendorData.vpsScoreValue || '5.0',
+        'rating': vendorData.rating || '4.0'
     };
     
     // Set text input values
@@ -408,6 +414,12 @@ function loadVendorData(vendorData) {
             el.value = elements[id];
         }
     });
+    
+    // Set hidden field for recommended
+    const recommendedHiddenEl = document.getElementById('recommended');
+    if (recommendedHiddenEl) {
+        recommendedHiddenEl.value = (vendorData.recommended === 'true' || vendorData.recommended === true) ? 'true' : 'false';
+    }
     
     // Set checkbox values
     const rushCapableEl = document.getElementById('vendor-rush-capable');
@@ -461,30 +473,37 @@ function resetVendorForm() {
 }
 
 // Open modal for adding new vendor
-addVendorBtn.addEventListener('click', function() {
-    modal.style.display = 'block';
-    document.getElementById('modal-title').textContent = 'Add New Vendor';
-    document.getElementById('save-btn-text').textContent = 'Save Vendor';
-    resetVendorForm();
-    document.getElementById('vendor-name').focus();
-    // Initialize lucide icons for edit icon - only if elements exist
-    if (typeof lucide !== 'undefined') {
-        try {
-            setTimeout(() => {
-                try {
-                    const lucideElements = document.querySelectorAll('[data-lucide]');
-                    if (lucideElements.length > 0) {
-                        lucide.createIcons();
-                    }
-                } catch (e) {
-                    console.warn('Error initializing lucide icons:', e);
-                }
-            }, 100);
-        } catch (e) {
-            console.warn('Error setting up lucide icons:', e);
+if (addVendorBtn) {
+    addVendorBtn.addEventListener('click', function() {
+        if (modal) {
+            modal.style.display = 'block';
         }
-    }
-});
+        const titleEl = document.getElementById('modal-title');
+        const btnTextEl = document.getElementById('save-btn-text');
+        if (titleEl) titleEl.textContent = 'Add New Vendor';
+        if (btnTextEl) btnTextEl.textContent = 'Save Vendor';
+        resetVendorForm();
+        const nameInput = document.getElementById('vendor-name');
+        if (nameInput) nameInput.focus();
+        // Initialize lucide icons for edit icon - only if elements exist
+        if (typeof lucide !== 'undefined') {
+            try {
+                setTimeout(() => {
+                    try {
+                        const lucideElements = document.querySelectorAll('[data-lucide]');
+                        if (lucideElements.length > 0) {
+                            lucide.createIcons();
+                        }
+                    } catch (e) {
+                        console.warn('Error initializing lucide icons:', e);
+                    }
+                }, 100);
+            } catch (e) {
+                console.warn('Error setting up lucide icons:', e);
+            }
+        }
+    });
+}
 
 // Open modal for editing existing vendor
 document.querySelectorAll('.edit-vendor-btn').forEach(btn => {
@@ -540,12 +559,19 @@ document.querySelectorAll('.edit-vendor-btn').forEach(btn => {
 
 // Close modal
 function closeModal() {
-    modal.style.display = 'none';
+    if (modal) {
+        modal.style.display = 'none';
+    }
     resetVendorForm();
 }
 
-closeModalBtn.addEventListener('click', closeModal);
-cancelBtn.addEventListener('click', closeModal);
+// Safely add event listeners
+if (closeModalBtn) {
+    closeModalBtn.addEventListener('click', closeModal);
+}
+if (cancelBtn) {
+    cancelBtn.addEventListener('click', closeModal);
+}
 
 // Close on outside click
 window.addEventListener('click', function(event) {
@@ -555,100 +581,110 @@ window.addEventListener('click', function(event) {
 });
 
 // Handle form submission
-vendorForm.addEventListener('submit', function(e) {
-    e.preventDefault();
-    
-    const saveBtn = document.getElementById('save-vendor-btn');
-    const saveBtnText = document.getElementById('save-btn-text');
-    const vendorIdField = document.getElementById('vendor-id');
-    
-    if (!saveBtn || !saveBtnText || !vendorIdField) {
-        console.error('Required form elements not found');
-        alert('Error: Form elements not found. Please refresh the page.');
-        return;
-    }
-    
-    const vendorId = vendorIdField.value;
-    const isEditing = vendorId && vendorId !== '';
-    
-    saveBtnText.textContent = isEditing ? 'Updating...' : 'Creating...';
-    saveBtn.disabled = true;
-    
-    const formData = new FormData(vendorForm);
-    
-    // Collect selected services
-    const services = [];
-    document.querySelectorAll('input[name="services"]:checked').forEach(checkbox => {
-        services.push(checkbox.value);
-    });
-    
-    const data = {
-        vendor_id: vendorId || null,
-        name: formData.get('name'),
-        contact_person: formData.get('contact_person') || '',
-        email: formData.get('email'),
-        phone: formData.get('phone'),
-        business_address: formData.get('business_address') || '',
-        tax_pin: formData.get('tax_pin') || '',
-        payment_terms: formData.get('payment_terms') || '',
-        payment_method: formData.get('payment_method') || '',
-        services: services.join(', '),
-        specialization: formData.get('specialization') || '',
-        minimum_order: parseFloat(formData.get('minimum_order')) || 0,
-        lead_time: formData.get('lead_time') || '',
-        rush_capable: formData.get('rush_capable') === 'true',
-        quality_rating: formData.get('quality_rating') || '',
-        reliability_rating: formData.get('reliability_rating') || '',
-        vps_score: formData.get('vps_score'),
-        vps_score_value: parseFloat(formData.get('vps_score_value')),
-        rating: parseFloat(formData.get('rating')),
-        recommended: formData.get('recommended') === 'true',
-        address: formData.get('business_address') || ''  // For backward compatibility
-    };
-    
-    const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
-    if (!csrfTokenElement) {
-        console.error('CSRF token not found');
-        alert('Error: CSRF token not found. Please refresh the page.');
-        saveBtnText.textContent = 'Save Vendor';
-        saveBtn.disabled = false;
-        return;
-    }
-    
-    const csrfToken = csrfTokenElement.value;
-    
-    fetch('/ajax/create-vendor/', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+if (vendorForm) {
+    vendorForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const saveBtn = document.getElementById('save-vendor-btn');
+        const saveBtnText = document.getElementById('save-btn-text');
+        const vendorIdField = document.getElementById('vendor-id');
+        
+        if (!saveBtn || !saveBtnText || !vendorIdField) {
+            console.error('Required form elements not found');
+            alert('Error: Form elements not found. Please refresh the page.');
+            return;
         }
-        return response.json();
-    })
-    .then(result => {
-        if (result.success) {
-            alert(`✅ Vendor "${result.name}" ${isEditing ? 'updated' : 'created'} successfully!`);
-            closeModal();
-            location.reload(); // Reload to show updated vendor in list
-        } else {
-            alert('Error: ' + (result.message || `Failed to ${isEditing ? 'update' : 'create'} vendor`));
+        
+        const vendorId = vendorIdField.value;
+        const isEditing = vendorId && vendorId !== '';
+        
+        saveBtnText.textContent = isEditing ? 'Updating...' : 'Creating...';
+        saveBtn.disabled = true;
+        
+        const formData = new FormData(vendorForm);
+        
+        // Collect selected services
+        const services = [];
+        document.querySelectorAll('input[name="services"]:checked').forEach(checkbox => {
+            services.push(checkbox.value);
+        });
+        
+        const data = {
+            vendor_id: vendorId || null,
+            name: formData.get('name'),
+            contact_person: formData.get('contact_person') || '',
+            email: formData.get('email'),
+            phone: formData.get('phone'),
+            business_address: formData.get('business_address') || '',
+            tax_pin: formData.get('tax_pin') || '',
+            payment_terms: formData.get('payment_terms') || '',
+            payment_method: formData.get('payment_method') || '',
+            services: services.join(', '),
+            specialization: formData.get('specialization') || '',
+            minimum_order: parseFloat(formData.get('minimum_order')) || 0,
+            lead_time: formData.get('lead_time') || '',
+            rush_capable: formData.get('rush_capable') === 'true',
+            quality_rating: formData.get('quality_rating') || '',
+            reliability_rating: formData.get('reliability_rating') || '',
+            vps_score: formData.get('vps_score'),
+            vps_score_value: parseFloat(formData.get('vps_score_value')),
+            rating: parseFloat(formData.get('rating')),
+            recommended: formData.get('recommended') === 'true',
+            address: formData.get('business_address') || ''  // For backward compatibility
+        };
+        
+        const csrfTokenElement = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!csrfTokenElement) {
+            console.error('CSRF token not found');
+            alert('Error: CSRF token not found. Please refresh the page.');
+            saveBtnText.textContent = 'Save Vendor';
+            saveBtn.disabled = false;
+            return;
+        }
+        
+        const csrfToken = csrfTokenElement.value;
+        
+        fetch('/ajax/create-vendor/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(result => {
+            if (result.success) {
+                alert(`Vendor "${result.name}" ${isEditing ? 'updated' : 'created'} successfully!`);
+                // Close modal safely
+                try {
+                    closeModal();
+                } catch (e) {
+                    console.warn('Error closing modal:', e);
+                }
+                // Reload page to show updated vendor in list
+                setTimeout(() => {
+                    location.reload();
+                }, 500);
+            } else {
+                alert('Error: ' + (result.message || `Failed to ${isEditing ? 'update' : 'create'} vendor`));
+                if (saveBtnText) saveBtnText.textContent = 'Save Vendor';
+                if (saveBtn) saveBtn.disabled = false;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error ' + (isEditing ? 'updating' : 'creating') + ' vendor: ' + (error.message || 'Unknown error'));
             if (saveBtnText) saveBtnText.textContent = 'Save Vendor';
             if (saveBtn) saveBtn.disabled = false;
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error ' + (isEditing ? 'updating' : 'creating') + ' vendor: ' + (error.message || 'Unknown error'));
-        if (saveBtnText) saveBtnText.textContent = 'Save Vendor';
-        if (saveBtn) saveBtn.disabled = false;
+        });
     });
-});
+}
 
 // Initialize lucide icons after page load - only on existing elements
 document.addEventListener('DOMContentLoaded', function() {

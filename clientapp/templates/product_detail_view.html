@@ -414,14 +414,14 @@
                             </div>
                             
                             <div>
-                                <label for="min-stock-level" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Minimum Stock Level
+                                <label for="low-stock-threshold" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Low Stock Threshold
                                 </label>
                                 <input 
                                     type="number" 
-                                    id="min-stock-level" 
-                                    name="min_stock_level" 
-                                    value="{{ product.min_stock_level|default:'' }}"
+                                    id="low-stock-threshold" 
+                                    name="low_stock_threshold" 
+                                    value="{{ product.low_stock_threshold|default:10 }}"
                                     min="0"
                                     step="1"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
@@ -429,31 +429,30 @@
                             </div>
                             
                             <div>
-                                <label for="reorder-quantity" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Reorder Quantity
+                                <label for="track-inventory" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Track Inventory
                                 </label>
-                                <input 
-                                    type="number" 
-                                    id="reorder-quantity" 
-                                    name="reorder_quantity" 
-                                    value="{{ product.reorder_quantity|default:'' }}"
-                                    min="0"
-                                    step="1"
+                                <select 
+                                    id="track-inventory" 
+                                    name="track_inventory"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                 >
+                                    <option value="false" {% if not product.track_inventory %}selected{% endif %}>No</option>
+                                    <option value="true" {% if product.track_inventory %}selected{% endif %}>Yes</option>
+                                </select>
                             </div>
 
                             <div>
-                                <label for="backorder-allowed" class="block text-sm font-medium text-gray-700 mb-2">
-                                    Backorders Allowed
+                                <label for="allow-backorders" class="block text-sm font-medium text-gray-700 mb-2">
+                                    Allow Backorders
                                 </label>
                                 <select 
-                                    id="backorder-allowed" 
-                                    name="backorder_allowed"
+                                    id="allow-backorders" 
+                                    name="allow_backorders"
                                     class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                 >
-                                    <option value="false" {% if not product.backorder_allowed %}selected{% endif %}>No</option>
-                                    <option value="true" {% if product.backorder_allowed %}selected{% endif %}>Yes</option>
+                                    <option value="false" {% if not product.allow_backorders %}selected{% endif %}>No</option>
+                                    <option value="true" {% if product.allow_backorders %}selected{% endif %}>Yes</option>
                                 </select>
                             </div>
                         </div>
@@ -487,16 +486,10 @@
                                 <label class="text-sm font-medium text-gray-600">Current Stock</label>
                                 <p class="text-3xl font-bold text-gray-900">{{ product.stock_quantity|default:"0" }}</p>
                             </div>
-                            {% if product.min_stock_level %}
+                            {% if product.low_stock_threshold %}
                             <div>
-                                <label class="text-sm font-medium text-gray-600">Minimum Level</label>
-                                <p class="text-2xl font-semibold text-gray-900">{{ product.min_stock_level }}</p>
-                            </div>
-                            {% endif %}
-                            {% if product.reorder_quantity %}
-                            <div>
-                                <label class="text-sm font-medium text-gray-600">Reorder Quantity</label>
-                                <p class="text-2xl font-semibold text-gray-900">{{ product.reorder_quantity }}</p>
+                                <label class="text-sm font-medium text-gray-600">Low Stock Threshold</label>
+                                <p class="text-2xl font-semibold text-gray-900">{{ product.low_stock_threshold }}</p>
                             </div>
                             {% endif %}
                         </div>
@@ -510,9 +503,9 @@
                                 <span class="font-semibold text-gray-900">{{ product.get_stock_status_display }}</span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Backorders Allowed</span>
+                                <span class="text-gray-600">Allow Backorders</span>
                                 <span class="font-semibold">
-                                    {% if product.backorder_allowed %}
+                                    {% if product.allow_backorders %}
                                         <span class="text-green-600"><i class="fas fa-check"></i> Yes</span>
                                     {% else %}
                                         <span class="text-red-600"><i class="fas fa-times"></i> No</span>
@@ -520,9 +513,9 @@
                                 </span>
                             </div>
                             <div class="flex items-center justify-between">
-                                <span class="text-gray-600">Tracking Enabled</span>
+                                <span class="text-gray-600">Track Inventory</span>
                                 <span class="font-semibold">
-                                    {% if product.tracking_enabled %}
+                                    {% if product.track_inventory %}
                                         <span class="text-green-600"><i class="fas fa-check"></i> Yes</span>
                                     {% else %}
                                         <span class="text-red-600"><i class="fas fa-times"></i> No</span>
@@ -700,9 +693,9 @@
                         },
                         body: JSON.stringify({
                             stock_quantity: parseInt(formData.get('stock_quantity')) || 0,
-                            min_stock_level: parseInt(formData.get('min_stock_level')) || null,
-                            reorder_quantity: parseInt(formData.get('reorder_quantity')) || null,
-                            backorder_allowed: formData.get('backorder_allowed') === 'true',
+                            low_stock_threshold: parseInt(formData.get('low_stock_threshold')) || 10,
+                            track_inventory: formData.get('track_inventory') === 'true',
+                            allow_backorders: formData.get('allow_backorders') === 'true',
                         })
                     });
                     

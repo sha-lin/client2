@@ -245,14 +245,14 @@ else:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
     SECURE_HSTS_PRELOAD = False
     
-# Email settings -for sending quotes
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'your-email@gmail.com')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_APP_PASSWORD', 'your-app-password')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'PrintDuka <noreply@printduka.com>')
+# Email settings -for sending quotes (FIXED: Using config() for proper environment variable handling)
+EMAIL_BACKEND = config('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
+EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
+EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
+EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
+EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='your-email@gmail.com')
+EMAIL_HOST_PASSWORD = config('EMAIL_APP_PASSWORD', default='your-app-password')
+DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='PrintDuka <noreply@printduka.com>')
 
 
 
@@ -356,18 +356,6 @@ SALES_TEAM_EMAIL = config('SALES_TEAM_EMAIL', default='sales@printduka.com')
 
 # Storefront URL
 STOREFRONT_URL = config('STOREFRONT_URL', default='http://localhost:3000')
-
-# Email Configuration
-EMAIL_BACKEND = config(
-    'EMAIL_BACKEND',
-    default='django.core.mail.backends.console.EmailBackend'
-)
-EMAIL_HOST = config('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = config('EMAIL_PORT', default=587, cast=int)
-EMAIL_HOST_USER = config('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
-EMAIL_USE_TLS = config('EMAIL_USE_TLS', default=True, cast=bool)
-DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='noreply@printduka.com')
 
 # Messaging Configuration (Africastalking for SMS/WhatsApp)
 AFRICASTALKING_API_KEY = config('AFRICASTALKING_API_KEY', default='')

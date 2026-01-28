@@ -33,10 +33,10 @@ document.addEventListener('DOMContentLoaded', function () {
     // ============================================================
 
     if (emailInput) {
-        emailInput.addEventListener('input', debounce(async function () {
-            const email = this.value.trim();
+        emailInput.addEventListener('input', debounce(function (e) {
+            const email = e.target.value.trim();
             if (email && email.includes('@')) {
-                await checkForDuplicate('email', email);
+                checkForDuplicate('email', email);
             } else {
                 hideDuplicateWarning();
             }
@@ -44,10 +44,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (phoneInput) {
-        phoneInput.addEventListener('input', debounce(async function () {
-            const phone = this.value.trim();
+        phoneInput.addEventListener('input', debounce(function (e) {
+            const phone = e.target.value.trim();
             if (phone && phone.length >= 10) {
-                await checkForDuplicate('phone', phone);
+                checkForDuplicate('phone', phone);
             } else {
                 hideDuplicateWarning();
             }
@@ -153,8 +153,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function loadProducts() {
         try {
-            const data = await api.get('/products/');
-            allProducts = data.results || data;
+            console.log('[DEBUG] Calling api.get("/api/product-catalog/")');
+            const data = await api.get('/api/product-catalog/');
+            console.log('[DEBUG] API Response received:', data);
+            allProducts = data.products || data.results || data;
             displayProductList();
         } catch (error) {
             console.error('Error loading products:', error);
@@ -309,10 +311,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     </td>
                     <td>
                         <div class="flex gap-2">
-                            ${lead.status === 'New' ? `
-                                <button data-action="quick-qualify" data-lead-id="${lead.id}" class="btn btn-secondary text-sm py-1 px-3">Qualify</button>
-                            ` : lead.status === 'Qualified' ? `
-                                <button data-action="quick-convert" data-lead-id="${lead.id}" class="btn btn-primary text-sm py-1 px-3">Convert</button>
+                            ${lead.status === 'Qualified' ? `
+                                <a href="/client-onboarding/?lead_id=${lead.id}" class="btn btn-primary text-sm py-1 px-3">Onboard</a>
                             ` : ''}
                             <a href="/leads/${lead.id}/" class="btn btn-secondary text-sm py-1 px-3">View</a>
                         </div>
@@ -339,35 +339,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function attachQuickActionListeners() {
-        document.querySelectorAll('[data-action="quick-qualify"]').forEach(btn => {
-            btn.addEventListener('click', async function () {
-                const leadId = this.dataset.leadId;
-                try {
-                    await api.post(`/leads/${leadId}/qualify/`);
-                    showToast('Lead qualified', 'success');
-                    loadLeads();
-                } catch (error) {
-                    showToast('Error qualifying lead', 'error');
-                }
-            });
-        });
-
-        document.querySelectorAll('[data-action="quick-convert"]').forEach(btn => {
-            btn.addEventListener('click', async function () {
-                const leadId = this.dataset.leadId;
-                if (confirm('Convert this lead to a client?')) {
-                    try {
-                        const response = await api.post(`/leads/${leadId}/convert/`);
-                        showToast('Lead converted successfully', 'success');
-                        setTimeout(() => {
-                            window.location.href = `/clients/${response.id}/`;
-                        }, 1000);
-                    } catch (error) {
-                        showToast('Error converting lead', 'error');
-                    }
-                }
-            });
-        });
+        // No quick actions needed - View button and Onboard link handle all navigation
     }
 
     // ============================================================

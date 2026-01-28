@@ -103,6 +103,19 @@ def validate_inventory_endpoint():
     if 'ProductChangeHistory' in source:
         print("  ✓ Method records change history")
     
+    # Check correct field names are used
+    if 'stock_quantity' in source:
+        print("  ✓ Uses correct field: stock_quantity")
+    
+    if 'low_stock_threshold' in source:
+        print("  ✓ Uses correct field: low_stock_threshold")
+    
+    if 'track_inventory' in source:
+        print("  ✓ Uses correct field: track_inventory")
+    
+    if 'allow_backorders' in source:
+        print("  ✓ Uses correct field: allow_backorders")
+    
     print("\n" + "="*60)
     print("✓ VALIDATION COMPLETE - Endpoint properly configured!")
     print("="*60)
@@ -113,9 +126,9 @@ def validate_inventory_endpoint():
     print("  Permission: IsAuthenticated + (IsProductionTeam | IsAdmin | IsAccountManager)")
     print("  Request body (JSON):")
     print("    - stock_quantity (int)")
-    print("    - min_stock_level (int, optional)")
-    print("    - reorder_quantity (int, optional)")
-    print("    - backorder_allowed (boolean, optional)")
+    print("    - low_stock_threshold (int, optional)")
+    print("    - track_inventory (bool, optional)")
+    print("    - allow_backorders (bool, optional)")
     print("\n  Returns: 200 OK with updated values or 400 Bad Request")
     
     return True
