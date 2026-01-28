@@ -1038,14 +1038,15 @@ def convert_lead(request, lead_id):
 
 def client_onboarding(request):
     """Client onboarding workflow - Matches HTML template B2B/B2C structure"""
-    prefilled_data = request.session.get('prefilled_lead', None)
+    prefilled_data = None
     
     # Check if lead_id is passed as query parameter (from Onboard button click)
+    # Only prefill if lead_id is explicitly provided - do NOT use session
     lead_id = request.GET.get('lead_id')
-    if lead_id and not prefilled_data:
+    if lead_id:
         try:
             lead = Lead.objects.get(pk=lead_id)
-            # Prefill session with lead data
+            # Prefill with lead data ONLY if lead_id is in current request
             prefilled_data = {
                 'name': lead.name,
                 'email': lead.email,
@@ -1054,7 +1055,6 @@ def client_onboarding(request):
                 'product_interest': lead.product_interest,
                 'preferred_client_type': lead.preferred_client_type,
             }
-            request.session['prefilled_lead'] = prefilled_data
         except Lead.DoesNotExist:
             logger.warning(f"Lead with id {lead_id} not found for onboarding")
     
