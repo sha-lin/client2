@@ -216,9 +216,8 @@ class QuoteApprovalService:
             vat_amount = subtotal * 0.16 if quote.include_vat else 0
             total_amount = subtotal + vat_amount
             
-            # Prepare context
+            # Prepare context (only JSON-serializable data, no Django model instances)
             context = {
-                'quote': quote,
                 'quote_id': quote.quote_id,
                 'recipient_name': recipient_name,
                 'client_name': recipient_name,
