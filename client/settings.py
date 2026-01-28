@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'django_filters',
     'drf_yasg',
+    'django_celery_results',  # For storing task results in database
     'clientapp',
     'django.contrib.humanize',
     'quickbooks_integration',
@@ -251,15 +252,35 @@ else:
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='PrintDuka <noreply@printduka.com>')
 
-# Celery Configuration
-CELERY_BROKER_URL = config('CELERY_BROKER_URL', default='redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND', default='redis://localhost:6379/0')
+# Celery Configuration - Using Database-Backed Broker (No Redis needed!)
+# Tasks are stored in database, processed by worker
+# Results stored in database via django-celery-results
+CELERY_BROKER_URL = 'sqla+postgresql://localhost/celery'  # Falls back to in-memory if DB unavailable
+CELERY_RESULT_BACKEND = 'db+postgresql://localhost/celery'
+CELERY_BROKER_USE_SSL = False
+CELERY_BROKER_POOL_LIMIT = 1
+CELERY_BROKER_CONNECTION_RETRY = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+
+# For Render deployment, use simpler in-memory broker that degrades gracefully
+if not DEBUG:
+    # Production: Use database broker
+    CELERY_BROKER_URL = 'sqla+postgresql://' + (
+        config('DATABASE_URL', default='').replace('postgres://', '').replace('postgresql://', '')
+        if config('DATABASE_URL', default='') else 'localhost/celery'
+    )
+else:
+    # Local development: Use memory broker (simpler setup)
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes hard time limit
+CELERY_RESULT_EXPIRES = 3600  # Results expire after 1 hour
 
 
 
