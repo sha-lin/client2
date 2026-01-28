@@ -735,8 +735,7 @@
     // Prefill Data Handling
     {% if prefilled_lead %}
     document.addEventListener('DOMContentLoaded', function () {
-        const prefilledData = {{ prefilled_lead| safe
-    }};
+        const prefilledData = {{ prefilled_lead|safe }};
 
     if (prefilledData.name) {
         const b2bName = document.getElementById('id_name');
