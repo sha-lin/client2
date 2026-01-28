@@ -1332,13 +1332,24 @@ def check_duplicate_lead(request):
     email = request.GET.get('email', '')
     phone = request.GET.get('phone', '')
     
-    duplicate = Lead.objects.filter(
-        Q(name__iexact=name) | Q(email__iexact=email) | Q(phone=phone)
-    ).first()
+    # Check only for the provided field (not all three)
+    if email:
+        duplicate = Lead.objects.filter(email__iexact=email).first()
+    elif phone:
+        duplicate = Lead.objects.filter(phone=phone).first()
+    elif name:
+        duplicate = Lead.objects.filter(name__iexact=name).first()
+    else:
+        duplicate = None
     
     if duplicate:
         return JsonResponse({
             'duplicate': True,
+            'id': duplicate.id,
+            'name': duplicate.name,
+            'lead_id': duplicate.lead_id,
+            'email': duplicate.email,
+            'phone': duplicate.phone,
             'message': f'Similar lead found: {duplicate.name} ({duplicate.lead_id})'
         })
     return JsonResponse({'duplicate': False})

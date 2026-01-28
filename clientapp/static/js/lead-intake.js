@@ -56,25 +56,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function checkForDuplicate(field, value) {
         try {
-            const response = await api.get(`/leads/?${field}=${encodeURIComponent(value)}`);
+            // Use the dedicated duplicate check endpoint
+            const response = await api.get(`/leads/check-duplicate/?${field}=${encodeURIComponent(value)}`);
 
-            if (response.results && response.results.length > 0) {
-                const existingLead = response.results[0];
-                showDuplicateWarning(existingLead, field);
+            if (response.duplicate) {
+                showDuplicateWarning(response, field);
             } else {
-                const clientResponse = await api.get(`/clients/?${field}=${encodeURIComponent(value)}`);
-                if (clientResponse.results && clientResponse.results.length > 0) {
-                    showExistingClientWarning(clientResponse.results[0]);
-                } else {
-                    hideDuplicateWarning();
-                }
+                hideDuplicateWarning();
             }
         } catch (error) {
             console.log('Error checking duplicate:', error);
+            hideDuplicateWarning();
         }
     }
 
-    function showDuplicateWarning(lead, field) {
+    function showDuplicateWarning(data, field) {
         if (!duplicateWarning) return;
 
         duplicateWarning.className = 'bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4';
@@ -86,10 +82,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div>
                     <h4 class="font-medium text-yellow-800">Possible Duplicate Found</h4>
                     <p class="text-sm text-yellow-700 mt-1">
-                        A lead with this ${field} already exists: <strong>${lead.name}</strong> (${lead.lead_id})
+                        A lead with this ${field} already exists: <strong>${data.name || 'Unknown'}</strong> (${data.lead_id || 'N/A'})
                     </p>
                     <div class="mt-2 flex gap-2">
-                        <a href="/leads/${lead.id}/" class="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline">
+                        <a href="/leads/${data.id}/" class="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline">
                             View Existing Lead →
                         </a>
                         <button type="button" onclick="hideDuplicateWarning()" class="text-sm text-gray-600 hover:text-gray-800">
