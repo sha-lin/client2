@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Production Team Dashboard | Portal{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        margin-bottom: 2rem;
+        border-radius: 8px;
+    }
+    
+    .dashboard-header h1 {
+        margin: 0;
+        font-size: 2rem;
+    }
+    
+    .dashboard-header p {
+        margin: 0.5rem 0 0 0;
+        opacity: 0.9;
+    }
+    
+    .metric-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        border-left: 4px solid #667eea;
+    }
+    
+    .metric-card.urgent {
+        border-left-color: #e74c3c;
+    }
+    
+    .metric-card.warning {
+        border-left-color: #f39c12;
+    }
+    
+    .metric-card.success {
+        border-left-color: #27ae60;
+    }
+    
+    .metric-label {
+        font-size: 0.9rem;
+        color: #7f8c8d;
+        margin-bottom: 0.5rem;
+    }
+    
+    .metric-value {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #2c3e50;
+    }
+    
+    .job-table {
+        background: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .job-table th {
+        background: #ecf0f1;
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .job-table td {
+        padding: 1rem;
+        border-bottom: 1px solid #ecf0f1;
+    }
+    
+    .job-table tr:last-child td {
+        border-bottom: none;
+    }
+    
+    .job-table tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .status-badge {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+    
+    .status-badge.pending {
+        background: #ecf0f1;
+        color: #7f8c8d;
+    }
+    
+    .status-badge.in-progress {
+        background: #3498db;
+        color: white;
+    }
+    
+    .status-badge.completed {
+        background: #27ae60;
+        color: white;
+    }
+    
+    .status-badge.on-hold {
+        background: #f39c12;
+        color: white;
+    }
+    
+    .priority-badge {
+        display: inline-block;
+        padding: 0.2rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+    }
+    
+    .priority-badge.normal {
+        background: #d5f4e6;
+        color: #27ae60;
+    }
+    
+    .priority-badge.high {
+        background: #fdebd0;
+        color: #e67e22;
+    }
+    
+    .priority-badge.urgent {
+        background: #fadbd8;
+        color: #e74c3c;
+    }
+    
+    .filters-section {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .filter-group {
+        margin-bottom: 1rem;
+    }
+    
+    .filter-group:last-child {
+        margin-bottom: 0;
+    }
+    
+    .filter-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: #2c3e50;
+    }
+    
+    .filter-group select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #bdc3c7;
+        border-radius: 4px;
+        font-size: 1rem;
+    }
+    
+    .workload-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .workload-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 0.8rem;
+    }
+    
+    .workload-name {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    
+    .workload-percentage {
+        font-weight: bold;
+        color: #667eea;
+    }
+    
+    .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #ecf0f1;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+    }
+    
+    .progress-fill.warning {
+        background: linear-gradient(90deg, #f39c12 0%, #e74c3c 100%);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #7f8c8d;
+    }
+    
+    .empty-state-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .metric-card {
+            margin-right: 0;
+        }
+        
+        .job-table {
+            font-size: 0.9rem;
+        }
+        
+        .job-table th, .job-table td {
+            padding: 0.75rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="dashboard-header">
+        <h1>Production Team Dashboard</h1>
+        <p>Assigned Jobs & Workload Overview</p>
+    </div>
+    
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Total Assigned Jobs</div>
+                <div class="metric-value">{{ jobs|length }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card success">
+                <div class="metric-label">In Progress</div>
+                <div class="metric-value">{{ in_progress_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card warning">
+                <div class="metric-label">Approaching Deadline</div>
+                <div class="metric-value">{{ approaching_count }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card urgent">
+                <div class="metric-label">Overdue</div>
+                <div class="metric-value">{{ overdue_count }}</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <div class="filters-section">
+        <h5 class="mb-3">Filters & Search</h5>
+        <form method="get" id="filter-form">
+            <div class="row">
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label for="status-filter">Status</label>
+                        <select name="status" id="status-filter" onchange="document.getElementById('filter-form').submit()">
+                            <option value="">All Statuses</option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                            <option value="in_progress" {% if request.GET.status == 'in_progress' %}selected{% endif %}>In Progress</option>
+                            <option value="on_hold" {% if request.GET.status == 'on_hold' %}selected{% endif %}>On Hold</option>
+                            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>Completed</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label for="priority-filter">Priority</label>
+                        <select name="priority" id="priority-filter" onchange="document.getElementById('filter-form').submit()">
+                            <option value="">All Priorities</option>
+                            <option value="normal" {% if request.GET.priority == 'normal' %}selected{% endif %}>Normal</option>
+                            <option value="high" {% if request.GET.priority == 'high' %}selected{% endif %}>High</option>
+                            <option value="urgent" {% if request.GET.priority == 'urgent' %}selected{% endif %}>Urgent</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label for="search-filter">Search Job</label>
+                        <input type="text" name="search" id="search-filter" class="form-control" placeholder="Job # or name" value="{{ request.GET.search }}">
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="filter-group">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="btn btn-primary w-100">Search</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Jobs List -->
+    <div class="mb-4">
+        <h5 class="mb-3">Your Assigned Jobs</h5>
+        
+        {% if jobs %}
+        <div class="job-table">
+            <table class="w-100" style="border-collapse: collapse;">
+                <thead>
+                    <tr>
+                        <th>Job #</th>
+                        <th>Name</th>
+                        <th>Client</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                        <th>Due Date</th>
+                        <th>Days Left</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job in jobs %}
+                    <tr>
+                        <td><strong>{{ job.job_number }}</strong></td>
+                        <td>{{ job.job_name|truncatewords:3 }}</td>
+                        <td>{{ job.client.name }}</td>
+                        <td>
+                            <span class="status-badge {{ job.status }}">
+                                {{ job.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="priority-badge {{ job.priority }}">
+                                {{ job.get_priority_display }}
+                            </span>
+                        </td>
+                        <td>{{ job.expected_completion|date:"M d, Y" }}</td>
+                        <td>
+                            {% with days_left=job.expected_completion|add:0 %}
+                                {% ifequal days_left -1 %}
+                                    <span style="color: #e74c3c;"><strong>Overdue</strong></span>
+                                {% else %}
+                                    {{ days_left }} days
+                                {% endifequal %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            <a href="{% url 'job_detail' job.id %}" class="btn btn-sm btn-outline-primary">
+                                View
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">📭</div>
+            <h5>No Assigned Jobs</h5>
+            <p>You don't have any assigned jobs at the moment.</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Workload Overview -->
+    {% if workload_data %}
+    <div class="mb-4">
+        <h5 class="mb-3">Team Workload Overview</h5>
+        <div class="row">
+            {% for member in workload_data %}
+            <div class="col-md-6">
+                <div class="workload-card">
+                    <div class="workload-header">
+                        <span class="workload-name">{{ member.user.first_name }} {{ member.user.last_name }}</span>
+                        <span class="workload-percentage">
+                            {{ member.utilization|floatformat:1 }}%
+                        </span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill {% if member.utilization >= 80 %}warning{% endif %}" 
+                             style="width: {{ member.utilization }}%">
+                        </div>
+                    </div>
+                    <div style="font-size: 0.85rem; margin-top: 0.5rem; color: #7f8c8d;">
+                        {{ member.job_count }} of {{ member.max_jobs }} jobs assigned
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Vendor Performance (if available) -->
+    {% if vendor_stats %}
+    <div class="mb-4">
+        <h5 class="mb-3">Top Performing Vendors</h5>
+        <div class="row">
+            {% for vendor in vendor_stats|slice:":3" %}
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div style="margin-bottom: 0.5rem;">
+                        <strong>{{ vendor.name }}</strong>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #7f8c8d;">
+                        Rating: 
+                        <span style="color: #f39c12;">
+                            ★ {{ vendor.rating|floatformat:1 }}
+                        </span>
+                    </div>
+                    <div style="font-size: 0.9rem; color: #7f8c8d;">
+                        Jobs: {{ vendor.active_jobs_count }}/{{ vendor.max_concurrent_jobs }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh dashboard every 5 minutes
+    setInterval(function() {
+        location.reload();
+    }, 5 * 60 * 1000);
+});
+</script>
+
+{% endblock %}

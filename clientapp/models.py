@@ -487,9 +487,9 @@ class Product(models.Model):
     
     # Weight Unit Choices
     WEIGHT_UNIT_CHOICES = [
+        ('gsm', 'GSM (g/m²)'),
         ('kg', 'Kilograms'),
         ('g', 'Grams'),
-        ('lb', 'Pounds'),
     ]
     
     # Dimension Unit Choices
@@ -2282,6 +2282,12 @@ class Job(models.Model):
     # Additional Info
     notes = models.TextField(blank=True)
     
+    # Reminder & Notification Fields
+    remind_days_before = models.IntegerField(default=2, help_text="Send reminder N days before deadline")
+    last_reminder_sent = models.DateTimeField(null=True, blank=True, help_text="When was the last reminder sent")
+    reminder_count = models.IntegerField(default=0, help_text="How many reminders have been sent")
+    assignment_notes = models.TextField(blank=True, help_text="Notes from AM when assigning job")
+    
     # Tracking
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -2799,6 +2805,55 @@ class JobNote(models.Model):
     def __str__(self):
         return f"Note on {self.job.job_number} - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
 
+
+class JobReminder(models.Model):
+    """Track reminders sent to job assignees"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('acknowledged', 'Acknowledged'),
+    ]
+    
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='reminders')
+    sent_to_user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='job_reminders_received')
+    sent_by_user = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='job_reminders_sent')
+    reminder_message = models.TextField(help_text="Message with reminder")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='sent')
+    days_until_deadline = models.IntegerField(help_text="How many days until deadline when reminder was sent")
+    sent_at = models.DateTimeField(auto_now_add=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-sent_at']
+    
+    def __str__(self):
+        return f"Reminder for {self.job.job_number} to {self.sent_to_user.first_name}"
+
+
+class JobMessage(models.Model):
+    """Direct messages/notes between AM and job assignee"""
+    MESSAGE_TYPES = [
+        ('note', 'Note'),
+        ('update', 'Update'),
+        ('question', 'Question'),
+        ('instruction', 'Instruction'),
+    ]
+    
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='job_messages_sent')
+    recipient = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='job_messages_received')
+    message_type = models.CharField(max_length=20, choices=MESSAGE_TYPES, default='note')
+    content = models.TextField()
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Message on {self.job.job_number}: {self.sender.first_name} → {self.recipient.first_name}"
+
 class Payment(models.Model):
     """Payment tracking for invoices/LPOs"""
     PAYMENT_METHOD_CHOICES = [
@@ -2905,6 +2960,30 @@ class Vendor(models.Model):
         self.performance_score = round(score, 2)
         self.vps_score_value = self.performance_score
         self.save()
+    
+    def get_current_workload(self):
+        """Get count of active jobs for vendor"""
+        active_statuses = ['sent_to_vendor', 'in_production']
+        return self.job_vendor_stages.filter(
+            status__in=active_statuses
+        ).count()
+    
+    def is_at_capacity(self):
+        """Check if vendor is at maximum concurrent jobs"""
+        current = self.get_current_workload()
+        return current >= self.max_concurrent_jobs
+    
+    def get_available_capacity(self):
+        """Get remaining capacity slots"""
+        current = self.get_current_workload()
+        return max(0, self.max_concurrent_jobs - current)
+    
+    def get_workload_percentage(self):
+        """Get workload as percentage"""
+        if self.max_concurrent_jobs == 0:
+            return 0
+        current = self.get_current_workload()
+        return int((current / self.max_concurrent_jobs) * 100)
 
 
 

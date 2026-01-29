@@ -1,0 +1,795 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Jobs Management - Account Manager Portal{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header Section -->
+    <div class="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto px-6 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">📋 Jobs Management</h1>
+                    <p class="text-gray-600 mt-1">Assign jobs, send reminders & track progress</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-gray-500">{{ jobs|length }} Active Jobs</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-6 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Total Jobs</p>
+                        <p id="stat-total" class="text-3xl font-bold text-gray-900">{{ jobs|length }}</p>
+                    </div>
+                    <div class="text-4xl text-blue-100">📊</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Pending</p>
+                        <p class="text-3xl font-bold text-gray-500">{{ jobs|length }}</p>
+                    </div>
+                    <div class="text-4xl text-gray-100">⏳</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">In Progress</p>
+                        <p class="text-3xl font-bold text-yellow-600">0</p>
+                    </div>
+                    <div class="text-4xl text-yellow-100">⚙️</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-lg transition">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-600 text-sm">Overdue</p>
+                        <p class="text-3xl font-bold text-red-600">{{ overdue_count|default:"0" }}</p>
+                    </div>
+                    <div class="text-4xl text-red-100">⚠️</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters & Search -->
+        <div class="bg-white rounded-lg border border-gray-200 p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- Search -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">🔍 Search</label>
+                    <input type="text" id="filter-search" placeholder="Job #, name, client..." 
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+
+                <!-- Status Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="filter-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="on_hold">On Hold</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+
+                <!-- Priority Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Priority</label>
+                    <select id="filter-priority" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Priorities</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">High</option>
+                        <option value="urgent">Urgent 🔴</option>
+                    </select>
+                </div>
+
+                <!-- Deadline Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Deadline</label>
+                    <select id="filter-deadline" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">All Deadlines</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="urgent-deadline">Urgent (1-2 days)</option>
+                        <option value="approaching">Approaching (3-7 days)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Jobs Table -->
+        <div class="bg-white rounded-lg border border-gray-200 overflow-hidden shadow">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Job #</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Description</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Client</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Status</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Assigned To</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Due Date</th>
+                            <th class="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wide">Priority</th>
+                            <th class="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wide">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jobs-tbody" class="divide-y divide-gray-200">
+                        {% for job in jobs %}
+                        <tr class="hover:bg-blue-50 transition" data-job-id="{{ job.id }}">
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="text-blue-600 font-semibold">{{ job.job_number }}</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm font-medium text-gray-900">{{ job.job_name }}</div>
+                                <div class="text-xs text-gray-500">{{ job.product }}</div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ job.client.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-3 py-1 text-xs font-semibold rounded-full
+                                    {% if job.status == 'pending' %}bg-gray-100 text-gray-800
+                                    {% elif job.status == 'in_progress' %}bg-yellow-100 text-yellow-800
+                                    {% elif job.status == 'completed' %}bg-green-100 text-green-800
+                                    {% else %}bg-blue-100 text-blue-800{% endif %}">
+                                    {{ job.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if job.person_in_charge %}
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center text-xs font-bold">
+                                            {{ job.person_in_charge.first_name|first }}
+                                        </div>
+                                        <span class="text-sm text-gray-600">{{ job.person_in_charge.first_name }}</span>
+                                    </div>
+                                {% else %}
+                                    <span class="text-sm text-gray-400 italic">Unassigned</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="text-sm text-gray-600">{{ job.expected_completion|date:"M d, Y" }}</div>
+                                {% if job.is_overdue %}
+                                    <span class="text-xs text-red-600 font-semibold">⚠️ Overdue</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="text-sm font-semibold
+                                    {% if job.priority == 'urgent' %}text-red-600
+                                    {% elif job.priority == 'high' %}text-orange-600
+                                    {% else %}text-gray-600{% endif %}">
+                                    {{ job.get_priority_display }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right">
+                                <button onclick="openJobDetail({{ job.id }})" 
+                                    class="inline-flex items-center gap-2 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition">
+                                    👁️ View
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" class="px-6 py-12 text-center">
+                                <div class="text-gray-500">
+                                    <div class="text-4xl mb-2">📭</div>
+                                    <p>No jobs yet. Create a quote and convert to job to get started!</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== JOB DETAIL MODAL ==================== -->
+<div id="jobDetailModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <!-- Modal Header -->
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-8 py-6 flex justify-between items-center">
+            <div>
+                <h2 id="modalJobNumber" class="text-2xl font-bold text-gray-900">JOB #</h2>
+                <p id="modalJobName" class="text-gray-600 text-sm mt-1"></p>
+            </div>
+            <button onclick="closeJobDetail()" class="text-gray-400 hover:text-gray-600 text-2xl">✕</button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="px-8 py-6 space-y-6">
+            <!-- Job Info Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-3 gap-6">
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Client</p>
+                    <p id="modalClient" class="text-lg font-semibold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Status</p>
+                    <p id="modalStatus" class="text-lg font-semibold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Priority</p>
+                    <p id="modalPriority" class="text-lg font-semibold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Product</p>
+                    <p id="modalProduct" class="text-lg font-semibold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Quantity</p>
+                    <p id="modalQuantity" class="text-lg font-semibold text-gray-900 mt-1">-</p>
+                </div>
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <p class="text-xs text-gray-500 uppercase tracking-wide font-semibold">Due Date</p>
+                    <p id="modalDueDate" class="text-lg font-semibold text-gray-900 mt-1">-</p>
+                    <p id="modalDaysRemaining" class="text-xs text-gray-600 mt-1">-</p>
+                </div>
+            </div>
+
+            <!-- Assignment Info -->
+            <div class="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">👤 Assigned To</h3>
+                        <p id="modalAssignedTo" class="text-lg font-semibold text-gray-900">Unassigned</p>
+                        <p id="modalAssignedUser" class="text-xs text-gray-600 mt-2">-</p>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-gray-700 uppercase tracking-wide mb-2">🔔 Reminders</h3>
+                        <p id="modalReminderCount" class="text-lg font-semibold text-gray-900">0</p>
+                        <p id="modalLastReminder" class="text-xs text-gray-600 mt-2">Never sent</p>
+                    </div>
+                </div>
+                {% if job.assignment_notes %}
+                <div class="mt-4 pt-4 border-t border-blue-200">
+                    <p class="text-xs font-bold text-gray-700 uppercase tracking-wide mb-2">📝 Assignment Notes</p>
+                    <p class="text-sm text-gray-700" id="modalAssignmentNotes">{{ job.assignment_notes }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Messages/Communication Tab -->
+            <div class="border border-gray-200 rounded-lg">
+                <div class="flex border-b border-gray-200">
+                    <button class="tab-button flex-1 px-4 py-3 font-semibold text-gray-700 border-b-2 border-blue-600 active" data-tab="messages">
+                        💬 Messages
+                    </button>
+                    <button class="tab-button flex-1 px-4 py-3 font-semibold text-gray-500 hover:text-gray-700" data-tab="progress">
+                        📊 Progress
+                    </button>
+                    <button class="tab-button flex-1 px-4 py-3 font-semibold text-gray-500 hover:text-gray-700" data-tab="assignment">
+                        📋 Reassign
+                    </button>
+                </div>
+
+                <!-- Messages Tab -->
+                <div id="messages-tab" class="tab-content p-6 space-y-4">
+                    <div id="messagesContainer" class="max-h-64 overflow-y-auto space-y-3 mb-4 bg-gray-50 p-4 rounded">
+                        <div class="text-center text-gray-500 text-sm">Loading messages...</div>
+                    </div>
+
+                    <!-- New Message Form -->
+                    <div class="space-y-3 border-t border-gray-200 pt-4">
+                        <select id="messageType" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="note">📝 Note</option>
+                            <option value="update">📋 Update</option>
+                            <option value="question">❓ Question</option>
+                            <option value="instruction">📌 Instruction</option>
+                        </select>
+                        <textarea id="messageContent" placeholder="Type your message here..." 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm h-20 resize-none"></textarea>
+                        <button onclick="sendJobMessage()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition">
+                            💬 Send Message
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Progress Tab -->
+                <div id="progress-tab" class="tab-content hidden p-6 space-y-4">
+                    <!-- Progress Overview -->
+                    <div class="bg-gradient-to-r from-blue-50 to-purple-50 border border-gray-200 rounded-lg p-4 mb-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <h4 class="font-semibold text-gray-900">Overall Progress</h4>
+                            <span id="progressPercentage" class="text-2xl font-bold text-blue-600">0%</span>
+                        </div>
+                        <div class="w-full bg-gray-300 rounded-full h-3 overflow-hidden">
+                            <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-purple-500 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Updates List -->
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-3">📝 Progress Updates</h4>
+                        <div id="progressUpdatesContainer" class="max-h-64 overflow-y-auto space-y-3 bg-gray-50 p-4 rounded">
+                            <div class="text-center text-gray-500 text-sm py-4">Loading progress updates...</div>
+                        </div>
+                    </div>
+
+                    <!-- Add Progress Update Form -->
+                    <div class="border-t border-gray-200 pt-4 space-y-3">
+                        <label class="block text-sm font-semibold text-gray-700">➕ Add Progress Update</label>
+                        
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Status</label>
+                            <select id="progressStatus" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                                <option value="pending">⏳ Pending</option>
+                                <option value="in_production">🔨 In Production</option>
+                                <option value="completed">✅ Completed</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Progress %</label>
+                            <div class="flex gap-2">
+                                <input type="range" id="progressSlider" min="0" max="100" value="0" class="flex-1" onchange="updateProgressDisplay()">
+                                <input type="number" id="progressValue" min="0" max="100" value="0" class="w-16 px-2 py-1 border border-gray-300 rounded text-sm" onchange="syncProgressSlider()">
+                                <span class="py-1">%</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs text-gray-600 mb-1">Notes</label>
+                            <textarea id="progressNotes" placeholder="Add details about this progress update..." 
+                                class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm h-20 resize-none"></textarea>
+                        </div>
+
+                        <button onclick="addProgressUpdate()" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition">
+                            📊 Add Progress Update
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Assignment Tab -->
+                <div id="assignment-tab" class="tab-content hidden p-6 space-y-4">
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">📌 Assign To Production Team Member</label>
+                        <select id="selectPTUser" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">-- Select User --</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">📝 Assignment Notes (optional)</label>
+                        <textarea id="assignmentNotes" placeholder="Add any notes about this assignment..." 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm h-24 resize-none"></textarea>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700 mb-2">🔔 Remind user N days before deadline</label>
+                        <input type="number" id="remindDaysBefore" value="2" min="0" max="30" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+
+                    <button onclick="assignJobConfirm()" class="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold transition">
+                        ✅ Assign Job
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Action Buttons -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button onclick="openReminderModal()" class="px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition flex items-center justify-center gap-2">
+                    ⏰ Send Reminder
+                </button>
+                <button onclick="closeJobDetail()" class="px-4 py-3 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 font-semibold transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== REMINDER MODAL ==================== -->
+<div id="reminderModal" class="hidden fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-gray-900">⏰ Send Reminder</h3>
+            <button onclick="closeReminderModal()" class="text-gray-400 hover:text-gray-600 text-2xl">✕</button>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">Reminder Message</label>
+                <textarea id="reminderMessage" placeholder="Enter reminder message..." 
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg h-24 resize-none"></textarea>
+            </div>
+
+            <div class="bg-blue-50 p-3 rounded text-sm text-blue-700">
+                💡 <strong>Tip:</strong> Include specific details about what needs to be done or any updates.
+            </div>
+
+            <div class="flex gap-3">
+                <button onclick="closeReminderModal()" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-semibold">
+                    Cancel
+                </button>
+                <button onclick="sendReminderConfirm()" class="flex-1 px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 font-semibold transition">
+                    Send Reminder
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== TOAST NOTIFICATIONS ==================== -->
+<div id="toastContainer" class="fixed top-6 right-6 z-50 space-y-3"></div>
+
+<script>
+let currentJobId = null;
+const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+
+// Initialize event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    loadProductionUsers();
+    setupTabButtons();
+    setupFilterListeners();
+});
+
+// Tab switching
+function setupTabButtons() {
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.addEventListener('click', function() {
+            const tabName = this.dataset.tab;
+            
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(b => {
+                b.classList.remove('border-b-2', 'border-blue-600', 'text-gray-700');
+                b.classList.add('text-gray-500', 'hover:text-gray-700');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+            this.classList.add('border-b-2', 'border-blue-600', 'text-gray-700');
+            this.classList.remove('text-gray-500', 'hover:text-gray-700');
+        });
+    });
+}
+
+// Open job detail modal
+function openJobDetail(jobId) {
+    currentJobId = jobId;
+    fetch(`/api/job/${jobId}/details/`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const job = data.job;
+                document.getElementById('modalJobNumber').textContent = job.job_number;
+                document.getElementById('modalJobName').textContent = job.job_name;
+                document.getElementById('modalClient').textContent = job.client;
+                document.getElementById('modalStatus').textContent = job.status;
+                document.getElementById('modalPriority').textContent = job.priority;
+                document.getElementById('modalProduct').textContent = job.product;
+                document.getElementById('modalQuantity').textContent = job.quantity;
+                document.getElementById('modalDueDate').textContent = job.due_date;
+                document.getElementById('modalDaysRemaining').textContent = `(${job.days_until} days)`;
+                document.getElementById('modalAssignedTo').textContent = job.assigned_to;
+                document.getElementById('modalReminderCount').textContent = job.reminder_count;
+                document.getElementById('modalLastReminder').textContent = job.last_reminder;
+                
+                loadJobMessages();
+                loadJobProgress();
+            }
+        })
+        .catch(e => showToast('Error loading job details', 'error'));
+    
+    document.getElementById('jobDetailModal').classList.remove('hidden');
+}
+
+// Close job detail
+function closeJobDetail() {
+    document.getElementById('jobDetailModal').classList.add('hidden');
+    currentJobId = null;
+}
+
+// Load job messages
+function loadJobMessages() {
+    fetch(`/api/job/${currentJobId}/messages/`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const container = document.getElementById('messagesContainer');
+                if (data.messages.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No messages yet</div>';
+                } else {
+                    container.innerHTML = data.messages.map(msg => `
+                        <div class="bg-white p-3 rounded border-l-4 border-blue-500">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-semibold text-sm text-gray-900">${msg.sender}</p>
+                                    <p class="text-xs text-gray-500">${msg.created_at}</p>
+                                </div>
+                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">${msg.type}</span>
+                            </div>
+                            <p class="text-sm text-gray-700 mt-2 whitespace-pre-wrap">${msg.content}</p>
+                        </div>
+                    `).join('');
+                }
+            }
+        })
+        .catch(e => console.error('Error loading messages:', e));
+}
+
+// Send job message
+function sendJobMessage() {
+    const content = document.getElementById('messageContent').value.trim();
+    const type = document.getElementById('messageType').value;
+    
+    if (!content) {
+        showToast('Message cannot be empty', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('message_content', content);
+    formData.append('message_type', type);
+    
+    fetch(`/api/job/${currentJobId}/message/`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('messageContent').value = '';
+            showToast('✅ Message sent successfully!', 'success');
+            loadJobMessages();
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(e => showToast('Error sending message', 'error'));
+}
+
+// Assign job confirm
+function assignJobConfirm() {
+    const userId = document.getElementById('selectPTUser').value;
+    const notes = document.getElementById('assignmentNotes').value;
+    const remindDays = document.getElementById('remindDaysBefore').value;
+    
+    if (!userId) {
+        showToast('Please select a user', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('user_id', userId);
+    formData.append('assignment_notes', notes);
+    formData.append('remind_days_before', remindDays);
+    
+    fetch(`/api/job/${currentJobId}/assign/`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ ' + data.message, 'success');
+            closeJobDetail();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(e => showToast('Error assigning job', 'error'));
+}
+
+// Open reminder modal
+function openReminderModal() {
+    document.getElementById('reminderModal').classList.remove('hidden');
+}
+
+// Close reminder modal
+function closeReminderModal() {
+    document.getElementById('reminderModal').classList.add('hidden');
+    document.getElementById('reminderMessage').value = '';
+}
+
+// Send reminder confirm
+function sendReminderConfirm() {
+    const message = document.getElementById('reminderMessage').value.trim();
+    
+    if (!message) {
+        showToast('Please enter a reminder message', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('reminder_message', message);
+    
+    fetch(`/api/job/${currentJobId}/remind/`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Reminder sent!', 'success');
+            closeReminderModal();
+            closeJobDetail();
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    })
+    .catch(e => showToast('Error sending reminder', 'error'));
+}
+
+// Load production users
+function loadProductionUsers() {
+    fetch('/api/production-users/')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const select = document.getElementById('selectPTUser');
+                select.innerHTML = '<option value="">-- Select User --</option>';
+                data.users.forEach(user => {
+                    const option = document.createElement('option');
+                    option.value = user.id;
+                    option.textContent = user.name;
+                    select.appendChild(option);
+                });
+            }
+        });
+}
+
+// Setup filter listeners
+function setupFilterListeners() {
+    document.getElementById('filter-search').addEventListener('keyup', filterJobs);
+    document.getElementById('filter-status').addEventListener('change', filterJobs);
+    document.getElementById('filter-priority').addEventListener('change', filterJobs);
+    document.getElementById('filter-deadline').addEventListener('change', filterJobs);
+}
+
+// Filter jobs
+function filterJobs() {
+    const search = document.getElementById('filter-search').value.toLowerCase();
+    const status = document.getElementById('filter-status').value;
+    const priority = document.getElementById('filter-priority').value;
+    
+    document.querySelectorAll('#jobs-tbody tr[data-job-id]').forEach(row => {
+        let show = true;
+        
+        if (search) {
+            const text = row.textContent.toLowerCase();
+            show = text.includes(search);
+        }
+        
+        if (show && status) {
+            const jobStatus = row.querySelector('td:nth-child(4)').textContent.toLowerCase();
+            show = jobStatus.includes(status);
+        }
+        
+        row.style.display = show ? '' : 'none';
+    });
+}
+
+// Show toast notification
+function showToast(message, type = 'info') {
+    const container = document.getElementById('toastContainer');
+    const bgColor = {
+        'success': 'bg-green-500',
+        'error': 'bg-red-500',
+        'warning': 'bg-yellow-500',
+        'info': 'bg-blue-500'
+    }[type] || 'bg-blue-500';
+    
+    const toast = document.createElement('div');
+    toast.className = `${bgColor} text-white px-4 py-3 rounded-lg shadow-lg animate-pulse`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    
+    setTimeout(() => toast.remove(), 4000);
+}
+
+// Load job progress updates
+function loadJobProgress() {
+    if (!currentJobId) return;
+    
+    fetch(`/api/job/${currentJobId}/progress/`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                // Update progress bar
+                const progress = data.overall_progress || 0;
+                document.getElementById('progressPercentage').textContent = progress + '%';
+                document.getElementById('progressBar').style.width = progress + '%';
+                
+                // Display updates
+                const container = document.getElementById('progressUpdatesContainer');
+                if (data.updates.length === 0) {
+                    container.innerHTML = '<div class="text-center text-gray-500 text-sm py-4">No progress updates yet</div>';
+                } else {
+                    container.innerHTML = data.updates.map(update => `
+                        <div class="bg-white p-3 rounded border-l-4 border-purple-500">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <p class="font-semibold text-sm text-gray-900">${update.status_display}</p>
+                                    <p class="text-xs text-gray-500">${update.created_at}</p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-lg font-bold text-purple-600">${update.progress}%</span>
+                                    <p class="text-xs text-gray-600">progress</p>
+                                </div>
+                            </div>
+                            ${update.notes ? `<p class="text-sm text-gray-700 mt-2">${update.notes}</p>` : ''}
+                            ${update.created_by ? `<p class="text-xs text-gray-500 mt-2">By: ${update.created_by}</p>` : ''}
+                        </div>
+                    `).join('');
+                }
+            }
+        })
+        .catch(e => {
+            console.error('Error loading progress:', e);
+            document.getElementById('progressUpdatesContainer').innerHTML = '<div class="text-red-500 text-sm">Error loading progress</div>';
+        });
+}
+
+// Sync progress slider and input
+function updateProgressDisplay() {
+    const value = document.getElementById('progressSlider').value;
+    document.getElementById('progressValue').value = value;
+}
+
+function syncProgressSlider() {
+    const value = document.getElementById('progressValue').value;
+    if (value >= 0 && value <= 100) {
+        document.getElementById('progressSlider').value = value;
+    }
+}
+
+// Add progress update
+function addProgressUpdate() {
+    const status = document.getElementById('progressStatus').value;
+    const progress = document.getElementById('progressSlider').value;
+    const notes = document.getElementById('progressNotes').value.trim();
+    
+    if (!progress) {
+        showToast('Please set progress percentage', 'warning');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('status', status);
+    formData.append('progress', progress);
+    formData.append('notes', notes);
+    
+    fetch(`/api/job/${currentJobId}/progress/`, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showToast('✅ Progress updated!', 'success');
+            document.getElementById('progressNotes').value = '';
+            document.getElementById('progressSlider').value = 0;
+            document.getElementById('progressValue').value = 0;
+            loadJobProgress();
+        } else {
+            // Handle permission errors
+            if (data.error && data.error.includes('permission') || data.error.includes('Account Manager')) {
+                showToast('Only AMs or the assigned PT user can update progress', 'warning');
+            } else {
+                showToast('Error: ' + data.error, 'error');
+            }
+        }
+    })
+    .catch(e => showToast('Error updating progress', 'error'));
+}
+</script>
+{% endblock %}

@@ -3,115 +3,141 @@
 {% block title %}{{ product.name }} - Product Details{% endblock %}
 
 {% block content %}
-<div class="p-8 bg-gray-50 min-h-screen">
-    <!-- Header -->
-    <div class="mb-6">
-        <a href="{% url 'product_catalog' %}" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 mb-4">
-            <i class="fas fa-arrow-left"></i>
-            Back to Catalog
-        </a>
-
-        <div class="flex items-start justify-between mb-6">
-            <div>
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ product.name }}</h1>
-                <p class="text-gray-600">Internal Code: <span class="font-mono">{{ product.internal_code }}</span></p>
-            </div>
-            <div class="flex gap-2">
-                {% if is_production_team %}
-                <a href="{% url 'product_edit' product.pk %}" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2">
-                    <i class="fas fa-edit"></i>
-                    Edit Product
-                </a>
-                {% endif %}
-            </div>
-        </div>
-
-        <!-- Status Badges -->
-        <div class="flex gap-2 mb-6">
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
-                {% if product.status == 'published' %}
-                    bg-green-100 text-green-800
-                {% elif product.status == 'draft' %}
-                    bg-yellow-100 text-yellow-800
-                {% else %}
-                    bg-gray-100 text-gray-800
-                {% endif %}">
-                {{ product.get_status_display }}
-            </span>
-            
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
-                {% if product.is_visible %}
-                    bg-blue-100 text-blue-800
-                {% else %}
-                    bg-gray-100 text-gray-800
-                {% endif %}">
-                {% if product.is_visible %}Visible{% else %}Hidden{% endif %}
-            </span>
-
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium badge badge-{{ product.stock_status }}">
-                {{ product.get_stock_status_display }}
-            </span>
-
-            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
-                {% if product.customization_level == 'non_customizable' %}
-                    bg-purple-100 text-purple-800
-                {% elif product.customization_level == 'semi_customizable' %}
-                    bg-indigo-100 text-indigo-800
-                {% else %}
-                    bg-pink-100 text-pink-800
-                {% endif %}">
-                {% if product.customization_level == 'non_customizable' %}
-                    Fixed Price
-                {% elif product.customization_level == 'semi_customizable' %}
-                    Semi-Customizable
-                {% else %}
-                    Fully Customizable
-                {% endif %}
-            </span>
+<div class="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50">
+    <!-- Navigation Bar -->
+    <div class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-8 py-4">
+            <a href="{% url 'product_catalog' %}" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium transition">
+                <i class="fas fa-arrow-left"></i>
+                Back to Catalog
+            </a>
         </div>
     </div>
 
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-8 py-12">
+        <!-- Header Section -->
+        <div class="mb-8">
+            <div class="flex items-start justify-between mb-6 flex-wrap gap-4">
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-3 mb-2 flex-wrap">
+                        <h1 class="text-4xl font-bold text-gray-900">{{ product.name }}</h1>
+                    </div>
+                    <p class="text-gray-600 text-lg">Product ID: <span class="font-mono font-semibold">{{ product.internal_code }}</span></p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    {% if is_production_team %}
+                    <a href="{% url 'product_edit' product.pk %}" class="px-6 py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center gap-2 font-medium transition shadow-md">
+                        <i class="fas fa-edit"></i>
+                        Edit Product
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Status Badges - Enhanced -->
+            <div class="flex flex-wrap gap-3">
+                <!-- Status Badge -->
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm
+                    {% if product.status == 'published' %}
+                        bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-300
+                    {% elif product.status == 'draft' %}
+                        bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-800 border border-amber-300
+                    {% else %}
+                        bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300
+                    {% endif %}">
+                    <i class="fas fa-circle text-xs mr-2"></i>
+                    {{ product.get_status_display }}
+                </span>
+                
+                <!-- Visibility Badge -->
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm
+                    {% if product.is_visible %}
+                        bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 border border-blue-300
+                    {% else %}
+                        bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300
+                    {% endif %}">
+                    <i class="fas {% if product.is_visible %}fa-eye{% else %}fa-eye-slash{% endif %} mr-2"></i>
+                    {% if product.is_visible %}Visible{% else %}Hidden{% endif %}
+                </span>
+
+                <!-- Stock Badge -->
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm
+                    {% if product.stock_status == 'in_stock' %}
+                        bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-300
+                    {% elif product.stock_status == 'low_stock' %}
+                        bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 border border-yellow-300
+                    {% elif product.stock_status == 'out_of_stock' %}
+                        bg-gradient-to-r from-red-100 to-rose-100 text-red-800 border border-red-300
+                    {% else %}
+                        bg-gradient-to-r from-blue-100 to-cyan-100 text-blue-800 border border-blue-300
+                    {% endif %}">
+                    <i class="fas fa-box mr-2"></i>
+                    {{ product.get_stock_status_display }}
+                </span>
+
+                <!-- Customization Badge -->
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold shadow-sm
+                    {% if product.customization_level == 'non_customizable' %}
+                        bg-gradient-to-r from-purple-100 to-violet-100 text-purple-800 border border-purple-300
+                    {% elif product.customization_level == 'semi_customizable' %}
+                        bg-gradient-to-r from-indigo-100 to-blue-100 text-indigo-800 border border-indigo-300
+                    {% else %}
+                        bg-gradient-to-r from-pink-100 to-rose-100 text-pink-800 border border-pink-300
+                    {% endif %}">
+                    <i class="fas fa-sliders-h mr-2"></i>
+                    {% if product.customization_level == 'non_customizable' %}
+                        Fixed Price
+                    {% elif product.customization_level == 'semi_customizable' %}
+                        Semi-Customizable
+                    {% else %}
+                        Fully Customizable
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+
     <!-- Tabs Navigation -->
-    <div class="bg-white rounded-lg shadow mb-6">
-        <div class="border-b border-gray-200">
-            <nav class="flex" role="tablist">
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mb-8 border border-gray-200">
+        <div class="border-b border-gray-200 bg-gray-50">
+            <nav class="flex overflow-x-auto" role="tablist">
                 <button role="tab" aria-selected="true" aria-controls="general-panel" 
-                    class="tab-button active px-6 py-3 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap" 
+                    class="tab-button active px-6 py-4 border-b-2 border-blue-600 text-blue-600 font-medium whitespace-nowrap hover:bg-blue-50 transition" 
                     onclick="switchTab(event, 'general')">
-                    <i class="fas fa-info-circle"></i> General Information
+                    <i class="fas fa-info-circle mr-2"></i>General Information
                 </button>
                 <button role="tab" aria-selected="false" aria-controls="pricing-panel" 
-                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    class="tab-button px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium whitespace-nowrap transition" 
                     onclick="switchTab(event, 'pricing')">
-                    <i class="fas fa-tag"></i> Pricing
+                    <i class="fas fa-tag mr-2"></i>Pricing
                 </button>
                 <button role="tab" aria-selected="false" aria-controls="images-panel" 
-                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    class="tab-button px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium whitespace-nowrap transition" 
                     onclick="switchTab(event, 'images')">
-                    <i class="fas fa-images"></i> Images
+                    <i class="fas fa-images mr-2"></i>Images & Media
                 </button>
                 <button role="tab" aria-selected="false" aria-controls="inventory-panel" 
-                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    class="tab-button px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium whitespace-nowrap transition" 
                     onclick="switchTab(event, 'inventory')">
-                    <i class="fas fa-warehouse"></i> Inventory
+                    <i class="fas fa-warehouse mr-2"></i>Inventory
                 </button>
                 <button role="tab" aria-selected="false" aria-controls="history-panel" 
-                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    class="tab-button px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium whitespace-nowrap transition" 
                     onclick="switchTab(event, 'history')">
-                    <i class="fas fa-history"></i> Change History
+                    <i class="fas fa-history mr-2"></i>Change History
                 </button>
                 {% if seo_data %}
                 <button role="tab" aria-selected="false" aria-controls="seo-panel" 
-                    class="tab-button px-6 py-3 border-b-2 border-transparent text-gray-600 hover:text-gray-900 font-medium whitespace-nowrap" 
+                    class="tab-button px-6 py-4 border-b-2 border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-100 font-medium whitespace-nowrap transition" 
                     onclick="switchTab(event, 'seo')">
-                    <i class="fas fa-search"></i> SEO
+                    <i class="fas fa-search mr-2"></i>SEO
                 </button>
                 {% endif %}
             </nav>
         </div>
 
         <!-- Tab Content -->
-        <div class="p-6">
+        <div class="p-8 bg-white">
             <!-- General Information Tab -->
             <div id="general-panel" role="tabpanel" class="tab-panel active">
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -133,8 +159,8 @@
                                 {% if product.long_description %}
                                 <div>
                                     <label class="block text-sm font-medium text-gray-700 mb-2">Full Description</label>
-                                    <div class="text-gray-900 bg-white p-3 rounded border border-gray-200 whitespace-pre-wrap">
-                                        {{ product.long_description }}
+                                    <div class="text-gray-900 bg-white p-3 rounded border border-gray-200">
+                                        {{ product.long_description|striptags }}
                                     </div>
                                 </div>
                                 {% endif %}
@@ -144,31 +170,45 @@
                         <!-- Technical Specifications -->
                         <div class="bg-gray-50 rounded-lg p-6">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Technical Specifications</h3>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
+                            <div class="space-y-3">
+                                {% if product.unit_of_measure %}
+                                <div class="flex justify-between items-center py-2 border-b border-gray-200">
                                     <label class="text-sm font-medium text-gray-600">Unit of Measure</label>
-                                    <p class="text-gray-900">{{ product.unit_of_measure|default:"—" }}</p>
+                                    <p class="text-gray-900">{{ product.get_unit_of_measure_display|default:product.unit_of_measure }}</p>
                                 </div>
-                                <div>
+                                {% endif %}
+
+                                {% if product.weight %}
+                                <div class="flex justify-between items-center py-2 border-b border-gray-200">
                                     <label class="text-sm font-medium text-gray-600">Weight</label>
-                                    <p class="text-gray-900">{{ product.weight|default:"—" }}</p>
+                                    <p class="text-gray-900">{{ product.weight }} {% if product.weight_unit %}{{ product.get_weight_unit_display|default:product.weight_unit }}{% endif %}</p>
                                 </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-600">Dimensions</label>
-                                    <p class="text-gray-900">{{ product.dimensions|default:"—" }}</p>
+                                {% endif %}
+
+                                {% if product.length and product.width and product.height %}
+                                <div class="flex justify-between items-center py-2 border-b border-gray-200">
+                                    <label class="text-sm font-medium text-gray-600">Dimensions (L × W × H)</label>
+                                    <p class="text-gray-900">{{ product.length }} × {{ product.width }} × {{ product.height }} {% if product.dimension_unit %}{{ product.get_dimension_unit_display|default:product.dimension_unit }}{% endif %}</p>
                                 </div>
-                                <div>
-                                    <label class="text-sm font-medium text-gray-600">Material Type</label>
-                                    <p class="text-gray-900">{{ product.material_type|default:"—" }}</p>
-                                </div>
-                                <div>
+                                {% endif %}
+
+                                {% if product.warranty %}
+                                <div class="flex justify-between items-center py-2 border-b border-gray-200">
                                     <label class="text-sm font-medium text-gray-600">Warranty</label>
-                                    <p class="text-gray-900">{{ product.warranty|default:"—" }}</p>
+                                    <p class="text-gray-900">{{ product.get_warranty_display|default:product.warranty }}</p>
                                 </div>
-                                <div>
+                                {% endif %}
+
+                                {% if product.country_of_origin %}
+                                <div class="flex justify-between items-center py-2 border-b border-gray-200">
                                     <label class="text-sm font-medium text-gray-600">Country of Origin</label>
-                                    <p class="text-gray-900">{{ product.country_of_origin|default:"—" }}</p>
+                                    <p class="text-gray-900">{{ product.get_country_of_origin_display|default:product.country_of_origin }}</p>
                                 </div>
+                                {% endif %}
+
+                                {% if not product.unit_of_measure and not product.weight and not product.length and not product.warranty and not product.country_of_origin %}
+                                <p class="text-sm text-gray-500 py-2">No technical specifications provided</p>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -296,56 +336,123 @@
             <!-- Pricing Tab -->
             <div id="pricing-panel" role="tabpanel" class="tab-panel hidden">
                 <div class="space-y-6">
-                    {% if pricing %}
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead class="bg-gray-100">
-                                <tr>
-                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Quantity Tier</th>
-                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Min Qty</th>
-                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Max Qty</th>
-                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Price</th>
-                                    <th class="px-4 py-3 text-left font-semibold text-gray-900">Type</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-gray-200">
-                                {% for price_tier in pricing %}
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-gray-900">{{ price_tier.name|default:"Standard" }}</td>
-                                    <td class="px-4 py-3 text-gray-700">{{ price_tier.min_quantity|default:"—" }}</td>
-                                    <td class="px-4 py-3 text-gray-700">{{ price_tier.max_quantity|default:"Unlimited" }}</td>
-                                    <td class="px-4 py-3 font-semibold text-gray-900">
-                                        {% if price_tier.base_price %}
-                                            KES {{ price_tier.base_price|floatformat:2 }}
-                                        {% else %}
-                                            {{ price_tier.price_formula|default:"Custom" }}
-                                        {% endif %}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span class="inline-flex px-2 py-1 rounded text-xs font-medium
-                                            {% if price_tier.price_formula %}
-                                                bg-purple-100 text-purple-800
+                    <!-- Quantity-Based Pricing Tiers -->
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Pricing Tiers</h3>
+                        {% if product.quantity_pricing.all %}
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Quantity Range</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Unit Price</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Discount</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Total Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    {% for tier in product.quantity_pricing.all %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 text-gray-900">
+                                            {% if tier.max_quantity %}
+                                                {{ tier.min_quantity }}-{{ tier.max_quantity }} units
                                             {% else %}
-                                                bg-blue-100 text-blue-800
-                                            {% endif %}">
-                                            {% if price_tier.price_formula %}Formula{% else %}Fixed{% endif %}
-                                        </span>
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="5" class="px-4 py-8 text-center text-gray-500">
-                                        No pricing tiers configured
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
+                                                {{ tier.min_quantity }}+ units
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-4 py-3 font-semibold text-gray-900">KES {{ tier.unit_price|floatformat:2 }}</td>
+                                        <td class="px-4 py-3 text-gray-700">
+                                            {% if tier.percentage_discount > 0 %}
+                                                {{ tier.percentage_discount }}%
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-4 py-3 font-semibold text-green-600">KES {{ tier.unit_price|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="bg-gray-50 rounded-lg p-6 text-center text-gray-600">
+                            <p>No pricing tiers configured</p>
+                        </div>
+                        {% endif %}
                     </div>
-                    {% else %}
-                    <div class="bg-gray-50 rounded-lg p-8 text-center">
-                        <i class="fas fa-tag text-4xl text-gray-300 mb-4"></i>
-                        <p class="text-gray-600">No pricing tiers configured for this product</p>
+
+                    <!-- Base Pricing Configuration -->
+                    {% if pricing %}
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Base Pricing Configuration</h3>
+                        <div class="space-y-4">
+                            {% for price_config in pricing %}
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Pricing Model</label>
+                                    <p class="text-gray-900">{{ price_config.get_pricing_model_display }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Base Cost</label>
+                                    <p class="text-gray-900">KES {{ price_config.base_cost|floatformat:2 }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Default Margin</label>
+                                    <p class="text-gray-900">{{ price_config.default_margin }}%</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Minimum Margin</label>
+                                    <p class="text-gray-900">{{ price_config.minimum_margin }}%</p>
+                                </div>
+                                {% if price_config.lead_time_value %}
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Lead Time</label>
+                                    <p class="text-gray-900">{{ price_config.lead_time_value }} {{ price_config.get_lead_time_unit_display|lower }}</p>
+                                </div>
+                                {% endif %}
+                                {% if price_config.production_method %}
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Production Method</label>
+                                    <p class="text-gray-900">{{ price_config.get_production_method_display }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Customization Options -->
+                    {% if product.variables.all %}
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Customization Options</h3>
+                        <div class="space-y-4">
+                            {% for variable in product.variables.all %}
+                            <div class="border border-gray-200 rounded-lg p-4">
+                                <div class="flex items-center justify-between mb-3">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900">{{ variable.name }}</h4>
+                                        <p class="text-xs text-gray-600 mt-1">Type: {{ variable.get_variable_type_display }} • Pricing: {{ variable.get_pricing_type_display }}</p>
+                                    </div>
+                                    <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                                        {% if variable.variable_type == 'required' %}Required{% else %}Optional{% endif %}
+                                    </span>
+                                </div>
+                                {% if variable.options.all %}
+                                <div class="flex flex-wrap gap-2">
+                                    {% for option in variable.options.all %}
+                                    <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm">
+                                        {{ option.name }}
+                                        {% if option.price_modifier > 0 %}
+                                        <span class="text-gray-500 ml-1">(+KES {{ option.price_modifier }})</span>
+                                        {% endif %}
+                                    </span>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
                     </div>
                     {% endif %}
                 </div>
@@ -354,31 +461,94 @@
             <!-- Images Tab -->
             <div id="images-panel" role="tabpanel" class="tab-panel hidden">
                 {% if images %}
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {% for image in images %}
-                    <div class="bg-gray-100 rounded-lg overflow-hidden shadow">
-                        {% if image.image %}
-                        <img src="{{ image.image.url }}" alt="{{ image.alt_text }}" class="w-full h-48 object-cover">
-                        {% else %}
-                        <div class="w-full h-48 flex items-center justify-center bg-gray-300">
-                            <i class="fas fa-image text-gray-400 text-4xl"></i>
+                <div class="space-y-6">
+                    <!-- Primary Image Display -->
+                    {% with primary=images|first %}
+                    {% if primary.is_primary %}
+                    <div class="bg-white rounded-lg overflow-hidden shadow-lg border-2 border-blue-200">
+                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-gray-900">Primary Product Image</h3>
+                            <span class="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded-full">Featured</span>
                         </div>
-                        {% endif %}
-                        <div class="p-3">
-                            <p class="text-xs text-gray-600">{{ image.alt_text|truncatewords:5 }}</p>
-                            {% if image.is_primary %}
-                            <span class="inline-block mt-2 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
-                                Primary
-                            </span>
+                        <div class="relative bg-gray-100 flex items-center justify-center" style="min-height: 400px;">
+                            {% if primary.image %}
+                            <img src="{{ primary.image.url }}" alt="{{ primary.alt_text }}" class="max-w-full max-h-96 object-contain">
+                            {% else %}
+                            <div class="flex flex-col items-center justify-center">
+                                <i class="fas fa-image text-gray-400 text-6xl mb-4"></i>
+                                <p class="text-gray-500">No image available</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="p-6 bg-white border-t border-gray-200">
+                            <p class="text-sm text-gray-600 mb-2"><strong>Description:</strong></p>
+                            <p class="text-gray-900">{{ primary.alt_text }}</p>
+                            {% if primary.caption %}
+                            <p class="text-sm text-gray-600 mt-2"><strong>Caption:</strong> {{ primary.caption }}</p>
                             {% endif %}
                         </div>
                     </div>
-                    {% endfor %}
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- Additional Images Gallery -->
+                    {% with additional=images|slice:"1:" %}
+                    {% if additional %}
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <i class="fas fa-images text-blue-600"></i>
+                            Additional Product Images ({{ additional|length }})
+                        </h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                            {% for image in additional %}
+                            <div class="group relative bg-gray-100 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-400" 
+                                 onclick="openImageLightbox('{{ image.image.url }}', '{{ image.alt_text }}')">
+                                <div class="relative overflow-hidden bg-gray-100">
+                                    {% if image.image %}
+                                    <img src="{{ image.image.url }}" alt="{{ image.alt_text }}" class="w-full h-48 object-cover group-hover:scale-110 transition-transform duration-300">
+                                    {% else %}
+                                    <div class="w-full h-48 flex items-center justify-center bg-gray-300">
+                                        <i class="fas fa-image text-gray-400 text-3xl"></i>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    <!-- Hover Overlay -->
+                                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
+                                        <button class="p-2 bg-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity transform group-hover:scale-100 scale-75">
+                                            <i class="fas fa-search-plus text-gray-900 text-xl"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Image Info -->
+                                <div class="p-3 bg-white">
+                                    <p class="text-xs text-gray-600 truncate" title="{{ image.alt_text }}">{{ image.alt_text|truncatewords:3 }}</p>
+                                    <p class="text-xs text-gray-500 mt-1">{{ image.get_image_type_display }}</p>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
                 </div>
+
+                <!-- Lightbox Modal -->
+                <div id="imageLightbox" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center p-4" onclick="if(event.target.id === 'imageLightbox') closeLightbox()">
+                    <div class="relative bg-white rounded-lg max-w-4xl w-full max-h-96 flex items-center justify-center">
+                        <img id="lightboxImage" src="" alt="Product image" class="max-w-full max-h-96 object-contain">
+                        
+                        <button onclick="closeLightbox()" class="absolute top-4 right-4 bg-gray-800 hover:bg-gray-900 text-white rounded-full w-10 h-10 flex items-center justify-center transition">
+                            <i class="fas fa-times text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
                 {% else %}
-                <div class="bg-gray-50 rounded-lg p-8 text-center">
-                    <i class="fas fa-image text-4xl text-gray-300 mb-4"></i>
-                    <p class="text-gray-600">No images uploaded for this product</p>
+                <div class="bg-gray-50 rounded-lg p-12 text-center border-2 border-dashed border-gray-300">
+                    <i class="fas fa-image text-6xl text-gray-300 mb-4"></i>
+                    <p class="text-gray-600 text-lg font-medium">No images uploaded yet</p>
+                    <p class="text-gray-500 text-sm mt-2">Product images will appear here once they are uploaded</p>
                 </div>
                 {% endif %}
             </div>
@@ -624,6 +794,16 @@
         display: block;
     }
 
+    .tab-button {
+        position: relative;
+        transition: all 0.3s ease;
+    }
+
+    .tab-button.active {
+        color: #2563eb !important;
+        border-color: #2563eb !important;
+    }
+
     .badge {
         display: inline-block;
         padding: 0.35rem 0.75rem;
@@ -639,6 +819,61 @@
     .badge-out_of_stock { background: #fee2e2; color: #991b1b; }
     .badge-made_to_order { background: #e0e7ff; color: #3730a3; }
     .badge-discontinued { background: #f3f4f6; color: #6b7280; }
+
+    /* Image Gallery Enhancements */
+    .group {
+        position: relative;
+    }
+
+    #imageLightbox {
+        animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+
+    /* Smooth tab transitions */
+    .tab-panel {
+        animation: slideIn 0.3s ease-out;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* Modern card styling */
+    .rounded-xl {
+        border-radius: 0.75rem;
+    }
+
+    /* Responsive improvements */
+    @media (max-width: 768px) {
+        .max-w-7xl {
+            max-width: 100%;
+        }
+
+        h1 {
+            font-size: 1.875rem;
+        }
+
+        .px-8 {
+            padding-left: 1rem;
+            padding-right: 1rem;
+        }
+    }
 </style>
 
 <script>
@@ -666,6 +901,34 @@
         event.target.closest('.tab-button').classList.add('active');
         event.target.closest('.tab-button').setAttribute('aria-selected', 'true');
     }
+
+    // Image Lightbox Functions
+    function openImageLightbox(imageUrl, altText) {
+        const lightbox = document.getElementById('imageLightbox');
+        const img = document.getElementById('lightboxImage');
+        
+        if (lightbox && img) {
+            img.src = imageUrl;
+            img.alt = altText;
+            lightbox.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+        }
+    }
+
+    function closeLightbox() {
+        const lightbox = document.getElementById('imageLightbox');
+        if (lightbox) {
+            lightbox.classList.add('hidden');
+            document.body.style.overflow = 'auto';
+        }
+    }
+
+    // Close lightbox on Escape key
+    document.addEventListener('keydown', function(event) {
+        if (event.key === 'Escape') {
+            closeLightbox();
+        }
+    });
 
     // Inventory Form Handler
     document.addEventListener('DOMContentLoaded', function() {

@@ -63,6 +63,16 @@ urlpatterns = [
     path('account-manager/job/<int:pk>/', views.account_manager_job_detail, name='account_manager_job_detail'),
     path('account-manager/job/<int:pk>/update/', views.account_manager_job_update, name='account_manager_job_update'),
     path('account-manager/job/<int:pk>/remind/', views.account_manager_send_reminder, name='account_manager_send_reminder'),
+    
+    # Job Interaction APIs (AJAX endpoints for AM portal)
+    path('api/job/<int:job_id>/assign/', views.api_assign_job, name='api_assign_job'),
+    path('api/job/<int:job_id>/remind/', views.api_send_job_reminder, name='api_send_job_reminder'),
+    path('api/job/<int:job_id>/message/', views.api_send_job_message, name='api_send_job_message'),
+    path('api/job/<int:job_id>/details/', views.api_get_job_details, name='api_get_job_details'),
+    path('api/job/<int:job_id>/messages/', views.api_get_job_messages, name='api_get_job_messages'),
+    path('api/job/<int:job_id>/progress/', views.api_job_progress, name='api_job_progress'),
+    path('api/production-users/', views.api_get_production_users, name='api_get_production_users'),
+    
     path('quotes/<str:quote_id>/send/', views.send_quote, name='send_quote'),
 
     # ===== Production Team URLs =====
@@ -73,6 +83,11 @@ urlpatterns = [
     # path('production/catalog/', views.product_detail, name='product_detail'),
     path('production/dashboard/', views.production2_dashboard, name='production2_dashboard'),
     path('production/analytics/', views.production_analytics, name='production_analytics'),
+    
+    # ✅ NEW: Production Team Dashboard (Gap 6.1)
+    path('pt-dashboard/', views.production_team_dashboard, name='production_team_dashboard'),
+    path('api/vendor/<int:vendor_id>/workload/', views.get_vendor_workload, name='get_vendor_workload'),
+    
     path('notifications/', views.notifications, name='notifications'),
     
     path('base2/', views.base_view, name='base_view'),

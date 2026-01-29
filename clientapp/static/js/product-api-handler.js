@@ -157,12 +157,56 @@ class ProductAPIHandler {
     /**
      * Save product draft
      */
-    async saveDraft(data = null) {
+    async saveDraft(data = null, isAutoSave = false) {
         // For new products (no productId yet), use createProduct via POST
         if (this.productId === 'new' || !this.productId) {
             try {
                 const formData = this.getFormDataAsJson();
                 
+                // For auto-save from image upload, create minimal product with required fields only
+                if (isAutoSave) {
+                    // Ensure we have minimum required fields for a draft product
+                    // Only include fields that have values or have defaults
+                    const minimalData = {
+                        name: formData.name || 'New Product (Draft)',
+                        short_description: formData.short_description || 'Product description',
+                        long_description: formData.long_description || 'Full product description',
+                        product_type: formData.product_type || 'physical',
+                        customization_level: formData.customization_level || 'fully_customizable',
+                        status: 'draft',
+                        is_visible: false, // Don't show draft products
+                        visibility: formData.visibility || 'hidden',
+                    };
+                    
+                    // Remove base_price for fully customizable drafts
+                    if (minimalData.customization_level === 'fully_customizable') {
+                        minimalData.base_price = null;
+                    }
+                    
+                    const response = await fetch(this.apiBaseUrl, {
+                        method: 'POST',
+                        headers: this.getHeaders(true),
+                        body: JSON.stringify(minimalData),
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        console.error('Detailed error response:', error);
+                        throw new Error(error.detail || JSON.stringify(error) || 'Save failed');
+                    }
+
+                    const result = await response.json();
+                    
+                    // Update product ID if new
+                    if (result.id && (this.productId === 'new' || !this.productId)) {
+                        this.productId = result.id;
+                        this.form.dataset.productId = result.id;
+                    }
+                    
+                    return true; // Silent success for auto-save
+                }
+                
+                // Regular draft save with full form data
                 // Ensure base_price is set only if needed
                 if (!formData.customization_level) {
                     formData.customization_level = 'fully_customizable';
@@ -327,9 +371,9 @@ class ProductAPIHandler {
         // If product doesn't exist yet, auto-save it first
         if (!this.productId || this.productId === 'new') {
             const data = this.getFormDataAsJson();
-            const saveSuccess = await this.saveDraft(data);
+            const saveSuccess = await this.saveDraft(data, true); // isAutoSave = true
             if (!saveSuccess) {
-                this.showNotification('Please save the product first before uploading images', 'warning');
+                this.showNotification('Could not create product for image. Please fill in basic product details first.', 'warning');
                 return false;
             }
             // productId is now updated by saveDraft()
@@ -370,9 +414,9 @@ class ProductAPIHandler {
         // If product doesn't exist yet, auto-save it first
         if (!this.productId || this.productId === 'new') {
             const data = this.getFormDataAsJson();
-            const saveSuccess = await this.saveDraft(data);
+            const saveSuccess = await this.saveDraft(data, true); // isAutoSave = true
             if (!saveSuccess) {
-                this.showNotification('Please save the product first before uploading images', 'warning');
+                this.showNotification('Could not create product for images. Please fill in basic product details first.', 'warning');
                 return false;
             }
             // productId is now updated by saveDraft()
@@ -419,9 +463,9 @@ class ProductAPIHandler {
         // If product doesn't exist yet, auto-save it first
         if (!this.productId || this.productId === 'new') {
             const data = this.getFormDataAsJson();
-            const saveSuccess = await this.saveDraft(data);
+            const saveSuccess = await this.saveDraft(data, true); // isAutoSave = true
             if (!saveSuccess) {
-                this.showNotification('Please save the product first before adding videos', 'warning');
+                this.showNotification('Could not create product for video. Please fill in basic product details first.', 'warning');
                 return false;
             }
             // productId is now updated by saveDraft()
@@ -482,8 +526,103 @@ class ProductAPIHandler {
     }
 
     /**
-     * Get change history
+     * Delete product video
      */
+    async deleteVideo(videoId) {
+        if (!this.productId || this.productId === 'new') {
+            this.showNotification('Product not saved yet', 'warning');
+            return false;
+        }
+
+        if (!confirm('Are you sure you want to delete this video?')) {
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${this.apiBaseUrl}${this.productId}/videos/${videoId}/`, {
+                method: 'DELETE',
+                headers: this.getHeaders(false),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || error.error || 'Failed to delete video');
+            }
+
+            this.showNotification('Video deleted successfully', 'success');
+            return true;
+        } catch (error) {
+            this.showNotification(`Delete video failed: ${error.message}`, 'error');
+            console.error('Delete video error:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Delete product image
+     */
+    async deleteImage(imageId) {
+        if (!this.productId || this.productId === 'new') {
+            this.showNotification('Product not saved yet', 'warning');
+            return false;
+        }
+
+        if (!confirm('Are you sure you want to delete this image?')) {
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${this.apiBaseUrl}${this.productId}/images/${imageId}/`, {
+                method: 'DELETE',
+                headers: this.getHeaders(false),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || error.error || 'Failed to delete image');
+            }
+
+            this.showNotification('Image deleted successfully', 'success');
+            return true;
+        } catch (error) {
+            this.showNotification(`Delete image failed: ${error.message}`, 'error');
+            console.error('Delete image error:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Delete downloadable file
+     */
+    async deleteFile(fileId) {
+        if (!this.productId || this.productId === 'new') {
+            this.showNotification('Product not saved yet', 'warning');
+            return false;
+        }
+
+        if (!confirm('Are you sure you want to delete this file?')) {
+            return false;
+        }
+
+        try {
+            const response = await fetch(`${this.apiBaseUrl}${this.productId}/files/${fileId}/`, {
+                method: 'DELETE',
+                headers: this.getHeaders(false),
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.detail || error.error || 'Failed to delete file');
+            }
+
+            this.showNotification('File deleted successfully', 'success');
+            return true;
+        } catch (error) {
+            this.showNotification(`Delete file failed: ${error.message}`, 'error');
+            console.error('Delete file error:', error);
+            return false;
+        }
+    }
     async getChangeHistory() {
         if (!this.productId || this.productId === 'new') {
             return [];
@@ -650,7 +789,7 @@ class ProductAPIHandler {
 
         // Video add button
         const videoUrlInput = document.getElementById('new-video-url');
-        const addVideoBtn = videoUrlInput ? videoUrlInput.nextElementSibling : null;
+        const addVideoBtn = document.getElementById('add-video-btn') || (videoUrlInput ? videoUrlInput.nextElementSibling : null);
         
         if (addVideoBtn && videoUrlInput) {
             addVideoBtn.addEventListener('click', async (e) => {
@@ -665,6 +804,42 @@ class ProductAPIHandler {
                 }
             });
         }
+
+        // Delete video buttons
+        document.querySelectorAll('.delete-video').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const videoId = btn.dataset.videoId;
+                const success = await this.deleteVideo(videoId);
+                if (success) {
+                    btn.closest('div[class*="flex items-center gap-4"]')?.remove();
+                }
+            });
+        });
+
+        // Delete gallery image buttons
+        document.querySelectorAll('.delete-gallery-image').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const imageId = btn.dataset.imageId;
+                const success = await this.deleteImage(imageId);
+                if (success) {
+                    btn.closest('.gallery-image-item')?.remove();
+                }
+            });
+        });
+
+        // Delete file buttons
+        document.querySelectorAll('.delete-file').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const fileId = btn.dataset.fileId;
+                const success = await this.deleteFile(fileId);
+                if (success) {
+                    btn.closest('div[class*="flex items-center"]')?.remove();
+                }
+            });
+        });
     }
 
     /**

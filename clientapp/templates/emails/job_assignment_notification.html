@@ -1,0 +1,316 @@
+{% load humanize %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Assignment</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            background-color: #f5f5f5;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+        
+        .header p {
+            margin: 8px 0 0 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .greeting {
+            font-size: 16px;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+        
+        .greeting strong {
+            color: #2c3e50;
+        }
+        
+        .job-card {
+            background-color: #f9f9f9;
+            border-left: 4px solid #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        
+        .job-detail {
+            margin: 12px 0;
+            display: flex;
+        }
+        
+        .job-detail-label {
+            font-weight: 600;
+            color: #2c3e50;
+            width: 120px;
+            flex-shrink: 0;
+        }
+        
+        .job-detail-value {
+            color: #555;
+            flex-grow: 1;
+        }
+        
+        .priority-high {
+            color: #e74c3c;
+            font-weight: bold;
+            padding: 4px 8px;
+            background-color: #ffebee;
+            border-radius: 3px;
+            display: inline-block;
+            font-size: 13px;
+        }
+        
+        .priority-medium {
+            color: #f39c12;
+            font-weight: bold;
+            padding: 4px 8px;
+            background-color: #fff3e0;
+            border-radius: 3px;
+            display: inline-block;
+            font-size: 13px;
+        }
+        
+        .priority-low {
+            color: #27ae60;
+            font-weight: bold;
+            padding: 4px 8px;
+            background-color: #e8f5e9;
+            border-radius: 3px;
+            display: inline-block;
+            font-size: 13px;
+        }
+        
+        .cta-section {
+            text-align: center;
+            margin: 30px 0;
+            padding: 20px;
+            background-color: #ecf0f1;
+            border-radius: 4px;
+        }
+        
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            padding: 14px 40px;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            margin: 0 auto;
+            border: none;
+            font-size: 15px;
+        }
+        
+        .cta-button:hover {
+            background: linear-gradient(135deg, #2980b9 0%, #1a5276 100%);
+            text-decoration: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .instructions {
+            background-color: #e8f4f8;
+            border-left: 3px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 3px;
+            font-size: 14px;
+            color: #2c3e50;
+        }
+        
+        .instructions h4 {
+            margin: 0 0 8px 0;
+            color: #2c3e50;
+        }
+        
+        .instructions ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+        
+        .instructions li {
+            margin: 5px 0;
+        }
+        
+        .footer {
+            background-color: #34495e;
+            color: white;
+            padding: 20px;
+            text-align: center;
+            font-size: 12px;
+        }
+        
+        .footer p {
+            margin: 5px 0;
+        }
+        
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        
+        .footer a:hover {
+            text-decoration: underline;
+        }
+        
+        .divider {
+            height: 1px;
+            background-color: #ecf0f1;
+            margin: 20px 0;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+            }
+            
+            .header {
+                padding: 20px;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+            
+            .job-detail {
+                flex-direction: column;
+            }
+            
+            .job-detail-label {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🎯 New Job Assignment</h1>
+            <p>You've been assigned a new production job</p>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Greeting -->
+            <div class="greeting">
+                Hello <strong>{{ user_first_name }}</strong>,
+            </div>
+            
+            <p>A new production job has been assigned to you. Please review the details below and begin work as scheduled.</p>
+            
+            <!-- Job Details Card -->
+            <div class="job-card">
+                <div class="job-detail">
+                    <span class="job-detail-label">Job Number:</span>
+                    <span class="job-detail-value"><strong>{{ job_number }}</strong></span>
+                </div>
+                
+                <div class="job-detail">
+                    <span class="job-detail-label">Job Name:</span>
+                    <span class="job-detail-value">{{ job_name }}</span>
+                </div>
+                
+                <div class="job-detail">
+                    <span class="job-detail-label">Client:</span>
+                    <span class="job-detail-value">{{ client_name }}</span>
+                </div>
+                
+                <div class="job-detail">
+                    <span class="job-detail-label">Product(s):</span>
+                    <span class="job-detail-value">{{ product_summary }}</span>
+                </div>
+                
+                <div class="divider"></div>
+                
+                <div class="job-detail">
+                    <span class="job-detail-label">Due Date:</span>
+                    <span class="job-detail-value"><strong>{{ due_date }}</strong></span>
+                </div>
+                
+                <div class="job-detail">
+                    <span class="job-detail-label">Priority:</span>
+                    <span class="job-detail-value">
+                        {% if priority == "HIGH" %}
+                            <span class="priority-high">🔴 HIGH PRIORITY</span>
+                        {% elif priority == "MEDIUM" %}
+                            <span class="priority-medium">🟠 MEDIUM PRIORITY</span>
+                        {% else %}
+                            <span class="priority-low">🟢 NORMAL</span>
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <div class="job-detail">
+                    <span class="job-detail-label">Assigned On:</span>
+                    <span class="job-detail-value">{{ assignment_date }}</span>
+                </div>
+            </div>
+            
+            <!-- Call To Action -->
+            <div class="cta-section">
+                <p style="margin: 0 0 15px 0; color: #2c3e50;">
+                    <strong>Get Started</strong>
+                </p>
+                <a href="{{ job_url }}" class="cta-button">View Full Job Details</a>
+            </div>
+            
+            <!-- Instructions -->
+            <div class="instructions">
+                <h4>📋 What to do next:</h4>
+                <ol>
+                    <li>Review the job details and client requirements</li>
+                    <li>Check for any attached files or specifications</li>
+                    <li>Update the job status as you progress</li>
+                    <li>Message the team if you have questions</li>
+                    <li>Submit when production is complete</li>
+                </ol>
+            </div>
+            
+            <p style="color: #7f8c8d; font-size: 13px; margin-top: 20px;">
+                If you have any questions about this job, please reach out to your Account Manager or reply to this email.
+            </p>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>Production Team Portal</strong></p>
+            <p>{{ assignment_date }}</p>
+            <p>This is an automated notification. Please do not reply to this email.</p>
+            <p><a href="{{ job_url }}">Go to Job Details</a></p>
+        </div>
+    </div>
+</body>
+</html>

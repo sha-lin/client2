@@ -46,6 +46,9 @@ from .models import (
     Notification,
     Job,
     JobProduct,
+    JobReminder,
+    JobMessage,
+    JobNote,
     ProductTag,
     LPO,
     LPOLineItem,
@@ -833,12 +836,13 @@ def product_catalog(request):
 @login_required
 @group_required('Account Manager')
 def account_manager_jobs_list(request):
-    """List of jobs for Account Manager"""
+    """List of jobs for Account Manager - Enhanced with messaging & reminders"""
     jobs = Job.objects.filter(
         client__account_manager=request.user
-    ).exclude(status='completed').select_related('client').order_by('-created_at')
+    ).exclude(status='completed').select_related('client', 'person_in_charge').order_by('-created_at')
     
-    
+    # Calculate metrics
+    overdue_count = 0
     for job in jobs:
         # Check for delivery status
         try:
@@ -852,14 +856,16 @@ def account_manager_jobs_list(request):
         # Check if overdue
         if job.expected_completion and job.expected_completion < timezone.now().date() and job.status not in ['completed']:
             job.is_overdue = True
+            overdue_count += 1
         else:
             job.is_overdue = False
 
     context = {
         'jobs': jobs,
+        'overdue_count': overdue_count,
         'current_view': 'jobs',
     }
-    return render(request, 'account_manager/jobs_list.html', context)
+    return render(request, 'account_manager/jobs_list_enhanced.html', context)
 
 #Job management for account manager
 @login_required
@@ -952,6 +958,389 @@ def account_manager_send_reminder(request, pk):
             
     return redirect('account_manager_job_detail', pk=pk)
 
+
+# ==================== JOB INTERACTION APIs (AJAX Endpoints) ====================
+
+@login_required
+@group_required('Account Manager')
+def api_assign_job(request, job_id):
+    """API endpoint to assign job to production team member"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        job = Job.objects.get(pk=job_id)
+        user_id = request.POST.get('user_id')
+        assignment_notes = request.POST.get('assignment_notes', '')
+        remind_days = request.POST.get('remind_days_before', 2)
+        
+        assigned_user = User.objects.get(pk=user_id)
+        
+        # Assign job
+        job.person_in_charge = assigned_user
+        job.assignment_notes = assignment_notes
+        job.remind_days_before = int(remind_days)
+        job.save()
+        
+        # Create notification for assigned user
+        Notification.objects.create(
+            recipient=assigned_user,
+            notification_type='job_assigned',
+            title=f'🎯 Job Assigned: {job.job_name}',
+            message=f'You have been assigned to job {job.job_number} for {job.client.name}. Due: {job.expected_completion}',
+            link=f'/job/{job.pk}/',
+            related_job=job
+        )
+        
+        # Create job message with assignment notes
+        if assignment_notes:
+            JobMessage.objects.create(
+                job=job,
+                sender=request.user,
+                recipient=assigned_user,
+                message_type='instruction',
+                content=f'Assignment Notes:\n{assignment_notes}'
+            )
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Job assigned to {assigned_user.get_full_name()}',
+            'assigned_to': assigned_user.get_full_name()
+        })
+    except Job.DoesNotExist:
+        return JsonResponse({'error': 'Job not found'}, status=404)
+    except User.DoesNotExist:
+        return JsonResponse({'error': 'User not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@group_required('Account Manager')
+def api_send_job_reminder(request, job_id):
+    """API endpoint to send reminder to job assignee"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        job = Job.objects.get(pk=job_id)
+        reminder_message = request.POST.get('reminder_message', '')
+        
+        if not job.person_in_charge:
+            return JsonResponse({'error': 'Job not assigned to anyone'}, status=400)
+        
+        # Calculate days until deadline
+        days_until = (job.expected_completion - timezone.now().date()).days if job.expected_completion else 0
+        
+        # Create reminder record
+        reminder = JobReminder.objects.create(
+            job=job,
+            sent_to_user=job.person_in_charge,
+            sent_by_user=request.user,
+            reminder_message=reminder_message,
+            days_until_deadline=days_until
+        )
+        
+        # Create notification for assigned user
+        Notification.objects.create(
+            recipient=job.person_in_charge,
+            notification_type='job_reminder',
+            title=f'⏰ Reminder: {job.job_name}',
+            message=f'Reminder from {request.user.get_full_name()}: {reminder_message[:100]}...',
+            link=f'/job/{job.pk}/',
+            related_job=job
+        )
+        
+        # Create message record
+        JobMessage.objects.create(
+            job=job,
+            sender=request.user,
+            recipient=job.person_in_charge,
+            message_type='update',
+            content=f'📌 REMINDER ({days_until} days to deadline):\n{reminder_message}'
+        )
+        
+        # Update job reminder tracking
+        job.last_reminder_sent = timezone.now()
+        job.reminder_count += 1
+        job.save()
+        
+        return JsonResponse({
+            'success': True,
+            'message': f'Reminder sent to {job.person_in_charge.get_full_name()}',
+            'reminder_id': reminder.id
+        })
+    except Job.DoesNotExist:
+        return JsonResponse({'error': 'Job not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@group_required('Account Manager')
+def api_send_job_message(request, job_id):
+    """API endpoint to send message/note to job assignee"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        job = Job.objects.get(pk=job_id)
+        message_content = request.POST.get('message_content', '')
+        message_type = request.POST.get('message_type', 'note')
+        
+        if not job.person_in_charge:
+            return JsonResponse({'error': 'Job not assigned to anyone'}, status=400)
+        
+        if not message_content.strip():
+            return JsonResponse({'error': 'Message cannot be empty'}, status=400)
+        
+        # Create message
+        message = JobMessage.objects.create(
+            job=job,
+            sender=request.user,
+            recipient=job.person_in_charge,
+            message_type=message_type,
+            content=message_content
+        )
+        
+        # Create notification
+        type_icon = {
+            'note': '📝',
+            'update': '📋',
+            'question': '❓',
+            'instruction': '📌'
+        }.get(message_type, '💬')
+        
+        Notification.objects.create(
+            recipient=job.person_in_charge,
+            notification_type='job_message',
+            title=f'{type_icon} New Message: {job.job_name}',
+            message=f'{request.user.get_full_name()}: {message_content[:80]}...',
+            link=f'/job/{job.pk}/',
+            related_job=job
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Message sent',
+            'message_id': message.id,
+            'created_at': message.created_at.strftime('%Y-%m-%d %H:%M:%S')
+        })
+    except Job.DoesNotExist:
+        return JsonResponse({'error': 'Job not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@group_required('Account Manager')
+def api_get_job_details(request, job_id):
+    """API endpoint to get job details for modal"""
+    try:
+        job = Job.objects.get(pk=job_id)
+        
+        # Calculate metrics
+        days_until = (job.expected_completion - timezone.now().date()).days if job.expected_completion else 0
+        is_overdue = days_until < 0 and job.status != 'completed'
+        
+        return JsonResponse({
+            'success': True,
+            'job': {
+                'id': job.id,
+                'job_number': job.job_number,
+                'job_name': job.job_name,
+                'client': job.client.name,
+                'product': job.product,
+                'quantity': job.quantity,
+                'status': job.status,
+                'priority': job.priority,
+                'assigned_to': job.person_in_charge.get_full_name() if job.person_in_charge else 'Unassigned',
+                'assigned_to_id': job.person_in_charge.id if job.person_in_charge else None,
+                'due_date': job.expected_completion.strftime('%Y-%m-%d'),
+                'days_until': days_until,
+                'is_overdue': is_overdue,
+                'assignment_notes': job.assignment_notes,
+                'reminder_count': job.reminder_count,
+                'last_reminder': job.last_reminder_sent.strftime('%Y-%m-%d %H:%M') if job.last_reminder_sent else 'Never',
+                'notes': job.notes,
+            }
+        })
+    except Job.DoesNotExist:
+        return JsonResponse({'error': 'Job not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@group_required('Account Manager')
+def api_get_job_messages(request, job_id):
+    """API endpoint to get job messages/conversation"""
+    try:
+        job = Job.objects.get(pk=job_id)
+        
+        # Get all messages for this job, ordered by newest first
+        messages_list = JobMessage.objects.filter(job=job).select_related('sender', 'recipient').order_by('-created_at')[:50]
+        
+        messages_data = []
+        for msg in reversed(messages_list):  # Reverse to show oldest first
+            messages_data.append({
+                'id': msg.id,
+                'sender': msg.sender.get_full_name(),
+                'sender_id': msg.sender.id,
+                'sender_avatar': msg.sender.username[0].upper(),
+                'type': msg.message_type,
+                'content': msg.content,
+                'created_at': msg.created_at.strftime('%Y-%m-%d %H:%M'),
+                'is_read': msg.is_read,
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'messages': messages_data,
+            'total': len(messages_data)
+        })
+    except Job.DoesNotExist:
+        return JsonResponse({'error': 'Job not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+@group_required('Account Manager')
+def api_get_production_users(request):
+    """API endpoint to get list of production team users"""
+    try:
+        production_group = Group.objects.filter(name='Production Team').first()
+        
+        if production_group:
+            users = production_group.user_set.all().values('id', 'first_name', 'last_name', 'email')
+            users_list = [
+                {
+                    'id': u['id'],
+                    'name': f"{u['first_name']} {u['last_name']}".strip() or u['email'],
+                    'email': u['email']
+                }
+                for u in users
+            ]
+        else:
+            users_list = []
+        
+        return JsonResponse({
+            'success': True,
+            'users': users_list
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def api_job_progress(request, job_id):
+    """API endpoint to get and add job progress updates
+    
+    GET: Any logged-in user can view progress
+    POST: Only Account Managers or the assigned PT user can add updates
+    """
+    try:
+        job = Job.objects.get(pk=job_id)
+        
+        if request.method == 'GET':
+            # Get progress updates (anyone logged in can view)
+            updates = ProductionUpdate.objects.filter(
+                job=job,
+                update_type='job'
+            ).values(
+                'id', 'status', 'progress', 'notes', 
+                'created_by__first_name', 'created_by__last_name', 'created_at'
+            ).order_by('-created_at')
+            
+            # Calculate overall progress (average of all updates, or latest)
+            latest = updates.first() if updates.exists() else None
+            overall_progress = latest['progress'] if latest else 0
+            
+            updates_list = [
+                {
+                    'id': u['id'],
+                    'status': u['status'],
+                    'status_display': dict(ProductionUpdate.UPDATE_TYPE_CHOICES).get(u['status'], u['status']),
+                    'progress': u['progress'],
+                    'notes': u['notes'],
+                    'created_by': f"{u['created_by__first_name']} {u['created_by__last_name']}".strip() if u['created_by__first_name'] else 'Unknown',
+                    'created_at': u['created_at'].strftime('%b %d, %Y %I:%M %p')
+                }
+                for u in updates
+            ]
+            
+            return JsonResponse({
+                'success': True,
+                'overall_progress': overall_progress,
+                'updates': updates_list
+            })
+        
+        elif request.method == 'POST':
+            # Check permissions: Only AM or the assigned PT user can add progress
+            user_groups = request.user.groups.values_list('name', flat=True)
+            is_account_manager = 'Account Manager' in user_groups
+            is_assigned_user = job.person_in_charge and job.person_in_charge.id == request.user.id
+            
+            if not (is_account_manager or is_assigned_user):
+                return JsonResponse({
+                    'error': 'Only Account Managers or the assigned user can add progress updates'
+                }, status=403)
+            
+            # Add progress update
+            status = request.POST.get('status', 'in_production')
+            progress = int(request.POST.get('progress', 0))
+            notes = request.POST.get('notes', '')
+            
+            # Validate progress percentage
+            if progress < 0 or progress > 100:
+                return JsonResponse({'error': 'Progress must be between 0 and 100'}, status=400)
+            
+            # Create update
+            update = ProductionUpdate.objects.create(
+                job=job,
+                update_type='job',
+                status=status,
+                progress=progress,
+                notes=notes,
+                created_by=request.user
+            )
+            
+            # If job is assigned to someone, create notification for the AM who assigned it
+            # Find the user who assigned this job (from JobReminder or just notify the AM group)
+            am_group = Group.objects.filter(name='Account Manager').first()
+            if am_group:
+                for am in am_group.user_set.all():
+                    Notification.objects.create(
+                        recipient=am,
+                        notification_type='progress_update',
+                        title=f'📊 Progress Update: {job.job_name}',
+                        message=f'{request.user.get_full_name()} updated progress to {progress}% - {status.replace("_", " ").title()}',
+                        link=f'/job/{job.pk}/',
+                        related_job=job
+                    )
+            
+            # If progress is 100%, auto-complete
+            if progress == 100:
+                job.status = 'Completed'
+                job.save()
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Progress updated successfully',
+                'update_id': update.id,
+                'progress': progress
+            })
+        
+        else:
+            return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    except Job.DoesNotExist:
+        return JsonResponse({'error': 'Job not found'}, status=404)
+    except ValueError:
+        return JsonResponse({'error': 'Invalid progress value'}, status=400)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
 
 
 @login_required
@@ -4874,7 +5263,10 @@ def _get_product_form_context(product, general_form=None):
         'vendors': vendors,
         'existing_variables_json': existing_variables_json,
         'primary_image': product.images.filter(is_primary=True).first() if product else None,
+        'gallery_images': product.images.filter(is_primary=False).order_by('display_order') if product else [],
         'existing_images': product.images.filter(is_primary=False).order_by('display_order') if product else [],
+        'gallery_images_count': product.images.filter(is_primary=False).count() if product else 0,
+        'has_primary_image': product.images.filter(is_primary=True).exists() if product else False,
         'categories': ProductCategory.objects.all().order_by('name'),
         'subcategories': ProductSubCategory.objects.all().order_by('name'),
         'families': ProductFamily.objects.all().order_by('name'),
@@ -4979,8 +5371,9 @@ def product_detail(request, pk):
     """Display comprehensive product details - Read-only view"""
     product = get_object_or_404(Product, pk=pk)
     
-    # Fetch all related data
-    images = ProductImage.objects.filter(product=product).order_by('display_order')
+    # Fetch all related data with explicit queryset to ensure images are loaded
+    # Use .all() to force fresh query from database
+    images = product.images.all().order_by('display_order')
     pricing = ProductPricing.objects.filter(product=product)
     change_history = ProductChangeHistory.objects.filter(product=product).order_by('-changed_at')[:20]
     
@@ -5032,75 +5425,13 @@ def product_create(request):
             action = request.POST.get('action', 'save_draft')
             next_tab = request.POST.get('next_tab', '')
             
-            # Handle auto-save for new products - return JSON response
+            # Auto-save is disabled for new product creation
+            # Users must explicitly click "Save Draft" or "Publish" to create a product
             if action == 'auto_save':
-                try:
-                    from django.http import QueryDict
-                    general_post_data = QueryDict(mutable=True)
-                    for key in request.POST.keys():
-                        if key not in ['action', 'next_tab', 'base_price'] and not key.startswith('delete_'):
-                            values = request.POST.getlist(key)
-                            for value in values:
-                                general_post_data.appendlist(key, value)
-                    
-                    # Create product if not exists
-                    # Use 'fully_customizable' as default for draft (can be changed later)
-                    # This avoids base_price validation error for non_customizable products
-                    customization_level = request.POST.get('customization_level', 'fully_customizable')
-                    if not customization_level:
-                        customization_level = 'fully_customizable'
-                    
-                    # Create product without validation
-                    product = Product(
-                        name=request.POST.get('name', 'Unnamed Product'),
-                        created_by=request.user,
-                        updated_by=request.user,
-                        status='draft',
-                        customization_level=customization_level,
-                        base_price=None  # Fully customizable must have NULL base_price
-                    )
-                    product.save(skip_validation=True)
-                    
-                    # Now save general form
-                    general_form = ProductGeneralInfoForm(general_post_data, instance=product)
-                    
-                    if general_form.is_valid():
-                        product = general_form.save(commit=False)
-                        product.updated_by = request.user
-                        product.save(skip_validation=True)
-                        general_form.save_m2m()
-                        
-                        # Handle pricing tab auto-save if data exists
-                        try:
-                            _handle_pricing_tab(request, product)
-                        except:
-                            pass
-                        
-                        # Handle images if data exists
-                        try:
-                            _handle_images_tab(request, product)
-                        except:
-                            pass
-                        
-                        return JsonResponse({
-                            'success': True,
-                            'message': 'Product auto-saved successfully',
-                            'product_id': product.id,
-                            'timestamp': timezone.now().isoformat()
-                        })
-                    else:
-                        return JsonResponse({
-                            'success': False,
-                            'message': 'Validation failed',
-                            'errors': general_form.errors
-                        }, status=400)
-                except Exception as e:
-                    import traceback
-                    traceback.print_exc()
-                    return JsonResponse({
-                        'success': False,
-                        'message': str(e)
-                    }, status=400)
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Please save your product by clicking "Save Draft" or "Publish" button',
+                })
             
             # TAB 1: GENERAL INFO
             
@@ -9984,3 +10315,132 @@ def mailgun_webhook(request):
         logger = logging.getLogger(__name__)
         logger.error(f"Mailgun webhook error: {e}", exc_info=True)
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+# ============================================================================
+# 🎯 PRODUCTION TEAM DASHBOARD - Gap 6.1 Implementation
+# ============================================================================
+
+@login_required
+def production_team_dashboard(request):
+    """
+    Production Team dashboard with job overview and metrics.
+    Shows PT user their assigned jobs, upcoming deadlines, vendor workload, etc.
+    """
+    from django.db.models import Q, Count, Sum, Avg
+    from django.utils import timezone
+    from datetime import timedelta, date
+    
+    # Check if user is in Production Team
+    if not request.user.groups.filter(name='Production Team').exists() and not request.user.is_staff:
+        return render(request, '403.html', {'message': 'Access denied. Production Team only.'}, status=403)
+    
+    # Get current user's jobs
+    my_jobs = Job.objects.filter(person_in_charge=request.user).select_related('client', 'quote')
+    
+    # Status breakdown
+    status_counts = {
+        'pending': my_jobs.filter(status='pending').count(),
+        'in_progress': my_jobs.filter(status='in_progress').count(),
+        'on_hold': my_jobs.filter(status='on_hold').count(),
+        'completed': my_jobs.filter(status='completed').count(),
+        'total': my_jobs.count(),
+    }
+    
+    # Upcoming deadlines (next 7 days)
+    today = date.today()
+    upcoming = my_jobs.filter(
+        Q(expected_completion__gte=today) & Q(expected_completion__lte=today + timedelta(days=7)),
+        status__in=['pending', 'in_progress']
+    ).order_by('expected_completion')
+    
+    # Overdue jobs
+    overdue = my_jobs.filter(
+        expected_completion__lt=today,
+        status__in=['pending', 'in_progress']
+    ).order_by('expected_completion')
+    
+    # Jobs by priority
+    priority_counts = {
+        'high': my_jobs.filter(priority='high', status__in=['pending', 'in_progress']).count(),
+        'normal': my_jobs.filter(priority='normal', status__in=['pending', 'in_progress']).count(),
+        'urgent': my_jobs.filter(priority='urgent', status__in=['pending', 'in_progress']).count(),
+    }
+    
+    # Vendor stages assigned (getting active vendor work)
+    vendor_stages = JobVendorStage.objects.filter(
+        status__in=['sent_to_vendor', 'in_production']
+    ).select_related('job', 'vendor').order_by('-created_at')[:10]
+    
+    # Active vendors (who are we working with)
+    active_vendors = Vendor.objects.filter(
+        job_vendor_stages__status__in=['sent_to_vendor', 'in_production']
+    ).distinct().annotate(
+        active_stages=Count('job_vendor_stages', filter=Q(job_vendor_stages__status__in=['sent_to_vendor', 'in_production']))
+    )[:8]
+    
+    # Calculate productivity metrics
+    completed_this_week = my_jobs.filter(
+        status='completed',
+        actual_completion__gte=today - timedelta(days=7),
+        actual_completion__lte=today
+    ).count()
+    
+    # On-time completion rate
+    completed_jobs = my_jobs.filter(status='completed', actual_completion__isnull=False)
+    on_time_count = completed_jobs.filter(actual_completion__lte=models.F('expected_completion')).count()
+    on_time_rate = (on_time_count / completed_jobs.count() * 100) if completed_jobs.count() > 0 else 0
+    
+    context = {
+        'my_jobs': my_jobs,
+        'status_counts': status_counts,
+        'priority_counts': priority_counts,
+        'upcoming_jobs': upcoming,
+        'overdue_jobs': overdue,
+        'vendor_stages': vendor_stages,
+        'active_vendors': active_vendors,
+        'productivity': {
+            'completed_this_week': completed_this_week,
+            'on_time_rate': round(on_time_rate),
+            'total_completed': completed_jobs.count(),
+        },
+        'page_title': 'Production Team Dashboard',
+        'user_name': request.user.get_full_name() or request.user.username,
+    }
+    
+    return render(request, 'production_team_dashboard.html', context)
+
+
+@login_required
+def get_vendor_workload(request, vendor_id):
+    """
+    API endpoint to get vendor workload and capacity.
+    Returns current jobs, capacity, and active stages.
+    """
+    try:
+        vendor = Vendor.objects.get(pk=vendor_id)
+        
+        return JsonResponse({
+            'success': True,
+            'vendor': {
+                'id': vendor.id,
+                'name': vendor.name,
+            },
+            'workload': {
+                'current_jobs': vendor.get_current_workload(),
+                'max_capacity': vendor.max_concurrent_jobs,
+                'available_capacity': vendor.get_available_capacity(),
+                'utilization_percent': vendor.get_workload_percentage(),
+                'is_at_capacity': vendor.is_at_capacity(),
+            },
+            'active_stages': list(
+                vendor.job_vendor_stages.filter(
+                    status__in=['sent_to_vendor', 'in_production']
+                ).values('id', 'job__job_number', 'stage_name', 'status', 'progress')
+            )
+        })
+    except Vendor.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Vendor not found'}, status=404)
+    except Exception as e:
+        logger.error(f"Error getting vendor workload: {e}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)

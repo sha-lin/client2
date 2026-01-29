@@ -93,7 +93,7 @@
 
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Long Description</label>
-                                <textarea rows="4" class="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500">{{ product.long_description }}</textarea>
+                                <textarea rows="4" class="w-full px-3 py-2 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500">{{ product.long_description|safe }}</textarea>
                                 <p class="text-xs text-gray-500 mt-1">Detailed product page content (2000 chars max)</p>
                             </div>
 
@@ -123,38 +123,45 @@
 
                     <div class="bg-white rounded-lg border border-gray-200 p-6">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Technical Specifications</h3>
-                        <div class="space-y-4">
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Material Type</label>
-                                    <input type="text" value="{{ product.material_type }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Unit of Measure</label>
-                                    <select class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option>Per piece</option>
-                                        <option>m²</option>
-                                        <option>Pack</option>
-                                        <option>Set</option>
-                                    </select>
-                                </div>
+                        <div class="space-y-3">
+                            {% if product.unit_of_measure %}
+                            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span class="text-sm font-medium text-gray-700">Unit of Measure</span>
+                                <span class="text-sm text-gray-900 capitalize">{{ product.get_unit_of_measure_display|default:product.unit_of_measure }}</span>
                             </div>
+                            {% endif %}
 
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Standard Dimensions</label>
-                                    <input type="text" value="{{ product.dimensions }}" placeholder="L × W × H" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Artwork Requirement</label>
-                                    <select class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option>None</option>
-                                        <option>Text Only</option>
-                                        <option>Design File Required</option>
-                                        <option>Client-Supplied Artwork</option>
-                                    </select>
-                                </div>
+                            {% if product.weight %}
+                            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span class="text-sm font-medium text-gray-700">Weight</span>
+                                <span class="text-sm text-gray-900">{{ product.weight }} {% if product.weight_unit %}{{ product.get_weight_unit_display|default:product.weight_unit }}{% endif %}</span>
                             </div>
+                            {% endif %}
+
+                            {% if product.length and product.width and product.height %}
+                            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span class="text-sm font-medium text-gray-700">Dimensions (L × W × H)</span>
+                                <span class="text-sm text-gray-900">{{ product.length }} × {{ product.width }} × {{ product.height }} {% if product.dimension_unit %}{{ product.get_dimension_unit_display|default:product.dimension_unit }}{% endif %}</span>
+                            </div>
+                            {% endif %}
+
+                            {% if product.warranty %}
+                            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span class="text-sm font-medium text-gray-700">Warranty</span>
+                                <span class="text-sm text-gray-900">{{ product.get_warranty_display|default:product.warranty }}</span>
+                            </div>
+                            {% endif %}
+
+                            {% if product.country_of_origin %}
+                            <div class="flex justify-between items-center py-2 border-b border-gray-100">
+                                <span class="text-sm font-medium text-gray-700">Country of Origin</span>
+                                <span class="text-sm text-gray-900">{{ product.get_country_of_origin_display|default:product.country_of_origin }}</span>
+                            </div>
+                            {% endif %}
+
+                            {% if not product.unit_of_measure and not product.weight and not product.length and not product.warranty and not product.country_of_origin %}
+                            <p class="text-sm text-gray-500 py-2">No technical specifications provided</p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -232,54 +239,164 @@
 
         <!-- Pricing Tab -->
         <div class="tab-content hidden" data-content="pricing">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Quantity-Based Pricing Tiers -->
                 <div class="bg-white rounded-lg border border-gray-200 p-6">
-                    <h3 class="text-lg font-medium text-gray-900 mb-4">Base Pricing</h3>
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Pricing Tiers</h3>
+                    {% if product.quantity_pricing.all %}
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead>
+                                <tr class="border-b border-gray-200">
+                                    <th class="text-left py-3 px-4 font-medium text-sm text-gray-700">Quantity Range</th>
+                                    <th class="text-left py-3 px-4 font-medium text-sm text-gray-700">Unit Price</th>
+                                    <th class="text-left py-3 px-4 font-medium text-sm text-gray-700">Discount</th>
+                                    <th class="text-left py-3 px-4 font-medium text-sm text-gray-700">Total Price (1000 units)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for tier in product.quantity_pricing.all %}
+                                <tr class="border-b border-gray-100 hover:bg-gray-50">
+                                    <td class="py-3 px-4 text-sm text-gray-900">
+                                        {% if tier.max_quantity %}
+                                            {{ tier.min_quantity }}-{{ tier.max_quantity }} units
+                                        {% else %}
+                                            {{ tier.min_quantity }}+ units
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-3 px-4 text-sm font-medium text-gray-900">KES {{ tier.unit_price }}</td>
+                                    <td class="py-3 px-4 text-sm text-gray-600">
+                                        {% if tier.percentage_discount > 0 %}
+                                            {{ tier.percentage_discount }}%
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td class="py-3 px-4 text-sm font-medium text-green-600">KES {{ tier.unit_price|add:"0" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-4 bg-gray-50 rounded text-gray-600 text-sm">
+                        <i data-lucide="info" class="w-4 h-4 inline mr-2"></i>
+                        No pricing tiers configured
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Base Pricing Configuration -->
+                {% if product.pricing %}
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg border border-gray-200 p-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Base Pricing Configuration</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Pricing Model</label>
+                                <input type="text" value="{{ product.pricing.get_pricing_model_display }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50" readonly>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Base Cost (EVP)</label>
+                                <div class="flex gap-2">
+                                    <span class="flex items-center text-gray-500 px-3 border border-gray-200 rounded-l-lg">KES</span>
+                                    <input type="number" value="{{ product.pricing.base_cost }}" class="flex-1 px-3 py-2 border border-gray-200 rounded-r-lg bg-gray-50" readonly>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Vendor cost per unit</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Default Margin (%)</label>
+                                <input type="number" step="0.01" value="{{ product.pricing.default_margin }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50" readonly>
+                                <p class="text-xs text-gray-500 mt-1">Standard markup applied</p>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Margin (%)</label>
+                                <input type="number" step="0.01" value="{{ product.pricing.minimum_margin }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50" readonly>
+                                <p class="text-xs text-red-500 mt-1">Below this triggers approval requirement</p>
+                            </div>
+
+                            {% if product.base_price %}
+                            <div class="pt-4 border-t border-gray-200">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-sm text-gray-600">Base Selling Price</span>
+                                    <span class="text-lg font-semibold text-gray-900">KES {{ product.base_price }}</span>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-lg border border-gray-200 p-6">
+                        <h3 class="text-lg font-medium text-gray-900 mb-4">Production Details</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Lead Time</label>
+                                <input type="text" value="{% if product.pricing.lead_time_value %}{{ product.pricing.lead_time_value }} {{ product.pricing.get_lead_time_unit_display|lower }}{% endif %}" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50" readonly>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Production Method</label>
+                                <input type="text" value="{{ product.pricing.get_production_method_display }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50" readonly>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Order Quantity</label>
+                                <input type="number" value="{{ product.pricing.minimum_quantity }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50" readonly>
+                            </div>
+
+                            {% if product.pricing.rush_available %}
+                            <div class="pt-4 border-t border-gray-200">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <i data-lucide="zap" class="w-4 h-4 text-orange-500"></i>
+                                    <span class="text-sm font-medium text-gray-700">Rush Production Available</span>
+                                </div>
+                                <div class="text-xs text-gray-600 ml-6">
+                                    <p>Lead time: {{ product.pricing.rush_lead_time_value }} {{ product.pricing.get_rush_lead_time_unit_display|lower }}</p>
+                                    <p>Upcharge: {{ product.pricing.rush_upcharge }}%</p>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Customization Variables -->
+                {% if product.variables.all %}
+                <div class="bg-white rounded-lg border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Customization Options</h3>
                     <div class="space-y-4">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Base Estimated Vendor Price (EVP)</label>
-                            <div class="flex gap-2">
-                                <span class="flex items-center text-gray-500 px-3 border border-gray-200 rounded-l-lg">KES</span>
-                                <input type="number" value="{{ product.base_evp }}" class="flex-1 px-3 py-2 border border-gray-200 rounded-r-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        {% for variable in product.variables.all %}
+                        <div class="border border-gray-200 rounded-lg p-4">
+                            <div class="flex items-center justify-between mb-3">
+                                <div>
+                                    <h4 class="font-medium text-sm text-gray-900">{{ variable.name }}</h4>
+                                    <p class="text-xs text-gray-600 mt-1">Type: {{ variable.get_variable_type_display }} • Pricing: {{ variable.get_pricing_type_display }}</p>
+                                </div>
+                                <span class="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                                    {% if variable.variable_type == 'required' %}Required{% else %}Optional{% endif %}
+                                </span>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">Per unit vendor cost</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Default AM Markup (%)</label>
-                            <input type="number" value="{{ product.markup }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <p class="text-xs text-gray-500 mt-1">Standard margin applied</p>
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Minimum Margin Threshold (%)</label>
-                            <input type="number" value="{{ product.minimum_margin }}" class="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <p class="text-xs text-red-500 mt-1">Below this triggers escalation</p>
-                        </div>
-
-                        <div class="pt-4 border-t border-gray-200">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-sm text-gray-600">Calculated Base Price</span>
-                                <span class="text-gray-900">KES 19.80</span>
+                            {% if variable.options.all %}
+                            <div class="flex flex-wrap gap-2">
+                                {% for option in variable.options.all %}
+                                <span class="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm">
+                                    {{ option.name }}
+                                    {% if option.price_modifier > 0 %}
+                                    <span class="text-gray-500 ml-1">(+KES {{ option.price_modifier }})</span>
+                                    {% endif %}
+                                </span>
+                                {% endfor %}
                             </div>
-                            <div class="flex items-center justify-between">
-                                <span class="text-sm text-gray-600">Profit per Unit</span>
-                                <span class="text-green-600">KES 4.80</span>
-                            </div>
+                            {% endif %}
                         </div>
+                        {% endfor %}
                     </div>
                 </div>
-
-                <div class="bg-white rounded-lg border border-gray-200 p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-medium text-gray-900">Variable Pricing Matrix</h3>
-                        <button class="px-3 py-1 border border-gray-200 rounded text-sm hover:bg-gray-50 flex items-center gap-1">
-                            <i data-lucide="plus" class="w-4 h-4"></i>
-                            Add Variable
-                        </button>
-                    </div>
-                    <p class="text-sm text-gray-600">Quantity breaks and customization options</p>
-                </div>
+                {% endif %}
             </div>
         </div>
 
@@ -299,53 +416,37 @@
         </div>
 
         <div class="grid grid-cols-4 gap-4">
-            <!-- Primary Image -->
-            <div class="relative group border-2 border-blue-500 rounded-lg overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400" alt="Product" class="w-full h-48 object-cover">
-                <div class="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">Primary</div>
-                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                    <button class="p-2 bg-white rounded hover:bg-gray-100">
-                        <i data-lucide="eye" class="w-4 h-4"></i>
-                    </button>
-                    <button class="p-2 bg-white rounded hover:bg-gray-100">
-                        <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
-                    </button>
-                </div>
-                <div class="absolute bottom-0 left-0 right-0 bg-white p-2">
-                    <input type="text" value="Premium business cards front view" class="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                </div>
-            </div>
-
-            <!-- Second Image -->
-            <div class="relative group border border-gray-200 rounded-lg overflow-hidden">
-                <img src="https://images.unsplash.com/photo-1589939705384-5185137a7f0f?w=400" alt="Product" class="w-full h-48 object-cover">
-                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
-                    <button class="p-2 bg-white rounded hover:bg-gray-100">
-                        <i data-lucide="eye" class="w-4 h-4"></i>
-                    </button>
-                    <button class="p-2 bg-white rounded hover:bg-gray-100">
-                        <i data-lucide="star" class="w-4 h-4"></i>
-                    </button>
-                    <button class="p-2 bg-white rounded hover:bg-gray-100">
-                        <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
-                    </button>
-                </div>
-                <div class="absolute bottom-0 left-0 right-0 bg-white p-2">
-                    <input type="text" value="Business cards with matte finish" class="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                </div>
-            </div>
-
-            <!-- Third Image - Placeholder -->
-            <div class="relative group border border-gray-200 rounded-lg overflow-hidden bg-gray-100">
-                <div class="w-full h-48 flex items-center justify-center">
-                    <div class="text-center">
-                        <i data-lucide="image" class="w-8 h-8 text-gray-400 mx-auto mb-2"></i>
-                        <span class="text-sm text-gray-500">Gloss lamination detail</span>
+            {% if product.images.all %}
+                {% for image in product.images.all %}
+                    <div class="relative group {% if image.is_primary %}border-2 border-blue-500{% else %}border border-gray-200{% endif %} rounded-lg overflow-hidden">
+                        <img src="{{ image.image.url }}" alt="{{ image.alt_text }}" class="w-full h-48 object-cover">
+                        {% if image.is_primary %}
+                            <div class="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded">Primary</div>
+                        {% endif %}
+                        {% if image.image_type %}
+                            <div class="absolute top-2 right-2 bg-gray-600 text-white text-xs px-2 py-1 rounded">{{ image.get_image_type_display }}</div>
+                        {% endif %}
+                        <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center gap-2 opacity-0 group-hover:opacity-100">
+                            <button class="p-2 bg-white rounded hover:bg-gray-100">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                            <button class="p-2 bg-white rounded hover:bg-gray-100">
+                                <i data-lucide="trash-2" class="w-4 h-4 text-red-600"></i>
+                            </button>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 bg-white p-2">
+                            <input type="text" value="{{ image.alt_text }}" placeholder="Alt text" class="w-full text-xs border border-gray-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                        </div>
                     </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-span-2 text-center py-12 bg-gray-50 rounded-lg">
+                    <i data-lucide="image" class="w-12 h-12 text-gray-400 mx-auto mb-2"></i>
+                    <p class="text-gray-600">No images uploaded yet</p>
                 </div>
-            </div>
-
-            <!-- Add Image Button -->
+            {% endif %}
+            
+            <!-- Add Image Button (always show) -->
             <div class="border-2 border-dashed border-gray-300 rounded-lg h-48 flex items-center justify-center cursor-pointer hover:border-gray-400 hover:bg-gray-50 transition-all">
                 <div class="text-center">
                     <i data-lucide="upload" class="w-8 h-8 text-gray-400 mx-auto mb-2"></i>

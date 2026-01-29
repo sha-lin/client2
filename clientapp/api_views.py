@@ -1913,6 +1913,8 @@ class JobViewSet(viewsets.ModelViewSet):
         """
         Send job specifications to a vendor.
         Packages job attachments and specs into a vendor-ready format.
+        
+        ✅ NEW: Includes vendor capacity checking
         """
         job = self.get_object()
         vendor_id = request.data.get("vendor_id")
@@ -1933,6 +1935,23 @@ class JobViewSet(viewsets.ModelViewSet):
                 {"detail": "Vendor not found or inactive"},
                 status=status.HTTP_404_NOT_FOUND
             )
+        
+        # ✅ NEW: Check vendor capacity
+        if vendor.is_at_capacity():
+            return Response({
+                'detail': f'Vendor {vendor.name} is at capacity',
+                'error': 'VENDOR_AT_CAPACITY',
+                'vendor': {
+                    'id': vendor.id,
+                    'name': vendor.name,
+                    'workload': {
+                        'current_jobs': vendor.get_current_workload(),
+                        'max_capacity': vendor.max_concurrent_jobs,
+                        'available_capacity': vendor.get_available_capacity(),
+                        'utilization_percent': vendor.get_workload_percentage(),
+                    }
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
         
         # Create vendor stage
         last_stage = job.vendor_stages.order_by('-stage_order').first()
@@ -1995,6 +2014,7 @@ class JobViewSet(viewsets.ModelViewSet):
             job.status = 'in_progress'
             job.save()
         
+        # ✅ NEW: Include vendor workload in response
         return Response({
             "detail": "Job sent to vendor successfully",
             "vendor_stage_id": vendor_stage.id,
@@ -2003,6 +2023,12 @@ class JobViewSet(viewsets.ModelViewSet):
             "attachments_count": len(attachment_list),
             "attachments": attachment_list,
             "po_id": po.id if po else None,
+            "vendor_workload": {
+                'current_jobs': vendor.get_current_workload(),
+                'max_capacity': vendor.max_concurrent_jobs,
+                'available_capacity': vendor.get_available_capacity(),
+                'utilization_percent': vendor.get_workload_percentage(),
+            }
         })
 
     @decorators.action(detail=True, methods=["post"], permission_classes=[IsAuthenticated, IsProductionTeam | IsAdmin])
@@ -2156,6 +2182,41 @@ class VendorViewSet(viewsets.ModelViewSet):
             "detail": "VPS recalculated successfully",
             "vendor": serializer.data,
             "calculation_details": result,
+        })
+    
+    @decorators.action(detail=True, methods=["get"])
+    def workload(self, request, pk=None):
+        """
+        Get vendor workload and capacity information.
+        
+        Returns:
+        - current_jobs: Number of active jobs
+        - max_capacity: Maximum concurrent jobs allowed
+        - available_capacity: Number of available slots
+        - utilization_percent: Workload as percentage (0-100)
+        - is_at_capacity: Boolean flag
+        - active_stages: List of active job stages
+        """
+        vendor = self.get_object()
+        
+        # Get active job vendor stages
+        from clientapp.api_serializers import JobVendorStageSerializer
+        active_stages = vendor.job_vendor_stages.filter(
+            status__in=['sent_to_vendor', 'in_production']
+        ).select_related('job').order_by('-created_at')[:10]
+        
+        return Response({
+            'vendor_id': vendor.id,
+            'vendor_name': vendor.name,
+            'workload': {
+                'current_jobs': vendor.get_current_workload(),
+                'max_capacity': vendor.max_concurrent_jobs,
+                'available_capacity': vendor.get_available_capacity(),
+                'utilization_percent': vendor.get_workload_percentage(),
+                'is_at_capacity': vendor.is_at_capacity(),
+            },
+            'active_stages': JobVendorStageSerializer(active_stages, many=True).data,
+            'status': 'OK',
         })
 
 
