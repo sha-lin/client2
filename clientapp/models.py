@@ -1659,6 +1659,21 @@ class Quote(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # Email Tracking (Mailgun Integration)
+    email_sent = models.BooleanField(default=False, help_text="Email sent to client")
+    email_sent_at = models.DateTimeField(null=True, blank=True, help_text="When email was sent")
+    email_delivered = models.BooleanField(default=False, help_text="Email delivered to recipient")
+    email_delivered_at = models.DateTimeField(null=True, blank=True, help_text="When email was delivered")
+    email_opened = models.BooleanField(default=False, help_text="Email opened by recipient")
+    email_opened_at = models.DateTimeField(null=True, blank=True, help_text="When email was first opened")
+    email_opened_by = models.EmailField(blank=True, help_text="Email address that opened the message")
+    email_clicked = models.BooleanField(default=False, help_text="Link clicked in email")
+    email_clicked_at = models.DateTimeField(null=True, blank=True, help_text="When link was clicked")
+    email_clicked_url = models.URLField(blank=True, help_text="Which link was clicked")
+    email_failed = models.BooleanField(default=False, help_text="Email delivery failed")
+    email_failed_reason = models.TextField(blank=True, help_text="Reason for delivery failure")
+    mailgun_message_id = models.CharField(max_length=200, blank=True, help_text="Mailgun message ID for tracking")
+    
     class Meta:
         ordering = ['-created_at']
         indexes = [

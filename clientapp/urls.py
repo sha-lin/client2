@@ -428,5 +428,7 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     # path('api/accept-all/', views.api_accept_all, name='api_accept_all'),
     # path('api/notifications/', views.api_get_notifications, name='api_notifications'),
 
+    # Webhooks
+    path('webhooks/mailgun/', views.mailgun_webhook, name='mailgun_webhook'),
 
 ]

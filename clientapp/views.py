@@ -214,7 +214,7 @@ def search(request):
 @login_required
 @group_required('Account Manager')
 def edit_client(request, pk):
-    """Edit client details (Account Manager)"""
+    """Edit client details (Account Manager) - Dynamic B2B/B2C form"""
     client = get_object_or_404(Client, pk=pk)
     if request.method == 'POST':
         form = ClientForm(request.POST, instance=client)
@@ -225,11 +225,27 @@ def edit_client(request, pk):
     else:
         form = ClientForm(instance=client)
 
-    return render(request, 'client_edit.html', {
+    # Gather B2B-specific data if client is B2B
+    context = {
         'form': form,
         'client': client,
         'current_view': 'clients',
-    })
+    }
+
+    if client.client_type == 'B2B':
+        # Fetch contacts for this B2B client
+        contacts = ClientContact.objects.filter(client=client).order_by('-is_primary', 'full_name')
+        context['contacts'] = contacts
+
+        # Fetch brand assets for this B2B client
+        brand_assets = BrandAsset.objects.filter(client=client).order_by('asset_type', '-uploaded_at')
+        context['brand_assets'] = brand_assets
+
+        # Fetch compliance documents for this B2B client
+        compliance_docs = ComplianceDocument.objects.filter(client=client).order_by('-uploaded_at')
+        context['compliance_documents'] = compliance_docs
+
+    return render(request, 'client_edit.html', context)
 
 
     
@@ -9846,3 +9862,125 @@ def vendor_portal_spa(request):
         'vendor_name': vendor.name,
         'user': request.user
     })
+
+
+# ==================== MAILGUN WEBHOOKS ====================
+
+import json
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.http import JsonResponse
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def mailgun_webhook(request):
+    """
+    Handle Mailgun webhook events for quote email tracking
+    
+    Events handled:
+    - opened: Email was opened by recipient
+    - clicked: Email link was clicked by recipient
+    - delivered: Email was delivered successfully
+    - failed: Email delivery failed
+    
+    Requires custom variables to be sent with email:
+    - v:quote_id: Quote ID in database
+    - v:quote_number: Quote number for logging
+    """
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # Parse webhook data
+        if request.POST:
+            data = request.POST.dict()
+        else:
+            try:
+                data = json.loads(request.body)
+            except:
+                data = {}
+        
+        # Get event details
+        event_type = data.get('event')
+        custom_vars = data.get('custom-variables', {})
+        quote_id = custom_vars.get('quote_id')
+        quote_number = custom_vars.get('quote_number', 'Unknown')
+        
+        logger.info(f"📩 Mailgun Webhook: event_type={event_type}, quote_id={quote_id}")
+        
+        # Webhooks without quote_id are not for us
+        if not quote_id:
+            logger.debug(f"Webhook received but no quote_id, ignoring")
+            return JsonResponse({'status': 'ok'})
+        
+        # Get quote from database
+        try:
+            from .models import Quote
+            quote = Quote.objects.get(id=quote_id)
+        except Quote.DoesNotExist:
+            logger.warning(f"Quote {quote_id} not found in database")
+            return JsonResponse({'status': 'ok'})
+        except Exception as e:
+            logger.error(f"Error fetching quote: {e}")
+            return JsonResponse({'status': 'ok'})
+        
+        # Handle event types
+        if event_type == 'opened':
+            recipient = data.get('recipient', 'unknown')
+            logger.info(f"📬 Quote {quote_number} opened by {recipient}")
+            
+            try:
+                quote.email_opened = True
+                quote.email_opened_at = timezone.now()
+                quote.email_opened_by = recipient
+                quote.save()
+                logger.info(f"✅ Updated quote {quote_number}: marked as opened")
+            except Exception as e:
+                logger.error(f"Error updating quote: {e}")
+        
+        elif event_type == 'clicked':
+            url = data.get('url', '')
+            logger.info(f"🔗 Link clicked in quote {quote_number}: {url}")
+            
+            try:
+                quote.email_clicked = True
+                quote.email_clicked_at = timezone.now()
+                quote.email_clicked_url = url
+                quote.save()
+                logger.info(f"✅ Updated quote {quote_number}: marked as clicked")
+            except Exception as e:
+                logger.error(f"Error updating quote: {e}")
+        
+        elif event_type == 'delivered':
+            logger.info(f"✅ Quote {quote_number} delivered")
+            
+            try:
+                quote.email_delivered = True
+                quote.email_delivered_at = timezone.now()
+                quote.save()
+                logger.info(f"✅ Updated quote {quote_number}: marked as delivered")
+            except Exception as e:
+                logger.error(f"Error updating quote: {e}")
+        
+        elif event_type == 'failed':
+            reason = data.get('description', 'Unknown reason')
+            logger.error(f"❌ Quote {quote_number} delivery failed: {reason}")
+            
+            try:
+                quote.email_failed = True
+                quote.email_failed_reason = reason
+                quote.save()
+                logger.error(f"✅ Updated quote {quote_number}: marked as failed")
+                
+                # TODO: Send notification to AM about failed delivery
+            except Exception as e:
+                logger.error(f"Error updating quote: {e}")
+        
+        # Always return OK to Mailgun
+        return JsonResponse({'status': 'ok'})
+    
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Mailgun webhook error: {e}", exc_info=True)
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)

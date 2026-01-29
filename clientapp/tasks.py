@@ -629,6 +629,205 @@ try:
 
     # ==================== EMAIL SENDING TASKS ====================
     
+    def send_quote_email_via_mailgun_api(quote_id, recipient_email, subject, context=None):
+        """
+        Send quote email using Mailgun API with tracking enabled
+        
+        Benefits over SMTP:
+        - Email open tracking
+        - Link click tracking
+        - Real-time webhooks
+        - Better error handling
+        
+        Args:
+            quote_id: ID of quote to send
+            recipient_email: Client email address
+            subject: Email subject line
+            context: Email template context
+        
+        Returns:
+            dict: {'success': bool, 'message_id': str, 'message': str}
+        """
+        try:
+            import requests
+            from django.conf import settings
+            from django.template.loader import render_to_string
+            from django.utils import timezone
+            from .models import Quote
+            from io import BytesIO
+            from reportlab.lib.pagesizes import letter
+            from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib import colors
+            
+            logger.info(f"🚀 MAILGUN API TASK START: send_quote_email_via_mailgun_api for quote {quote_id}")
+            
+            # Get quote
+            try:
+                quote = Quote.objects.get(id=quote_id)
+            except Quote.DoesNotExist:
+                logger.error(f"Quote {quote_id} not found")
+                return {
+                    'success': False,
+                    'message': f'Quote {quote_id} not found'
+                }
+            
+            # Prepare context
+            if context is None:
+                context = {}
+            context.update({
+                'quote': quote,
+                'quote_link': f"https://yourdomain.com/quotes/{quote.quote_id}/",
+            })
+            
+            # Render HTML email
+            try:
+                html_message = render_to_string('quote_email.html', context)
+            except Exception as template_error:
+                logger.error(f"Error rendering email template: {template_error}")
+                html_message = f"<h1>Quote {quote.quote_id}</h1><p>Your quote is ready for review</p>"
+            
+            # Get Mailgun credentials
+            mailgun_domain = settings.MAILGUN_DOMAIN
+            mailgun_api_key = settings.MAILGUN_API_KEY
+            
+            if not mailgun_domain or not mailgun_api_key:
+                logger.error("MAILGUN_API_KEY or MAILGUN_DOMAIN not configured")
+                return {
+                    'success': False,
+                    'message': 'Mailgun API credentials not configured'
+                }
+            
+            # Mailgun API endpoint
+            url = f'https://api.mailgun.net/v3/{mailgun_domain}/messages'
+            
+            # Prepare email data with tracking
+            data = {
+                'from': f'PrintDuka <noreply@{mailgun_domain}>',
+                'to': recipient_email,
+                'subject': subject,
+                'html': html_message,
+                
+                # Enable tracking
+                'o:tracking': 'yes',           # Enable all tracking
+                'o:tracking-opens': 'yes',     # Track when email is opened
+                'o:tracking-clicks': 'yes',    # Track when links are clicked
+                'o:require-tls': 'yes',        # Require TLS for security
+                
+                # Custom variables (available in webhooks)
+                'v:quote_id': str(quote.id),
+                'v:quote_number': quote.quote_id,
+            }
+            
+            # Generate and attach PDF
+            files = []
+            try:
+                buffer = BytesIO()
+                doc = SimpleDocTemplate(buffer, pagesize=letter)
+                elements = []
+                styles = getSampleStyleSheet()
+                
+                # Title
+                title_style = ParagraphStyle(
+                    'CustomTitle',
+                    parent=styles['Heading1'],
+                    fontSize=24,
+                    textColor=colors.HexColor('#1f4788'),
+                    spaceAfter=30,
+                    alignment=1,
+                )
+                elements.append(Paragraph(f"Quote {quote.quote_id}", title_style))
+                elements.append(Spacer(1, 0.2*inch))
+                
+                # Quote details
+                details = [
+                    ['Quote ID:', quote.quote_id],
+                    ['Date:', quote.created_at.strftime('%Y-%m-%d')],
+                    ['Status:', quote.status or 'Pending'],
+                ]
+                
+                if hasattr(quote, 'client') and quote.client:
+                    details.append(['Client:', str(quote.client)])
+                
+                detail_table = Table(details, colWidths=[2*inch, 4*inch])
+                detail_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e8f0f8')),
+                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 11),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+                ]))
+                
+                elements.append(detail_table)
+                elements.append(Spacer(1, 0.3*inch))
+                
+                # Build PDF
+                doc.build(elements)
+                buffer.seek(0)
+                pdf_content = buffer.getvalue()
+                
+                if pdf_content:
+                    files.append(
+                        ('attachment', (f'Quote_{quote.quote_id}.pdf', pdf_content, 'application/pdf'))
+                    )
+                    logger.info(f"✅ PDF generated for quote {quote.quote_id}")
+            
+            except Exception as pdf_error:
+                logger.warning(f"PDF generation failed: {pdf_error}")
+                # Continue without PDF - not critical
+            
+            # Send via Mailgun API
+            logger.info(f"📧 Sending via Mailgun API: {quote.quote_id} to {recipient_email}")
+            logger.info(f"   API Endpoint: {url}")
+            logger.info(f"   Tracking: Opens & Clicks enabled")
+            
+            response = requests.post(
+                url,
+                auth=('api', mailgun_api_key),
+                data=data,
+                files=files,
+                timeout=10,
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                message_id = result.get('id')
+                
+                logger.info(f"✅ Successfully sent email via API for quote {quote.quote_id}")
+                logger.info(f"   Message ID: {message_id}")
+                logger.info(f"   Recipient: {recipient_email}")
+                
+                # Save message ID and mark as sent
+                quote.mailgun_message_id = message_id
+                quote.email_sent = True
+                quote.email_sent_at = timezone.now()
+                quote.save()
+                
+                return {
+                    'success': True,
+                    'message_id': message_id,
+                    'message': f'Quote sent to {recipient_email} with tracking enabled',
+                }
+            else:
+                error_msg = response.text
+                logger.error(f"❌ API Error: {error_msg}")
+                logger.error(f"   Status Code: {response.status_code}")
+                
+                return {
+                    'success': False,
+                    'message': f'Failed to send email: {error_msg}',
+                }
+        
+        except Exception as e:
+            logger.error(f"Unexpected error in send_quote_email_via_mailgun_api: {e}", exc_info=True)
+            return {
+                'success': False,
+                'message': str(e),
+            }
+
     def send_quote_email_task(quote_id, recipient_email, subject, context=None):
         """
         Send quote email synchronously (no Celery worker required).

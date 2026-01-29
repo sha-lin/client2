@@ -1,0 +1,334 @@
+<!-- Client Edit Modals - Include these in client_edit.html for interactive management -->
+
+<!-- ========== ADD/EDIT CONTACT MODAL ========== -->
+<div id="contactModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
+    <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+      <h2 id="contactModalTitle" class="text-lg font-semibold text-gray-900">Add Contact</h2>
+      <button type="button" onclick="closeContactModal()"
+        class="text-gray-400 hover:text-gray-600 transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <form id="contactForm" class="p-6 space-y-4">
+      {% csrf_token %}
+      <input type="hidden" id="contactId" name="contact_id" value="">
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Role *</label>
+        <select id="contactRole" name="role" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" required>
+          <option value="">Select role...</option>
+          <option value="None">None</option>
+          <option value="Approve Quotes">Approve Quotes</option>
+          <option value="Approve Artwork">Approve Artwork</option>
+          <option value="Billing Contact">Billing Contact</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
+        <input type="text" id="contactName" name="full_name" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="John Doe" required>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
+        <input type="email" id="contactEmail" name="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="john@company.com">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
+        <input type="tel" id="contactPhone" name="phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" placeholder="+254700000000" required>
+      </div>
+
+      <div class="border-t pt-4 flex gap-3">
+        <button type="button" onclick="closeContactModal()"
+          class="flex-1 px-4 py-2 bg-white text-gray-900 border border-gray-900 rounded-lg hover:bg-gray-100 transition-all font-medium">
+          Cancel
+        </button>
+        <button type="submit"
+          class="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all font-medium">
+          Save Contact
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== ADD BRAND ASSET MODAL ========== -->
+<div id="brandModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
+    <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-gray-900">Upload Brand Asset</h2>
+      <button type="button" onclick="closeBrandModal()"
+        class="text-gray-400 hover:text-gray-600 transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <form id="brandForm" class="p-6 space-y-4" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Asset Type *</label>
+        <select id="assetType" name="asset_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" required>
+          <option value="">Select asset type...</option>
+          <option value="Logo">Logo</option>
+          <option value="Packaging">Packaging Design</option>
+          <option value="Brochure">Brochure</option>
+          <option value="Marketing Material">Marketing Material</option>
+          <option value="Product Image">Product Image</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">File Upload *</label>
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-all"
+          onclick="document.getElementById('brandFile').click()">
+          <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3v-6"></path>
+          </svg>
+          <p class="text-sm text-gray-600">Click to upload or drag and drop</p>
+          <p id="brandFileName" class="text-xs text-gray-500 mt-1">PDF, JPG, PNG up to 10MB</p>
+        </div>
+        <input type="file" id="brandFile" name="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif" onchange="updateFileName()">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Description (Optional)</label>
+        <textarea id="assetDescription" name="description" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" rows="3" placeholder="Brief description of this asset"></textarea>
+      </div>
+
+      <div class="border-t pt-4 flex gap-3">
+        <button type="button" onclick="closeBrandModal()"
+          class="flex-1 px-4 py-2 bg-white text-gray-900 border border-gray-900 rounded-lg hover:bg-gray-100 transition-all font-medium">
+          Cancel
+        </button>
+        <button type="submit"
+          class="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all font-medium">
+          Upload Asset
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ========== ADD COMPLIANCE DOCUMENT MODAL ========== -->
+<div id="complianceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-lg shadow-lg max-w-md w-full max-h-screen overflow-y-auto">
+    <div class="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-center justify-between">
+      <h2 class="text-lg font-semibold text-gray-900">Add Compliance Document</h2>
+      <button type="button" onclick="closeComplianceModal()"
+        class="text-gray-400 hover:text-gray-600 transition-all">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+        </svg>
+      </button>
+    </div>
+
+    <form id="complianceForm" class="p-6 space-y-4" enctype="multipart/form-data">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Document Type *</label>
+        <select id="docType" name="document_type" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" required>
+          <option value="">Select document type...</option>
+          <option value="Business License">Business License</option>
+          <option value="Tax Certificate">Tax Certificate</option>
+          <option value="Insurance">Insurance Certificate</option>
+          <option value="ISO Certification">ISO Certification</option>
+          <option value="Health & Safety">Health & Safety Certificate</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Expiration Date</label>
+        <input type="date" id="expirationDate" name="expiration_date" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900">
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">Document Status *</label>
+        <select id="docStatus" name="status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900" required>
+          <option value="">Select status...</option>
+          <option value="Valid" selected>Valid</option>
+          <option value="Expiring Soon">Expiring Soon</option>
+          <option value="Expired">Expired</option>
+          <option value="Pending Renewal">Pending Renewal</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-2">File Upload *</label>
+        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center cursor-pointer hover:bg-gray-50 transition-all"
+          onclick="document.getElementById('complianceFile').click()">
+          <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3v-6"></path>
+          </svg>
+          <p class="text-sm text-gray-600">Click to upload or drag and drop</p>
+          <p id="complianceFileName" class="text-xs text-gray-500 mt-1">PDF, JPG, PNG up to 10MB</p>
+        </div>
+        <input type="file" id="complianceFile" name="file" class="hidden" accept=".pdf,.jpg,.jpeg,.png" onchange="updateComplianceFileName()" required>
+      </div>
+
+      <div class="border-t pt-4 flex gap-3">
+        <button type="button" onclick="closeComplianceModal()"
+          class="flex-1 px-4 py-2 bg-white text-gray-900 border border-gray-900 rounded-lg hover:bg-gray-100 transition-all font-medium">
+          Cancel
+        </button>
+        <button type="submit"
+          class="flex-1 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-all font-medium">
+          Add Document
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+// ==================== CONTACT MODAL FUNCTIONS ====================
+function openAddContactModal() {
+  document.getElementById('contactModalTitle').textContent = 'Add Contact';
+  document.getElementById('contactForm').reset();
+  document.getElementById('contactId').value = '';
+  document.getElementById('contactModal').classList.remove('hidden');
+}
+
+function closeContactModal() {
+  document.getElementById('contactModal').classList.add('hidden');
+}
+
+document.getElementById('contactForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const contactId = document.getElementById('contactId').value;
+  const formData = new FormData(this);
+  const clientId = "{{ client.id }}";
+  
+  const url = contactId 
+    ? `/api/clients/${clientId}/contacts/${contactId}/`
+    : `/api/clients/${clientId}/contacts/`;
+  
+  fetch(url, {
+    method: contactId ? 'PATCH' : 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+    },
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('Failed to save contact');
+    return response.json();
+  })
+  .then(() => {
+    closeContactModal();
+    location.reload();
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error saving contact: ' + error.message);
+  });
+});
+
+// ==================== BRAND ASSET MODAL FUNCTIONS ====================
+function openAddBrandModal() {
+  document.getElementById('brandForm').reset();
+  document.getElementById('brandModal').classList.remove('hidden');
+}
+
+function closeBrandModal() {
+  document.getElementById('brandModal').classList.add('hidden');
+}
+
+function updateFileName() {
+  const fileName = document.getElementById('brandFile').files[0]?.name || '';
+  document.getElementById('brandFileName').textContent = fileName ? `File: ${fileName}` : 'PDF, JPG, PNG up to 10MB';
+}
+
+document.getElementById('brandForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(this);
+  const clientId = "{{ client.id }}";
+  
+  fetch(`/api/clients/${clientId}/brand-assets/`, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+    },
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('Failed to upload asset');
+    return response.json();
+  })
+  .then(() => {
+    closeBrandModal();
+    location.reload();
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error uploading asset: ' + error.message);
+  });
+});
+
+// ==================== COMPLIANCE DOCUMENT MODAL FUNCTIONS ====================
+function openAddComplianceModal() {
+  document.getElementById('complianceForm').reset();
+  document.getElementById('complianceModal').classList.remove('hidden');
+}
+
+function closeComplianceModal() {
+  document.getElementById('complianceModal').classList.add('hidden');
+}
+
+function updateComplianceFileName() {
+  const fileName = document.getElementById('complianceFile').files[0]?.name || '';
+  document.getElementById('complianceFileName').textContent = fileName ? `File: ${fileName}` : 'PDF, JPG, PNG up to 10MB';
+}
+
+document.getElementById('complianceForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const formData = new FormData(this);
+  const clientId = "{{ client.id }}";
+  
+  fetch(`/api/clients/${clientId}/compliance-documents/`, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+    },
+  })
+  .then(response => {
+    if (!response.ok) throw new Error('Failed to upload document');
+    return response.json();
+  })
+  .then(() => {
+    closeComplianceModal();
+    location.reload();
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    alert('Error uploading document: ' + error.message);
+  });
+});
+
+// Close modal when clicking outside
+document.getElementById('contactModal').addEventListener('click', function(e) {
+  if (e.target === this) closeContactModal();
+});
+
+document.getElementById('brandModal').addEventListener('click', function(e) {
+  if (e.target === this) closeBrandModal();
+});
+
+document.getElementById('complianceModal').addEventListener('click', function(e) {
+  if (e.target === this) closeComplianceModal();
+});
+</script>

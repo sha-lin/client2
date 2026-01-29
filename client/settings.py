@@ -256,6 +256,11 @@ EMAIL_HOST_USER = config('MAILGUN_SMTP_LOGIN', default='')  # From Mailgun (form
 EMAIL_HOST_PASSWORD = config('MAILGUN_SMTP_PASSWORD', default='')  # From Mailgun
 DEFAULT_FROM_EMAIL = config('DEFAULT_FROM_EMAIL', default='PrintDuka <noreply@printduka.com>')
 
+# Mailgun API Configuration (Optional - for advanced tracking features)
+# Use this if you want to use Mailgun API instead of SMTP
+# Get API key from: https://app.mailgun.com/app/account/security/api_keys
+MAILGUN_API_KEY = config('MAILGUN_API_KEY', default='')  # API key from Mailgun (format: key-abc123...)
+MAILGUN_DOMAIN = config('MAILGUN_DOMAIN', default='')  # Your sandbox domain (format: sandboxabc123...mailgun.org)
 # Celery Configuration - Using Database-Backed Broker (No Redis needed!)
 # Tasks are stored in database, processed by worker
 # Results stored in database via django-celery-results

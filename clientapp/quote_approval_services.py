@@ -151,7 +151,7 @@ class QuoteApprovalService:
             dict: {'success': bool, 'message': str}
         """
         from clientapp.models import Quote
-        from clientapp.tasks import send_quote_email_task
+        from clientapp.tasks import send_quote_email_via_mailgun_api
         
         # Ensure quote is saved
         if not quote.pk:
@@ -231,11 +231,10 @@ class QuoteApprovalService:
                 'total_amount': total_amount,
             }
             
-            # Send email synchronously (no worker service available on free tier)
-            # In production with dedicated worker, switch back to: send_quote_email_task.delay(...)
+            # Send email via Mailgun API with tracking enabled
             try:
-                # Call the task function directly (synchronous execution)
-                result = send_quote_email_task(
+                # Call the Mailgun API task function directly (synchronous execution)
+                result = send_quote_email_via_mailgun_api(
                     quote_id=quote.pk,
                     recipient_email=recipient_email,
                     subject=f'Quote {quote.quote_id} - Awaiting Your Approval',
@@ -245,9 +244,11 @@ class QuoteApprovalService:
                 # Update quote status to "Sent to Customer"
                 quote.status = 'Sent to Customer'
                 quote.production_status = 'sent_to_client'
+                quote.email_sent = True
+                quote.email_sent_at = timezone.now()
                 quote.save()
                 
-                logger.info(f"Quote {quote.quote_id} sent to {recipient_email} (synchronous)")
+                logger.info(f"Quote {quote.quote_id} sent to {recipient_email} via Mailgun API")
                 
                 return {
                     'success': True,
