@@ -155,7 +155,7 @@ class ProductForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = [
-            'name', 'short_description', 'long_description', 'technical_specs',
+            'name', 'short_description', 'long_description', 'maintenance', 'technical_specs',
             'primary_category', 'sub_category', 'product_type', 'product_family',
             'tags', 'status', 'is_visible', 'visibility',
             'feature_product', 'bestseller_badge', 'new_arrival',
@@ -167,6 +167,7 @@ class ProductForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'Product name'}),
             'short_description': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'Short description (max 150 chars)', 'maxlength': '150'}),
             'long_description': forms.Textarea(attrs={'class': 'form-textarea w-full', 'rows': 4, 'placeholder': 'Detailed description'}),
+            'maintenance': forms.Textarea(attrs={'class': 'form-textarea w-full', 'rows': 3, 'placeholder': 'Product maintenance details and care instructions'}),
             'technical_specs': forms.Textarea(attrs={'class': 'form-textarea w-full', 'rows': 3, 'placeholder': 'Technical specifications'}),
             'primary_category': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'e.g., Print Products, Signage'}),
             'sub_category': forms.TextInput(attrs={'class': 'form-input w-full', 'placeholder': 'e.g., Business Cards, Flyers'}),

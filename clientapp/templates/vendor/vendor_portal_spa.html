@@ -889,6 +889,137 @@
                 </div>
             </section>
 
+            <!-- MESSAGES SECTION (NEW - PHASE 2) -->
+            <section id="messages" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 16px;">Messages</h1>
+                    <p style="color: var(--text-muted);">Chat with PrintDuka Production Team</p>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 350px 1fr; gap: 16px; height: 600px;">
+                    <!-- Job List -->
+                    <div class="card" style="display: flex; flex-direction: column;">
+                        <div class="card-title">Active Jobs</div>
+                        <div id="job-list" style="flex: 1; overflow-y: auto;">
+                            <div class="loading">
+                                <div class="spinner"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Message Thread -->
+                    <div class="card" style="display: flex; flex-direction: column;">
+                        <div class="card-title" id="thread-title">Select a job to view messages</div>
+                        
+                        <div id="message-thread" style="flex: 1; overflow-y: auto; margin-bottom: 16px; padding: 12px; background: #f8fafc; border-radius: 8px;">
+                            <div class="empty-state">
+                                <div class="empty-icon"><i class="fas fa-comments"></i></div>
+                                <p>Select a job to start messaging</p>
+                            </div>
+                        </div>
+
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="message-input" placeholder="Type your message..." style="flex: 1; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px;">
+                            <button class="btn btn-primary" id="send-message-btn" onclick="sendMessage()" style="padding: 10px 16px;">
+                                <i class="fas fa-paper-plane"></i> Send
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- PROGRESS UPDATES SECTION (ENHANCED - PHASE 2) -->
+            <section id="progress" class="section">
+                <div class="mb-24">
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Progress Updates</h1>
+                    <p style="color: var(--text-muted);">Track job completion with photos and milestones</p>
+                </div>
+
+                <div class="card mb-24">
+                    <div class="card-title">Submit Progress Update</div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Select Job</label>
+                            <select id="progress-job-select" onchange="loadJobDetails()">
+                                <option value="">-- Select Job --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="progress-status">
+                                <option value="">-- Select Status --</option>
+                                <option value="design_approved">Design Approved</option>
+                                <option value="production_started">Production Started</option>
+                                <option value="halfway_complete">50% Complete</option>
+                                <option value="quality_check">Quality Check</option>
+                                <option value="ready_for_pickup">Ready for Pickup</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Completion Percentage</label>
+                        <div style="display: flex; align-items: center; gap: 16px;">
+                            <input type="range" id="progress-slider" min="0" max="100" value="0" style="flex: 1; height: 6px; border-radius: 3px; background: var(--border-color);" oninput="updateProgressDisplay()">
+                            <span id="progress-percent" style="font-weight: 700; font-size: 1.125rem; min-width: 60px;">0%</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="progress-notes" placeholder="Add any notes about the production status..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Upload Progress Photos</label>
+                        <div style="border: 2px dashed var(--border-color); border-radius: 8px; padding: 32px; text-align: center; cursor: pointer;" onclick="document.getElementById('progress-photos').click()">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 2rem; color: var(--primary-color); margin-bottom: 8px;"></i>
+                            <p style="color: var(--text-muted);">Drop photos here or click to upload</p>
+                            <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">JPG, PNG up to 5MB each</p>
+                        </div>
+                        <input type="file" id="progress-photos" multiple accept="image/*" onchange="displayProgressPhotos()" style="display: none;">
+                        <div id="photos-preview" style="margin-top: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px;"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>New Estimated Completion Date (Optional)</label>
+                        <input type="date" id="progress-eta">
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="submitProgressUpdate()">Submit Update</button>
+                        <button class="btn btn-secondary" onclick="resetProgressForm()">Clear</button>
+                    </div>
+                </div>
+
+                <!-- PROGRESS HISTORY -->
+                <div class="card">
+                    <div class="card-title">Recent Progress Updates</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Job ID</th>
+                                    <th>Status</th>
+                                    <th>Completion %</th>
+                                    <th>Date</th>
+                                    <th>Notes</th>
+                                    <th>Photos</th>
+                                </tr>
+                            </thead>
+                            <tbody id="progress-history">
+                                <tr>
+                                    <td colspan="6" class="text-center loading">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
             <!-- PURCHASE ORDERS SECTION -->
             <section id="purchase-orders" class="section">
                 <div class="mb-24">
@@ -932,72 +1063,115 @@
                 </div>
             </section>
 
-            <!-- PROOFS SUBMISSION SECTION -->
+            <!-- PROOFS SUBMISSION SECTION (ENHANCED - PHASE 2) -->
             <section id="proofs" class="section">
                 <div class="mb-24">
                     <h1 style="font-size: 1.875rem; font-weight: 800;">Submit Proofs & Samples</h1>
-                    <p style="color: var(--text-muted);">Upload design proofs, test prints, and quality checks</p>
+                    <p style="color: var(--text-muted);">Upload design proofs, test prints, and quality checks for QC review</p>
                 </div>
 
                 <div class="card mb-24">
                     <div class="card-title">New Proof Submission</div>
                     
                     <div class="form-group">
-                        <label>Select Purchase Order</label>
-                        <select id="proof-po-select" onchange="loadPoDetails()">
-                            <option value="">-- Select PO --</option>
+                        <label>Select Job</label>
+                        <select id="proof-job-select" onchange="loadProofJobDetails()">
+                            <option value="">-- Select Job --</option>
                         </select>
                     </div>
 
-                    <div id="po-details-display" style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: none;">
+                    <div id="proof-job-display" style="background: #f8fafc; border-radius: 8px; padding: 16px; margin-bottom: 16px; display: none;">
                         <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
                             <div>
                                 <div class="card-subtitle">Product</div>
-                                <div id="detail-product" style="font-weight: 600;"></div>
+                                <div id="proof-detail-product" style="font-weight: 600;"></div>
                             </div>
                             <div>
                                 <div class="card-subtitle">Quantity</div>
-                                <div id="detail-quantity" style="font-weight: 600;"></div>
+                                <div id="proof-detail-quantity" style="font-weight: 600;"></div>
                             </div>
                             <div>
                                 <div class="card-subtitle">Deadline</div>
-                                <div id="detail-deadline" style="font-weight: 600;"></div>
+                                <div id="proof-detail-deadline" style="font-weight: 600;"></div>
                             </div>
                             <div>
-                                <div class="card-subtitle">Requirements</div>
-                                <div id="detail-requirements" style="font-weight: 600;"></div>
+                                <div class="card-subtitle">Current Status</div>
+                                <div id="proof-detail-status" style="font-weight: 600;"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="form-group">
-                        <label>Proof Type</label>
-                        <select id="proof-type">
-                            <option value="">-- Select Type --</option>
-                            <option value="design_pdf">Design PDF</option>
-                            <option value="test_print">Test Print</option>
-                            <option value="color_swatch">Color Swatch</option>
-                            <option value="sample_product">Sample Product</option>
-                            <option value="quality_report">Quality Report</option>
-                        </select>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Proof Type</label>
+                            <select id="proof-type">
+                                <option value="">-- Select Type --</option>
+                                <option value="design_pdf">Design PDF</option>
+                                <option value="test_print">Test Print</option>
+                                <option value="color_swatch">Color Swatch</option>
+                                <option value="sample_product">Sample Product</option>
+                                <option value="quality_report">Quality Report</option>
+                                <option value="final_deliverable">Final Deliverable</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Proof Status</label>
+                            <select id="proof-submission-status">
+                                <option value="pending_review">Pending Review</option>
+                                <option value="revision_needed">Revision Needed</option>
+                                <option value="approved">Approved</option>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="form-group">
-                        <label>Upload Files</label>
-                        <input type="file" id="proof-file" multiple accept=".pdf,.jpg,.jpeg,.png,.zip" onchange="displayFileList()">
-                        <div id="file-list" style="margin-top: 12px; font-size: 0.875rem; color: var(--text-muted);"></div>
+                        <label>Upload Proof Files</label>
+                        <div style="border: 2px dashed var(--primary-color); border-radius: 8px; padding: 32px; text-align: center; cursor: pointer; background: #eff6ff;" onclick="document.getElementById('proof-files').click()">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 2.5rem; color: var(--primary-color); margin-bottom: 12px;"></i>
+                            <p style="font-weight: 600;">Drop files here or click to upload</p>
+                            <p style="font-size: 0.875rem; color: var(--text-muted); margin-top: 4px;">PDF, JPG, PNG - up to 10MB per file</p>
+                        </div>
+                        <input type="file" id="proof-files" multiple accept=".pdf,.jpg,.jpeg,.png" onchange="displayProofFileList()" style="display: none;">
+                        <div id="proof-file-list" style="margin-top: 12px; font-size: 0.875rem; color: var(--text-muted);"></div>
                     </div>
 
                     <div class="form-group">
-                        <label>Notes</label>
-                        <textarea id="proof-notes" placeholder="Add any notes about this proof submission..."></textarea>
+                        <label>Notes & Comments</label>
+                        <textarea id="proof-notes" placeholder="Add any notes about this proof submission, changes made, or QC observations..."></textarea>
                     </div>
 
                     <div class="btn-group">
-                        <button class="btn btn-primary" onclick="submitProof()">Submit Proof</button>
-                        <button class="btn btn-secondary" onclick="resetProofForm()">Clear</button>
+                        <button class="btn btn-primary" onclick="submitProofToPhase2()">Submit for QC Review</button>
+                        <button class="btn btn-secondary" onclick="resetProofFormPhase2()">Clear</button>
                     </div>
                 </div>
+
+                <!-- PROOF HISTORY -->
+                <div class="card">
+                    <div class="card-title">Proof Submission History</div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Job ID</th>
+                                    <th>Type</th>
+                                    <th>Submitted</th>
+                                    <th>Status</th>
+                                    <th>Feedback</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="proof-history">
+                                <tr>
+                                    <td colspan="6" class="text-center loading">
+                                        <div class="spinner"></div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
 
                 <!-- PROOF HISTORY -->
                 <div class="card">
@@ -1191,74 +1365,110 @@
                 </div>
             </section>
 
-            <!-- PERFORMANCE SECTION -->
+            <!-- PERFORMANCE SECTION (ENHANCED - PHASE 2 VPS) -->
             <section id="performance" class="section">
                 <div class="mb-24">
-                    <h1 style="font-size: 1.875rem; font-weight: 800;">Your Performance</h1>
-                    <p style="color: var(--text-muted);">Track your vendor metrics and ratings</p>
+                    <h1 style="font-size: 1.875rem; font-weight: 800;">Performance & VPS Scoring</h1>
+                    <p style="color: var(--text-muted);">Your Vendor Performance Score and quality metrics</p>
                 </div>
 
-                <!-- PERFORMANCE SCORE -->
-                <div class="stats-grid">
-                    <div class="card" style="grid-column: span 1;">
-                        <div class="card-title">Overall Score</div>
-                        <div style="text-align: center;">
-                            <div style="font-size: 3rem; font-weight: 700; color: var(--success-color); margin-bottom: 8px;" id="perf-overall-score">0/100</div>
-                            <div id="perf-overall-grade" style="font-weight: 600; font-size: 1.125rem;">Grade: A</div>
+                <!-- VPS SCORE CARD -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                    <div class="card" style="text-align: center;">
+                        <div style="font-size: 3.5rem; font-weight: 800; color: var(--primary-color); margin-bottom: 8px;" id="vps-total-score">--</div>
+                        <div style="font-size: 0.875rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">Overall VPS Score</div>
+                        <div style="margin-top: 12px; font-size: 0.75rem; color: var(--text-muted);">Out of 100</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title" style="margin-bottom: 12px;">Score Breakdown</div>
+                        <div style="font-size: 0.875rem;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>Quality %</span>
+                                <span id="vps-quality-weight" style="font-weight: 600;">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>On-Time %</span>
+                                <span id="vps-ontime-weight" style="font-weight: 600;">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                                <span>Response Time %</span>
+                                <span id="vps-response-weight" style="font-weight: 600;">--</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between;">
+                                <span>Volume %</span>
+                                <span id="vps-volume-weight" style="font-weight: 600;">--</span>
+                            </div>
                         </div>
                     </div>
                     <div class="card">
-                        <div class="card-title">On-Time Delivery</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--success-color);" id="perf-ontime-rate">0%</div>
-                        <div class="card-subtitle">Jobs completed on schedule</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Quality Score</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--success-color);" id="perf-quality-rate">0%</div>
-                        <div class="card-subtitle">QC pass rate</div>
-                    </div>
-                    <div class="card">
-                        <div class="card-title">Response Time</div>
-                        <div style="font-size: 2rem; font-weight: 700; color: var(--info-color);" id="perf-response-time">0h</div>
-                        <div class="card-subtitle">Avg hours to respond</div>
+                        <div class="card-title" style="margin-bottom: 12px;">Performance Grade</div>
+                        <div style="font-size: 3rem; font-weight: 800; color: var(--success-color);" id="vps-grade">--</div>
+                        <div style="font-size: 0.875rem; color: var(--text-muted); margin-top: 8px;" id="vps-tier">Standard Vendor</div>
                     </div>
                 </div>
 
                 <!-- DETAILED METRICS -->
-                <div class="card mt-24">
-                    <div class="card-title">Detailed Metrics</div>
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
-                        <div>
-                            <div class="card-subtitle mb-8">Average Turnaround</div>
-                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-avg-turnaround">0 days</div>
+                <div class="card mb-24">
+                    <div class="card-title">Detailed Metrics (30-day period)</div>
+                    
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                        <div style="padding: 16px; background: #f8fafc; border-radius: 8px;">
+                            <div class="card-subtitle">Quality Pass Rate</div>
+                            <div style="font-size: 1.875rem; font-weight: 700; color: var(--success-color); margin-top: 8px;" id="metric-quality">--</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Jobs passing QC</div>
                         </div>
-                        <div>
-                            <div class="card-subtitle mb-8">Defect Rate</div>
-                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-defect-rate">0%</div>
+                        <div style="padding: 16px; background: #f8fafc; border-radius: 8px;">
+                            <div class="card-subtitle">On-Time Delivery</div>
+                            <div style="font-size: 1.875rem; font-weight: 700; color: var(--success-color); margin-top: 8px;" id="metric-ontime">--</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Deadlines met</div>
                         </div>
-                        <div>
-                            <div class="card-subtitle mb-8">Jobs Completed</div>
-                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-jobs-completed">0</div>
+                        <div style="padding: 16px; background: #f8fafc; border-radius: 8px;">
+                            <div class="card-subtitle">Avg Response Time</div>
+                            <div style="font-size: 1.875rem; font-weight: 700; color: var(--info-color); margin-top: 8px;" id="metric-response">--</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Hours to respond</div>
                         </div>
-                        <div>
-                            <div class="card-subtitle mb-8">Acceptance Rate</div>
-                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-acceptance-rate">0%</div>
-                        </div>
-                        <div>
-                            <div class="card-subtitle mb-8">Cost Per Job</div>
-                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-cost-per-job">KES 0</div>
-                        </div>
-                        <div>
-                            <div class="card-subtitle mb-8">Decline Rate</div>
-                            <div style="font-weight: 700; font-size: 1.25rem;" id="perf-decline-rate">0%</div>
+                        <div style="padding: 16px; background: #f8fafc; border-radius: 8px;">
+                            <div class="card-subtitle">Jobs This Month</div>
+                            <div style="font-size: 1.875rem; font-weight: 700; color: var(--primary-color); margin-top: 8px;" id="metric-volume">--</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Completed jobs</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- INSIGHTS -->
-                <div class="card mt-24">
-                    <div class="card-title">Performance Insights</div>
-                    <div id="perf-insights"></div>
+                <!-- HISTORICAL TREND -->
+                <div class="card mb-24">
+                    <div class="card-title">VPS Score History</div>
+                    <div id="vps-history-table">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Period</th>
+                                        <th>Score</th>
+                                        <th>Quality</th>
+                                        <th>On-Time</th>
+                                        <th>Response</th>
+                                        <th>Grade</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="vps-history">
+                                    <tr>
+                                        <td colspan="6" class="text-center loading">
+                                            <div class="spinner"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- IMPROVEMENT TIPS -->
+                <div class="card">
+                    <div class="card-title">Performance Insights & Recommendations</div>
+                    <div id="performance-insights" style="display: flex; flex-direction: column; gap: 12px;">
+                        <!-- Will be populated by loadPerformance() -->
+                    </div>
                 </div>
             </section>
 
@@ -1529,13 +1739,19 @@
         });
 
         // Show active section
-        document.getElementById(sectionId).classList.add('active');
+        const targetSection = document.getElementById(sectionId);
+        if (!targetSection) {
+            console.error(`Section ${sectionId} not found`);
+            return;
+        }
+        targetSection.classList.add('active');
 
         // Update nav
         document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
         });
-        document.querySelector(`[data-section="${sectionId}"]`).classList.add('active');
+        const navItem = document.querySelector(`[data-section="${sectionId}"]`);
+        if (navItem) navItem.classList.add('active');
 
         // Update page title
         const titles = {
@@ -1550,6 +1766,31 @@
         };
 
         document.getElementById('page-title').textContent = titles[sectionId];
+
+        // Load data for specific sections when switched to
+        switch(sectionId) {
+            case 'messages':
+                loadJobsList();
+                break;
+            case 'progress':
+                loadProgressJobs();
+                break;
+            case 'proofs':
+                loadProofJobs();
+                break;
+            case 'performance':
+                loadVendorPerformance();
+                break;
+            case 'purchase-orders':
+                loadPurchaseOrders();
+                break;
+            case 'invoices':
+                loadInvoices();
+                break;
+            case 'dashboard':
+                loadDashboard();
+                break;
+        }
     }
 
     function openModal(modalId) {
@@ -1747,14 +1988,17 @@
             `<option value="${po.id}" data-po='${JSON.stringify(po)}'>${po.po_number} - ${po.product_type}</option>`
         ).join('');
 
-        document.getElementById('proof-po-select').innerHTML = '<option value="">-- Select PO --</option>' + html;
-        document.getElementById('progress-po-select').innerHTML = '<option value="">-- Select PO --</option>' + html;
+        const proofSelect = document.getElementById('proof-po-select');
+        const progressSelect = document.getElementById('progress-po-select');
+        if (proofSelect) proofSelect.innerHTML = '<option value="">-- Select PO --</option>' + html;
+        if (progressSelect) progressSelect.innerHTML = '<option value="">-- Select PO --</option>' + html;
         
         const completedPos = posList.filter(po => po.status === 'completed');
         const invoiceHtml = completedPos.map(po => 
             `<option value="${po.id}">${po.po_number} - ${po.product_type}</option>`
         ).join('');
-        document.getElementById('invoice-po-select').innerHTML = '<option value="">-- Select PO --</option>' + invoiceHtml;
+        const invoiceSelect = document.getElementById('invoice-po-select');
+        if (invoiceSelect) invoiceSelect.innerHTML = '<option value="">-- Select PO --</option>' + invoiceHtml;
     }
 
     function filterPurchaseOrders() {
@@ -2360,9 +2604,532 @@
     }
 
     // ============================================================
-    // STARTUP
+    // PHASE 2: MESSAGING API INTEGRATION
     // ============================================================
-    document.addEventListener('DOMContentLoaded', initializePortal);
+    let currentJobId = null;
+
+    async function loadJobsList() {
+        const jobs = await apiCall('/purchase-orders/?limit=50&status=in_production,quality_check');
+        if (!jobs) return;
+
+        const jobsList = jobs.results || [];
+        const jobListHtml = jobsList.map(job => `
+            <div class="nav-item" style="cursor: pointer; padding: 12px; margin: 4px 0; background: white; border-radius: 6px; border: 1px solid var(--border-color);" onclick="selectJob(${job.id}, '${job.po_number}')">
+                <div style="font-weight: 600; color: var(--text-main);">${job.po_number}</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">${job.product_type}</div>
+            </div>
+        `).join('');
+
+        document.getElementById('job-list').innerHTML = jobListHtml || '<div class="empty-state"><p>No active jobs</p></div>';
+    }
+
+    async function selectJob(jobId, poNumber) {
+        currentJobId = jobId;
+        document.getElementById('thread-title').textContent = `Chat: ${poNumber}`;
+        document.getElementById('message-input').focus();
+        
+        // Load messages for this job
+        loadMessages(jobId);
+    }
+
+    async function loadMessages(jobId) {
+        const messages = await apiCall(`/api/v1/messages/?job=${jobId}&limit=50`);
+        if (!messages) return;
+
+        const messageList = messages.results || [];
+        const threadHtml = messageList.map(msg => {
+            const isVendor = msg.vendor_created; // Assuming this field exists
+            return `
+                <div style="display: flex; justify-content: ${isVendor ? 'flex-end' : 'flex-start'}; margin-bottom: 12px;">
+                    <div style="max-width: 70%; padding: 12px 16px; border-radius: 12px; background: ${isVendor ? 'var(--primary-color)' : '#e2e8f0'}; color: ${isVendor ? 'white' : 'var(--text-main)'};">
+                        <div style="font-size: 0.875rem;">${msg.message_text}</div>
+                        <div style="font-size: 0.7rem; margin-top: 4px; opacity: 0.8;">${new Date(msg.created_at).toLocaleString()}</div>
+                        ${msg.task_name ? `<div style="font-size: 0.75rem; margin-top: 6px; font-weight: 600; background: ${isVendor ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)'}; padding: 4px 8px; border-radius: 4px;">📌 ${msg.task_name}</div>` : ''}
+                        ${!msg.is_read && !isVendor ? `<button class="btn btn-sm" style="margin-top: 8px; padding: 4px 8px; font-size: 0.7rem; background: rgba(255,255,255,0.2); border: none; color: white; border-radius: 4px; cursor: pointer;" onclick="markMessageRead(${msg.id})">Mark read</button>` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        document.getElementById('message-thread').innerHTML = threadHtml || '<div class="empty-state"><p>No messages yet</p></div>';
+        
+        // Auto-scroll to bottom
+        const thread = document.getElementById('message-thread');
+        thread.scrollTop = thread.scrollHeight;
+    }
+
+    async function sendMessage() {
+        if (!currentJobId) {
+            showAlert('Please select a job first', 'error');
+            return;
+        }
+
+        const messageText = document.getElementById('message-input').value.trim();
+        if (!messageText) {
+            showAlert('Please type a message', 'error');
+            return;
+        }
+
+        const messageData = {
+            job: currentJobId,
+            message_text: messageText,
+            vendor_created: true,
+            is_read: true
+        };
+
+        const result = await apiCall('/api/v1/messages/', 'POST', messageData);
+        if (result) {
+            document.getElementById('message-input').value = '';
+            loadMessages(currentJobId);
+            showAlert('Message sent!', 'success');
+        }
+    }
+
+    async function markMessageRead(messageId) {
+        const result = await apiCall(`/api/v1/messages/${messageId}/mark_read/`, 'POST', {});
+        if (result) {
+            loadMessages(currentJobId);
+        }
+    }
+
+    // ============================================================
+    // PHASE 2: PROGRESS UPDATES API INTEGRATION
+    // ============================================================
+    async function loadProgressJobs() {
+        const jobs = await apiCall('/purchase-orders/?limit=50');
+        if (!jobs) return;
+
+        const jobsList = jobs.results || [];
+        const jobSelectHtml = jobsList.map(job => `
+            <option value="${job.id}" data-po='${JSON.stringify(job)}'>${job.po_number} - ${job.product_type}</option>
+        `).join('');
+
+        document.getElementById('progress-job-select').innerHTML = '<option value="">-- Select Job --</option>' + jobSelectHtml;
+    }
+
+    function loadJobDetails() {
+        const selectElement = document.getElementById('progress-job-select');
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        
+        if (!selectedOption.value) {
+            return;
+        }
+
+        const jobData = JSON.parse(selectedOption.dataset.po || '{}');
+        // Can be extended to show more details
+    }
+
+    function updateProgressDisplay() {
+        const slider = document.getElementById('progress-slider');
+        document.getElementById('progress-percent').textContent = slider.value + '%';
+    }
+
+    function displayProgressPhotos() {
+        const photoInput = document.getElementById('progress-photos');
+        const preview = document.getElementById('photos-preview');
+
+        if (photoInput.files.length === 0) {
+            preview.innerHTML = '';
+            return;
+        }
+
+        preview.innerHTML = Array.from(photoInput.files).map((file, index) => {
+            const reader = new FileReader();
+            let imgSrc = '';
+            reader.onload = (e) => {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.style.cssText = 'width: 80px; height: 80px; object-fit: cover; border-radius: 6px;';
+            };
+            reader.readAsDataURL(file);
+            
+            return `
+                <div style="position: relative; width: 80px; height: 80px; background: var(--border-color); border-radius: 6px; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                    <div style="font-size: 0.7rem; text-align: center; padding: 4px; color: var(--text-muted);">${file.name.substring(0, 12)}</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async function submitProgressUpdate() {
+        const jobId = document.getElementById('progress-job-select').value;
+        const status = document.getElementById('progress-status').value;
+        const percentComplete = document.getElementById('progress-slider').value;
+        const notes = document.getElementById('progress-notes').value;
+        const eta = document.getElementById('progress-eta').value;
+        const photos = document.getElementById('progress-photos').files;
+
+        if (!jobId || !status) {
+            showAlert('Please select a job and status', 'error');
+            return;
+        }
+
+        // Submit progress update
+        const progressData = {
+            job: jobId,
+            status_update: status,
+            completion_percentage: parseInt(percentComplete),
+            vendor_notes: notes,
+            estimated_completion_date: eta || null
+        };
+
+        const result = await apiCall('/api/v1/progress-updates/', 'POST', progressData);
+        if (result) {
+            // Upload photos if any
+            if (photos.length > 0) {
+                const formData = new FormData();
+                formData.append('progress_update', result.id);
+                
+                Array.from(photos).forEach((photo) => {
+                    formData.append('photos', photo);
+                });
+
+                const csrfToken = getCookie('csrftoken');
+                const photoResult = await fetch(`${API_BASE_URL}/progress-updates/${result.id}/upload_photos/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    credentials: 'include',
+                    body: formData
+                });
+            }
+
+            showAlert('Progress update submitted!', 'success');
+            resetProgressForm();
+            loadProgressHistory();
+        }
+    }
+
+    function resetProgressForm() {
+        document.getElementById('progress-job-select').value = '';
+        document.getElementById('progress-status').value = '';
+        document.getElementById('progress-slider').value = '0';
+        document.getElementById('progress-percent').textContent = '0%';
+        document.getElementById('progress-notes').value = '';
+        document.getElementById('progress-eta').value = '';
+        document.getElementById('progress-photos').value = '';
+        document.getElementById('photos-preview').innerHTML = '';
+    }
+
+    async function loadProgressHistory() {
+        const updates = await apiCall('/api/v1/progress-updates/?limit=50');
+        if (!updates) return;
+
+        const updatesList = updates.results || [];
+        const historyHtml = updatesList.map(update => `
+            <tr>
+                <td><strong>${update.job}</strong></td>
+                <td><span class="badge badge-info">${update.status_update}</span></td>
+                <td>
+                    <div style="width: 100%; background: var(--border-color); border-radius: 4px; height: 6px; overflow: hidden;">
+                        <div style="width: ${update.completion_percentage}%; height: 100%; background: var(--success-color);"></div>
+                    </div>
+                    <div style="font-size: 0.75rem; text-align: center; margin-top: 2px;">${update.completion_percentage}%</div>
+                </td>
+                <td>${new Date(update.created_at).toLocaleDateString()}</td>
+                <td>${update.vendor_notes || '-'}</td>
+                <td>
+                    ${update.photos_count ? `<span class="badge badge-info">${update.photos_count} photos</span>` : '-'}
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('progress-history').innerHTML = historyHtml || '<tr><td colspan="6" class="text-center">No progress updates yet</td></tr>';
+    }
+
+    // ============================================================
+    // PHASE 2: PROOF SUBMISSION API INTEGRATION
+    // ============================================================
+    async function loadProofJobs() {
+        const jobs = await apiCall('/purchase-orders/?limit=50');
+        if (!jobs) return;
+
+        const jobsList = jobs.results || [];
+        const jobSelectHtml = jobsList.map(job => `
+            <option value="${job.id}" data-po='${JSON.stringify(job)}'>${job.po_number} - ${job.product_type}</option>
+        `).join('');
+
+        document.getElementById('proof-job-select').innerHTML = '<option value="">-- Select Job --</option>' + jobSelectHtml;
+    }
+
+    function loadProofJobDetails() {
+        const selectElement = document.getElementById('proof-job-select');
+        const selectedOption = selectElement.options[selectElement.selectedIndex];
+        
+        if (!selectedOption.value) {
+            document.getElementById('proof-job-display').style.display = 'none';
+            return;
+        }
+
+        const jobData = JSON.parse(selectedOption.dataset.po || '{}');
+        
+        document.getElementById('proof-detail-product').textContent = jobData.product_type;
+        document.getElementById('proof-detail-quantity').textContent = jobData.quantity || 'N/A';
+        document.getElementById('proof-detail-deadline').textContent = jobData.required_by;
+        document.getElementById('proof-detail-status').innerHTML = `<span class="badge badge-${getStatusColor(jobData.status)}">${jobData.status}</span>`;
+        
+        document.getElementById('proof-job-display').style.display = 'block';
+    }
+
+    function displayProofFileList() {
+        const fileInput = document.getElementById('proof-files');
+        const fileList = document.getElementById('proof-file-list');
+
+        if (fileInput.files.length === 0) {
+            fileList.innerHTML = '';
+            return;
+        }
+
+        const files = Array.from(fileInput.files).map((file, index) => 
+            `<div style="padding: 4px 0;"><i class="fas fa-file"></i> ${file.name} (${(file.size / 1024).toFixed(2)} KB)</div>`
+        ).join('');
+
+        fileList.innerHTML = `<strong>${fileInput.files.length} file(s) selected:</strong><br>` + files;
+    }
+
+    async function submitProofToPhase2() {
+        const jobId = document.getElementById('proof-job-select').value;
+        const proofType = document.getElementById('proof-type').value;
+        const status = document.getElementById('proof-submission-status').value;
+        const notes = document.getElementById('proof-notes').value;
+        const files = document.getElementById('proof-files').files;
+
+        if (!jobId || !proofType || files.length === 0) {
+            showAlert('Please fill in all fields and select files', 'error');
+            return;
+        }
+
+        const proofData = {
+            job: jobId,
+            proof_type: proofType,
+            submission_status: status,
+            vendor_notes: notes
+        };
+
+        const result = await apiCall('/api/v1/proof-submissions/', 'POST', proofData);
+        if (result) {
+            // Upload files
+            const formData = new FormData();
+            formData.append('proof_submission', result.id);
+            
+            Array.from(files).forEach((file) => {
+                formData.append('files', file);
+            });
+
+            const csrfToken = getCookie('csrftoken');
+            const fileResult = await fetch(`${API_BASE_URL}/proof-submissions/${result.id}/upload_files/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken },
+                credentials: 'include',
+                body: formData
+            });
+
+            showAlert('Proof submitted successfully for QC review!', 'success');
+            resetProofFormPhase2();
+            loadProofHistory();
+        }
+    }
+
+    function resetProofFormPhase2() {
+        document.getElementById('proof-job-select').value = '';
+        document.getElementById('proof-type').value = '';
+        document.getElementById('proof-submission-status').value = 'pending_review';
+        document.getElementById('proof-notes').value = '';
+        document.getElementById('proof-files').value = '';
+        document.getElementById('proof-file-list').innerHTML = '';
+        document.getElementById('proof-job-display').style.display = 'none';
+    }
+
+    async function loadProofHistory() {
+        const proofs = await apiCall('/api/v1/proof-submissions/?limit=50');
+        if (!proofs) return;
+
+        const proofsList = proofs.results || [];
+        const historyHtml = proofsList.map(proof => `
+            <tr>
+                <td><strong>${proof.job}</strong></td>
+                <td>${proof.proof_type}</td>
+                <td>${new Date(proof.created_at).toLocaleDateString()}</td>
+                <td>
+                    <span class="badge ${proof.submission_status === 'approved' ? 'badge-success' : proof.submission_status === 'rejected' ? 'badge-danger' : 'badge-warning'}">
+                        ${proof.submission_status}
+                    </span>
+                </td>
+                <td>${proof.pt_feedback || '-'}</td>
+                <td>
+                    ${proof.submission_status === 'rejected' ? `<button class="btn btn-sm btn-primary" onclick="alert('Resubmit with revisions')">Resubmit</button>` : '-'}
+                </td>
+            </tr>
+        `).join('');
+
+        document.getElementById('proof-history').innerHTML = historyHtml || '<tr><td colspan="6" class="text-center">No proofs submitted yet</td></tr>';
+    }
+
+    // ============================================================
+    // PHASE 2: VENDOR PERFORMANCE SCORE (VPS) INTEGRATION
+    // ============================================================
+    async function loadVendorPerformance() {
+        const vps = await apiCall('/api/v1/vendor-performance/');
+        if (!vps || !vps.results) return;
+
+        const perfData = vps.results[0] || {};
+        
+        // Calculate weighted VPS
+        const weights = {
+            quality: 0.35,
+            ontime: 0.30,
+            response: 0.20,
+            volume: 0.15
+        };
+
+        const totalScore = Math.round(
+            (perfData.quality_score || 0) * weights.quality +
+            (perfData.ontime_score || 0) * weights.ontime +
+            (perfData.response_score || 0) * weights.response +
+            (perfData.volume_score || 0) * weights.volume
+        );
+
+        const grade = totalScore >= 90 ? 'A' : totalScore >= 80 ? 'B' : totalScore >= 70 ? 'C' : totalScore >= 60 ? 'D' : 'F';
+        const tier = grade === 'A' ? 'Premium Vendor' : grade === 'B' ? 'Preferred Vendor' : 'Standard Vendor';
+
+        // Update display - check elements exist
+        const totalScoreEl = document.getElementById('vps-total-score');
+        const gradeEl = document.getElementById('vps-grade');
+        const tierEl = document.getElementById('vps-tier');
+        
+        if (totalScoreEl) totalScoreEl.textContent = totalScore;
+        if (gradeEl) gradeEl.textContent = grade;
+        if (tierEl) tierEl.textContent = tier;
+
+        const qualityEl = document.getElementById('vps-quality-weight');
+        const ontimeEl = document.getElementById('vps-ontime-weight');
+        const responseEl = document.getElementById('vps-response-weight');
+        const volumeEl = document.getElementById('vps-volume-weight');
+        
+        if (qualityEl) qualityEl.textContent = (perfData.quality_score || 0).toFixed(1);
+        if (ontimeEl) ontimeEl.textContent = (perfData.ontime_score || 0).toFixed(1);
+        if (responseEl) responseEl.textContent = (perfData.response_score || 0).toFixed(1);
+        if (volumeEl) volumeEl.textContent = (perfData.volume_score || 0).toFixed(1);
+
+        // Load detailed metrics
+        loadVendorMetrics(perfData);
+        loadVpsHistory();
+    }
+
+    function loadVendorMetrics(perfData) {
+        const metricQuality = document.getElementById('metric-quality');
+        const metricOntime = document.getElementById('metric-ontime');
+        const metricResponse = document.getElementById('metric-response');
+        const metricVolume = document.getElementById('metric-volume');
+        
+        if (metricQuality) metricQuality.textContent = (perfData.quality_score || 0).toFixed(1) + '%';
+        if (metricOntime) metricOntime.textContent = (perfData.ontime_score || 0).toFixed(1) + '%';
+        if (metricResponse) metricResponse.textContent = Math.round(perfData.response_time_hours || 24) + 'h';
+        if (metricVolume) metricVolume.textContent = perfData.jobs_completed_month || 0;
+
+        // Generate insights
+        const insights = [];
+        if (perfData.quality_score >= 95) {
+            insights.push({
+                type: 'positive',
+                title: '✓ Excellent Quality',
+                message: 'Your products consistently pass QC inspections with minimal defects!'
+            });
+        } else if (perfData.quality_score < 80) {
+            insights.push({
+                type: 'negative',
+                title: '⚠ Quality Concerns',
+                message: 'Focus on reducing defects to improve your score. Review QC feedback.'
+            });
+        }
+
+        if (perfData.ontime_score >= 95) {
+            insights.push({
+                type: 'positive',
+                title: '✓ Excellent Delivery',
+                message: 'You consistently meet deadlines. Keep up the reliability!'
+            });
+        } else if (perfData.ontime_score < 80) {
+            insights.push({
+                type: 'negative',
+                title: '⚠ Delivery Issues',
+                message: 'Improve timeline management to boost your performance score.'
+            });
+        }
+
+        const insightsHtml = insights.map(i => `
+            <div style="padding: 12px; background: #f8fafc; border-left: 4px solid ${i.type === 'positive' ? 'var(--success-color)' : 'var(--warning-color)'}; border-radius: 6px;">
+                <div style="font-weight: 600;">${i.title}</div>
+                <div style="font-size: 0.875rem; color: var(--text-muted);">${i.message}</div>
+            </div>
+        `).join('');
+
+        const insightsEl = document.getElementById('performance-insights');
+        if (insightsEl) insightsEl.innerHTML = insightsHtml || '<p style="color: var(--text-muted);">No specific insights at this time.</p>';
+    }
+
+    async function loadVpsHistory() {
+        const vpsData = await apiCall('/api/v1/vendor-performance/?limit=12');
+        if (!vpsData) return;
+
+        const history = vpsData.results || [];
+        const historyHtml = history.map(record => {
+            const score = Math.round(
+                record.quality_score * 0.35 +
+                record.ontime_score * 0.30 +
+                record.response_score * 0.20 +
+                record.volume_score * 0.15
+            );
+            const grade = score >= 90 ? 'A' : score >= 80 ? 'B' : score >= 70 ? 'C' : score >= 60 ? 'D' : 'F';
+
+            return `
+                <tr>
+                    <td>${new Date(record.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</td>
+                    <td><strong>${score}</strong></td>
+                    <td>${record.quality_score.toFixed(1)}%</td>
+                    <td>${record.ontime_score.toFixed(1)}%</td>
+                    <td>${record.response_score.toFixed(1)}%</td>
+                    <td><span class="badge badge-success">${grade}</span></td>
+                </tr>
+            `;
+        }).join('');
+
+        const historyEl = document.getElementById('vps-history');
+        if (historyEl) historyEl.innerHTML = historyHtml || '<tr><td colspan="6" class="text-center">No history available</td></tr>';
+    }
+
+    // ============================================================
+    // ENHANCED INITIALIZATION WITH PHASE 2
+    // ============================================================
+    async function initializePhase2Features() {
+        // Don't load features on init - they'll load when tabs are switched
+        // Just set up messaging to auto-refresh if we're on the messages tab
+
+        // Set up messaging to auto-refresh
+        setInterval(() => {
+            if (currentJobId && document.getElementById('messages-tab')?.classList.contains('active')) {
+                loadMessages(currentJobId);
+            }
+        }, 10000); // Refresh every 10 seconds
+    }
+
+    // Store original initialization and enhance it
+    const originalInitializePortal = window.initializePortal;
+    window.initializePortal = async function() {
+        // Call original initialization
+        if (originalInitializePortal) {
+            await originalInitializePortal.call(this);
+        }
+        // Then initialize Phase 2 features
+        await initializePhase2Features();
+    };
+
+    // ============================================================
+    // AUTO-START PORTAL ON PAGE LOAD
+    // ============================================================
+    window.addEventListener('load', function() {
+        console.log('Portal loading...');
+        initializePortal();
+    });
 </script>
 </body>
 </html>

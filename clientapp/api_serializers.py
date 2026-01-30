@@ -103,6 +103,35 @@ from .models import (
     ClientDocumentLibrary,
     ClientPortalNotification,
     ClientActivityLog,
+    # Phase 2 models
+    Message,
+    MessageAttachment,
+    ProgressUpdate,
+    ProgressUpdatePhoto,
+    ProofSubmission,
+    VendorPerformanceScore,
+    # Phase 3 models
+    ClientNotification,
+    ClientMessage,
+    ClientDashboard,
+    ClientFeedback,
+    OrderMetrics,
+    VendorComparison,
+    PerformanceAnalytics,
+    PaymentStatus,
+    PaymentHistory,
+    # Backend Gap models
+    VendorCapacityAlert,
+    POSMilestone,
+    MaterialSubstitutionApproval,
+    InvoiceHold,
+    SLAEscalation,
+    # Phase 2 additional models
+    ProgressUpdateBatch,
+    QCProofLink,
+    VPSRecalculationLog,
+    CustomerNotification,
+    DeadlineCalculation,
 )
 
 
@@ -330,7 +359,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = [
-            'id', 'name', 'internal_code', 'short_description', 'long_description',
+            'id', 'name', 'internal_code', 'short_description', 'long_description', 'maintenance',
             'technical_specs', 'primary_category', 'sub_category', 'product_family',
             'visibility', 'feature_product', 'bestseller_badge', 'new_arrival',
             'new_arrival_expires', 'status', 'is_visible', 'customization_level',
@@ -1347,3 +1376,463 @@ class ClientActivityLogSerializer(serializers.ModelSerializer):
             'order', 'invoice', 'ip_address', 'user_agent', 'created_at'
         ]
         read_only_fields = ['portal_user_name', 'created_at']
+
+
+# ==================== PHASE 2 SERIALIZERS ====================
+
+class MessageAttachmentSerializer(serializers.ModelSerializer):
+    """Serializer for message file attachments"""
+    class Meta:
+        model = MessageAttachment
+        fields = ['id', 'file', 'file_name', 'file_type', 'file_size', 'thumbnail', 'duration', 'created_at']
+        read_only_fields = ['id', 'created_at', 'thumbnail']
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    """Serializer for messages with attachments"""
+    attachments = MessageAttachmentSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = Message
+        fields = [
+            'id', 'job', 'sender_type', 'sender_id', 'sender_name', 
+            'recipient_type', 'recipient_id', 'recipient_name', 'content',
+            'is_task', 'task_status', 'task_priority', 'task_due_date', 'task_acknowledged_at',
+            'is_read', 'attachments', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'task_acknowledged_at', 'created_at', 'updated_at']
+
+
+class ProgressUpdatePhotoSerializer(serializers.ModelSerializer):
+    """Serializer for progress update photos"""
+    class Meta:
+        model = ProgressUpdatePhoto
+        fields = ['id', 'photo', 'caption', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+
+class ProgressUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for progress updates with photos"""
+    photos = ProgressUpdatePhotoSerializer(many=True, read_only=True)
+    
+    class Meta:
+        model = ProgressUpdate
+        fields = [
+            'id', 'job', 'vendor', 'percentage_complete', 'status', 
+            'notes', 'issues', 'eta', 'photos', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class ProofSubmissionSerializer(serializers.ModelSerializer):
+    """Serializer for proof submissions"""
+    reviewed_by_name = serializers.CharField(source='reviewed_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ProofSubmission
+        fields = [
+            'id', 'job', 'vendor', 'proof_type', 'description', 'status',
+            'submitted_at', 'reviewed_at', 'reviewed_by', 'reviewed_by_name', 'review_notes'
+        ]
+        read_only_fields = ['id', 'submitted_at', 'reviewed_at']
+
+
+class NotificationSerializer(serializers.ModelSerializer):
+    """Serializer for notifications"""
+    class Meta:
+        model = Notification
+        fields = [
+            'id', 'recipient', 'notification_type', 'title', 'message',
+            'link', 'is_read', 'action_url', 'action_label', 'related_lead',
+            'related_quote_id', 'related_job', 'created_at'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+
+class VendorPerformanceSerializer(serializers.ModelSerializer):
+    """Serializer for vendor performance scores"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    
+    class Meta:
+        model = VendorPerformanceScore
+        fields = [
+            'id', 'vendor', 'vendor_name', 'on_time_delivery_rate', 'quality_score',
+            'communication_score', 'average_score', 'jobs_completed_90_days',
+            'on_time_jobs', 'on_time_delivery_percentage', 'average_quality_rating',
+            'average_communication_rating', 'last_recalculated', 'created_at'
+        ]
+        read_only_fields = ['id', 'last_recalculated', 'created_at']
+
+
+# ==================== PHASE 3: CLIENT PORTAL SERIALIZERS ====================
+
+class ClientNotificationSerializer(serializers.ModelSerializer):
+    """Serializer for client notifications"""
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    order_number = serializers.CharField(source='order.job_number', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ClientNotification
+        fields = [
+            'id', 'client', 'client_name', 'title', 'message', 'notification_type',
+            'is_read', 'read_at', 'created_at', 'link', 'order', 'order_number', 'proof'
+        ]
+        read_only_fields = ['id', 'created_at', 'read_at']
+
+
+class ClientMessageSerializer(serializers.ModelSerializer):
+    """Serializer for client messages"""
+    sender_name = serializers.CharField(source='sender.get_full_name', read_only=True, allow_null=True)
+    order_number = serializers.CharField(source='order.job_number', read_only=True)
+    
+    class Meta:
+        model = ClientMessage
+        fields = [
+            'id', 'order', 'order_number', 'sender', 'sender_name', 'sender_type',
+            'message', 'attachment', 'is_read', 'read_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'read_at']
+
+
+class ClientDashboardSerializer(serializers.ModelSerializer):
+    """Serializer for client dashboard metrics"""
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    
+    class Meta:
+        model = ClientDashboard
+        fields = [
+            'id', 'client', 'client_name', 'total_orders', 'active_orders',
+            'completed_orders', 'pending_proofs', 'overdue_orders',
+            'total_spent', 'pending_payment', 'orders_this_month',
+            'avg_completion_days', 'on_time_delivery_rate', 'last_updated', 'created_at'
+        ]
+        read_only_fields = [
+            'id', 'total_orders', 'active_orders', 'completed_orders',
+            'pending_proofs', 'overdue_orders', 'total_spent', 'pending_payment',
+            'orders_this_month', 'avg_completion_days', 'on_time_delivery_rate',
+            'last_updated', 'created_at'
+        ]
+
+
+class ClientFeedbackSerializer(serializers.ModelSerializer):
+    """Serializer for client feedback"""
+    order_number = serializers.CharField(source='order.job_number', read_only=True)
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ClientFeedback
+        fields = [
+            'id', 'order', 'order_number', 'client', 'client_name',
+            'feedback_type', 'rating', 'comment', 'vendor', 'vendor_name',
+            'proof', 'is_addressed', 'response', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+# ==================== PHASE 3: ANALYTICS SERIALIZERS ====================
+
+class OrderMetricsSerializer(serializers.ModelSerializer):
+    """Serializer for order metrics"""
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    month_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = OrderMetrics
+        fields = [
+            'id', 'client', 'client_name', 'month', 'month_display',
+            'total_orders', 'completed_orders', 'pending_orders', 'cancelled_orders',
+            'total_value', 'avg_order_value', 'total_revenue',
+            'avg_turnaround_days', 'on_time_delivery_rate', 'completion_rate',
+            'avg_quality_score', 'proofs_approved_first_attempt', 'revision_requests',
+            'calculated_at', 'created_at'
+        ]
+        read_only_fields = [
+            'id', 'total_orders', 'completed_orders', 'pending_orders', 'cancelled_orders',
+            'total_value', 'avg_order_value', 'total_revenue', 'avg_turnaround_days',
+            'on_time_delivery_rate', 'completion_rate', 'avg_quality_score',
+            'proofs_approved_first_attempt', 'revision_requests', 'calculated_at', 'created_at'
+        ]
+    
+    def get_month_display(self, obj):
+        return obj.month.strftime('%B %Y')
+
+
+class VendorComparisonSerializer(serializers.ModelSerializer):
+    """Serializer for vendor comparison"""
+    client_name = serializers.CharField(source='client.name', read_only=True)
+    vendor1_name = serializers.CharField(source='vendor1.name', read_only=True)
+    vendor2_name = serializers.CharField(source='vendor2.name', read_only=True)
+    
+    class Meta:
+        model = VendorComparison
+        fields = [
+            'id', 'client', 'client_name', 'vendor1', 'vendor1_name', 'vendor2', 'vendor2_name',
+            'comparison_date', 'quality_score_1', 'quality_score_2',
+            'avg_cost_1', 'avg_cost_2', 'avg_turnaround_1', 'avg_turnaround_2',
+            'on_time_rate_1', 'on_time_rate_2', 'overall_score_1', 'overall_score_2',
+            'winner', 'reason', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class PerformanceAnalyticsSerializer(serializers.ModelSerializer):
+    """Serializer for performance analytics"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    month_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = PerformanceAnalytics
+        fields = [
+            'id', 'vendor', 'vendor_name', 'month', 'month_display',
+            'orders_completed', 'orders_on_time', 'orders_late',
+            'quality_score', 'proofs_approved_first_attempt', 'revision_requests', 'rejection_rate',
+            'avg_turnaround_hours', 'on_time_delivery_percentage', 'avg_cost_per_unit',
+            'cost_variance_percentage', 'communication_score', 'reliability_score',
+            'overall_trend', 'trend_description', 'ranking', 'percentile',
+            'calculated_at', 'created_at'
+        ]
+        read_only_fields = [
+            'id', 'orders_completed', 'orders_on_time', 'orders_late', 'quality_score',
+            'proofs_approved_first_attempt', 'revision_requests', 'rejection_rate',
+            'avg_turnaround_hours', 'on_time_delivery_percentage', 'avg_cost_per_unit',
+            'cost_variance_percentage', 'communication_score', 'reliability_score',
+            'overall_trend', 'ranking', 'percentile', 'calculated_at', 'created_at'
+        ]
+    
+    def get_month_display(self, obj):
+        return obj.month.strftime('%B %Y')
+
+
+# ==================== PHASE 3: PAYMENT TRACKING SERIALIZERS ====================
+
+class PaymentStatusSerializer(serializers.ModelSerializer):
+    """Serializer for payment status"""
+    invoice_number = serializers.CharField(source='client_invoice.invoice_number', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = PaymentStatus
+        fields = [
+            'id', 'client_invoice', 'invoice_number', 'amount_due', 'amount_paid',
+            'amount_pending', 'status', 'due_date', 'paid_date', 'payment_method',
+            'days_overdue', 'is_overdue', 'last_payment_date', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'amount_pending', 'days_overdue', 'is_overdue', 'last_payment_date',
+            'created_at', 'updated_at'
+        ]
+
+
+class PaymentHistorySerializer(serializers.ModelSerializer):
+    """Serializer for payment history"""
+    invoice_number = serializers.CharField(source='payment_status.client_invoice.invoice_number', read_only=True, allow_null=True)
+    reconciled_by_name = serializers.CharField(source='reconciled_by.get_full_name', read_only=True, allow_null=True)
+    created_by_name = serializers.CharField(source='created_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = PaymentHistory
+        fields = [
+            'id', 'payment_status', 'invoice_number', 'payment_amount', 'payment_date',
+            'reference_number', 'payment_method', 'bank_account', 'depositor_name',
+            'notes', 'reconciled', 'reconciled_by', 'reconciled_by_name', 'reconciled_at',
+            'created_at', 'created_by', 'created_by_name', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at', 'reconciled_at']
+
+
+# Backend Gap Serializers
+
+class VendorCapacityAlertSerializer(serializers.ModelSerializer):
+    """Serializer for vendor capacity alerts"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    purchase_order_number = serializers.CharField(source='purchase_order.po_number', read_only=True, allow_null=True)
+    acknowledged_by_name = serializers.CharField(source='acknowledged_by.get_full_name', read_only=True, allow_null=True)
+    resolved_by_name = serializers.CharField(source='resolved_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = VendorCapacityAlert
+        fields = [
+            'id', 'vendor', 'vendor_name', 'alert_type', 'status', 'purchase_order',
+            'purchase_order_number', 'message', 'severity', 'acknowledged_by',
+            'acknowledged_by_name', 'acknowledged_at', 'resolved_by', 'resolved_by_name',
+            'resolved_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+
+class POSMilestoneSerializer(serializers.ModelSerializer):
+    """Serializer for purchase order milestones"""
+    purchase_order_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    days_until_due = serializers.SerializerMethodField()
+    is_overdue = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = POSMilestone
+        fields = [
+            'id', 'purchase_order', 'purchase_order_number', 'milestone_type',
+            'target_date', 'completed', 'completed_at', 'completed_on_time',
+            'alert_sent', 'alert_sent_at', 'notes', 'days_until_due', 'is_overdue',
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'completed_at', 'alert_sent_at', 'created_at', 'updated_at']
+    
+    def get_days_until_due(self, obj):
+        """Calculate days until milestone is due"""
+        return obj.days_until_due
+    
+    def get_is_overdue(self, obj):
+        """Check if milestone is overdue"""
+        return obj.is_overdue
+
+
+class MaterialSubstitutionApprovalSerializer(serializers.ModelSerializer):
+    """Serializer for material substitution approvals"""
+    purchase_order_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    approved_by_name = serializers.CharField(source='approved_by.get_full_name', read_only=True, allow_null=True)
+    cost_impact_percentage = serializers.SerializerMethodField()
+    cost_difference = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = MaterialSubstitutionApproval
+        fields = [
+            'id', 'purchase_order', 'purchase_order_number', 'original_material',
+            'substitute_material', 'reason', 'original_cost', 'substitute_cost',
+            'cost_difference', 'cost_impact_percentage', 'approval_status',
+            'approval_notes', 'approved_by', 'approved_by_name', 'approved_at',
+            'customer_notified', 'customer_notified_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'approved_at', 'created_at', 'updated_at']
+    
+    def get_cost_impact_percentage(self, obj):
+        """Calculate cost impact percentage"""
+        return round(obj.cost_impact_percentage, 2)
+    
+    def get_cost_difference(self, obj):
+        """Return cost difference"""
+        return str(obj.cost_difference)
+
+
+class InvoiceHoldSerializer(serializers.ModelSerializer):
+    """Serializer for invoice holds"""
+    invoice_number = serializers.CharField(source='invoice.invoice_number', read_only=True)
+    vendor_name = serializers.CharField(source='invoice.vendor.name', read_only=True)
+    held_by_name = serializers.CharField(source='held_by.get_full_name', read_only=True, allow_null=True)
+    released_by_name = serializers.CharField(source='released_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = InvoiceHold
+        fields = [
+            'id', 'invoice', 'invoice_number', 'vendor_name', 'hold_reason',
+            'hold_details', 'held_by', 'held_by_name', 'held_at', 'released',
+            'released_by', 'released_by_name', 'released_at'
+        ]
+        read_only_fields = ['id', 'held_at']
+
+
+class SLAEscalationSerializer(serializers.ModelSerializer):
+    """Serializer for SLA escalations"""
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    vendor_name = serializers.CharField(source='purchase_order.vendor.name', read_only=True)
+    escalated_by_name = serializers.CharField(source='escalated_by.get_full_name', read_only=True, allow_null=True)
+    resolved_by_name = serializers.CharField(source='resolved_by.get_full_name', read_only=True, allow_null=True)
+    time_since_escalation = serializers.SerializerMethodField()
+    is_critical = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = SLAEscalation
+        fields = [
+            'id', 'purchase_order', 'po_number', 'vendor_name', 'escalation_level',
+            'escalation_status', 'original_deadline', 'current_deadline', 'days_overdue',
+            'escalation_reason', 'escalation_notes', 'escalated_at', 'escalated_by',
+            'escalated_by_name', 'vendor_notified', 'vendor_notified_at', 'pt_notified',
+            'pt_notified_at', 'resolved_at', 'resolved_by', 'resolved_by_name',
+            'resolution_notes', 'created_at', 'updated_at', 'time_since_escalation',
+            'is_critical'
+        ]
+        read_only_fields = ['id', 'escalated_at', 'vendor_notified_at', 'pt_notified_at', 'resolved_at', 'created_at', 'updated_at']
+    
+    def get_time_since_escalation(self, obj):
+        """Calculate hours since escalation"""
+        from django.utils import timezone
+        from datetime import timedelta
+        delta = timezone.now() - obj.escalated_at
+        return delta.total_seconds() / 3600
+    
+    def get_is_critical(self, obj):
+        """Check if escalation is critical (level 3 or overdue > 7 days)"""
+        return obj.escalation_level == 'level_3' or obj.days_overdue > 7
+
+
+class ProgressUpdateBatchSerializer(serializers.ModelSerializer):
+    """Serializer for progress update batches"""
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    submitted_by_name = serializers.CharField(source='submitted_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = ProgressUpdateBatch
+        fields = [
+            'id', 'purchase_order', 'po_number', 'submission_date', 'submitted_by',
+            'submitted_by_name', 'percentage_complete', 'status', 'description',
+            'notes', 'next_milestone', 'next_milestone_date', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'submission_date', 'created_at', 'updated_at']
+
+
+class QCProofLinkSerializer(serializers.ModelSerializer):
+    """Serializer for QC-Proof links"""
+    qc_id = serializers.IntegerField(source='qc_inspection.id', read_only=True)
+    proof_id = serializers.IntegerField(source='proof.id', read_only=True)
+    
+    class Meta:
+        model = QCProofLink
+        fields = [
+            'id', 'qc_inspection', 'qc_id', 'proof', 'proof_id', 'qc_status',
+            'qc_notes', 'auto_held_invoice', 'hold_reason', 'vps_impact_calculated',
+            'vps_score_adjustment', 'linked_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'linked_at', 'updated_at']
+
+
+class VPSRecalculationLogSerializer(serializers.ModelSerializer):
+    """Serializer for VPS recalculation logs"""
+    vendor_name = serializers.CharField(source='vendor.name', read_only=True)
+    recalculated_by_name = serializers.CharField(source='recalculated_by.get_full_name', read_only=True, allow_null=True)
+    
+    class Meta:
+        model = VPSRecalculationLog
+        fields = [
+            'id', 'vendor', 'vendor_name', 'trigger_type', 'previous_score',
+            'new_score', 'score_change', 'reason', 'reference_id', 'recalculated_by',
+            'recalculated_by_name', 'recalculated_at'
+        ]
+        read_only_fields = ['id', 'recalculated_at']
+
+
+class CustomerNotificationSerializer(serializers.ModelSerializer):
+    """Serializer for customer notifications"""
+    substitution_id = serializers.IntegerField(source='substitution.id', read_only=True)
+    
+    class Meta:
+        model = CustomerNotification
+        fields = [
+            'id', 'substitution', 'substitution_id', 'status', 'notification_method',
+            'recipient_email', 'recipient_phone', 'subject', 'message', 'sent_at',
+            'acknowledged_at', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'sent_at', 'created_at', 'updated_at']
+
+
+class DeadlineCalculationSerializer(serializers.ModelSerializer):
+    """Serializer for deadline calculations"""
+    po_number = serializers.CharField(source='purchase_order.po_number', read_only=True)
+    
+    class Meta:
+        model = DeadlineCalculation
+        fields = [
+            'id', 'purchase_order', 'po_number', 'job_complexity',
+            'vendor_capacity_available', 'sla_days', 'base_deadline',
+            'adjusted_deadline', 'risk_score', 'calculation_notes', 'calculated_at'
+        ]
+        read_only_fields = ['id', 'calculated_at']
+
+

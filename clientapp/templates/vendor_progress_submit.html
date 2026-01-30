@@ -1,0 +1,698 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+<style>
+    .progress-submission-container {
+        max-width: 800px;
+        margin: 2rem auto;
+        padding: 2rem;
+    }
+
+    .form-card {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #f3f4f6;
+    }
+
+    .form-header {
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .form-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .form-title i {
+        color: #3b82f6;
+        font-size: 1.75rem;
+    }
+
+    .form-subtitle {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+
+    .form-section {
+        margin-bottom: 2rem;
+    }
+
+    .form-section-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .form-section-title i {
+        color: #3b82f6;
+    }
+
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-required {
+        color: #ef4444;
+        font-weight: 700;
+    }
+
+    .form-description {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        margin-top: 0.25rem;
+    }
+
+    /* Job Selection */
+    .job-select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        background: white;
+        cursor: pointer;
+    }
+
+    .job-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Percentage Slider */
+    .progress-slider-wrapper {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .progress-slider {
+        flex: 1;
+        height: 8px;
+        border-radius: 4px;
+        background: #e5e7eb;
+        outline: none;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    .progress-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        border: 3px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-slider::-moz-range-thumb {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #3b82f6;
+        cursor: pointer;
+        border: 3px solid white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .progress-value {
+        width: 60px;
+        text-align: center;
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+
+    .progress-value-percent {
+        font-size: 0.8rem;
+        color: #9ca3af;
+    }
+
+    /* Progress Bar Visual */
+    .progress-bar-container {
+        margin-top: 1rem;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 12px;
+        background: #e5e7eb;
+        border-radius: 6px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6 0%, #1e40af 100%);
+        border-radius: 6px;
+        transition: width 0.2s ease;
+    }
+
+    /* Milestone Selection */
+    .milestone-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .milestone-option {
+        position: relative;
+    }
+
+    .milestone-option input {
+        display: none;
+    }
+
+    .milestone-option label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1rem;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+
+    .milestone-option input:checked + label {
+        background: #eff6ff;
+        border-color: #3b82f6;
+    }
+
+    .milestone-option i {
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .milestone-option span {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+
+    /* File Upload */
+    .file-upload-zone {
+        border: 2px dashed #3b82f6;
+        border-radius: 8px;
+        padding: 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #f0f9ff;
+    }
+
+    .file-upload-zone:hover {
+        background: #e0f2fe;
+        border-color: #0ea5e9;
+    }
+
+    .file-upload-zone i {
+        font-size: 2rem;
+        color: #3b82f6;
+        margin-bottom: 0.5rem;
+    }
+
+    .file-upload-text {
+        font-size: 0.9rem;
+        color: #1a1a1a;
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+
+    .file-upload-subtext {
+        font-size: 0.8rem;
+        color: #9ca3af;
+    }
+
+    .file-upload-input {
+        display: none;
+    }
+
+    /* File List */
+    .file-list {
+        margin-top: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .file-item {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        padding: 0.75rem;
+        background: #f9fafb;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .file-item-icon {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #eff6ff;
+        border-radius: 6px;
+        color: #3b82f6;
+    }
+
+    .file-item-info {
+        flex: 1;
+    }
+
+    .file-item-name {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+
+    .file-item-size {
+        font-size: 0.75rem;
+        color: #9ca3af;
+    }
+
+    .file-item-remove {
+        color: #ef4444;
+        cursor: pointer;
+        font-size: 1.2rem;
+        transition: all 0.2s;
+    }
+
+    .file-item-remove:hover {
+        color: #dc2626;
+    }
+
+    /* Textarea */
+    .form-textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        background: white;
+        min-height: 100px;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .form-textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    /* Form Actions */
+    .form-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    }
+
+    .btn-primary:disabled {
+        background: #bfdbfe;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #6b7280;
+        border: 1px solid #e5e7eb;
+    }
+
+    .btn-secondary:hover {
+        background: #f9fafb;
+    }
+
+    /* Alert */
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .alert-success {
+        background: #dcfce7;
+        border: 1px solid #86efac;
+        color: #166534;
+    }
+
+    .alert-error {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        color: #991b1b;
+    }
+
+    .alert i {
+        font-size: 1.2rem;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .progress-submission-container {
+            padding: 1rem;
+        }
+
+        .form-card {
+            padding: 1.5rem;
+        }
+
+        .milestone-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<div class="progress-submission-container">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{% if message.tags %}{{ message.tags }}{% else %}success{% endif %}">
+                <i class="fas {% if 'success' in message.tags %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="form-card">
+        <div class="form-header">
+            <div class="form-title">
+                <i class="fas fa-chart-line"></i>
+                Submit Progress Update
+            </div>
+            <div class="form-subtitle">
+                Update the production progress for your assigned jobs
+            </div>
+        </div>
+
+        <form method="POST" action="{% url 'vendor_progress_submit' %}" enctype="multipart/form-data" id="progressForm">
+            {% csrf_token %}
+
+            <!-- Job Selection -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="fas fa-tasks"></i>
+                    Select Job
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Job <span class="form-required">*</span>
+                    </label>
+                    <select name="po_id" class="job-select" id="jobSelect" required onchange="updateJobInfo()">
+                        <option value="">-- Select Purchase Order --</option>
+                        {% for po in purchase_orders %}
+                            <option value="{{ po.id }}" data-po="{{ po.po_number }}" data-product="{{ po.product_type }}" data-due="{{ po.required_by|date:'Y-m-d' }}">
+                                {{ po.po_number }}: {{ po.product_type|truncatewords:5 }} (Due: {{ po.required_by|date:'M d' }})
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-description" id="jobDescription"></div>
+                </div>
+            </div>
+
+            <!-- Progress Percentage -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="fas fa-percent"></i>
+                    Production Progress
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Completion Percentage <span class="form-required">*</span>
+                    </label>
+                    <div class="progress-slider-wrapper">
+                        <input type="range" name="percentage_complete" min="0" max="100" value="0" class="progress-slider" id="percentageSlider" required onchange="updatePercentageDisplay()">
+                        <div class="progress-value">
+                            <span id="percentageValue">0</span><br>
+                            <span class="progress-value-percent">%</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar">
+                            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                    <div class="form-description">
+                        Drag the slider to indicate production progress. Updates help PT track job status in real-time.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Milestone Selection -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="fas fa-flag"></i>
+                    Current Milestone
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        What stage are you at? <span class="form-required">*</span>
+                    </label>
+                    <div class="milestone-grid">
+                        <div class="milestone-option">
+                            <input type="radio" name="milestone" value="awaiting_acceptance" id="milestone_setup" required>
+                            <label for="milestone_setup">
+                                <i class="fas fa-wrench" style="color: #f59e0b;"></i>
+                                <span>Awaiting Acceptance</span>
+                            </label>
+                        </div>
+                        <div class="milestone-option">
+                            <input type="radio" name="milestone" value="in_production" id="milestone_production" required>
+                            <label for="milestone_production">
+                                <i class="fas fa-industry" style="color: #3b82f6;"></i>
+                                <span>In Production</span>
+                            </label>
+                        </div>
+                        <div class="milestone-option">
+                            <input type="radio" name="milestone" value="quality_check" id="milestone_qc" required>
+                            <label for="milestone_qc">
+                                <i class="fas fa-clipboard-check" style="color: #8b5cf6;"></i>
+                                <span>Quality Check</span>
+                            </label>
+                        </div>
+                        <div class="milestone-option">
+                            <input type="radio" name="milestone" value="completed" id="milestone_finishing" required>
+                            <label for="milestone_finishing">
+                                <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                                <span>Completed</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File Attachments (Proof Photos) -->
+            <div class="form-section">
+                <div class="form-section-title">
+                    <i class="fas fa-camera"></i>
+                    Proof Photos (Optional)
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label">
+                        Upload Progress Photos or Proofs
+                    </label>
+                    <div class="file-upload-zone" id="fileUploadZone">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <div class="file-upload-text">Click to upload or drag files here</div>
+                        <div class="file-upload-subtext">Supported formats: JPG, PNG, PDF (Max 10MB each)</div>
+                        <input type="file" name="attachments" multiple accept=".jpg,.jpeg,.png,.pdf" class="file-upload-input" id="fileInput">
+                    </div>
+                    <div class="file-list" id="fileList"></div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="form-section">
+                <div class="form-group">
+                    <label class="form-label">
+                        Additional Notes (Optional)
+                    </label>
+                    <textarea name="notes" class="form-textarea" placeholder="Add any comments or status updates about the production..."></textarea>
+                    <div class="form-description">
+                        Help the Production Team understand any delays, issues, or special circumstances.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions">
+                <button type="reset" class="btn btn-secondary">Clear Form</button>
+                <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Submit Progress Update</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // File upload handling
+    const fileUploadZone = document.getElementById('fileUploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const fileList = document.getElementById('fileList');
+    let uploadedFiles = [];
+
+    // Click to upload
+    fileUploadZone.addEventListener('click', () => fileInput.click());
+
+    // Drag and drop
+    fileUploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadZone.style.background = '#e0f2fe';
+    });
+
+    fileUploadZone.addEventListener('dragleave', () => {
+        fileUploadZone.style.background = '#f0f9ff';
+    });
+
+    fileUploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadZone.style.background = '#f0f9ff';
+        handleFiles(e.dataTransfer.files);
+    });
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        uploadedFiles = Array.from(files);
+        renderFileList();
+        
+        // Update form data
+        const dataTransfer = new DataTransfer();
+        uploadedFiles.forEach(file => dataTransfer.items.add(file));
+        fileInput.files = dataTransfer.files;
+    }
+
+    function renderFileList() {
+        fileList.innerHTML = uploadedFiles.map((file, index) => `
+            <div class="file-item">
+                <div class="file-item-icon">
+                    <i class="fas fa-${getFileIcon(file.name)}"></i>
+                </div>
+                <div class="file-item-info">
+                    <div class="file-item-name">${file.name}</div>
+                    <div class="file-item-size">${formatFileSize(file.size)}</div>
+                </div>
+                <div class="file-item-remove" onclick="removeFile(${index})">
+                    <i class="fas fa-trash"></i>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function removeFile(index) {
+        uploadedFiles.splice(index, 1);
+        renderFileList();
+        
+        const dataTransfer = new DataTransfer();
+        uploadedFiles.forEach(file => dataTransfer.items.add(file));
+        fileInput.files = dataTransfer.files;
+    }
+
+    function getFileIcon(filename) {
+        if (filename.endsWith('.pdf')) return 'file-pdf';
+        if (filename.match(/\.(jpg|jpeg|png)$/i)) return 'image';
+        return 'file';
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    // Progress percentage slider
+    function updatePercentageDisplay() {
+        const value = document.getElementById('percentageSlider').value;
+        document.getElementById('percentageValue').textContent = value;
+        document.getElementById('progressBarFill').style.width = value + '%';
+        validateForm();
+    }
+
+    // Job selection
+    function updateJobInfo() {
+        const select = document.getElementById('jobSelect');
+        const selected = select.options[select.selectedIndex];
+        if (selected.value) {
+            const desc = `${selected.dataset.po}: ${selected.dataset.product} - Due: ${selected.dataset.due}`;
+            document.getElementById('jobDescription').textContent = desc;
+        }
+        validateForm();
+    }
+
+    // Form validation
+    function validateForm() {
+        const form = document.getElementById('progressForm');
+        const isValid = form.checkValidity() && document.getElementById('jobSelect').value && document.getElementById('percentageSlider').value;
+        document.getElementById('submitBtn').disabled = !isValid;
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', validateForm);
+</script>
+
+{% endblock %}

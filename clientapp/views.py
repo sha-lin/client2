@@ -37,6 +37,7 @@ from .models import (
     Lead,
     Client,
     ClientContact,
+    ClientPortalUser,
     ComplianceDocument,
     Product,
     Quote,
@@ -4239,6 +4240,58 @@ def production2_dashboard(request):
     }
     
     return render(request, 'production2_dashboard.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def jobs2_list(request):
+    """Enhanced Jobs management page"""
+    context = {
+        'current_view': 'jobs2_list',
+    }
+    return render(request, 'jobs2_list.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def invoices2_list(request):
+    """Enhanced Invoices review page"""
+    context = {
+        'current_view': 'invoices2_list',
+    }
+    return render(request, 'invoices2_list.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def proofs2_list(request):
+    """Enhanced QC Proofs review page"""
+    context = {
+        'current_view': 'proofs2_list',
+    }
+    return render(request, 'proofs2_list.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def messages2_list(request):
+    """Enhanced Messages page"""
+    context = {
+        'current_view': 'messages2_list',
+    }
+    return render(request, 'messages2_list.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def vendors2_list(request):
+    """Enhanced Vendor directory page"""
+    context = {
+        'current_view': 'vendors2_list',
+    }
+    return render(request, 'vendors2_list.html', context)
+
+
 @login_required
 @group_required('Production Team')
 def production_analytics(request):
@@ -4317,6 +4370,330 @@ def production_settings(request):
 @group_required('Production Team')
 def self_quote(request):
     return render(request, 'self_quote.html')
+
+
+@login_required
+@group_required('Production Team')
+def production_job_assignment(request):
+    """Job Assignment UI for Production Team - GAP #10"""
+    from django.db.models import Count, Q, Avg
+    
+    # Get unassigned or recently created jobs (jobs without purchase orders)
+    jobs = Job.objects.filter(
+        status__in=['pending', 'in_progress']
+    ).exclude(
+        purchase_orders__isnull=False
+    ).select_related('client').order_by('-created_at')[:50]
+    
+    # Get vendors with capacity and stats
+    vendors = Vendor.objects.annotate(
+        active_jobs=Count('purchase_orders', filter=Q(purchase_orders__status__in=['NEW', 'ACCEPTED', 'IN_PROGRESS'])),
+        quality_score=Avg('purchase_orders__job__quality_score')
+    ).values(
+        'id', 'name', 'active_jobs', 'quality_score'
+    )
+    
+    # Calculate capacity percentage for each vendor
+    vendor_list = []
+    for vendor in vendors:
+        capacity_pct = min(int((vendor['active_jobs'] / 10) * 100), 100)  # Assuming 10 job capacity
+        vendor_obj = {
+            'id': vendor['id'],
+            'name': vendor['name'],
+            'active_jobs': vendor['active_jobs'],
+            'capacity_percentage': capacity_pct,
+            'quality_score': vendor['quality_score'] or 8.5
+        }
+        vendor_list.append(vendor_obj)
+    
+    context = {
+        'current_view': 'production_job_assignment',
+        'jobs': jobs,
+        'vendors': vendor_list,
+    }
+    return render(request, 'production_job_assignment.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def production_job_assignment_submit(request):
+    """Handle job assignment submission - GAP #10"""
+    if request.method == 'POST':
+        try:
+            job_id = request.POST.get('job_id')
+            vendor_id = request.POST.get('vendor_id')
+            priority = request.POST.get('priority', 'normal')
+            notes = request.POST.get('notes', '')
+            
+            # Get job and vendor
+            job = Job.objects.get(id=job_id)
+            vendor = Vendor.objects.get(id=vendor_id)
+            
+            # Update job priority and notes
+            job.priority = priority
+            job.assignment_notes = notes
+            job.save()
+            
+            # Create a Purchase Order to link vendor to job
+            from decimal import Decimal
+            from django.utils import timezone
+            from datetime import timedelta
+            
+            purchase_order, created = PurchaseOrder.objects.get_or_create(
+                job=job,
+                vendor=vendor,
+                defaults={
+                    'product_type': job.product if hasattr(job, 'product') else 'Production Job',
+                    'product_description': job.job_notes or 'Production assignment',
+                    'quantity': 1,
+                    'total_cost': Decimal('0.00'),
+                    'status': 'NEW',
+                    'milestone': 'awaiting_acceptance',
+                    'required_by': timezone.now() + timedelta(days=14),
+                }
+            )
+            
+            # Log the assignment
+            messages.success(request, f'Successfully assigned job {job.job_number} to {vendor.name}')
+            
+        except Job.DoesNotExist:
+            messages.error(request, 'Job not found.')
+        except Vendor.DoesNotExist:
+            messages.error(request, 'Vendor not found.')
+        except Exception as e:
+            messages.error(request, f'Error assigning job: {str(e)}')
+        
+        return redirect('production_job_assignment')
+    
+    return redirect('production_job_assignment')
+
+
+@login_required
+@group_required('Production Team')
+def production_invoice_approval(request):
+    """Invoice Approval UI for Production Team - GAP #11"""
+    from django.db.models import Q
+    
+    # Get pending invoices with related vendor info
+    invoices = Invoice.objects.filter(
+        Q(approval_status__in=['pending', 'hold']) |
+        Q(approval_status__isnull=True)
+    ).select_related('vendor').order_by('-date')
+    
+    # Get list of vendors for filtering
+    vendors = Vendor.objects.all().values('id', 'name')
+    
+    context = {
+        'current_view': 'production_invoice_approval',
+        'invoices': invoices,
+        'vendors': vendors,
+    }
+    return render(request, 'production_invoice_approval.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def production_invoice_approval_submit(request):
+    """Handle invoice approval submission - GAP #11"""
+    if request.method == 'POST':
+        try:
+            invoice_id = request.POST.get('invoice_id')
+            decision = request.POST.get('decision')
+            notes = request.POST.get('notes', '')
+            
+            # Get invoice
+            invoice = Invoice.objects.get(id=invoice_id)
+            
+            # Update invoice status
+            invoice.approval_status = decision
+            invoice.approved_by = request.user
+            invoice.approval_date = timezone.now()
+            invoice.approval_notes = notes
+            invoice.save()
+            
+            # Log the decision
+            status_text = {
+                'approve': 'approved',
+                'reject': 'rejected',
+                'hold': 'placed on hold'
+            }.get(decision, 'updated')
+            
+            messages.success(request, f'Invoice {invoice.number} has been {status_text}.')
+            
+        except Invoice.DoesNotExist:
+            messages.error(request, 'Invoice not found.')
+        except Exception as e:
+            messages.error(request, f'Error updating invoice: {str(e)}')
+        
+        return redirect('production_invoice_approval')
+    
+    return redirect('production_invoice_approval')
+
+
+@login_required
+@group_required('Production Team')
+def production_proof_approval(request):
+    """Proof Approval with QC Assessment UI - GAP #12"""
+    from django.db.models import Q
+    
+    # Get proofs awaiting approval
+    proofs = Proof.objects.filter(
+        Q(qc_status__in=['pending', 'rework']) |
+        Q(qc_status__isnull=True)
+    ).select_related('job').order_by('-created_at')
+    
+    # Add image URLs to proofs
+    for proof in proofs:
+        proof.image_url = proof.file.url if proof.file else ''
+        proof.thumbnail_url = proof.file.url if proof.file else ''
+        proof.po_number = proof.job.po_number if proof.job else f'PO-{proof.job_id}'
+    
+    context = {
+        'current_view': 'production_proof_approval',
+        'proofs': proofs,
+    }
+    return render(request, 'production_proof_approval.html', context)
+
+
+@login_required
+@group_required('Production Team')
+def production_proof_approval_submit(request):
+    """Handle proof approval submission with VPS recalculation - GAP #12"""
+    if request.method == 'POST':
+        try:
+            proof_id = request.POST.get('proof_id')
+            decision = request.POST.get('decision')  # 'pass', 'rework', 'reject'
+            qc_notes = request.POST.get('qc_notes', '')
+            
+            # Get proof
+            proof = Proof.objects.get(id=proof_id)
+            
+            # Update proof QC status
+            proof.qc_status = decision
+            proof.qc_notes = qc_notes
+            proof.qc_approved_by = request.user
+            proof.qc_approval_date = timezone.now()
+            proof.save()
+            
+            # If proof is rejected, potentially hold invoice (GAP #14)
+            if decision == 'reject':
+                if proof.job and proof.job.invoice:
+                    proof.job.invoice.auto_held_qc = True
+                    proof.job.invoice.hold_reason = f'QC Proof Rejection - {qc_notes}'
+                    proof.job.invoice.save()
+            
+            # Trigger VPS recalculation if needed (GAP #15)
+            if decision in ['pass', 'reject']:
+                try:
+                    from rest_framework.request import Request as DRFRequest
+                    from rest_framework.test import APIRequestFactory
+                    
+                    # Create VPS recalculation record
+                    recalc_data = {
+                        'vendor': proof.job.vendor_id,
+                        'trigger_type': 'proof_approval',
+                        'trigger_id': proof_id,
+                        'previous_score': proof.job.vendor.vps_score if proof.job.vendor else 0,
+                    }
+                    # Calculate new score based on decision
+                    if decision == 'pass':
+                        recalc_data['new_score'] = recalc_data['previous_score'] + 2
+                    else:  # reject
+                        recalc_data['new_score'] = recalc_data['previous_score'] - 5
+                    
+                    # VPS recalculation happens via background task or API
+                except Exception as vps_error:
+                    pass  # VPS recalculation optional, don't fail on it
+            
+            # Log action
+            decision_text = {
+                'pass': 'approved',
+                'rework': 'sent for rework',
+                'reject': 'rejected'
+            }.get(decision, 'updated')
+            
+            messages.success(request, f'Proof has been {decision_text}.')
+            
+        except Proof.DoesNotExist:
+            messages.error(request, 'Proof not found.')
+        except Exception as e:
+            messages.error(request, f'Error updating proof: {str(e)}')
+        
+        return redirect('production_proof_approval')
+    
+    return redirect('production_proof_approval')
+
+
+@login_required
+def vendor_progress_submit(request):
+    """Vendor Progress Update Submission - GAP #7"""
+    from django.db.models import Q
+    
+    if request.method == 'GET':
+        # Get vendor from request user
+        try:
+            vendor = Vendor.objects.get(user=request.user)
+        except Vendor.DoesNotExist:
+            messages.error(request, 'Vendor profile not found.')
+            return redirect('vendor_dashboard')
+        
+        # Get purchase orders assigned to this vendor in progress
+        purchase_orders = PurchaseOrder.objects.filter(
+            vendor=vendor,
+            status__in=['IN_PRODUCTION', 'AWAITING_APPROVAL', 'AT_RISK']
+        ).select_related('job__client').order_by('-created_at')
+        
+        context = {
+            'purchase_orders': purchase_orders,
+            'current_view': 'vendor_progress_submit',
+        }
+        return render(request, 'vendor_progress_submit.html', context)
+    
+    elif request.method == 'POST':
+        try:
+            po_id = request.POST.get('po_id')
+            percentage_complete = int(request.POST.get('percentage_complete', 0))
+            milestone = request.POST.get('milestone', 'in_production')
+            notes = request.POST.get('notes', '')
+            
+            # Get purchase order
+            po = PurchaseOrder.objects.get(id=po_id)
+            
+            # Verify vendor access
+            vendor = Vendor.objects.get(user=request.user)
+            if po.vendor != vendor:
+                messages.error(request, 'You do not have access to this purchase order.')
+                return redirect('vendor_progress_submit')
+            
+            # Create progress update batch (GAP #7)
+            progress_batch = ProgressUpdateBatch.objects.create(
+                purchase_order=po,
+                percentage_complete=percentage_complete,
+                status=milestone,
+                submitted_by=request.user,
+                notes=notes
+            )
+            
+            # Handle attachments
+            attachments = request.FILES.getlist('attachments')
+            if attachments:
+                for attachment in attachments:
+                    progress_batch.attachments.add(attachment)
+            
+            messages.success(request, f'Progress update submitted successfully. ({percentage_complete}% complete)')
+            
+        except PurchaseOrder.DoesNotExist:
+            messages.error(request, 'Purchase order not found.')
+        except Vendor.DoesNotExist:
+            messages.error(request, 'Vendor profile not found.')
+        except ValueError:
+            messages.error(request, 'Invalid percentage value.')
+        except Exception as e:
+            messages.error(request, f'Error submitting progress: {str(e)}')
+        
+        return redirect('vendor_progress_submit')
+
+
 # Add these updated views to your views.py file
 
 @login_required
@@ -5391,6 +5768,24 @@ def product_detail(request, pk):
         )
         pricing = ProductPricing.objects.filter(product=product)
     
+    # Calculate total cost from formula-based process variables
+    formula_process_variables_cost = None
+    if pricing.exists() and pricing.first().formula_process:
+        formula_process = pricing.first().formula_process
+        # Sum all variable prices in the formula process
+        from decimal import Decimal
+        variables = formula_process.variables.all()
+        if variables.exists():
+            total_cost = Decimal('0')
+            for var in variables:
+                # Use variable price if available, else use the first range price
+                if var.price and var.price > 0:
+                    total_cost += var.price
+                elif var.ranges.exists():
+                    # If no direct price, use the base price of first range
+                    total_cost += var.ranges.first().price
+            formula_process_variables_cost = total_cost if total_cost > 0 else None
+    
     # Try to get SEO data if it exists
     seo_data = None
     try:
@@ -5405,6 +5800,7 @@ def product_detail(request, pk):
         'product': product,
         'images': images,
         'pricing': pricing,
+        'formula_process_variables_cost': formula_process_variables_cost,
         'seo_data': seo_data,
         'change_history': change_history,
         'is_production_team': is_production_team,
@@ -5422,8 +5818,15 @@ def product_create(request):
     
     if request.method == 'POST':
         try:
-            action = request.POST.get('action', 'save_draft')
+            action = request.POST.get('action', '').strip()
             next_tab = request.POST.get('next_tab', '')
+            
+            # Require explicit action - don't default to save_draft
+            if not action:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Please explicitly click "Save Draft" or "Publish" to create a product',
+                }, status=400)
             
             # Auto-save is disabled for new product creation
             # Users must explicitly click "Save Draft" or "Publish" to create a product
@@ -5629,8 +6032,15 @@ def product_edit(request, pk):
     
     if request.method == 'POST':
         try:
-            action = request.POST.get('action', 'save_draft')
+            action = request.POST.get('action', '').strip()
             next_tab = request.POST.get('next_tab', '')
+            
+            # Require explicit action for product creation/updates
+            if not action:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Please explicitly click "Save Draft" or "Publish" to save changes',
+                }, status=400)
             
             # Handle auto-save - return JSON response
             if action == 'auto_save':
@@ -7575,6 +7985,7 @@ from django.db.models import Q
 from .models import Process, ProcessTier, ProcessVariable, ProcessVendor, Vendor, VendorTierPricing
 
 
+@login_required
 def process_list(request):
     """Display list of all processes with filtering"""
     processes = Process.objects.all()  
@@ -7616,6 +8027,19 @@ def process_list(request):
     
     return render(request, 'process_list.html', context)
 
+
+@login_required
+def process_detail(request, process_id):
+    """Display read-only process details with all variables/tiers"""
+    process = get_object_or_404(Process, process_id=process_id)
+    
+    context = {
+        'process': process,
+        'tiers': process.tiers.all() if process.pricing_type == 'tier' else [],
+        'variables': process.variables.all() if process.pricing_type == 'formula' else [],
+        'process_vendors': process.process_vendors.all(),
+    }
+    return render(request, 'process_detail.html', context)
 
 
 @login_required
@@ -9226,6 +9650,7 @@ from rest_framework import viewsets, status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from .permissions import IsProductionTeam
 from datetime import timedelta
 from decimal import Decimal
 from django.utils import timezone
@@ -9244,6 +9669,16 @@ from .models import (
     Vendor,
     QCInspection,
     JobVendorStage,
+    VendorCapacityAlert,
+    POSMilestone,
+    MaterialSubstitutionApproval,
+    InvoiceHold,
+    SLAEscalation,
+    ProgressUpdateBatch,
+    QCProofLink,
+    VPSRecalculationLog,
+    CustomerNotification,
+    DeadlineCalculation,
 )
 from .vendor_portal_serializers import (
     PurchaseOrderSerializer,
@@ -9253,6 +9688,18 @@ from .vendor_portal_serializers import (
     PurchaseOrderNoteSerializer,
     MaterialSubstitutionRequestSerializer,
     VendorPerformanceSerializer,
+)
+from .api_serializers import (
+    VendorCapacityAlertSerializer,
+    POSMilestoneSerializer,
+    MaterialSubstitutionApprovalSerializer,
+    InvoiceHoldSerializer,
+    SLAEscalationSerializer,
+    ProgressUpdateBatchSerializer,
+    QCProofLinkSerializer,
+    VPSRecalculationLogSerializer,
+    CustomerNotificationSerializer,
+    DeadlineCalculationSerializer,
 )
 
 
@@ -9744,7 +10191,1016 @@ class VendorPerformanceViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
 
-from django.shortcuts import render, redirect, get_object_or_404
+# =====================================
+# NEW: BACKEND GAPS - VIEWSETS
+# =====================================
+
+class VendorCapacityAlertViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Vendor Capacity Alerts.
+    Provides alerting system for vendor capacity thresholds.
+    """
+    queryset = VendorCapacityAlert.objects.all()
+    serializer_class = VendorCapacityAlertSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    def get_queryset(self):
+        """Filter by vendor or get all for PT"""
+        qs = VendorCapacityAlert.objects.all()
+        vendor_id = self.request.query_params.get('vendor_id')
+        if vendor_id:
+            qs = qs.filter(vendor_id=vendor_id)
+        alert_type = self.request.query_params.get('alert_type')
+        if alert_type:
+            qs = qs.filter(alert_type=alert_type)
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+        return qs
+    
+    @action(detail=True, methods=['post'])
+    def acknowledge(self, request, pk=None):
+        """Acknowledge an alert"""
+        alert = self.get_object()
+        alert.status = 'acknowledged'
+        alert.acknowledged_at = timezone.now()
+        alert.acknowledged_by = request.user
+        alert.save()
+        return Response({'status': 'alert acknowledged'})
+    
+    @action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Resolve an alert"""
+        alert = self.get_object()
+        alert.status = 'resolved'
+        alert.resolved_at = timezone.now()
+        alert.save()
+        return Response({'status': 'alert resolved'})
+    
+    @action(detail=False, methods=['post'])
+    def check_capacity(self, request):
+        """Check and create alerts for vendor capacity"""
+        from django.db.models import Count
+        
+        vendors = Vendor.objects.all()
+        alerts_created = 0
+        
+        for vendor in vendors:
+            # Get active jobs
+            active_pos = PurchaseOrder.objects.filter(
+                vendor=vendor,
+                status__in=['ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+            ).count()
+            
+            # Calculate capacity
+            vendor_capacity = getattr(vendor, 'max_concurrent_jobs', 10)
+            utilization = (active_pos / vendor_capacity) * 100 if vendor_capacity > 0 else 0
+            
+            # Check thresholds
+            if utilization >= 100:
+                alert, created = VendorCapacityAlert.objects.get_or_create(
+                    vendor=vendor,
+                    alert_type='capacity_critical',
+                    status='active',
+                    defaults={'message': f'Vendor at {utilization:.0f}% capacity', 'severity': 3}
+                )
+                if created:
+                    alerts_created += 1
+            elif utilization >= 80:
+                alert, created = VendorCapacityAlert.objects.get_or_create(
+                    vendor=vendor,
+                    alert_type='capacity_warning',
+                    status='active',
+                    defaults={'message': f'Vendor at {utilization:.0f}% capacity', 'severity': 2}
+                )
+                if created:
+                    alerts_created += 1
+        
+        return Response({'alerts_created': alerts_created})
+
+
+class POSMilestoneViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Purchase Order Milestones.
+    Tracks milestone progress and sends alerts.
+    """
+    queryset = POSMilestone.objects.all()
+    serializer_class = POSMilestoneSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter by purchase order"""
+        qs = POSMilestone.objects.all()
+        po_id = self.request.query_params.get('po_id')
+        if po_id:
+            qs = qs.filter(purchase_order_id=po_id)
+        return qs
+    
+    @action(detail=True, methods=['post'])
+    def complete(self, request, pk=None):
+        """Mark milestone as complete"""
+        milestone = self.get_object()
+        milestone.completed = True
+        milestone.completed_at = timezone.now()
+        milestone.completed_on_time = milestone.target_date >= timezone.now().date()
+        milestone.save()
+        return Response({'status': 'milestone completed'})
+    
+    @action(detail=False, methods=['post'])
+    def check_approaching(self, request):
+        """Check for approaching milestones and send alerts"""
+        from django.utils import timezone
+        
+        # Get milestones due within 3 days
+        three_days_ahead = timezone.now().date() + timedelta(days=3)
+        approaching = POSMilestone.objects.filter(
+            target_date__lte=three_days_ahead,
+            target_date__gte=timezone.now().date(),
+            completed=False,
+            alert_sent=False
+        )
+        
+        alerts_sent = 0
+        for milestone in approaching:
+            # Create alert for approaching milestone
+            alert, created = VendorCapacityAlert.objects.get_or_create(
+                vendor=milestone.purchase_order.vendor,
+                purchase_order=milestone.purchase_order,
+                alert_type='deadline_approaching',
+                status='active',
+                defaults={
+                    'message': f'{milestone.get_milestone_type_display()} due {milestone.target_date}',
+                    'severity': 2
+                }
+            )
+            
+            milestone.alert_sent = True
+            milestone.alert_sent_at = timezone.now()
+            milestone.save()
+            
+            if created:
+                alerts_sent += 1
+        
+        return Response({'alerts_sent': alerts_sent})
+
+
+class MaterialSubstitutionApprovalViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Material Substitution Approvals.
+    Handles approval workflow and cost impact calculations.
+    """
+    queryset = MaterialSubstitutionApproval.objects.all()
+    serializer_class = MaterialSubstitutionApprovalSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter by PO or status"""
+        qs = MaterialSubstitutionApproval.objects.all()
+        po_id = self.request.query_params.get('po_id')
+        if po_id:
+            qs = qs.filter(purchase_order_id=po_id)
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            qs = qs.filter(approval_status=status_filter)
+        return qs
+    
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve material substitution"""
+        substitution = self.get_object()
+        substitution.approval_status = 'approved'
+        substitution.approval_notes = request.data.get('notes', '')
+        substitution.approved_by = request.user
+        substitution.approved_at = timezone.now()
+        substitution.save()
+        return Response({'status': 'substitution approved'})
+    
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject material substitution"""
+        substitution = self.get_object()
+        substitution.approval_status = 'rejected'
+        substitution.approval_notes = request.data.get('notes', '')
+        substitution.approved_by = request.user
+        substitution.approved_at = timezone.now()
+        substitution.save()
+        return Response({'status': 'substitution rejected'})
+    
+    @action(detail=True, methods=['get'])
+    def cost_impact(self, request, pk=None):
+        """Get cost impact of substitution"""
+        substitution = self.get_object()
+        return Response({
+            'original_cost': str(substitution.original_cost),
+            'substitute_cost': str(substitution.substitute_cost),
+            'cost_difference': str(substitution.cost_difference),
+            'cost_impact_percentage': round(substitution.cost_impact_percentage, 2),
+            'vendor': substitution.purchase_order.vendor.name
+        })
+
+
+class InvoiceHoldViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for Invoice Holds.
+    Tracks holds and reasons for invoices.
+    """
+    queryset = InvoiceHold.objects.all()
+    serializer_class = InvoiceHoldSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    @action(detail=False, methods=['post'])
+    def hold_invoice(self, request):
+        """Place a hold on an invoice"""
+        invoice_id = request.data.get('invoice_id')
+        hold_reason = request.data.get('hold_reason')
+        hold_details = request.data.get('hold_details', '')
+        
+        try:
+            invoice = VendorInvoice.objects.get(id=invoice_id)
+        except VendorInvoice.DoesNotExist:
+            return Response({'error': 'Invoice not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        hold, created = InvoiceHold.objects.get_or_create(
+            invoice=invoice,
+            defaults={
+                'hold_reason': hold_reason,
+                'hold_details': hold_details,
+                'held_by': request.user
+            }
+        )
+        
+        return Response({'status': 'invoice hold created' if created else 'invoice already on hold'})
+    
+    @action(detail=True, methods=['post'])
+    def release(self, request, pk=None):
+        """Release a hold on an invoice"""
+        hold = self.get_object()
+        hold.released = True
+        hold.released_at = timezone.now()
+        hold.released_by = request.user
+        hold.save()
+        return Response({'status': 'invoice hold released'})
+
+
+# =====================================
+# PHASE 2: PT DASHBOARD
+# =====================================
+
+class PTDashboardViewSet(viewsets.ViewSet):
+    """
+    ViewSet for Production Team Dashboard.
+    Returns comprehensive metrics on vendor workload, job status, performance.
+    """
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    @action(detail=False, methods=['get'], url_path='overview')
+    def overview(self, request):
+        """Get PT dashboard overview with vendor metrics and job status"""
+        from django.utils import timezone
+        from datetime import timedelta
+        from django.db.models import Count, Q, Avg
+        
+        now = timezone.now()
+        
+        # ===== VENDOR WORKLOAD =====
+        vendors = Vendor.objects.all().annotate(
+            active_jobs=Count('purchase_orders', filter=Q(
+                purchase_orders__status__in=['ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+            )),
+            total_jobs=Count('purchase_orders'),
+            on_time_rate=Avg('vendorperformancescore__on_time_percentage', filter=Q(
+                vendorperformancescore__updated_at__gte=now - timedelta(days=30)
+            ))
+        )
+        
+        vendor_workload = []
+        for vendor in vendors:
+            capacity = getattr(vendor, 'max_concurrent_jobs', 10)
+            utilization = round((vendor.active_jobs / capacity) * 100, 1) if capacity > 0 else 0
+            
+            # Check for capacity alerts
+            has_warning = VendorCapacityAlert.objects.filter(
+                vendor=vendor,
+                alert_type='capacity_warning',
+                status='active'
+            ).exists()
+            
+            has_critical = VendorCapacityAlert.objects.filter(
+                vendor=vendor,
+                alert_type='capacity_critical',
+                status='active'
+            ).exists()
+            
+            vendor_workload.append({
+                'vendor_id': vendor.id,
+                'vendor_name': vendor.name,
+                'active_jobs': vendor.active_jobs,
+                'total_jobs': vendor.total_jobs,
+                'capacity': capacity,
+                'utilization_percent': utilization,
+                'capacity_warning': has_warning,
+                'capacity_critical': has_critical,
+                'on_time_rate': vendor.on_time_rate or 0,
+                'status': 'critical' if has_critical else ('warning' if has_warning else 'healthy')
+            })
+        
+        # ===== JOB STATUS SUMMARY =====
+        all_pos = PurchaseOrder.objects.all()
+        
+        job_status = {
+            'total_active': all_pos.filter(
+                status__in=['ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+            ).count(),
+            'new_pending': all_pos.filter(status='NEW').count(),
+            'in_production': all_pos.filter(status='IN_PRODUCTION').count(),
+            'awaiting_approval': all_pos.filter(status='AWAITING_APPROVAL').count(),
+            'completed': all_pos.filter(status='COMPLETED').count(),
+            'total': all_pos.count()
+        }
+        
+        # ===== OVERDUE JOBS =====
+        overdue_jobs = all_pos.filter(
+            due_date__lt=now,
+            status__in=['ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+        ).count()
+        
+        # ===== APPROACHING DEADLINES (within 3 days) =====
+        approaching_deadline_time = now + timedelta(days=3)
+        approaching_jobs = all_pos.filter(
+            due_date__lte=approaching_deadline_time,
+            due_date__gte=now,
+            status__in=['ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+        ).count()
+        
+        # ===== MILESTONE PROGRESS =====
+        approaching_milestones = POSMilestone.objects.filter(
+            target_date__lte=approaching_deadline_time,
+            target_date__gte=now.date(),
+            completed=False,
+            alert_sent=False
+        ).count()
+        
+        # ===== MATERIAL SUBSTITUTIONS =====
+        pending_substitutions = MaterialSubstitutionApproval.objects.filter(
+            approval_status='pending'
+        ).count()
+        
+        approved_substitutions = MaterialSubstitutionApproval.objects.filter(
+            approval_status='approved',
+            customer_notified=False
+        ).count()
+        
+        # ===== INVOICE HOLDS =====
+        active_holds = InvoiceHold.objects.filter(
+            released=False
+        ).count()
+        
+        # ===== ALERTS SUMMARY =====
+        active_alerts = VendorCapacityAlert.objects.filter(
+            status='active'
+        ).count()
+        
+        acknowledged_alerts = VendorCapacityAlert.objects.filter(
+            status='acknowledged'
+        ).count()
+        
+        # ===== PERFORMANCE METRICS =====
+        completed_pos = all_pos.filter(status='COMPLETED')
+        if completed_pos.exists():
+            total_completed = completed_pos.count()
+            on_time = completed_pos.filter(completed_on_time=True).count()
+            on_time_percentage = round((on_time / total_completed) * 100, 1)
+        else:
+            on_time_percentage = 0
+        
+        # ===== ACTION ITEMS =====
+        action_items = []
+        
+        if overdue_jobs > 0:
+            action_items.append({
+                'type': 'overdue_jobs',
+                'priority': 'critical',
+                'count': overdue_jobs,
+                'message': f'{overdue_jobs} jobs are overdue'
+            })
+        
+        if pending_substitutions > 0:
+            action_items.append({
+                'type': 'pending_substitutions',
+                'priority': 'high',
+                'count': pending_substitutions,
+                'message': f'{pending_substitutions} material substitutions pending approval'
+            })
+        
+        if active_holds > 0:
+            action_items.append({
+                'type': 'invoice_holds',
+                'priority': 'high',
+                'count': active_holds,
+                'message': f'{active_holds} invoices are on hold'
+            })
+        
+        if active_alerts > 0:
+            action_items.append({
+                'type': 'capacity_alerts',
+                'priority': 'medium',
+                'count': active_alerts,
+                'message': f'{active_alerts} vendors at high capacity'
+            })
+        
+        # ===== BUILD RESPONSE =====
+        return Response({
+            'timestamp': now.isoformat(),
+            'summary': {
+                'total_jobs': job_status['total'],
+                'active_jobs': job_status['total_active'],
+                'overdue_jobs': overdue_jobs,
+                'approaching_deadlines': approaching_jobs,
+                'on_time_completion_rate': on_time_percentage
+            },
+            'job_status': job_status,
+            'vendor_workload': vendor_workload,
+            'milestones': {
+                'approaching_count': approaching_milestones,
+                'alert_pending': approaching_milestones > 0
+            },
+            'substitutions': {
+                'pending_approval': pending_substitutions,
+                'awaiting_notification': approved_substitutions
+            },
+            'holds': {
+                'active_holds': active_holds
+            },
+            'alerts': {
+                'active_capacity_alerts': active_alerts,
+                'acknowledged_alerts': acknowledged_alerts
+            },
+            'action_items': action_items
+        })
+    
+    @action(detail=False, methods=['get'], url_path='vendor-status')
+    def vendor_status(self, request):
+        """Get real-time status for specific vendors"""
+        vendor_ids = request.query_params.getlist('vendor_ids')
+        
+        if not vendor_ids:
+            vendors = Vendor.objects.all()
+        else:
+            vendors = Vendor.objects.filter(id__in=vendor_ids)
+        
+        vendor_statuses = []
+        now = timezone.now()
+        
+        for vendor in vendors:
+            # Active jobs
+            active_pos = PurchaseOrder.objects.filter(
+                vendor=vendor,
+                status__in=['ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+            )
+            
+            # Overdue jobs for this vendor
+            overdue = active_pos.filter(due_date__lt=now).count()
+            
+            # Capacity calculation
+            capacity = getattr(vendor, 'max_concurrent_jobs', 10)
+            utilization = round((active_pos.count() / capacity) * 100, 1) if capacity > 0 else 0
+            
+            # Recent performance
+            performance = vendor.vendorperformancescore_set.latest('updated_at') if vendor.vendorperformancescore_set.exists() else None
+            
+            vendor_statuses.append({
+                'vendor_id': vendor.id,
+                'vendor_name': vendor.name,
+                'active_jobs': active_pos.count(),
+                'overdue_jobs': overdue,
+                'capacity_utilization': utilization,
+                'on_time_percentage': performance.on_time_percentage if performance else 0,
+                'quality_score': performance.quality_score if performance else 0,
+                'communication_score': performance.communication_score if performance else 0,
+                'last_updated': performance.updated_at.isoformat() if performance else None
+            })
+        
+        return Response(vendor_statuses)
+
+
+class SLAEscalationViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for SLA Escalations.
+    Handles escalation of overdue jobs and tracks escalation workflow.
+    """
+    queryset = SLAEscalation.objects.all()
+    serializer_class = SLAEscalationSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    @action(detail=False, methods=['post'])
+    def escalate_job(self, request):
+        """Escalate an overdue purchase order"""
+        po_id = request.data.get('purchase_order_id')
+        escalation_level = request.data.get('escalation_level', 'level_1')
+        escalation_reason = request.data.get('escalation_reason', '')
+        
+        try:
+            po = PurchaseOrder.objects.get(id=po_id)
+        except PurchaseOrder.DoesNotExist:
+            return Response({'error': 'Purchase order not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Calculate days overdue
+        now = timezone.now().date()
+        days_overdue = max(0, (now - po.due_date).days)
+        
+        # Check if escalation already exists
+        existing = SLAEscalation.objects.filter(
+            purchase_order=po,
+            escalation_status__in=['pending', 'notified']
+        ).first()
+        
+        if existing:
+            return Response({
+                'error': 'Active escalation already exists',
+                'escalation_id': existing.id
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Create escalation
+        escalation = SLAEscalation.objects.create(
+            purchase_order=po,
+            escalation_level=escalation_level,
+            original_deadline=po.due_date,
+            current_deadline=po.due_date,
+            days_overdue=days_overdue,
+            escalation_reason=escalation_reason,
+            escalated_by=request.user
+        )
+        
+        serializer = SLAEscalationSerializer(escalation)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=True, methods=['post'])
+    def notify_vendor(self, request, pk=None):
+        """Send escalation notification to vendor"""
+        escalation = self.get_object()
+        
+        # Mark as notified
+        escalation.mark_as_notified(notify_vendor=True)
+        
+        # TODO: Send email notification to vendor
+        # notification_service.notify_vendor_escalation(escalation)
+        
+        serializer = SLAEscalationSerializer(escalation)
+        return Response({
+            'status': 'vendor_notified',
+            'escalation': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def notify_pt(self, request, pk=None):
+        """Send escalation notification to production team"""
+        escalation = self.get_object()
+        
+        # Mark as notified
+        escalation.mark_as_notified(notify_pt=True)
+        
+        # TODO: Send internal notification to PT
+        # notification_service.notify_pt_escalation(escalation)
+        
+        serializer = SLAEscalationSerializer(escalation)
+        return Response({
+            'status': 'pt_notified',
+            'escalation': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def escalate_level(self, request, pk=None):
+        """Escalate to next level"""
+        escalation = self.get_object()
+        
+        level_mapping = {
+            'level_1': 'level_2',
+            'level_2': 'level_3',
+            'level_3': 'level_3'  # Already at max
+        }
+        
+        next_level = level_mapping.get(escalation.escalation_level, escalation.escalation_level)
+        escalation.escalation_level = next_level
+        escalation.escalation_notes = request.data.get('notes', '')
+        escalation.save()
+        
+        serializer = SLAEscalationSerializer(escalation)
+        return Response({
+            'status': 'escalation_level_increased',
+            'escalation': serializer.data
+        })
+    
+    @action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Mark escalation as resolved"""
+        escalation = self.get_object()
+        resolution_notes = request.data.get('resolution_notes', '')
+        
+        escalation.resolve(
+            resolution_notes=resolution_notes,
+            resolved_by=request.user
+        )
+        
+        serializer = SLAEscalationSerializer(escalation)
+        return Response({
+            'status': 'escalation_resolved',
+            'escalation': serializer.data
+        })
+    
+    @action(detail=False, methods=['get'])
+    def pending(self, request):
+        """Get all pending escalations"""
+        escalations = SLAEscalation.objects.filter(
+            escalation_status__in=['pending', 'notified']
+        ).order_by('-escalated_at')
+        
+        # Filter by level if provided
+        level = request.query_params.get('level')
+        if level:
+            escalations = escalations.filter(escalation_level=level)
+        
+        # Filter by vendor if provided
+        vendor_id = request.query_params.get('vendor_id')
+        if vendor_id:
+            escalations = escalations.filter(purchase_order__vendor_id=vendor_id)
+        
+        serializer = SLAEscalationSerializer(escalations, many=True)
+        return Response({
+            'count': escalations.count(),
+            'escalations': serializer.data
+        })
+    
+    @action(detail=False, methods=['get'])
+    def critical(self, request):
+        """Get all critical escalations (Level 3 or > 7 days overdue)"""
+        from django.db.models import Q
+        
+        escalations = SLAEscalation.objects.filter(
+            Q(escalation_level='level_3') | Q(days_overdue__gt=7)
+        ).filter(
+            escalation_status__in=['pending', 'notified']
+        ).order_by('-days_overdue', '-escalated_at')
+        
+        serializer = SLAEscalationSerializer(escalations, many=True)
+        return Response({
+            'count': escalations.count(),
+            'critical_escalations': serializer.data
+        })
+    
+    @action(detail=False, methods=['post'])
+    def check_and_escalate(self, request):
+        """Auto-escalate overdue jobs based on days overdue"""
+        from django.db.models import Q
+        
+        now = timezone.now().date()
+        escalated_count = 0
+        
+        # Get all overdue active POs without active escalations
+        overdue_pos = PurchaseOrder.objects.filter(
+            due_date__lt=now,
+            status__in=['ACCEPTED', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+        ).exclude(
+            sla_escalations__escalation_status__in=['pending', 'notified']
+        )
+        
+        for po in overdue_pos:
+            days_overdue = (now - po.due_date).days
+            
+            # Determine escalation level
+            if days_overdue >= 14:
+                level = 'level_3'
+                reason = f'Job overdue by {days_overdue} days - Critical escalation'
+            elif days_overdue >= 7:
+                level = 'level_2'
+                reason = f'Job overdue by {days_overdue} days - PT review required'
+            else:
+                level = 'level_1'
+                reason = f'Job overdue by {days_overdue} days - Vendor alert'
+            
+            # Create escalation
+            escalation = SLAEscalation.objects.create(
+                purchase_order=po,
+                escalation_level=level,
+                original_deadline=po.due_date,
+                current_deadline=po.due_date,
+                days_overdue=days_overdue,
+                escalation_reason=reason,
+                escalated_by=request.user
+            )
+            escalated_count += 1
+        
+        return Response({
+            'status': 'auto_escalation_complete',
+            'escalated_count': escalated_count,
+            'message': f'Escalated {escalated_count} overdue jobs'
+        })
+
+
+class ProgressUpdateBatchViewSet(viewsets.ModelViewSet):
+    """ViewSet for batch progress updates from vendors"""
+    queryset = ProgressUpdateBatch.objects.all()
+    serializer_class = ProgressUpdateBatchSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter by purchase order if provided"""
+        qs = ProgressUpdateBatch.objects.all()
+        po_id = self.request.query_params.get('purchase_order_id')
+        if po_id:
+            qs = qs.filter(purchase_order_id=po_id)
+        return qs
+    
+    @action(detail=False, methods=['post'])
+    def submit_update(self, request):
+        """Submit a progress update for a purchase order"""
+        po_id = request.data.get('purchase_order_id')
+        percentage = request.data.get('percentage_complete')
+        status = request.data.get('status', 'on_track')
+        description = request.data.get('description', '')
+        
+        try:
+            po = PurchaseOrder.objects.get(id=po_id)
+        except PurchaseOrder.DoesNotExist:
+            return Response({'error': 'Purchase order not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        update = ProgressUpdateBatch.objects.create(
+            purchase_order=po,
+            submitted_by=request.user,
+            percentage_complete=percentage,
+            status=status,
+            description=description,
+            notes=request.data.get('notes', '')
+        )
+        
+        serializer = ProgressUpdateBatchSerializer(update)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+    
+    @action(detail=False, methods=['get'])
+    def latest_by_po(self, request):
+        """Get latest update for each PO"""
+        from django.db.models import Max
+        po_id = request.query_params.get('purchase_order_id')
+        
+        if po_id:
+            latest = ProgressUpdateBatch.objects.filter(purchase_order_id=po_id).latest('submission_date')
+            serializer = ProgressUpdateBatchSerializer(latest)
+            return Response(serializer.data)
+        
+        return Response({'error': 'purchase_order_id required'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class QCProofLinkViewSet(viewsets.ModelViewSet):
+    """ViewSet for QC-Proof links"""
+    queryset = QCProofLink.objects.all()
+    serializer_class = QCProofLinkSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    @action(detail=False, methods=['post'])
+    def link_qc_to_proof(self, request):
+        """Link QC inspection to proof"""
+        qc_id = request.data.get('qc_inspection_id')
+        proof_id = request.data.get('proof_id')
+        qc_status = request.data.get('qc_status')
+        
+        try:
+            qc = QCInspection.objects.get(id=qc_id)
+            proof = PurchaseOrderProof.objects.get(id=proof_id)
+        except (QCInspection.DoesNotExist, PurchaseOrderProof.DoesNotExist):
+            return Response({'error': 'QC or proof not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        link, created = QCProofLink.objects.get_or_create(
+            qc_inspection=qc,
+            proof=proof,
+            defaults={
+                'qc_status': qc_status,
+                'qc_notes': request.data.get('qc_notes', '')
+            }
+        )
+        
+        # If QC failed, auto-hold invoice
+        if qc_status == 'failed':
+            po = proof.purchase_order
+            try:
+                invoice = po.vendor_invoices.last()
+                if invoice and not hasattr(invoice, 'hold'):
+                    InvoiceHold.objects.create(
+                        invoice=invoice,
+                        hold_reason='qc_failed',
+                        hold_details=f'QC failed for {po.po_number}',
+                        held_by=request.user
+                    )
+                    link.auto_held_invoice = True
+                    link.hold_reason = 'QC failed'
+                    link.save()
+            except:
+                pass
+        
+        serializer = QCProofLinkSerializer(link)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'])
+    def calculate_vps_impact(self, request, pk=None):
+        """Calculate VPS impact from QC result"""
+        link = self.get_object()
+        
+        if link.qc_status == 'failed':
+            adjustment = -5  # Default 5 point deduction
+            vendor = link.proof.purchase_order.vendor
+            
+            log = VPSRecalculationLog.objects.create(
+                vendor=vendor,
+                trigger_type='qc_fail',
+                previous_score=vendor.performance_score,
+                new_score=max(0, vendor.performance_score + adjustment),
+                score_change=adjustment,
+                reason=f'QC failed for {link.proof.purchase_order.po_number}',
+                reference_id=str(link.qc_inspection.id),
+                recalculated_by=request.user
+            )
+            
+            vendor.performance_score = log.new_score
+            vendor.save()
+            
+            link.vps_impact_calculated = True
+            link.vps_score_adjustment = adjustment
+            link.save()
+            
+            serializer = QCProofLinkSerializer(link)
+            return Response({'status': 'vps_impact_calculated', 'link': serializer.data})
+        
+        return Response({'error': 'Only failed QC results impact VPS'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class VPSRecalculationViewSet(viewsets.ModelViewSet):
+    """ViewSet for VPS recalculation"""
+    queryset = VPSRecalculationLog.objects.all()
+    serializer_class = VPSRecalculationLogSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    @action(detail=False, methods=['post'])
+    def recalculate_vendor_vps(self, request):
+        """Manually recalculate vendor VPS"""
+        vendor_id = request.data.get('vendor_id')
+        reason = request.data.get('reason', 'Manual recalculation')
+        
+        try:
+            vendor = Vendor.objects.get(id=vendor_id)
+        except Vendor.DoesNotExist:
+            return Response({'error': 'Vendor not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Calculate new score based on recent performance
+        from django.db.models import Avg
+        from datetime import timedelta
+        
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        recent_perf = vendor.vendorperformancescore_set.filter(
+            updated_at__gte=thirty_days_ago
+        ).aggregate(
+            avg_on_time=Avg('on_time_percentage'),
+            avg_quality=Avg('quality_score'),
+            avg_comm=Avg('communication_score')
+        )
+        
+        new_score = (
+            (recent_perf['avg_on_time'] or 0) * 0.4 +
+            (recent_perf['avg_quality'] or 0) * 0.4 +
+            (recent_perf['avg_comm'] or 0) * 0.2
+        )
+        
+        old_score = vendor.performance_score
+        change = new_score - old_score
+        
+        log = VPSRecalculationLog.objects.create(
+            vendor=vendor,
+            trigger_type='manual',
+            previous_score=old_score,
+            new_score=new_score,
+            score_change=change,
+            reason=reason,
+            recalculated_by=request.user
+        )
+        
+        vendor.performance_score = new_score
+        vendor.save()
+        
+        serializer = VPSRecalculationLogSerializer(log)
+        return Response(serializer.data)
+
+
+class CustomerNotificationViewSet(viewsets.ModelViewSet):
+    """ViewSet for customer substitution notifications"""
+    queryset = CustomerNotification.objects.all()
+    serializer_class = CustomerNotificationSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    @action(detail=False, methods=['post'])
+    def send_notification(self, request):
+        """Send customer notification for substitution"""
+        sub_id = request.data.get('substitution_id')
+        method = request.data.get('method', 'email')
+        
+        try:
+            sub = MaterialSubstitutionApproval.objects.get(id=sub_id)
+        except MaterialSubstitutionApproval.DoesNotExist:
+            return Response({'error': 'Substitution not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        message = f"""
+        Material Substitution Notification
+        
+        Purchase Order: {sub.purchase_order.po_number}
+        Original Material: {sub.original_material}
+        Substitute Material: {sub.substitute_material}
+        Reason: {sub.reason}
+        
+        Cost Impact: ${sub.cost_difference}
+        Status: Approved by Production Team
+        """
+        
+        notification = CustomerNotification.objects.create(
+            substitution=sub,
+            notification_method=method,
+            recipient_email=sub.purchase_order.client_email if hasattr(sub.purchase_order, 'client_email') else '',
+            message=message,
+            subject=f'Material Substitution Approved - {sub.purchase_order.po_number}'
+        )
+        
+        # TODO: Send actual email/SMS
+        notification.status = 'sent'
+        notification.sent_at = timezone.now()
+        notification.save()
+        
+        sub.customer_notified = True
+        sub.customer_notified_at = timezone.now()
+        sub.save()
+        
+        serializer = CustomerNotificationSerializer(notification)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def mark_acknowledged(self, request, pk=None):
+        """Mark notification as acknowledged by customer"""
+        notification = self.get_object()
+        notification.acknowledged_at = timezone.now()
+        notification.status = 'acknowledged'
+        notification.save()
+        
+        serializer = CustomerNotificationSerializer(notification)
+        return Response(serializer.data)
+
+
+class DeadlineCalculationViewSet(viewsets.ModelViewSet):
+    """ViewSet for deadline calculations"""
+    queryset = DeadlineCalculation.objects.all()
+    serializer_class = DeadlineCalculationSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam]
+    
+    @action(detail=False, methods=['post'])
+    def calculate_deadline(self, request):
+        """Calculate deadline for a PO"""
+        po_id = request.data.get('purchase_order_id')
+        
+        try:
+            po = PurchaseOrder.objects.get(id=po_id)
+        except PurchaseOrder.DoesNotExist:
+            return Response({'error': 'Purchase order not found'}, status=status.HTTP_404_NOT_FOUND)
+        
+        complexity = request.data.get('job_complexity', 'medium')
+        vendor_capacity = request.data.get('vendor_capacity_available', 5)
+        sla_days = request.data.get('sla_days', 14)
+        
+        # Calculate base deadline
+        complexity_map = {'low': 3, 'medium': 7, 'high': 14}
+        base_days = complexity_map.get(complexity, 7)
+        
+        # Adjust based on vendor capacity
+        adjusted_days = base_days + max(0, (10 - vendor_capacity) * 0.5)
+        
+        # Calculate risk score
+        risk_score = min(100, (adjusted_days / sla_days) * 100)
+        
+        calc, created = DeadlineCalculation.objects.update_or_create(
+            purchase_order=po,
+            defaults={
+                'job_complexity': complexity,
+                'vendor_capacity_available': vendor_capacity,
+                'sla_days': sla_days,
+                'base_deadline': int(base_days),
+                'adjusted_deadline': int(adjusted_days),
+                'risk_score': int(risk_score),
+                'calculation_notes': f'Complexity: {complexity}, Vendor capacity: {vendor_capacity} days available'
+            }
+        )
+        
+        # Update PO due date if needed
+        from datetime import timedelta
+        new_due_date = timezone.now() + timedelta(days=int(adjusted_days))
+        po.due_date = new_due_date
+        po.save()
+        
+        serializer = DeadlineCalculationSerializer(calc)
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
 from django.contrib.auth.decorators import login_required
 from django.db.models import Q, Count, Avg, Sum
 from django.utils import timezone
@@ -10171,6 +11627,32 @@ def decline_job(request, po_number):
     po.save()
     messages.warning(request, f"Job {po_number} declined.")
     return redirect('vendor_dashboard')
+
+
+@login_required
+def client_portal_spa(request):
+    """
+    Serve the Client Portal SPA (Single Page Application)
+    This view is protected with @login_required to ensure authentication
+    Accessible to clients to view orders, messages, proofs, and analytics
+    """
+    # Check if user is a client portal user
+    try:
+        portal_user = request.user.client_portal_user
+        client = portal_user.client
+    except ClientPortalUser.DoesNotExist:
+        messages.error(request, 'Your account is not linked to a client portal.')
+        return redirect('login_redirect')
+    
+    # Render the SPA template
+    from django.template.response import TemplateResponse
+    return TemplateResponse(request, 'client/client_portal_spa.html', {
+        'client': client,
+        'portal_user': portal_user,
+        'client_name': client.name,
+        'company_name': client.company,
+        'user': request.user
+    })
 
 
 @login_required

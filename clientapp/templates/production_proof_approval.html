@@ -1,0 +1,686 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+<style>
+    .proof-approval-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .approval-header {
+        margin-bottom: 2rem;
+    }
+
+    .approval-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+    }
+
+    .approval-subtitle {
+        font-size: 0.95rem;
+        color: #6b7280;
+    }
+
+    /* Main Grid */
+    .proof-grid {
+        display: grid;
+        grid-template-columns: 1fr 350px;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .proof-list-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #f3f4f6;
+    }
+
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .card-title i {
+        color: #3b82f6;
+    }
+
+    /* Proof List */
+    .proof-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 1rem;
+    }
+
+    .proof-item {
+        position: relative;
+        cursor: pointer;
+        border-radius: 8px;
+        overflow: hidden;
+        border: 2px solid #e5e7eb;
+        transition: all 0.2s;
+        aspect-ratio: 1;
+        background: #f9fafb;
+    }
+
+    .proof-item:hover {
+        border-color: #3b82f6;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+    }
+
+    .proof-item.selected {
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+    }
+
+    .proof-thumbnail {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .proof-status-badge {
+        position: absolute;
+        top: 0.5rem;
+        right: 0.5rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        background: white;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .proof-status-badge.pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .proof-status-badge.approved {
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .proof-status-badge.rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Details Panel */
+    .details-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #f3f4f6;
+        height: fit-content;
+        position: sticky;
+        top: 2rem;
+    }
+
+    .details-empty {
+        text-align: center;
+        padding: 2rem;
+        color: #9ca3af;
+    }
+
+    .details-empty i {
+        font-size: 2.5rem;
+        color: #e5e7eb;
+        margin-bottom: 1rem;
+    }
+
+    .details-section {
+        margin-bottom: 1.5rem;
+    }
+
+    .details-section-title {
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.025em;
+        color: #9ca3af;
+    }
+
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .detail-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .detail-label {
+        color: #6b7280;
+    }
+
+    .detail-value {
+        font-weight: 600;
+        color: #1a1a1a;
+        text-align: right;
+    }
+
+    /* Proof Viewer */
+    .proof-viewer {
+        margin-bottom: 1.5rem;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        overflow: hidden;
+        max-height: 300px;
+    }
+
+    .proof-image {
+        width: 100%;
+        height: auto;
+        display: block;
+    }
+
+    /* QC Status Selection */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-label {
+        display: block;
+        font-weight: 500;
+        color: #6b7280;
+        margin-bottom: 0.4rem;
+        font-size: 0.8rem;
+    }
+
+    .form-input {
+        width: 100%;
+        padding: 0.5rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        background: white;
+    }
+
+    .form-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .form-textarea {
+        min-height: 60px;
+        resize: vertical;
+        font-family: inherit;
+    }
+
+    .status-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+
+    .status-option {
+        position: relative;
+    }
+
+    .status-option input {
+        display: none;
+    }
+
+    .status-option label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 0.75rem;
+        background: #f9fafb;
+        border: 2px solid #e5e7eb;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+    }
+
+    .status-option input:checked + label {
+        background: #eff6ff;
+        border-color: #3b82f6;
+    }
+
+    .status-option i {
+        font-size: 1.5rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .status-option .pass i {
+        color: #10b981;
+    }
+
+    .status-option .fail i {
+        color: #ef4444;
+    }
+
+    .status-option .rework i {
+        color: #f59e0b;
+    }
+
+    .status-option span {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+
+    /* VPS Impact Info -->
+    .vps-impact {
+        background: #f0f9ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 6px;
+        padding: 0.75rem;
+        font-size: 0.8rem;
+    }
+
+    .vps-impact-label {
+        color: #1e40af;
+        font-weight: 600;
+        margin-bottom: 0.3rem;
+    }
+
+    .vps-impact-value {
+        color: #1e3a8a;
+        font-weight: 600;
+    }
+
+    .vps-risk {
+        margin-top: 0.5rem;
+        padding-top: 0.5rem;
+        border-top: 1px solid #bfdbfe;
+    }
+
+    .risk-high {
+        color: #ef4444;
+    }
+
+    .risk-medium {
+        color: #f59e0b;
+    }
+
+    .risk-low {
+        color: #10b981;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        margin-top: 1rem;
+    }
+
+    .btn {
+        padding: 0.6rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+
+    .btn-approve {
+        background: #10b981;
+        color: white;
+        grid-column: 1 / -1;
+    }
+
+    .btn-approve:hover {
+        background: #059669;
+    }
+
+    .btn-reject {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-reject:hover {
+        background: #dc2626;
+    }
+
+    .btn-rework {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .btn-rework:hover {
+        background: #d97706;
+    }
+
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    /* Full View Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal.active {
+        display: flex;
+    }
+
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        max-width: 90%;
+        max-height: 90vh;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem;
+        border-bottom: 1px solid #e5e7eb;
+    }
+
+    .modal-close {
+        font-size: 1.5rem;
+        cursor: pointer;
+        color: #9ca3af;
+    }
+
+    .modal-body {
+        flex: 1;
+        overflow: auto;
+        padding: 1rem;
+    }
+
+    .modal-image {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+        color: #9ca3af;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: #e5e7eb;
+        margin-bottom: 1rem;
+    }
+
+    @media (max-width: 1024px) {
+        .proof-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .details-card {
+            position: static;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .proof-list {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        }
+
+        .modal-content {
+            max-width: 95%;
+        }
+    }
+</style>
+
+<div class="proof-approval-container">
+    <div class="approval-header">
+        <div class="approval-title">
+            <i class="fas fa-images" style="color: #3b82f6; margin-right: 0.75rem;"></i>
+            Proof Approval
+        </div>
+        <div class="approval-subtitle">Review and approve job proofs with QC assessment</div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="proof-grid">
+        <!-- Proof List -->
+        <div class="proof-list-card">
+            <div class="card-title">
+                <i class="fas fa-gallery"></i>
+                Proofs Awaiting Approval
+            </div>
+
+            {% if proofs %}
+                <div class="proof-list" id="proofList">
+                    {% for proof in proofs %}
+                        <div class="proof-item clickable" onclick="selectProof({{ proof.id }}, '{{ proof.image_url }}', '{{ proof.job.po_number }}', '{{ proof.status }}', this)">
+                            <img src="{{ proof.thumbnail_url }}" alt="Proof" class="proof-thumbnail">
+                            <span class="proof-status-badge {{ proof.status }}">{{ proof.status|upper }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <p>No proofs awaiting approval</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Details & Decision Panel -->
+        <div class="details-card">
+            <div id="detailsEmpty" class="details-empty">
+                <div class="empty-state-icon">
+                    <i class="fas fa-hand-pointer"></i>
+                </div>
+                <p>Select a proof to review</p>
+            </div>
+
+            <form id="approvalForm" method="POST" action="{% url 'production_proof_approval_submit' %}" style="display: none;">
+                {% csrf_token %}
+                <input type="hidden" id="proofIdInput" name="proof_id" value="">
+
+                <!-- Proof Viewer -->
+                <div class="proof-viewer">
+                    <img id="proofImagePreview" src="" alt="Proof Preview" class="proof-image" onclick="openModal()">
+                </div>
+
+                <!-- Proof Info -->
+                <div class="details-section">
+                    <div class="details-section-title">Job Info</div>
+                    <div class="detail-row">
+                        <span class="detail-label">PO Number:</span>
+                        <span class="detail-value" id="detailPoNumber">-</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Current Status:</span>
+                        <span class="detail-value" id="detailStatus">-</span>
+                    </div>
+                </div>
+
+                <!-- QC Decision -->
+                <div class="details-section">
+                    <div class="details-section-title">QC Decision</div>
+                    <div class="status-grid">
+                        <label class="status-option">
+                            <input type="radio" name="qc_status" value="pass" required>
+                            <label for="qc_pass" style="margin: 0; cursor: pointer;">
+                                <div class="pass"><i class="fas fa-check-circle"></i></div>
+                                <span>Pass</span>
+                            </label>
+                        </label>
+                        <label class="status-option">
+                            <input type="radio" name="qc_status" value="rework" required>
+                            <label for="qc_rework" style="margin: 0; cursor: pointer;">
+                                <div class="rework"><i class="fas fa-redo-alt"></i></div>
+                                <span>Rework</span>
+                            </label>
+                        </label>
+                        <label class="status-option" style="grid-column: 1 / -1;">
+                            <input type="radio" name="qc_status" value="reject" required>
+                            <label for="qc_reject" style="margin: 0; cursor: pointer;">
+                                <div class="fail"><i class="fas fa-times-circle"></i></div>
+                                <span>Reject</span>
+                            </label>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- VPS Impact -->
+                <div class="details-section">
+                    <div class="details-section-title">VPS Impact</div>
+                    <div class="vps-impact">
+                        <div class="vps-impact-label">Vendor Performance Score Change:</div>
+                        <div class="vps-impact-value" id="vpsImpact">No impact</div>
+                        <div class="vps-risk">
+                            <span id="riskLevel">Risk Assessment:</span> 
+                            <span id="riskValue" class="risk-low">Low Impact</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- QC Notes -->
+                <div class="form-group">
+                    <label class="form-label">QC Notes</label>
+                    <textarea name="qc_notes" class="form-input form-textarea" placeholder="Add quality control notes..."></textarea>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-buttons">
+                    <button type="button" class="btn btn-reject" onclick="submitDecision('reject')">Reject</button>
+                    <button type="button" class="btn btn-rework" onclick="submitDecision('rework')">Rework</button>
+                    <button type="button" class="btn btn-approve" onclick="submitDecision('pass')">Approve</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Image Viewer Modal -->
+<div id="imageModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Full View</h3>
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <img id="modalImage" src="" alt="Proof Full View" class="modal-image">
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentProof = null;
+
+    function selectProof(proofId, imageUrl, poNumber, status, element) {
+        // Update selection
+        document.querySelectorAll('.proof-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        element.classList.add('selected');
+
+        // Show form and hide empty state
+        document.getElementById('detailsEmpty').style.display = 'none';
+        document.getElementById('approvalForm').style.display = 'block';
+
+        // Store current proof
+        currentProof = { id: proofId, imageUrl: imageUrl, poNumber: poNumber, status: status };
+
+        // Update form
+        document.getElementById('proofIdInput').value = proofId;
+        document.getElementById('proofImagePreview').src = imageUrl;
+        document.getElementById('detailPoNumber').textContent = poNumber;
+        document.getElementById('detailStatus').textContent = status.toUpperCase();
+
+        // Update VPS impact based on status
+        updateVpsImpact(status);
+
+        // Reset form
+        document.getElementById('approvalForm').reset();
+    }
+
+    function updateVpsImpact(status) {
+        const impacts = {
+            'pending': { value: 'No impact (not yet assessed)', risk: 'low' },
+            'approved': { value: '+2 points (quality confirmed)', risk: 'low' },
+            'rejected': { value: '-5 points (quality issues)', risk: 'high' },
+        };
+
+        const impact = impacts[status] || impacts['pending'];
+        document.getElementById('vpsImpact').textContent = impact.value;
+        
+        const riskClass = `risk-${impact.risk}`;
+        const riskText = {
+            'low': 'Low Impact',
+            'medium': 'Medium Impact',
+            'high': 'High Impact'
+        }[impact.risk];
+
+        document.getElementById('riskValue').textContent = riskText;
+        document.getElementById('riskValue').className = `risk-${impact.risk}`;
+    }
+
+    function submitDecision(decision) {
+        if (!currentProof) return;
+
+        const form = document.getElementById('approvalForm');
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'decision';
+        input.value = decision;
+        form.appendChild(input);
+
+        form.submit();
+    }
+
+    function openModal() {
+        if (currentProof) {
+            document.getElementById('modalImage').src = currentProof.imageUrl;
+            document.getElementById('imageModal').classList.add('active');
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').classList.remove('active');
+    }
+
+    // Close modal on background click
+    document.getElementById('imageModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeModal();
+        }
+    });
+</script>
+
+{% endblock %}

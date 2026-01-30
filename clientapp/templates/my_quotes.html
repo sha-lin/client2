@@ -389,6 +389,248 @@
             box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
         }
 
+        /* Costing Modal */
+        .costing-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .costing-modal.active {
+            display: flex;
+        }
+
+        .costing-modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            padding: 24px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(135deg, #4285f4 0%, #3367d6 100%);
+            color: white;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-body {
+            padding: 24px;
+        }
+
+        .costing-section {
+            margin-bottom: 24px;
+        }
+
+        .costing-section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #666;
+        }
+
+        .quote-summary {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 16px;
+        }
+
+        .summary-item {
+            text-align: center;
+        }
+
+        .summary-item label {
+            display: block;
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+
+        .summary-item value {
+            display: block;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .costing-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 16px;
+        }
+
+        .costing-table th {
+            background: #f5f5f5;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .costing-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .costing-table input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .costing-table input:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 4px rgba(66, 133, 244, 0.2);
+        }
+
+        .cost-value {
+            text-align: right;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 6px;
+        }
+
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+            font-family: inherit;
+        }
+
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #4285f4;
+            box-shadow: 0 0 4px rgba(66, 133, 244, 0.2);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .modal-footer {
+            padding: 16px 24px;
+            border-top: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            background: #f8f9fa;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #333;
+            border: 1px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #f5f5f5;
+            border-color: #999;
+        }
+
+        .btn-primary {
+            background: #4285f4;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #3367d6;
+            box-shadow: 0 2px 8px rgba(66, 133, 244, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid #ffffff;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 0.6s linear infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* Pagination */
         .pagination {
             display: flex;
@@ -507,7 +749,7 @@
         <!-- Quotes Grid -->
         <div class="quotes-grid">
             {% for quote in quotes %}
-            <div class="quote-card {{ quote.status|lower }}">
+            <div class="quote-card {{ quote.status|lower }}" data-quote-id="{{ quote.quote_id }}" data-quote-db-id="{{ quote.id }}">
                 <div class="quote-header">
                     <div class="quote-id">
                         <span class="id-text">{{ quote.quote_id }}</span>
@@ -564,6 +806,121 @@
         </div>
     </div>
 
+    <!-- Costing Modal -->
+    <div id="costingModal" class="costing-modal">
+        <div class="costing-modal-content">
+            <div class="modal-header">
+                <h2>📊 Cost Quote - <span id="costingQuoteId"></span></h2>
+                <button class="modal-close" onclick="closeCostingModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <!-- Quote Summary -->
+                <div class="costing-section">
+                    <div class="costing-section-title">Quote Summary</div>
+                    <div class="quote-summary">
+                        <div class="summary-item">
+                            <label>Client</label>
+                            <value id="costingClient">-</value>
+                        </div>
+                        <div class="summary-item">
+                            <label>Quote Value</label>
+                            <value id="costingValue">KES 0</value>
+                        </div>
+                        <div class="summary-item">
+                            <label>Products</label>
+                            <value id="costingProducts">0</value>
+                        </div>
+                        <div class="summary-item">
+                            <label>Status</label>
+                            <value id="costingStatus">Draft</value>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Costing Breakdown -->
+                <div class="costing-section">
+                    <div class="costing-section-title">Cost Breakdown</div>
+                    <table class="costing-table">
+                        <thead>
+                            <tr>
+                                <th style="width: 25%">Product</th>
+                                <th style="width: 12%">Qty</th>
+                                <th style="width: 18%">Unit Cost</th>
+                                <th style="width: 18%">Production Cost</th>
+                                <th style="width: 12%">Total Cost</th>
+                                <th style="width: 15%">Margin %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="costingTableBody">
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 20px; color: #999;">
+                                    Loading cost details...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Totals -->
+                <div class="costing-section" style="background: #f8f9fa; padding: 12px 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                        <div>
+                            <label style="font-size: 12px; color: #999; margin-bottom: 4px; display: block;">Total Quote Value</label>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;" id="totalQuoteValue">KES 0</div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #999; margin-bottom: 4px; display: block;">Total Production Cost</label>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;" id="totalProductionCost">KES 0</div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #999; margin-bottom: 4px; display: block;">Total Gross Margin</label>
+                            <div style="font-size: 16px; font-weight: 600; color: #333;" id="totalGrossMargin">KES 0</div>
+                        </div>
+                        <div>
+                            <label style="font-size: 12px; color: #999; margin-bottom: 4px; display: block;">Margin %</label>
+                            <div style="font-size: 16px; font-weight: 600; color: #34a853;" id="marginPercentage">0%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Process & Vendor Selection -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div class="form-group">
+                        <label>Select Process Type</label>
+                        <select id="processSelect" onchange="updateProcessInfo()">
+                            <option value="">-- Select process --</option>
+                            <option value="printing">Printing</option>
+                            <option value="embossing">Embossing</option>
+                            <option value="binding">Binding</option>
+                            <option value="lamination">Lamination</option>
+                            <option value="custom">Custom Process</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Pre-select Vendor (Optional)</label>
+                        <select id="vendorSelect">
+                            <option value="">-- No preference --</option>
+                            <option value="vendor_1">Vendor 1</option>
+                            <option value="vendor_2">Vendor 2</option>
+                            <option value="vendor_3">Vendor 3</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div class="form-group">
+                    <label>Production Notes (Optional)</label>
+                    <textarea id="productionNotes" placeholder="Add any special instructions for production team..." rows="3"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeCostingModal()">Cancel</button>
+                <button class="btn btn-secondary" onclick="saveCostingDraft()">💾 Save as Draft</button>
+                <button class="btn btn-primary" onclick="submitCosting()" id="submitCostingBtn">✓ Submit for Approval</button>
+            </div>
+        </div>
+    </div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -579,30 +936,252 @@
         });
     });
 
-    // Handle quote costing - remove quote from list when Cost Quote is clicked
+    // Handle quote costing - open modal instead of redirecting
     document.querySelectorAll('.cost-quote-btn').forEach(button => {
         button.addEventListener('click', function(e) {
-            // Optional: Show confirmation before proceeding
+            e.preventDefault();
             const quoteCard = this.closest('.quote-card');
-            const quoteId = quoteCard.querySelector('.id-text').textContent;
+            const quoteId = quoteCard.getAttribute('data-quote-db-id'); // Use database ID, not display ID
+            const quoteDisplayId = quoteCard.querySelector('.id-text').textContent;
+            const clientName = quoteCard.querySelector('.quote-client').textContent;
+            const quoteAmount = quoteCard.querySelector('.quote-amount').textContent;
             
-            // Add fade-out animation
-            quoteCard.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
-            quoteCard.style.opacity = '0';
-            quoteCard.style.transform = 'scale(0.95)';
-            
-            // Remove card after animation
-            setTimeout(() => {
-                quoteCard.remove();
-                
-                // Update counts if needed
-                updateQuoteCounts();
-            }, 300);
-            
-            // Note: The actual navigation will happen after the animation starts
-            // The backend should filter out costed quotes on next page load
+            openCostingModal(quoteId, clientName, quoteAmount, quoteDisplayId);
         });
     });
+
+    function openCostingModal(quoteId, clientName, quoteAmount, quoteDisplayId) {
+        document.getElementById('costingQuoteId').textContent = quoteDisplayId || quoteId;
+        document.getElementById('costingClient').textContent = clientName;
+        document.getElementById('costingValue').textContent = quoteAmount;
+        document.getElementById('costingModal').classList.add('active');
+        
+        // Load costing data from backend using database ID
+        loadCostingData(quoteId);
+    }
+
+    function closeCostingModal() {
+        document.getElementById('costingModal').classList.remove('active');
+    }
+
+    function loadCostingData(quoteId) {
+        // Fetch costing data from API using proper auth (api object includes CSRF token)
+        api.get(`/api/v1/quotes/${quoteId}/`)
+            .then(data => {
+                populateCostingTable(data);
+            })
+            .catch(error => {
+                console.error('Error loading costing data:', error);
+                const errorMsg = error.data?.detail || error.message || 'Failed to load quote details';
+                showToast(`Error: ${errorMsg}`, 'error');
+                closeCostingModal();
+            });
+    }
+
+    function populateCostingTable(quoteData) {
+        const tbody = document.getElementById('costingTableBody');
+        tbody.innerHTML = '';
+        
+        let totalQuoteValue = 0;
+        let totalProductionCost = 0;
+        
+        // Populate table with quote line items
+        if (quoteData.quote_items && quoteData.quote_items.length > 0) {
+            quoteData.quote_items.forEach(item => {
+                const unitCost = item.unit_price || 0;
+                const productionCost = item.production_cost || unitCost;
+                const totalCost = productionCost * item.quantity;
+                const margin = unitCost > 0 ? ((unitCost - productionCost) / unitCost * 100) : 0;
+                
+                totalQuoteValue += unitCost * item.quantity;
+                totalProductionCost += totalCost;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${item.product_name}</td>
+                    <td>${item.quantity}</td>
+                    <td>
+                        <input type="number" class="unit-cost" value="${unitCost.toFixed(2)}" 
+                               onchange="updateTotals()" step="0.01" data-item="${item.id}">
+                    </td>
+                    <td>
+                        <input type="number" class="production-cost" value="${productionCost.toFixed(2)}"
+                               onchange="updateTotals()" step="0.01" data-item="${item.id}">
+                    </td>
+                    <td class="cost-value">${totalCost.toFixed(2)}</td>
+                    <td class="cost-value">${margin.toFixed(1)}%</td>
+                `;
+                tbody.appendChild(row);
+            });
+        } else {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #999;">No line items found</td></tr>';
+        }
+        
+        updateTotals();
+    }
+
+    function updateTotals() {
+        let totalQuoteValue = 0;
+        let totalProductionCost = 0;
+        
+        const rows = document.querySelectorAll('#costingTableBody tr');
+        
+        // Exit early if no rows exist (prevents cascading errors)
+        if (!rows || rows.length === 0) {
+            // Set default values
+            const elements = {
+                totalQuoteValue: document.getElementById('totalQuoteValue'),
+                totalProductionCost: document.getElementById('totalProductionCost'),
+                totalGrossMargin: document.getElementById('totalGrossMargin'),
+                marginPercentage: document.getElementById('marginPercentage')
+            };
+            
+            if (elements.totalQuoteValue) elements.totalQuoteValue.textContent = 'KES 0.00';
+            if (elements.totalProductionCost) elements.totalProductionCost.textContent = 'KES 0.00';
+            if (elements.totalGrossMargin) elements.totalGrossMargin.textContent = 'KES 0.00';
+            if (elements.marginPercentage) elements.marginPercentage.textContent = '0.0%';
+            return;
+        }
+        
+        rows.forEach(row => {
+            // Validate row has cells before accessing
+            if (!row.cells || row.cells.length < 2) {
+                return; // Skip invalid rows
+            }
+            
+            const qty = parseFloat(row.cells[1].textContent) || 0;
+            const unitCostInput = row.querySelector('.unit-cost');
+            const productionCostInput = row.querySelector('.production-cost');
+            
+            const unitCost = unitCostInput ? parseFloat(unitCostInput.value) || 0 : 0;
+            const productionCost = productionCostInput ? parseFloat(productionCostInput.value) || 0 : 0;
+            
+            totalQuoteValue += unitCost * qty;
+            totalProductionCost += productionCost * qty;
+        });
+        
+        const grossMargin = totalQuoteValue - totalProductionCost;
+        const marginPercent = totalQuoteValue > 0 ? (grossMargin / totalQuoteValue * 100) : 0;
+        
+        // Safely update all display elements
+        const totalQuoteEl = document.getElementById('totalQuoteValue');
+        const totalCostEl = document.getElementById('totalProductionCost');
+        const marginEl = document.getElementById('totalGrossMargin');
+        const percentEl = document.getElementById('marginPercentage');
+        
+        if (totalQuoteEl) totalQuoteEl.textContent = `KES ${totalQuoteValue.toFixed(2)}`;
+        if (totalCostEl) totalCostEl.textContent = `KES ${totalProductionCost.toFixed(2)}`;
+        if (marginEl) marginEl.textContent = `KES ${grossMargin.toFixed(2)}`;
+        if (percentEl) percentEl.textContent = `${marginPercent.toFixed(1)}%`;
+    }
+
+    function updateProcessInfo() {
+        const process = document.getElementById('processSelect').value;
+        console.log('Process selected:', process);
+    }
+
+    function saveCostingDraft() {
+        const quoteId = document.getElementById('costingQuoteId').textContent;
+        const costingData = collectCostingData();
+        
+        fetch(`/api/v1/quotes/${quoteId}/update_costing/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                ...costingData,
+                status: 'draft'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('✓ Costing saved as draft!');
+            closeCostingModal();
+        })
+        .catch(error => {
+            console.error('Error saving costing:', error);
+            alert('Error saving costing draft');
+        });
+    }
+
+    function submitCosting() {
+        const quoteId = document.getElementById('costingQuoteId').textContent;
+        const costingData = collectCostingData();
+        const btn = document.getElementById('submitCostingBtn');
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading-spinner"></span>Submitting...';
+        
+        fetch(`/api/v1/quotes/${quoteId}/update_costing/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                ...costingData,
+                status: 'submitted'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            alert('✅ Costing submitted successfully! Quote moved to production queue.');
+            
+            // Remove quote card from page
+            const quoteCard = document.querySelector(`[data-quote-id="${quoteId}"]`);
+            if (quoteCard) {
+                quoteCard.style.opacity = '0';
+                quoteCard.style.transform = 'scale(0.95)';
+                setTimeout(() => quoteCard.remove(), 300);
+            }
+            
+            closeCostingModal();
+            updateQuoteCounts();
+        })
+        .catch(error => {
+            console.error('Error submitting costing:', error);
+            alert('Error submitting costing');
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = '✓ Submit for Approval';
+        });
+    }
+
+    function collectCostingData() {
+        const costData = [];
+        document.querySelectorAll('#costingTableBody tr').forEach((row, index) => {
+            costData.push({
+                item_index: index,
+                unit_cost: parseFloat(row.querySelector('.unit-cost')?.value) || 0,
+                production_cost: parseFloat(row.querySelector('.production-cost')?.value) || 0
+            });
+        });
+        
+        return {
+            cost_breakdown: costData,
+            process_type: document.getElementById('processSelect').value,
+            suggested_vendor: document.getElementById('vendorSelect').value,
+            notes: document.getElementById('productionNotes').value
+        };
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
 
     function updateQuoteCounts() {
         // Update the grid layout

@@ -82,11 +82,102 @@ urlpatterns = [
     path('production/catalog/', views.production_catalog, name='production_catalog'),
     # path('production/catalog/', views.product_detail, name='product_detail'),
     path('production/dashboard/', views.production2_dashboard, name='production2_dashboard'),
+    path('production/jobs2/', views.jobs2_list, name='jobs2_list'),
+    path('production/invoices2/', views.invoices2_list, name='invoices2_list'),
+    path('production/proofs2/', views.proofs2_list, name='proofs2_list'),
+    path('production/messages2/', views.messages2_list, name='messages2_list'),
+    path('production/vendors2/', views.vendors2_list, name='vendors2_list'),
     path('production/analytics/', views.production_analytics, name='production_analytics'),
     
     # ✅ NEW: Production Team Dashboard (Gap 6.1)
     path('pt-dashboard/', views.production_team_dashboard, name='production_team_dashboard'),
     path('api/vendor/<int:vendor_id>/workload/', views.get_vendor_workload, name='get_vendor_workload'),
+    
+    # ✅ NEW: Job Assignment UI (Gap 10)
+    path('production/jobs/assign/', views.production_job_assignment, name='production_job_assignment'),
+    path('production/jobs/assign/submit/', views.production_job_assignment_submit, name='production_job_assignment_submit'),
+    
+    # ✅ NEW: Invoice Approval UI (Gap 11)
+    path('production/invoices/approve/', views.production_invoice_approval, name='production_invoice_approval'),
+    path('production/invoices/approve/submit/', views.production_invoice_approval_submit, name='production_invoice_approval_submit'),
+    
+    # ✅ NEW: Proof Approval Workflow (Gap 12)
+    path('production/proofs/approve/', views.production_proof_approval, name='production_proof_approval'),
+    path('production/proofs/approve/submit/', views.production_proof_approval_submit, name='production_proof_approval_submit'),
+    
+    # ✅ NEW: Vendor Progress Submit (Gap 7)
+    path('vendor/progress/submit/', views.vendor_progress_submit, name='vendor_progress_submit'),
+    
+    # ✅ NEW: Backend Gaps - API Endpoints
+    # Vendor Capacity Alerts
+    path('api/alerts/', views.VendorCapacityAlertViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_alerts_list'),
+    path('api/alerts/<int:pk>/', views.VendorCapacityAlertViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_alert_detail'),
+    path('api/alerts/<int:pk>/acknowledge/', views.VendorCapacityAlertViewSet.as_view({'post': 'acknowledge'}), name='api_alert_acknowledge'),
+    path('api/alerts/<int:pk>/resolve/', views.VendorCapacityAlertViewSet.as_view({'post': 'resolve'}), name='api_alert_resolve'),
+    path('api/alerts/check-capacity/', views.VendorCapacityAlertViewSet.as_view({'post': 'check_capacity'}), name='api_check_capacity'),
+    
+    # Purchase Order Milestones
+    path('api/milestones/', views.POSMilestoneViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_milestones_list'),
+    path('api/milestones/<int:pk>/', views.POSMilestoneViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_milestone_detail'),
+    path('api/milestones/<int:pk>/complete/', views.POSMilestoneViewSet.as_view({'post': 'complete'}), name='api_milestone_complete'),
+    path('api/milestones/check-approaching/', views.POSMilestoneViewSet.as_view({'post': 'check_approaching'}), name='api_check_approaching'),
+    
+    # Material Substitution Approvals
+    path('api/substitutions/', views.MaterialSubstitutionApprovalViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_substitutions_list'),
+    path('api/substitutions/<int:pk>/', views.MaterialSubstitutionApprovalViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_substitution_detail'),
+    path('api/substitutions/<int:pk>/approve/', views.MaterialSubstitutionApprovalViewSet.as_view({'post': 'approve'}), name='api_substitution_approve'),
+    path('api/substitutions/<int:pk>/reject/', views.MaterialSubstitutionApprovalViewSet.as_view({'post': 'reject'}), name='api_substitution_reject'),
+    path('api/substitutions/<int:pk>/cost-impact/', views.MaterialSubstitutionApprovalViewSet.as_view({'get': 'cost_impact'}), name='api_substitution_cost_impact'),
+    
+    # Invoice Holds
+    path('api/invoice-holds/', views.InvoiceHoldViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_invoice_holds_list'),
+    path('api/invoice-holds/<int:pk>/', views.InvoiceHoldViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_invoice_hold_detail'),
+    path('api/invoice-holds/hold-invoice/', views.InvoiceHoldViewSet.as_view({'post': 'hold_invoice'}), name='api_hold_invoice'),
+    path('api/invoice-holds/<int:pk>/release/', views.InvoiceHoldViewSet.as_view({'post': 'release'}), name='api_release_hold'),
+    
+    # PT Dashboard (Phase 2)
+    path('api/pt-dashboard/overview/', views.PTDashboardViewSet.as_view({'get': 'overview'}), name='api_pt_dashboard_overview'),
+    path('api/pt-dashboard/vendor-status/', views.PTDashboardViewSet.as_view({'get': 'vendor_status'}), name='api_vendor_status'),
+    
+    # SLA Escalations (Phase 2)
+    path('api/sla-escalations/', views.SLAEscalationViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_sla_escalations_list'),
+    path('api/sla-escalations/<int:pk>/', views.SLAEscalationViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_sla_escalation_detail'),
+    path('api/sla-escalations/escalate-job/', views.SLAEscalationViewSet.as_view({'post': 'escalate_job'}), name='api_escalate_job'),
+    path('api/sla-escalations/<int:pk>/notify-vendor/', views.SLAEscalationViewSet.as_view({'post': 'notify_vendor'}), name='api_notify_vendor_escalation'),
+    path('api/sla-escalations/<int:pk>/notify-pt/', views.SLAEscalationViewSet.as_view({'post': 'notify_pt'}), name='api_notify_pt_escalation'),
+    path('api/sla-escalations/<int:pk>/escalate-level/', views.SLAEscalationViewSet.as_view({'post': 'escalate_level'}), name='api_escalate_level'),
+    path('api/sla-escalations/<int:pk>/resolve/', views.SLAEscalationViewSet.as_view({'post': 'resolve'}), name='api_resolve_escalation'),
+    path('api/sla-escalations/pending/', views.SLAEscalationViewSet.as_view({'get': 'pending'}), name='api_pending_escalations'),
+    path('api/sla-escalations/critical/', views.SLAEscalationViewSet.as_view({'get': 'critical'}), name='api_critical_escalations'),
+    path('api/sla-escalations/check-and-escalate/', views.SLAEscalationViewSet.as_view({'post': 'check_and_escalate'}), name='api_check_and_escalate'),
+    
+    # Progress Updates (Task 7)
+    path('api/progress-updates/', views.ProgressUpdateBatchViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_progress_updates_list'),
+    path('api/progress-updates/<int:pk>/', views.ProgressUpdateBatchViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_progress_update_detail'),
+    path('api/progress-updates/submit-update/', views.ProgressUpdateBatchViewSet.as_view({'post': 'submit_update'}), name='api_submit_progress_update'),
+    path('api/progress-updates/latest/', views.ProgressUpdateBatchViewSet.as_view({'get': 'latest_by_po'}), name='api_latest_progress_update'),
+    
+    # QC-Proof Links (Task 9 - QC-Proof Integration)
+    path('api/qc-proof-links/', views.QCProofLinkViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_qc_proof_links_list'),
+    path('api/qc-proof-links/<int:pk>/', views.QCProofLinkViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_qc_proof_link_detail'),
+    path('api/qc-proof-links/link-qc-to-proof/', views.QCProofLinkViewSet.as_view({'post': 'link_qc_to_proof'}), name='api_link_qc_to_proof'),
+    path('api/qc-proof-links/<int:pk>/calculate-vps-impact/', views.QCProofLinkViewSet.as_view({'post': 'calculate_vps_impact'}), name='api_calculate_vps_impact'),
+    
+    # VPS Recalculation (Task 11 - VPS Recalculation on QC Fail)
+    path('api/vps-recalculation/', views.VPSRecalculationViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_vps_recalculation_list'),
+    path('api/vps-recalculation/<int:pk>/', views.VPSRecalculationViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_vps_recalculation_detail'),
+    path('api/vps-recalculation/recalculate-vendor/', views.VPSRecalculationViewSet.as_view({'post': 'recalculate_vendor_vps'}), name='api_recalculate_vendor_vps'),
+    
+    # Customer Notifications (Task 10 - Substitution Customer Notification)
+    path('api/customer-notifications/', views.CustomerNotificationViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_customer_notifications_list'),
+    path('api/customer-notifications/<int:pk>/', views.CustomerNotificationViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_customer_notification_detail'),
+    path('api/customer-notifications/send-notification/', views.CustomerNotificationViewSet.as_view({'post': 'send_notification'}), name='api_send_customer_notification'),
+    path('api/customer-notifications/<int:pk>/mark-acknowledged/', views.CustomerNotificationViewSet.as_view({'post': 'mark_acknowledged'}), name='api_mark_notification_acknowledged'),
+    
+    # Deadline Calculations (Task 8 - Automatic Deadline Calculation)
+    path('api/deadline-calculations/', views.DeadlineCalculationViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_deadline_calculations_list'),
+    path('api/deadline-calculations/<int:pk>/', views.DeadlineCalculationViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_deadline_calculation_detail'),
+    path('api/deadline-calculations/calculate-deadline/', views.DeadlineCalculationViewSet.as_view({'post': 'calculate_deadline'}), name='api_calculate_deadline'),
     
     path('notifications/', views.notifications, name='notifications'),
     
@@ -172,11 +263,12 @@ path('quality-control/', views.quality_control_list, name='quality_control_list'
     path('api/vendors/create/', views.ajax_create_vendor, name='ajax_create_vendor'),
     path('processes/', views.process_list, name='process_list'),
     path('processes/create/', views.process_create, name='process_create'),
+    path('processes/<str:process_id>/', views.process_detail, name='process_detail'),
     path('processes/<str:process_id>/edit/', views.process_edit, name='process_edit'),
     # Variable Ranges Management
-    path('processes/<int:process_id>/variable-ranges/', views.process_variable_ranges_manager, name='process_variable_ranges_manager'),
-    path('ajax/process-variable-ranges/<int:process_id>/add/', views.add_variable_range, name='add_variable_range'),
-    path('ajax/process-variable-ranges/<int:process_id>/delete/', views.delete_variable_range, name='delete_variable_range'),
+    path('processes/<str:process_id>/variable-ranges/', views.process_variable_ranges_manager, name='process_variable_ranges_manager'),
+    path('ajax/process-variable-ranges/<str:process_id>/add/', views.add_variable_range, name='add_variable_range'),
+    path('ajax/process-variable-ranges/<str:process_id>/delete/', views.delete_variable_range, name='delete_variable_range'),
     path('ajax/process-variable-ranges/<int:process_id>/create-samples/', views.create_sample_ranges, name='create_sample_ranges'),
     # path('processes/<str:process_id>/', views.process_detail, name='process_detail'),
     
@@ -407,6 +499,11 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     # ==================== ALERTS ====================
     # path('alerts/', admin_views.admin_alerts_list, name='admin_alerts_list'),
     
+    # ==================== CLIENT PORTAL ====================
+    # Client Portal URLs - Main SPA Entry Point
+    path('client-portal/', views.client_portal_spa, name='client_portal'),
+    
+    # ==================== VENDOR PORTAL ====================
     # Vendor Portal URLs - Main SPA Entry Point
     path('vendor/', views.vendor_portal_spa, name='vendor_portal'),
     

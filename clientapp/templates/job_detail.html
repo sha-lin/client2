@@ -555,6 +555,184 @@
     .action-link {
         text-decoration: none;
     }
+
+    /* ===== JOB STATUS TIMELINE STYLES (NEW) ===== */
+
+    .job-timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 0;
+        padding: 20px;
+        background: #fafafa;
+        border-radius: 8px;
+        border: 1px solid #e5e7eb;
+    }
+
+    .timeline-status {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        padding: 16px 0;
+        position: relative;
+    }
+
+    .timeline-status:last-child {
+        margin-bottom: 0;
+    }
+
+    .status-marker {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 3px solid #e5e7eb;
+        background: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        flex-shrink: 0;
+        position: relative;
+        z-index: 2;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Status States */
+    .status-marker.pending {
+        border-color: #e5e7eb;
+        background: white;
+        color: #6b7280;
+    }
+
+    .status-marker.sent-to-vendor {
+        border-color: #60a5fa;
+        background: #eff6ff;
+        color: #1e40af;
+    }
+
+    .status-marker.in-production {
+        border-color: #fbbf24;
+        background: #fffbeb;
+        color: #b45309;
+    }
+
+    .status-marker.qa-check {
+        border-color: #a78bfa;
+        background: #f3e8ff;
+        color: #6d28d9;
+    }
+
+    .status-marker.ready-delivery {
+        border-color: #34d399;
+        background: #ecfdf5;
+        color: #065f46;
+    }
+
+    .status-marker.completed {
+        border-color: #10b981;
+        background: #d1fae5;
+        color: #047857;
+    }
+
+    /* Current Status Highlight */
+    .status-marker.current {
+        border-color: #3b82f6;
+        background: #dbeafe;
+        color: #1e40af;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        animation: pulse-status 2s infinite;
+    }
+
+    /* Delayed Status */
+    .status-marker.delayed {
+        border-color: #f59e0b;
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    /* At Risk Status */
+    .status-marker.at-risk {
+        border-color: #ef4444;
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    @keyframes pulse-status {
+        0%, 100% {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+        }
+        50% {
+            box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.1);
+        }
+    }
+
+    .status-icon {
+        font-size: 22px;
+        line-height: 1;
+    }
+
+    .status-info {
+        flex: 1;
+        padding-top: 4px;
+    }
+
+    .status-name {
+        font-weight: 600;
+        font-size: 14px;
+        color: #1f2937;
+        margin-bottom: 4px;
+    }
+
+    .status-detail {
+        font-size: 12px;
+        color: #6b7280;
+    }
+
+    /* Timeline Connector Line */
+    .timeline-connector {
+        width: 3px;
+        height: 16px;
+        background: linear-gradient(to bottom, #e5e7eb 0%, #e5e7eb 50%, #d1d5db 100%);
+        margin: -8px 0 0 22.5px;
+        margin-left: 21px;
+    }
+
+    /* Status Legend */
+    .timeline-key {
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+
+    .key-marker {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #ccc;
+        flex-shrink: 0;
+    }
+
+    /* Responsive Design */
+    @media (max-width: 768px) {
+        .status-marker {
+            width: 40px;
+            height: 40px;
+            font-size: 18px;
+        }
+
+        .timeline-connector {
+            margin-left: 18px;
+        }
+
+        .status-name {
+            font-size: 13px;
+        }
+
+        .status-detail {
+            font-size: 11px;
+        }
+    }
 </style>
 {% endblock %}
 
@@ -809,6 +987,116 @@
                 </div>
             </div>
 
+            <!-- JOB STATUS TIMELINE (NEW) -->
+            <div class="detail-section">
+                <h4>📊 Production Timeline</h4>
+                <div class="job-timeline">
+                    <!-- Status 1: PENDING -->
+                    <div class="timeline-status" id="status_pending">
+                        <div class="status-marker pending" title="Job created and pending assignment">
+                            <div class="status-icon">📋</div>
+                        </div>
+                        <div class="status-info">
+                            <div class="status-name">Created</div>
+                            <div class="status-detail" id="timestamp_pending">{{ job.created_at|date:"M d, Y • H:i" }}</div>
+                        </div>
+                    </div>
+
+                    <!-- Connector Line -->
+                    <div class="timeline-connector"></div>
+
+                    <!-- Status 2: SENT_TO_VENDOR -->
+                    <div class="timeline-status" id="status_sent_to_vendor">
+                        <div class="status-marker sent-to-vendor" title="Purchase order sent to vendor">
+                            <div class="status-icon">📤</div>
+                        </div>
+                        <div class="status-info">
+                            <div class="status-name">PO Sent</div>
+                            <div class="status-detail" id="timestamp_sent_to_vendor">Awaiting vendor confirmation</div>
+                        </div>
+                    </div>
+
+                    <!-- Connector Line -->
+                    <div class="timeline-connector"></div>
+
+                    <!-- Status 3: IN_PRODUCTION -->
+                    <div class="timeline-status" id="status_in_production">
+                        <div class="status-marker in-production" title="Vendor actively working on job">
+                            <div class="status-icon">⚙️</div>
+                        </div>
+                        <div class="status-info">
+                            <div class="status-name">In Production</div>
+                            <div class="status-detail" id="timestamp_in_production">Vendor working on materials</div>
+                        </div>
+                    </div>
+
+                    <!-- Connector Line -->
+                    <div class="timeline-connector"></div>
+
+                    <!-- Status 4: QA_CHECK -->
+                    <div class="timeline-status" id="status_qa_check">
+                        <div class="status-marker qa-check" title="Quality assurance inspection">
+                            <div class="status-icon">✓</div>
+                        </div>
+                        <div class="status-info">
+                            <div class="status-name">QC Inspection</div>
+                            <div class="status-detail" id="timestamp_qa_check">Quality verification in progress</div>
+                        </div>
+                    </div>
+
+                    <!-- Connector Line -->
+                    <div class="timeline-connector"></div>
+
+                    <!-- Status 5: READY_DELIVERY -->
+                    <div class="timeline-status" id="status_ready_delivery">
+                        <div class="status-marker ready-delivery" title="Ready for shipment">
+                            <div class="status-icon">📦</div>
+                        </div>
+                        <div class="status-info">
+                            <div class="status-name">Ready for Delivery</div>
+                            <div class="status-detail" id="timestamp_ready_delivery">Pending pickup/shipment</div>
+                        </div>
+                    </div>
+
+                    <!-- Connector Line -->
+                    <div class="timeline-connector"></div>
+
+                    <!-- Status 6: COMPLETED -->
+                    <div class="timeline-status" id="status_completed">
+                        <div class="status-marker completed" title="Job completed and delivered">
+                            <div class="status-icon">✅</div>
+                        </div>
+                        <div class="status-info">
+                            <div class="status-name">Completed</div>
+                            <div class="status-detail" id="timestamp_completed">Delivered to customer</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Key -->
+                <div class="timeline-key" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e0e0e0;">
+                    <div style="font-size: 12px; color: #666; margin-bottom: 10px; font-weight: 500;">Status Legend:</div>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                            <span class="key-marker" style="background: #3b82f6; border-color: #3b82f6;"></span>
+                            <span>Current Status</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                            <span class="key-marker" style="background: #10b981; border-color: #10b981;"></span>
+                            <span>Completed</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                            <span class="key-marker" style="background: #fbbf24; border-color: #f59e0b;"></span>
+                            <span>Delayed</span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px; font-size: 12px;">
+                            <span class="key-marker" style="background: #ef4444; border-color: #dc2626;"></span>
+                            <span>At Risk</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {% if job.notes %}
             <div class="detail-section">
                 <h4>Special Instructions</h4>
@@ -905,6 +1193,64 @@
 
 {% block extra_js %}
 <script>
+    // ===== JOB STATUS TIMELINE INITIALIZATION (NEW) =====
+    document.addEventListener('DOMContentLoaded', function() {
+        updateJobTimeline('{{ job.status }}');
+    });
+
+    function updateJobTimeline(currentStatus) {
+        // Map statuses to timeline positions and states
+        const statusMap = {
+            'pending': { position: 'status_pending', marker: 'pending' },
+            'sent_to_vendor': { position: 'status_sent_to_vendor', marker: 'current' },
+            'in_production': { position: 'status_in_production', marker: 'current' },
+            'qa_check': { position: 'status_qa_check', marker: 'current' },
+            'ready_delivery': { position: 'status_ready_delivery', marker: 'current' },
+            'completed': { position: 'status_completed', marker: 'completed' },
+        };
+
+        // Status progression order
+        const statusOrder = [
+            'pending',
+            'sent_to_vendor',
+            'in_production',
+            'qa_check',
+            'ready_delivery',
+            'completed'
+        ];
+
+        // Get current status index
+        const currentIndex = statusOrder.indexOf(currentStatus);
+
+        // Update all status markers
+        statusOrder.forEach((status, index) => {
+            const statusId = statusMap[status].position;
+            const statusElement = document.getElementById(statusId);
+            
+            if (!statusElement) return;
+
+            const marker = statusElement.querySelector('.status-marker');
+            if (!marker) return;
+
+            // Remove all state classes
+            marker.classList.remove('pending', 'sent-to-vendor', 'in-production', 'qa-check', 'ready-delivery', 'completed', 'current');
+
+            if (index < currentIndex) {
+                // Past status - mark as completed
+                marker.classList.add(status.replace(/_/g, '-'), 'completed');
+                const icon = marker.querySelector('.status-icon');
+                if (icon) icon.textContent = '✓';
+            } else if (index === currentIndex) {
+                // Current status - highlight
+                marker.classList.add(status.replace(/_/g, '-'), 'current');
+            } else {
+                // Future status - gray out
+                marker.classList.add(status.replace(/_/g, '-'), 'pending');
+            }
+        });
+    }
+
+    // ===== ORIGINAL JOB DETAIL FUNCTIONS =====
     // Filter Jobs
     function filterJobs() {
         const statusFilter = document.getElementById('statusFilter').value;

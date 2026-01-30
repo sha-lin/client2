@@ -1,0 +1,724 @@
+{% extends 'base2.html' %}
+
+{% block content %}
+<style>
+    .job-assignment-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+
+    .assignment-header {
+        margin-bottom: 2rem;
+    }
+
+    .assignment-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+    }
+
+    .assignment-subtitle {
+        font-size: 0.95rem;
+        color: #6b7280;
+    }
+
+    .assignment-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+
+    .assignment-card {
+        background: #fff;
+        border-radius: 12px;
+        padding: 2rem;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border: 1px solid #f3f4f6;
+    }
+
+    .card-section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .card-section-title i {
+        color: #3b82f6;
+    }
+
+    /* Job List Styles */
+    .job-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .job-list-item {
+        padding: 1rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        border-left: 4px solid #3b82f6;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: 1px solid #e5e7eb;
+    }
+
+    .job-list-item:hover {
+        background: #f3f4f6;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+
+    .job-list-item.selected {
+        background: #eff6ff;
+        border-left-color: #0ea5e9;
+        border: 1px solid #bfdbfe;
+    }
+
+    .job-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 0.5rem;
+    }
+
+    .job-item-id {
+        font-weight: 700;
+        color: #1a1a1a;
+        font-size: 0.95rem;
+    }
+
+    .job-item-status {
+        display: inline-block;
+        padding: 0.3rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    .job-item-status.pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .job-item-status.in-progress {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+
+    .job-item-details {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.75rem;
+        font-size: 0.8rem;
+        margin-top: 0.75rem;
+    }
+
+    .job-detail {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .job-detail-label {
+        color: #9ca3af;
+        font-weight: 500;
+        margin-bottom: 0.2rem;
+    }
+
+    .job-detail-value {
+        color: #1a1a1a;
+        font-weight: 600;
+    }
+
+    /* Sidebar: Vendor Selection & Details */
+    .sidebar-card {
+        display: flex;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .form-label {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #1a1a1a;
+    }
+
+    .form-required {
+        color: #ef4444;
+    }
+
+    .vendor-select {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        font-size: 0.9rem;
+        background: white;
+        cursor: pointer;
+    }
+
+    .vendor-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .vendor-option-group {
+        padding: 0.75rem 1rem;
+        background: #f0f9ff;
+        border-left: 3px solid #3b82f6;
+        border-radius: 6px;
+        margin-top: 0.5rem;
+    }
+
+    .vendor-option-item {
+        padding: 0.5rem 0.75rem;
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .vendor-option-item:hover {
+        background: #f9fafb;
+        border-color: #3b82f6;
+    }
+
+    .vendor-option-item.selected {
+        background: #dbeafe;
+        border-color: #3b82f6;
+        font-weight: 600;
+    }
+
+    .vendor-stats {
+        padding: 1rem;
+        background: #f0f9ff;
+        border-radius: 8px;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .vendor-stat-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .vendor-stat-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .vendor-stat-label {
+        color: #6b7280;
+    }
+
+    .vendor-stat-value {
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+
+    .vendor-capacity-bar {
+        margin-top: 0.75rem;
+    }
+
+    .capacity-label {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .capacity-bar {
+        width: 100%;
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .capacity-fill {
+        height: 100%;
+        background: #3b82f6;
+        border-radius: 4px;
+    }
+
+    .capacity-fill.high {
+        background: #ef4444;
+    }
+
+    .capacity-fill.medium {
+        background: #f59e0b;
+    }
+
+    /* Job Details Section */
+    .job-details-section {
+        padding: 1.5rem;
+        background: #f9fafb;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+
+    .details-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .detail-item {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .detail-label {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        font-weight: 500;
+        margin-bottom: 0.25rem;
+    }
+
+    .detail-value {
+        font-size: 0.95rem;
+        color: #1a1a1a;
+        font-weight: 600;
+    }
+
+    .detail-value.secondary {
+        font-weight: 400;
+        color: #6b7280;
+    }
+
+    /* Assignment Summary */
+    .assignment-summary {
+        padding: 1.5rem;
+        background: #f0f9ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        margin-top: 1.5rem;
+    }
+
+    .summary-title {
+        font-weight: 600;
+        color: #1e40af;
+        margin-bottom: 1rem;
+        font-size: 0.95rem;
+    }
+
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+        font-size: 0.9rem;
+    }
+
+    .summary-item:last-child {
+        margin-bottom: 0;
+        padding-top: 0.75rem;
+        border-top: 1px solid #bfdbfe;
+    }
+
+    .summary-label {
+        color: #1e40af;
+        font-weight: 500;
+    }
+
+    .summary-value {
+        color: #1a1a1a;
+        font-weight: 600;
+    }
+
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+    }
+
+    .btn {
+        flex: 1;
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2563eb;
+        box-shadow: 0 4px 6px rgba(59, 130, 246, 0.2);
+    }
+
+    .btn-primary:disabled {
+        background: #bfdbfe;
+        cursor: not-allowed;
+    }
+
+    .btn-secondary {
+        background: white;
+        color: #3b82f6;
+        border: 1px solid #3b82f6;
+    }
+
+    .btn-secondary:hover {
+        background: #f0f9ff;
+    }
+
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #9ca3af;
+    }
+
+    .empty-state-icon {
+        font-size: 3rem;
+        color: #e5e7eb;
+        margin-bottom: 1rem;
+    }
+
+    .empty-state-text {
+        font-size: 0.95rem;
+    }
+
+    /* Success Message */
+    .alert {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+
+    .alert-success {
+        background: #dcfce7;
+        border: 1px solid #86efac;
+        color: #166534;
+    }
+
+    .alert-error {
+        background: #fee2e2;
+        border: 1px solid #fca5a5;
+        color: #991b1b;
+    }
+
+    .alert-info {
+        background: #e0e7ff;
+        border: 1px solid #c7d2fe;
+        color: #3730a3;
+    }
+
+    .alert i {
+        font-size: 1.2rem;
+    }
+
+    @media (max-width: 968px) {
+        .assignment-grid {
+            grid-template-columns: 1fr;
+        }
+        .details-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="job-assignment-container">
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% else %}fa-exclamation-circle{% endif %}"></i>
+                <span>{{ message }}</span>
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="assignment-header">
+        <div class="assignment-title">
+            <i class="fas fa-tasks" style="color: #3b82f6; margin-right: 0.75rem;"></i>
+            Job Assignment
+        </div>
+        <div class="assignment-subtitle">Assign jobs to vendors and track assignments</div>
+    </div>
+
+    <div class="assignment-grid">
+        <!-- LEFT: Job Selection -->
+        <div class="assignment-card">
+            <div class="card-section-title">
+                <i class="fas fa-list"></i>
+                Available Jobs
+            </div>
+
+            {% if jobs %}
+                <div class="job-list">
+                    {% for job in jobs %}
+                        <div class="job-list-item" onclick="selectJob(this, {{ job.id }}, '{{ job.product }}', '{{ job.expected_completion|date:'Y-m-d' }}', {{ job.customer_id }})">
+                            <div class="job-item-header">
+                                <div class="job-item-id">PO-{{ job.id|stringformat:'05d' }}: {{ job.product|truncatewords:3 }}</div>
+                                <span class="job-item-status {% if job.status == 'pending' %}pending{% else %}in-progress{% endif %}">
+                                    {{ job.status|upper }}
+                                </span>
+                            </div>
+                            <div class="job-item-details">
+                                <div class="job-detail">
+                                    <span class="job-detail-label">Client</span>
+                                    <span class="job-detail-value">{{ job.client.name|truncatewords:1 }}</span>
+                                </div>
+                                <div class="job-detail">
+                                    <span class="job-detail-label">Quantity</span>
+                                    <span class="job-detail-value">{{ job.quantity }}</span>
+                                </div>
+                                <div class="job-detail">
+                                    <span class="job-detail-label">Due Date</span>
+                                    <span class="job-detail-value">{{ job.expected_completion|date:'M d' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <div class="empty-state-text">
+                        No unassigned jobs available at this time.
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- RIGHT: Vendor Selection & Assignment -->
+        <div class="assignment-card">
+            <div class="sidebar-card">
+                <div>
+                    <div class="card-section-title">
+                        <i class="fas fa-building"></i>
+                        Assign to Vendor
+                    </div>
+
+                    <form id="assignmentForm" method="POST" action="{% url 'production_job_assignment_submit' %}">
+                        {% csrf_token %}
+                        
+                        <div class="form-group">
+                            <label class="form-label">
+                                Select Job <span class="form-required">*</span>
+                            </label>
+                            <input type="hidden" id="selectedJobId" name="job_id" value="">
+                            <div id="selectedJobDisplay" style="padding: 0.75rem; background: #f9fafb; border-radius: 8px; color: #9ca3af; font-size: 0.9rem;">
+                                Select a job from the list
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">
+                                Vendor <span class="form-required">*</span>
+                            </label>
+                            <select id="vendorSelect" name="vendor_id" class="vendor-select" onchange="updateVendorStats(this.value)">
+                                <option value="">-- Select Vendor --</option>
+                                {% for vendor in vendors %}
+                                    <option value="{{ vendor.id }}" data-capacity="{{ vendor.capacity_percentage }}" data-jobs="{{ vendor.active_jobs }}">
+                                        {{ vendor.name }} ({{ vendor.active_jobs }} jobs)
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Vendor Stats -->
+                        <div id="vendorStats" style="display: none;">
+                            <div class="vendor-stats">
+                                <div class="vendor-stat-row">
+                                    <span class="vendor-stat-label">Active Jobs:</span>
+                                    <span class="vendor-stat-value" id="vendorActiveJobs">-</span>
+                                </div>
+                                <div class="vendor-stat-row">
+                                    <span class="vendor-stat-label">Capacity:</span>
+                                    <span class="vendor-stat-value" id="vendorCapacityPct">-</span>
+                                </div>
+                                <div class="vendor-stat-row">
+                                    <span class="vendor-stat-label">Avg Quality:</span>
+                                    <span class="vendor-stat-value" id="vendorQuality">-</span>
+                                </div>
+                                <div class="vendor-capacity-bar">
+                                    <div class="capacity-label">
+                                        <span>Workload</span>
+                                        <span id="vendorCapacityLabel">0%</span>
+                                    </div>
+                                    <div class="capacity-bar">
+                                        <div id="vendorCapacityFill" class="capacity-fill" style="width: 0%;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Priority</label>
+                            <select name="priority" class="vendor-select">
+                                <option value="normal">Normal</option>
+                                <option value="high">High</option>
+                                <option value="urgent">Urgent</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label">Notes</label>
+                            <textarea name="notes" class="vendor-select" style="padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.9rem; min-height: 80px; resize: vertical; font-family: inherit;" placeholder="Add any special instructions for this assignment..."></textarea>
+                        </div>
+
+                        <!-- Assignment Summary -->
+                        <div id="assignmentSummary" style="display: none;">
+                            <div class="assignment-summary">
+                                <div class="summary-title">Assignment Summary</div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Job:</span>
+                                    <span class="summary-value" id="summaryJob">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Vendor:</span>
+                                    <span class="summary-value" id="summaryVendor">-</span>
+                                </div>
+                                <div class="summary-item">
+                                    <span class="summary-label">Due Date:</span>
+                                    <span class="summary-value" id="summaryDueDate">-</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons">
+                            <button type="reset" class="btn btn-secondary" onclick="resetForm()">Reset</button>
+                            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>Assign Job</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const vendorData = {
+        {% for vendor in vendors %}
+            '{{ vendor.id }}': {
+                name: '{{ vendor.name }}',
+                activeJobs: {{ vendor.active_jobs }},
+                capacity: {{ vendor.capacity_percentage }},
+                quality: {{ vendor.quality_score|default:8.5 }}
+            }{% if not forloop.last %},{% endif %}
+        {% endfor %}
+    };
+
+    let selectedJob = null;
+
+    function selectJob(element, jobId, product, dueDate, customerId) {
+        // Remove previous selection
+        document.querySelectorAll('.job-list-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        
+        // Add selection to current element
+        element.classList.add('selected');
+        
+        // Store selected job data
+        selectedJob = {
+            id: jobId,
+            product: product,
+            dueDate: dueDate,
+            customerId: customerId
+        };
+        
+        // Update form
+        document.getElementById('selectedJobId').value = jobId;
+        document.getElementById('selectedJobDisplay').innerHTML = `<strong>PO-${String(jobId).padStart(5, '0')}: ${product}</strong><br><small style="color: #9ca3af;">Due: ${dueDate}</small>`;
+        document.getElementById('assignmentSummary').style.display = 'block';
+        document.getElementById('summaryJob').textContent = `PO-${String(jobId).padStart(5, '0')}: ${product}`;
+        document.getElementById('summaryDueDate').textContent = dueDate;
+        
+        updateSubmitButton();
+    }
+
+    function updateVendorStats(vendorId) {
+        const submitBtn = document.getElementById('submitBtn');
+        const vendorStats = document.getElementById('vendorStats');
+        const summarySection = document.getElementById('assignmentSummary');
+        
+        if (!vendorId) {
+            vendorStats.style.display = 'none';
+            submitBtn.disabled = true;
+            return;
+        }
+        
+        const vendor = vendorData[vendorId];
+        if (!vendor) return;
+        
+        // Update vendor stats
+        document.getElementById('vendorActiveJobs').textContent = vendor.activeJobs;
+        document.getElementById('vendorCapacityPct').textContent = vendor.capacity + '%';
+        document.getElementById('vendorCapacityLabel').textContent = vendor.capacity + '%';
+        document.getElementById('vendorQuality').textContent = vendor.quality.toFixed(1) + '/10';
+        
+        // Update capacity bar color and fill
+        const capacityFill = document.getElementById('vendorCapacityFill');
+        capacityFill.style.width = vendor.capacity + '%';
+        capacityFill.className = 'capacity-fill';
+        
+        if (vendor.capacity >= 80) {
+            capacityFill.classList.add('high');
+        } else if (vendor.capacity >= 60) {
+            capacityFill.classList.add('medium');
+        }
+        
+        vendorStats.style.display = 'block';
+        document.getElementById('summaryVendor').textContent = vendor.name;
+        
+        updateSubmitButton();
+    }
+
+    function updateSubmitButton() {
+        const submitBtn = document.getElementById('submitBtn');
+        const vendorId = document.getElementById('vendorSelect').value;
+        const jobId = document.getElementById('selectedJobId').value;
+        
+        submitBtn.disabled = !(jobId && vendorId);
+    }
+
+    function resetForm() {
+        document.getElementById('assignmentForm').reset();
+        document.querySelectorAll('.job-list-item').forEach(item => {
+            item.classList.remove('selected');
+        });
+        document.getElementById('selectedJobDisplay').textContent = 'Select a job from the list';
+        document.getElementById('vendorStats').style.display = 'none';
+        document.getElementById('assignmentSummary').style.display = 'none';
+        document.getElementById('submitBtn').disabled = true;
+        selectedJob = null;
+    }
+
+    // Initialize submit button on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSubmitButton();
+    });
+</script>
+
+{% endblock %}

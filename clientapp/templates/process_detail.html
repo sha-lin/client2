@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ process.process_name }} - Process Details{% endblock %}
+
+{% block content %}
+<div class="p-8 max-w-6xl mx-auto">
+    <!-- Header -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-semibold text-gray-900">{{ process.process_name }}</h1>
+                <p class="text-gray-600 mt-1">Process ID: <span class="font-mono font-medium text-gray-900">{{ process.process_id }}</span></p>
+            </div>
+            <a href="{% url 'process_edit' process.process_id %}" 
+               class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+                Edit Process
+            </a>
+        </div>
+    </div>
+
+    <!-- Basic Information -->
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            Basic Information
+        </h2>
+        <div class="grid grid-cols-2 gap-6">
+            <div>
+                <label class="text-sm font-medium text-gray-500">Category</label>
+                <p class="text-gray-900 mt-1">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                                 {% if process.category == 'outsourced' %}bg-purple-100 text-purple-800{% else %}bg-green-100 text-green-800{% endif %}">
+                        {{ process.get_category_display }}
+                    </span>
+                </p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Status</label>
+                <p class="text-gray-900 mt-1">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                                 {% if process.status == 'active' %}bg-green-100 text-green-800{% elif process.status == 'draft' %}bg-yellow-100 text-yellow-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                        {{ process.get_status_display }}
+                    </span>
+                </p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Pricing Type</label>
+                <p class="text-gray-900 mt-1">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium 
+                                 {% if process.pricing_type == 'tier' %}bg-blue-100 text-blue-800{% else %}bg-orange-100 text-orange-800{% endif %}">
+                        {{ process.get_pricing_type_display }}
+                    </span>
+                </p>
+            </div>
+            <div>
+                <label class="text-sm font-medium text-gray-500">Standard Lead Time</label>
+                <p class="text-gray-900 mt-1">{{ process.standard_lead_time }} days</p>
+            </div>
+        </div>
+        {% if process.description %}
+        <div class="mt-6 pt-6 border-t border-gray-200">
+            <label class="text-sm font-medium text-gray-500">Description</label>
+            <p class="text-gray-900 mt-2 whitespace-pre-wrap">{{ process.description }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Pricing Details -->
+    {% if process.pricing_type == 'tier' and tiers %}
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.972 1.972 0 013 12.414V7a4 4 0 014-4z"></path>
+            </svg>
+            Tier-Based Pricing
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                        <th class="px-4 py-2 text-left font-medium text-gray-700">Min Quantity</th>
+                        <th class="px-4 py-2 text-left font-medium text-gray-700">Max Quantity</th>
+                        <th class="px-4 py-2 text-right font-medium text-gray-700">Unit Price (KES)</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    {% for tier in tiers %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-4 py-3 text-gray-900">{{ tier.min_quantity }}</td>
+                        <td class="px-4 py-3 text-gray-900">{{ tier.max_quantity|default:"∞" }}</td>
+                        <td class="px-4 py-3 text-right text-gray-900 font-medium">{{ tier.unit_price|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% elif process.pricing_type == 'formula' and variables %}
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+            </svg>
+            Formula-Based Variables
+        </h2>
+        <div class="space-y-4">
+            {% for variable in variables %}
+            <div class="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <div class="flex items-start justify-between">
+                    <div class="flex-1">
+                        <h3 class="font-semibold text-gray-900">{{ variable.variable_name }}</h3>
+                        <p class="text-sm text-gray-600 mt-1">{{ variable.description }}</p>
+                        <div class="grid grid-cols-3 gap-4 mt-3">
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">Type</label>
+                                <p class="text-sm text-gray-900 mt-1">
+                                    {% if variable.variable_type == 'number' %}
+                                        Numeric
+                                    {% elif variable.variable_type == 'boolean' %}
+                                        Boolean (Yes/No)
+                                    {% else %}
+                                        {{ variable.get_variable_type_display }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">Price</label>
+                                <p class="text-sm text-gray-900 mt-1">KES {{ variable.price|floatformat:2 }}</p>
+                            </div>
+                            {% if variable.variable_type == 'number' %}
+                            <div>
+                                <label class="text-xs font-medium text-gray-500">Rate</label>
+                                <p class="text-sm text-gray-900 mt-1">{{ variable.rate|default:"1" }}</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Vendors -->
+    {% if process.category == 'outsourced' and process_vendors %}
+    <div class="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+        <h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+            </svg>
+            Assigned Vendors
+        </h2>
+        <div class="space-y-3">
+            {% for pv in process_vendors %}
+            <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div>
+                    <h3 class="font-medium text-gray-900">{{ pv.vendor.name }}</h3>
+                    <p class="text-sm text-gray-600">VPS Score: {{ pv.vps_score }}</p>
+                </div>
+                <span class="text-sm px-3 py-1 rounded-full {% if pv.is_preferred %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {% if pv.is_preferred %}Preferred{% else %}Backup{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Action Buttons -->
+    <div class="flex items-center justify-between py-4">
+        <a href="{% url 'process_list' %}" class="text-gray-700 hover:text-gray-900 font-medium transition">
+            ← Back to Processes
+        </a>
+        <a href="{% url 'process_edit' process.process_id %}" 
+           class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+            </svg>
+            Edit Process
+        </a>
+    </div>
+</div>
+{% endblock %}

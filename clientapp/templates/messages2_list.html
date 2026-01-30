@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Messages - Print Duka{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Messages</h1>
+                    <p class="text-gray-600 mt-1">Communication with vendors and purchase orders</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Conversations List Sidebar -->
+            <div class="lg:col-span-1 bg-white rounded-lg shadow overflow-hidden flex flex-col max-h-[600px]">
+                <div class="border-b border-gray-200 p-4">
+                    <h2 class="font-semibold text-gray-900 mb-2">Conversations</h2>
+                    <input type="text" id="conversationSearch" placeholder="Search..." class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                </div>
+                <div id="conversationsList" class="flex-1 overflow-y-auto">
+                    <div class="text-center py-12 text-gray-500">
+                        <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                        <p>Loading conversations...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Area -->
+            <div class="lg:col-span-3 bg-white rounded-lg shadow overflow-hidden flex flex-col max-h-[600px]">
+                <div id="chatHeader" class="border-b border-gray-200 p-4 bg-gray-50">
+                    <p class="text-gray-600 text-sm">Select a conversation to start messaging</p>
+                </div>
+                
+                <div id="messagesContainer" class="flex-1 overflow-y-auto p-4 space-y-4 bg-white">
+                    <!-- Messages loaded dynamically -->
+                </div>
+                
+                <div class="border-t border-gray-200 p-4 bg-gray-50">
+                    <div class="flex gap-2">
+                        <textarea id="messageInput" placeholder="Type a message..." rows="3" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"></textarea>
+                        <button onclick="sendMessage()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium self-end">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- New Message Modal -->
+<div id="newMessageModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="border-b border-gray-200 px-6 py-4">
+            <h2 class="text-xl font-bold text-gray-900">New Message</h2>
+        </div>
+        <div class="p-6 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Recipient Type</label>
+                <select id="recipientType" onchange="updateRecipientOptions()" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select type...</option>
+                    <option value="vendor">Vendor</option>
+                    <option value="purchase_order">Purchase Order</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Select Recipient</label>
+                <select id="recipientSelect" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="">Select recipient...</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                <textarea id="newMessageText" placeholder="Type your message..." rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+            </div>
+        </div>
+        <div class="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-2 justify-end">
+            <button onclick="closeModal('newMessageModal')" class="px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium">
+                Cancel
+            </button>
+            <button onclick="createNewConversation()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                Send
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/pt-portal-api.js' %}"></script>
+<script>
+const ptAPI = new PTPortalAPI();
+let currentConversationId = null;
+let allConversations = [];
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadConversations();
+    
+    document.getElementById('conversationSearch').addEventListener('input', function(e) {
+        filterConversations(e.target.value);
+    });
+});
+
+async function loadConversations() {
+    try {
+        const data = await ptAPI.getNotes();
+        allConversations = data.results || data;
+        displayConversations(allConversations);
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+        showNotification('Error loading conversations', 'error');
+    }
+}
+
+function displayConversations(conversations) {
+    const list = document.getElementById('conversationsList');
+    list.innerHTML = '';
+
+    if (!conversations || conversations.length === 0) {
+        list.innerHTML = `
+            <div class="text-center py-6 text-gray-500 px-4">
+                <i class="fas fa-inbox text-2xl mb-2 block"></i>
+                <p class="text-sm mb-3">No conversations yet</p>
+                <button onclick="showModal('newMessageModal')" class="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700">
+                    New Message
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    conversations.forEach(conv => {
+        const lastMessage = conv.latest_message || 'No messages';
+        const timestamp = conv.updated_at ? new Date(conv.updated_at).toLocaleDateString() : '';
+        const recipientName = conv.related_object_name || conv.vendor?.name || conv.purchase_order?.po_number || 'Unknown';
+        const isActive = currentConversationId === conv.id;
+        
+        const item = document.createElement('div');
+        item.className = `p-3 border-b border-gray-200 cursor-pointer hover:bg-gray-50 transition ${isActive ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}`;
+        item.innerHTML = `
+            <div class="flex justify-between items-start mb-1">
+                <p class="font-medium text-gray-900 text-sm">${recipientName}</p>
+                <span class="text-xs text-gray-500">${timestamp}</span>
+            </div>
+            <p class="text-xs text-gray-600 line-clamp-2">${lastMessage}</p>
+        `;
+        item.onclick = () => selectConversation(conv.id);
+        list.appendChild(item);
+    });
+}
+
+function filterConversations(search) {
+    const filtered = allConversations.filter(conv => {
+        const name = (conv.related_object_name || conv.vendor?.name || conv.purchase_order?.po_number || '').toLowerCase();
+        return name.includes(search.toLowerCase());
+    });
+    displayConversations(filtered);
+}
+
+async function selectConversation(conversationId) {
+    currentConversationId = conversationId;
+    try {
+        const conversation = allConversations.find(c => c.id === conversationId);
+        if (!conversation) return;
+        
+        const recipientName = conversation.related_object_name || conversation.vendor?.name || conversation.purchase_order?.po_number || 'Unknown';
+        
+        document.getElementById('chatHeader').innerHTML = `
+            <div>
+                <p class="font-semibold text-gray-900">${recipientName}</p>
+                <p class="text-xs text-gray-600">Last message: ${new Date(conversation.updated_at).toLocaleString()}</p>
+            </div>
+        `;
+        
+        await loadMessages(conversationId);
+        displayConversations(allConversations);
+    } catch (error) {
+        console.error('Error selecting conversation:', error);
+        showNotification('Error loading conversation', 'error');
+    }
+}
+
+async function loadMessages(conversationId) {
+    try {
+        const data = await ptAPI.getNoteDetail(conversationId);
+        const container = document.getElementById('messagesContainer');
+        
+        if (!data.messages || data.messages.length === 0) {
+            container.innerHTML = '<p class="text-center text-gray-500 py-12">No messages yet</p>';
+            return;
+        }
+        
+        container.innerHTML = '';
+        data.messages.forEach(msg => {
+            const timestamp = new Date(msg.created_at).toLocaleString();
+            const isOwn = msg.is_own || false;
+            
+            const msgEl = document.createElement('div');
+            msgEl.className = `flex ${isOwn ? 'justify-end' : 'justify-start'}`;
+            msgEl.innerHTML = `
+                <div class="max-w-xs lg:max-w-md">
+                    <div class="px-4 py-2 rounded-lg ${isOwn ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'}">
+                        <p class="text-sm">${msg.content}</p>
+                    </div>
+                    <p class="text-xs text-gray-600 mt-1 ${isOwn ? 'text-right' : ''}">${timestamp}</p>
+                </div>
+            `;
+            container.appendChild(msgEl);
+        });
+        
+        // Scroll to bottom
+        container.scrollTop = container.scrollHeight;
+    } catch (error) {
+        console.error('Error loading messages:', error);
+        showNotification('Error loading messages', 'error');
+    }
+}
+
+async function sendMessage() {
+    if (!currentConversationId) {
+        showNotification('Please select a conversation first', 'error');
+        return;
+    }
+    
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    
+    if (!message) {
+        showNotification('Please type a message', 'error');
+        return;
+    }
+    
+    try {
+        await ptAPI.createNote(currentConversationId, message);
+        input.value = '';
+        await selectConversation(currentConversationId);
+        showNotification('Message sent', 'success');
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showNotification('Error sending message', 'error');
+    }
+}
+
+async function updateRecipientOptions() {
+    const type = document.getElementById('recipientType').value;
+    const select = document.getElementById('recipientSelect');
+    select.innerHTML = '<option value="">Loading...</option>';
+    
+    try {
+        let options = [];
+        if (type === 'vendor') {
+            const data = await ptAPI.getVendors();
+            options = (data.results || data).map(v => ({ id: v.id, name: v.name }));
+        } else if (type === 'purchase_order') {
+            const data = await ptAPI.getPurchaseOrders();
+            options = (data.results || data).map(po => ({ id: po.id, name: po.po_number }));
+        }
+        
+        select.innerHTML = '<option value="">Select recipient...</option>' + 
+            options.map(opt => `<option value="${opt.id}">${opt.name}</option>`).join('');
+    } catch (error) {
+        showNotification('Error loading options', 'error');
+    }
+}
+
+async function createNewConversation() {
+    const type = document.getElementById('recipientType').value;
+    const recipientId = document.getElementById('recipientSelect').value;
+    const message = document.getElementById('newMessageText').value.trim();
+    
+    if (!type || !recipientId || !message) {
+        showNotification('Please fill all fields', 'error');
+        return;
+    }
+    
+    try {
+        await ptAPI.createNote(recipientId, message, type);
+        closeModal('newMessageModal');
+        document.getElementById('newMessageText').value = '';
+        document.getElementById('recipientType').value = '';
+        document.getElementById('recipientSelect').value = '';
+        await loadConversations();
+        showNotification('Message sent', 'success');
+    } catch (error) {
+        console.error('Error creating conversation:', error);
+        showNotification('Error creating conversation', 'error');
+    }
+}
+
+function showModal(modalId) {
+    document.getElementById(modalId).classList.remove('hidden');
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+    notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+
+// Auto-refresh messages every 5 seconds if a conversation is selected
+setInterval(() => {
+    if (currentConversationId) {
+        loadMessages(currentConversationId);
+    }
+}, 5000);
+</script>
+{% endblock %}

@@ -118,6 +118,146 @@
     </div>
     {% endif %}
 
+    <!-- Approval Confirmation Modal (NEW) -->
+    <div id="approvalModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-2xl w-full mx-4">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-6 pb-6 border-b border-gray-200">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                        <svg class="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-900">Quote Approved!</h2>
+                </div>
+                <button type="button" onclick="closeApprovalModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Body: 2-Column Layout -->
+            <div class="grid grid-cols-2 gap-6 mb-8">
+                <!-- Left: Auto-Created Records -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">📋 Auto-Created Records</h3>
+                    
+                    <!-- LPO Record -->
+                    <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-sm font-semibold text-gray-600">Local Purchase Order</div>
+                                <div class="text-lg font-bold text-blue-600 mt-1" id="approvalLPONumber">LPO-2026-001234</div>
+                                <div class="text-sm text-gray-700 mt-2">
+                                    Amount: <span class="font-semibold" id="approvalLPOAmount">KES 125,000</span>
+                                </div>
+                                <button type="button" onclick="viewLPO()" class="text-blue-600 hover:text-blue-800 text-sm font-medium mt-2">View LPO →</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Job Record -->
+                    <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                                <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                                </svg>
+                            </div>
+                            <div>
+                                <div class="text-sm font-semibold text-gray-600">Production Job</div>
+                                <div class="text-lg font-bold text-purple-600 mt-1" id="approvalJobNumber">JOB-2026-001234</div>
+                                <div class="text-sm text-gray-700 mt-2">
+                                    Status: <span class="inline-block px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">Pending Assignment</span>
+                                </div>
+                                <button type="button" onclick="viewJob()" class="text-purple-600 hover:text-purple-800 text-sm font-medium mt-2">View Job →</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Timeline & Assignment -->
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900 mb-4">⏱️ Timeline & Assignment</h3>
+                    
+                    <div class="bg-gray-50 border border-gray-200 rounded-lg p-4 space-y-4">
+                        <!-- Assigned To -->
+                        <div>
+                            <div class="text-sm font-semibold text-gray-600 mb-2">Assigned To (PT)</div>
+                            <div class="text-base font-semibold text-gray-900" id="approvalAssignedTo">John Doe (Production Manager)</div>
+                        </div>
+
+                        <!-- Timeline -->
+                        <div class="border-t border-gray-300 pt-4">
+                            <div class="text-sm font-semibold text-gray-600 mb-3">Expected Timeline</div>
+                            
+                            <div class="space-y-3">
+                                <!-- Start Date -->
+                                <div class="flex gap-3">
+                                    <div class="text-2xl">📅</div>
+                                    <div>
+                                        <div class="text-xs text-gray-600">Production Starts</div>
+                                        <div class="font-semibold text-gray-900" id="approvalStartDate">Jan 15, 2026</div>
+                                    </div>
+                                </div>
+
+                                <!-- Duration -->
+                                <div class="flex gap-3">
+                                    <div class="text-2xl">⏳</div>
+                                    <div>
+                                        <div class="text-xs text-gray-600">Production Duration</div>
+                                        <div class="font-semibold text-gray-900" id="approvalDuration">5 business days</div>
+                                    </div>
+                                </div>
+
+                                <!-- Delivery -->
+                                <div class="flex gap-3">
+                                    <div class="text-2xl">🚚</div>
+                                    <div>
+                                        <div class="text-xs text-gray-600">Expected Delivery</div>
+                                        <div class="font-semibold text-gray-900" id="approvalDeliveryDate">Jan 22, 2026</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Next Steps -->
+                        <div class="border-t border-gray-300 pt-4 bg-blue-50 p-3 rounded">
+                            <div class="text-xs text-blue-700 font-semibold">ℹ️ Next Steps</div>
+                            <ul class="text-xs text-blue-700 mt-2 space-y-1">
+                                <li>✓ PO sent to vendor</li>
+                                <li>✓ Job created in system</li>
+                                <li>→ Awaiting vendor confirmation</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex gap-3 justify-end pt-6 border-t border-gray-200">
+                <button type="button" onclick="closeApprovalModal(); location.reload();" class="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors">
+                    Return to Dashboard
+                </button>
+                <button type="button" onclick="viewJob()" class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium shadow-md transition-colors">
+                    View Production Job →
+                </button>
+            </div>
+
+            <!-- Auto-close timer -->
+            <div class="mt-6 text-center text-sm text-gray-500">
+                Automatically redirecting in <span id="approvalCountdown">5</span> seconds...
+            </div>
+        </div>
+    </div>
+
     <!-- Reject Modal -->
     <div id="rejectModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
         <div class="bg-white rounded-xl shadow-2xl p-8 max-w-md w-full mx-4">
@@ -461,6 +601,67 @@ function closeRejectModal() {
     document.getElementById('rejectModal').classList.add('hidden');
 }
 
+function closeApprovalModal() {
+    document.getElementById('approvalModal').classList.add('hidden');
+    clearApprovalCountdown();
+}
+
+function openApprovalModal(approvalData) {
+    // Populate modal with approval data
+    if (approvalData) {
+        document.getElementById('approvalLPONumber').textContent = approvalData.lpo_number || 'LPO-2026-001234';
+        document.getElementById('approvalLPOAmount').textContent = approvalData.lpo_amount || 'KES 0';
+        document.getElementById('approvalJobNumber').textContent = approvalData.job_number || 'JOB-2026-001234';
+        document.getElementById('approvalAssignedTo').textContent = approvalData.assigned_to || 'Production Team';
+        document.getElementById('approvalStartDate').textContent = approvalData.start_date || 'Pending';
+        document.getElementById('approvalDuration').textContent = approvalData.duration || 'TBD';
+        document.getElementById('approvalDeliveryDate').textContent = approvalData.delivery_date || 'TBD';
+    }
+    
+    document.getElementById('approvalModal').classList.remove('hidden');
+    startApprovalCountdown();
+}
+
+let approvalCountdownInterval = null;
+
+function startApprovalCountdown() {
+    let secondsLeft = 5;
+    document.getElementById('approvalCountdown').textContent = secondsLeft;
+    
+    approvalCountdownInterval = setInterval(() => {
+        secondsLeft--;
+        document.getElementById('approvalCountdown').textContent = secondsLeft;
+        
+        if (secondsLeft <= 0) {
+            clearApprovalCountdown();
+            // Auto-redirect to job view
+            const quoteId = '{{ first_quote.id }}';
+            window.location.href = `/production/job-detail/?quote_id=${quoteId}`;
+        }
+    }, 1000);
+}
+
+function clearApprovalCountdown() {
+    if (approvalCountdownInterval) {
+        clearInterval(approvalCountdownInterval);
+        approvalCountdownInterval = null;
+    }
+}
+
+function viewJob() {
+    // Navigate to job detail page - will be populated by backend
+    const jobNumber = document.getElementById('approvalJobNumber').textContent;
+    // Extract job ID from job number or use quote ID as reference
+    const quoteId = '{{ first_quote.id }}';
+    window.location.href = `/production/job-detail/?quote_id=${quoteId}`;
+}
+
+function viewLPO() {
+    // Navigate to LPO detail page
+    const lpoNumber = document.getElementById('approvalLPONumber').textContent;
+    window.location.href = `/production/lpo-detail/?lpo_number=${lpoNumber}`;
+}
+
 async function submitAction(action) {
     if (action === 'approve') {
         if (!confirm('Are you sure you want to approve this quote?')) {
@@ -474,11 +675,26 @@ async function submitAction(action) {
         
         const response = await api.post(endpoint, {});
         
-        if (response.ok || response.detail) {
-            showToast(`Quote ${action} successful!`, 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+        if (response.ok || response.detail || response.success) {
+            if (action === 'approve') {
+                // Show approval confirmation modal instead of plain reload
+                const approvalData = {
+                    lpo_number: response.lpo_number || 'LPO-' + new Date().toISOString().slice(0,10).replace(/-/g, ''),
+                    lpo_amount: response.lpo_amount || 'KES 0',
+                    job_number: response.job_number || 'JOB-' + new Date().toISOString().slice(0,10).replace(/-/g, ''),
+                    assigned_to: response.assigned_to || 'Production Team',
+                    start_date: response.start_date || new Date().toLocaleDateString(),
+                    duration: response.duration || 'TBD',
+                    delivery_date: response.delivery_date || 'TBD'
+                };
+                openApprovalModal(approvalData);
+                showToast('✅ Quote approved successfully!', 'success');
+            } else {
+                showToast(`Quote ${action} successful!`, 'success');
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
+            }
         } else {
             showToast(`Failed to ${action} quote: ${response.detail || 'Unknown error'}`, 'error');
         }

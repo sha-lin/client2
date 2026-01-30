@@ -1,0 +1,1894 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Team Portal - Print Duka</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #3b82f6;
+            --primary-dark: #1e40af;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --info-color: #0ea5e9;
+            --light-bg: #f8fafc;
+            --sidebar-bg: #0f172a;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        html, body {
+            height: 100%;
+            background-color: var(--light-bg);
+        }
+
+        body {
+            color: var(--text-main);
+        }
+
+        /* ============================================================
+           LAYOUT
+           ============================================================ */
+        #app {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 260px;
+            background: white;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            position: fixed;
+            height: 100vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .main-container {
+            margin-left: 260px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .top-bar {
+            height: 70px;
+            background: white;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 24px;
+            box-shadow: var(--shadow);
+        }
+
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+        }
+
+        /* ============================================================
+           SIDEBAR
+           ============================================================ */
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin-bottom: 8px;
+        }
+
+        .sidebar-nav {
+            flex: 1;
+            padding: 24px 0;
+        }
+
+        .nav-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 20px;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-item:hover {
+            background-color: var(--light-bg);
+            color: var(--primary-color);
+        }
+
+        .nav-item.active {
+            background-color: var(--light-bg);
+            color: var(--primary-color);
+            border-left-color: var(--primary-color);
+        }
+
+        .nav-item i {
+            width: 24px;
+            margin-right: 12px;
+            text-align: center;
+        }
+
+        .sidebar-footer {
+            padding: 24px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        /* ============================================================
+           TOP BAR
+           ============================================================ */
+        .top-bar-left {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: var(--light-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            width: 300px;
+        }
+
+        .search-box input {
+            border: none;
+            background: none;
+            outline: none;
+            flex: 1;
+        }
+
+        .top-bar-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notification-bell {
+            position: relative;
+            cursor: pointer;
+            font-size: 1.25rem;
+            color: var(--text-muted);
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger-color);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .user-profile {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* ============================================================
+           GRID & CARDS
+           ============================================================ */
+        .grid {
+            display: grid;
+            gap: 24px;
+        }
+
+        .grid-2 {
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        }
+
+        .grid-3 {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        }
+
+        .grid-4 {
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        }
+
+        .card {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: var(--shadow);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow-lg);
+            transition: box-shadow 0.2s;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .card-subtitle {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* ============================================================
+           KPI CARDS
+           ============================================================ */
+        .kpi-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin: 12px 0;
+        }
+
+        .kpi-label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        .kpi-trend {
+            font-size: 0.875rem;
+            margin-top: 8px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+
+        .kpi-trend.up {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .kpi-trend.down {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        /* ============================================================
+           TABLES
+           ============================================================ */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: var(--light-bg);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+
+        tr:hover {
+            background: var(--light-bg);
+        }
+
+        /* ============================================================
+           BADGES & TAGS
+           ============================================================ */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-primary {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--primary-color);
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success-color);
+        }
+
+        .badge-warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--warning-color);
+        }
+
+        .badge-danger {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger-color);
+        }
+
+        /* ============================================================
+           BUTTONS
+           ============================================================ */
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-secondary {
+            background: var(--light-bg);
+            color: var(--text-main);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.75rem;
+        }
+
+        /* ============================================================
+           PROGRESS BARS
+           ============================================================ */
+        .progress-bar {
+            height: 6px;
+            background: var(--border-color);
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: var(--primary-color);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+
+        .progress-fill.success {
+            background: var(--success-color);
+        }
+
+        .progress-fill.warning {
+            background: var(--warning-color);
+        }
+
+        .progress-fill.danger {
+            background: var(--danger-color);
+        }
+
+        /* ============================================================
+           MODALS
+           ============================================================ */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            padding: 24px;
+            width: 90%;
+            max-width: 600px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h2 {
+            font-size: 1.25rem;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .modal-body {
+            margin-bottom: 20px;
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+
+        /* ============================================================
+           FORMS
+           ============================================================ */
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: var(--text-main);
+            font-size: 0.875rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-family: inherit;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        /* ============================================================
+           EMPTY STATE
+           ============================================================ */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .empty-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text-main);
+            margin-bottom: 8px;
+        }
+
+        .empty-text {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+
+        /* ============================================================
+           VENDOR WORKLOAD VISUALIZATION
+           ============================================================ */
+        .vendor-card {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            background: white;
+        }
+
+        .vendor-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 12px;
+        }
+
+        .vendor-name {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .vendor-vps {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .vendor-status {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .vendor-stat {
+            font-size: 0.875rem;
+        }
+
+        .vendor-stat-label {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .vendor-stat-value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        /* ============================================================
+           RESPONSIVE
+           ============================================================ */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 0;
+                transform: translateX(-100%);
+            }
+
+            .main-container {
+                margin-left: 0;
+            }
+
+            .grid-2, .grid-3, .grid-4 {
+                grid-template-columns: 1fr;
+            }
+
+            .search-box {
+                width: 150px;
+            }
+
+            .modal-content {
+                width: 95%;
+            }
+        }
+
+        /* ============================================================
+           LOADING & ANIMATIONS
+           ============================================================ */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-print"></i> Print Duka</div>
+                <div class="card-subtitle">Production Team</div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-item active" data-section="dashboard">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Dashboard</span>
+                </div>
+                <div class="nav-item" data-section="jobs">
+                    <i class="fas fa-tasks"></i>
+                    <span>Jobs & Vendors</span>
+                </div>
+                <div class="nav-item" data-section="invoices">
+                    <i class="fas fa-receipt"></i>
+                    <span>Invoices</span>
+                </div>
+                <div class="nav-item" data-section="proofs">
+                    <i class="fas fa-check-circle"></i>
+                    <span>QC Proofs</span>
+                </div>
+                <div class="nav-item" data-section="messages">
+                    <i class="fas fa-envelope"></i>
+                    <span>Messages</span>
+                </div>
+                <div class="nav-item" data-section="vendors">
+                    <i class="fas fa-building"></i>
+                    <span>Vendor Directory</span>
+                </div>
+                <div class="nav-item" data-section="analytics">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Analytics</span>
+                </div>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="user-profile">
+                    <div class="avatar" id="userAvatar">PT</div>
+                    <div>
+                        <div class="card-title" id="userName">{{ user.get_full_name|default:user.username }}</div>
+                        <div class="card-subtitle" style="font-size: 0.75rem;">Production Team</div>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" style="width: 100%; margin-top: 12px;" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN CONTAINER -->
+        <div class="main-container">
+            <!-- TOP BAR -->
+            <div class="top-bar">
+                <div class="top-bar-left">
+                    <div class="search-box">
+                        <i class="fas fa-search"></i>
+                        <input type="text" placeholder="Search jobs, vendors..." id="globalSearch">
+                    </div>
+                </div>
+
+                <div class="top-bar-right">
+                    <div class="notification-bell" onclick="openNotifications()">
+                        <i class="fas fa-bell"></i>
+                        <div class="notification-badge" id="notificationCount" style="display: none;">0</div>
+                    </div>
+                    <div class="user-profile" style="margin-left: 20px;">
+                        <div class="avatar" id="userAvatarTop" style="width: 32px; height: 32px; font-size: 0.875rem;">PT</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENT -->
+            <div class="content">
+                <!-- DASHBOARD SECTION -->
+                <section id="dashboard" class="section fade-in">
+                    <div class="mb-24">
+                        <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">Production Dashboard</h1>
+                        <p style="color: var(--text-muted);">Real-time vendor status and job tracking</p>
+                    </div>
+
+                    <!-- KPI CARDS -->
+                    <div class="grid grid-4" style="margin-bottom: 24px;">
+                        <div class="card">
+                            <div class="kpi-label">Active Jobs</div>
+                            <div class="kpi-value" id="activeJobsCount">0</div>
+                            <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> 5 this week</div>
+                        </div>
+                        <div class="card">
+                            <div class="kpi-label">Vendors at Capacity</div>
+                            <div class="kpi-value" id="vendorsAtCapacityCount">0</div>
+                            <div class="kpi-trend down"><i class="fas fa-alert-circle"></i> Alert</div>
+                        </div>
+                        <div class="card">
+                            <div class="kpi-label">Overdue Jobs</div>
+                            <div class="kpi-value" id="overdueJobsCount">0</div>
+                            <div class="kpi-trend down"><i class="fas fa-arrow-up"></i> Need attention</div>
+                        </div>
+                        <div class="card">
+                            <div class="kpi-label">Avg Completion Time</div>
+                            <div class="kpi-value" id="avgCompletionTime">0d</div>
+                            <div class="kpi-trend up"><i class="fas fa-arrow-down"></i> 2% faster</div>
+                        </div>
+                    </div>
+
+                    <!-- VENDOR WORKLOAD -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">Vendor Workload Status</div>
+                                <div class="card-subtitle">Click on vendor to see detailed jobs</div>
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="refreshVendorWorkload()">
+                                <i class="fas fa-sync"></i> Refresh
+                            </button>
+                        </div>
+                        <div id="vendorWorkloadContainer" class="grid grid-3">
+                            <div class="empty-state">
+                                <div class="loading"></div>
+                                <p style="margin-top: 12px;">Loading vendor data...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OVERDUE JOBS ALERT -->
+                    <div class="card" style="background: rgba(239, 68, 68, 0.05); border-color: var(--danger-color);">
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title" style="color: var(--danger-color);">⚠️ Overdue Jobs Requiring Action</div>
+                            </div>
+                        </div>
+                        <div id="overdueJobsContainer" class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Job #</th>
+                                        <th>Client</th>
+                                        <th>Vendor</th>
+                                        <th>Due Date</th>
+                                        <th>Days Overdue</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="overdueJobsTable">
+                                    <tr>
+                                        <td colspan="6" class="empty-state" style="padding: 40px 20px;">
+                                            <p style="font-size: 0.875rem; color: var(--text-muted);">No overdue jobs</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- JOBS & VENDORS SECTION -->
+                <section id="jobs" class="section fade-in" style="display: none;">
+                    <div class="mb-24">
+                        <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">Jobs & Vendor Assignment</h1>
+                        <p style="color: var(--text-muted);">Manage job assignments and track progress</p>
+                    </div>
+
+                    <!-- JOB FILTERS -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <input type="text" class="form-control" placeholder="Search job number..." id="jobSearch" style="flex: 1; min-width: 200px;">
+                            <select class="form-control" id="jobStatusFilter" style="flex: 0; min-width: 150px;">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="in_progress">In Progress</option>
+                                <option value="completed">Completed</option>
+                                <option value="on_hold">On Hold</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="loadJobs()">
+                                <i class="fas fa-search"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- JOBS TABLE -->
+                    <div class="card">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Job #</th>
+                                        <th>Client</th>
+                                        <th>Product</th>
+                                        <th>Assigned Vendor</th>
+                                        <th>Status</th>
+                                        <th>Due Date</th>
+                                        <th>Progress</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="jobsTable">
+                                    <tr>
+                                        <td colspan="8" class="empty-state" style="padding: 40px 20px;">
+                                            <div class="loading"></div>
+                                            <p style="margin-top: 12px;">Loading jobs...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- INVOICES SECTION -->
+                <section id="invoices" class="section fade-in" style="display: none;">
+                    <div class="mb-24">
+                        <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">Vendor Invoices</h1>
+                        <p style="color: var(--text-muted);">Review and approve vendor invoices</p>
+                    </div>
+
+                    <!-- INVOICE FILTERS -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <select class="form-control" id="invoiceStatusFilter" style="flex: 0; min-width: 150px;">
+                                <option value="">All Status</option>
+                                <option value="submitted">Submitted</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="paid">Paid</option>
+                            </select>
+                            <input type="text" class="form-control" placeholder="Search vendor..." id="invoiceSearch" style="flex: 1; min-width: 200px;">
+                            <button class="btn btn-primary" onclick="loadInvoices()">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- INVOICES TABLE -->
+                    <div class="card">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Vendor</th>
+                                        <th>Amount</th>
+                                        <th>Submitted</th>
+                                        <th>Status</th>
+                                        <th>Valid</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="invoicesTable">
+                                    <tr>
+                                        <td colspan="7" class="empty-state" style="padding: 40px 20px;">
+                                            <div class="loading"></div>
+                                            <p style="margin-top: 12px;">Loading invoices...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- PROOFS SECTION -->
+                <section id="proofs" class="section fade-in" style="display: none;">
+                    <div class="mb-24">
+                        <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">QC Proofs Review</h1>
+                        <p style="color: var(--text-muted);">Approve or reject vendor proofs</p>
+                    </div>
+
+                    <!-- PROOF FILTERS -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <select class="form-control" id="proofStatusFilter" style="flex: 0; min-width: 150px;">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending Review</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="loadProofs()">
+                                <i class="fas fa-filter"></i> Filter
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- PROOFS GRID -->
+                    <div id="proofsContainer" class="grid grid-3">
+                        <div class="empty-state">
+                            <div class="loading"></div>
+                            <p style="margin-top: 12px;">Loading proofs...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- MESSAGES SECTION -->
+                <section id="messages" class="section fade-in" style="display: none;">
+                    <div class="mb-24">
+                        <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">Messages</h1>
+                        <p style="color: var(--text-muted);">Communicate with vendors</p>
+                    </div>
+
+                    <div class="card">
+                        <div id="messagesContainer" style="height: 500px; display: flex; flex-direction: column; border: 1px solid var(--border-color); border-radius: 6px; overflow: hidden;">
+                            <div id="messagesList" style="flex: 1; overflow-y: auto; padding: 16px;">
+                                <div class="empty-state">
+                                    <div class="empty-icon"><i class="fas fa-envelope-open-text"></i></div>
+                                    <div class="empty-title">No messages yet</div>
+                                    <div class="empty-text">Select a vendor or PO to start messaging</div>
+                                </div>
+                            </div>
+                            <div style="border-top: 1px solid var(--border-color); padding: 12px;">
+                                <div style="display: flex; gap: 8px;">
+                                    <textarea id="messageInput" class="form-control" placeholder="Type your message..." style="min-height: 60px; resize: none;"></textarea>
+                                    <button class="btn btn-primary" onclick="sendMessage()" style="align-self: flex-end;">
+                                        <i class="fas fa-paper-plane"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- VENDORS SECTION -->
+                <section id="vendors" class="section fade-in" style="display: none;">
+                    <div class="mb-24">
+                        <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">Vendor Directory</h1>
+                        <p style="color: var(--text-muted);">View and manage all vendors</p>
+                    </div>
+
+                    <!-- VENDOR FILTERS -->
+                    <div class="card" style="margin-bottom: 24px;">
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            <input type="text" class="form-control" placeholder="Search vendor..." id="vendorSearch" style="flex: 1; min-width: 200px;">
+                            <button class="btn btn-primary" onclick="loadVendors()">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- VENDORS LIST -->
+                    <div id="vendorsContainer" class="grid grid-2">
+                        <div class="empty-state">
+                            <div class="loading"></div>
+                            <p style="margin-top: 12px;">Loading vendors...</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ANALYTICS SECTION -->
+                <section id="analytics" class="section fade-in" style="display: none;">
+                    <div class="mb-24">
+                        <h1 style="font-size: 1.875rem; font-weight: 800; margin-bottom: 8px;">Production Analytics</h1>
+                        <p style="color: var(--text-muted);">Performance metrics and trends</p>
+                    </div>
+
+                    <div class="grid grid-2">
+                        <div class="card">
+                            <div class="card-title" style="margin-bottom: 16px;">Average Turnaround Time</div>
+                            <div class="kpi-value" id="avgTurnaroundTime">0 days</div>
+                            <div class="kpi-trend up"><i class="fas fa-arrow-down"></i> 5% improvement</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title" style="margin-bottom: 16px;">QC Rejection Rate</div>
+                            <div class="kpi-value" id="qcRejectionRate">0%</div>
+                            <div class="kpi-trend down"><i class="fas fa-arrow-down"></i> Good quality</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title" style="margin-bottom: 16px;">Vendor On-Time Delivery</div>
+                            <div class="kpi-value" id="onTimeDeliveryRate">0%</div>
+                            <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> Reliable</div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-title" style="margin-bottom: 16px;">Revenue This Month</div>
+                            <div class="kpi-value" id="monthlyRevenue">KSh 0</div>
+                            <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> 15% growth</div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <!-- Invoice Detail Modal -->
+    <div id="invoiceModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Invoice Details</h2>
+                <button class="modal-close" onclick="closeModal('invoiceModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="invoiceDetail"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('invoiceModal')">Close</button>
+                <button class="btn btn-success" id="approveInvoiceBtn" onclick="approveInvoice()">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn btn-danger" id="rejectInvoiceBtn" onclick="showRejectReason()">
+                    <i class="fas fa-times"></i> Reject
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Reason Modal -->
+    <div id="rejectReasonModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Reject Invoice</h2>
+                <button class="modal-close" onclick="closeModal('rejectReasonModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Reason for Rejection</label>
+                    <textarea class="form-control" id="rejectionReason" placeholder="Explain why the invoice is being rejected..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('rejectReasonModal')">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmRejectInvoice()">Reject Invoice</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proof Detail Modal -->
+    <div id="proofModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Proof Review</h2>
+                <button class="modal-close" onclick="closeModal('proofModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="proofDetail"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('proofModal')">Close</button>
+                <button class="btn btn-success" id="approveProofBtn" onclick="approveProof()">
+                    <i class="fas fa-check"></i> Approve
+                </button>
+                <button class="btn btn-danger" id="rejectProofBtn" onclick="showProofRejectReason()">
+                    <i class="fas fa-times"></i> Reject
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proof Reject Reason Modal -->
+    <div id="proofRejectReasonModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Reject Proof</h2>
+                <button class="modal-close" onclick="closeModal('proofRejectReasonModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Reason for Rejection</label>
+                    <textarea class="form-control" id="proofRejectionReason" placeholder="Explain what needs to be fixed..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('proofRejectReasonModal')">Cancel</button>
+                <button class="btn btn-danger" onclick="confirmRejectProof()">Reject Proof</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="{% static 'js/pt-portal-api.js' %}"></script>
+    <script>
+        // Initialize API client
+        const ptAPI = new PTPortalAPI();
+        let currentUser = null;
+        let currentInvoiceId = null;
+        let currentProofId = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePortal();
+            setupEventListeners();
+        });
+
+        function initializePortal() {
+            // Load initial data
+            loadDashboard();
+            
+            // Setup navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    navigateTo(this.dataset.section);
+                });
+            });
+
+            // Refresh dashboard every 30 seconds
+            setInterval(() => {
+                const activeSection = document.querySelector('.section:not([style*="display: none"])');
+                if (activeSection?.id === 'dashboard') {
+                    loadDashboard();
+                }
+            }, 30000);
+        }
+
+        function setupEventListeners() {
+            // Search
+            document.getElementById('globalSearch').addEventListener('keyup', function(e) {
+                if (e.key === 'Enter') {
+                    performGlobalSearch(this.value);
+                }
+            });
+
+            // Job search
+            document.getElementById('jobSearch')?.addEventListener('keyup', debounce(loadJobs, 300));
+            
+            // Invoice search
+            document.getElementById('invoiceSearch')?.addEventListener('keyup', debounce(loadInvoices, 300));
+
+            // Filters
+            document.getElementById('jobStatusFilter')?.addEventListener('change', loadJobs);
+            document.getElementById('invoiceStatusFilter')?.addEventListener('change', loadInvoices);
+            document.getElementById('proofStatusFilter')?.addEventListener('change', loadProofs);
+
+            // Close modals on outside click
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        closeModal(this.id);
+                    }
+                });
+            });
+        }
+
+        function navigateTo(section) {
+            // Hide all sections
+            document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+            
+            // Show selected section
+            const selected = document.getElementById(section);
+            if (selected) {
+                selected.style.display = 'block';
+                selected.classList.add('fade-in');
+            }
+
+            // Update nav
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            document.querySelector(`[data-section="${section}"]`)?.classList.add('active');
+
+            // Load section data
+            if (section === 'jobs') loadJobs();
+            if (section === 'invoices') loadInvoices();
+            if (section === 'proofs') loadProofs();
+            if (section === 'vendors') loadVendors();
+            if (section === 'analytics') loadAnalytics();
+        }
+
+        async function loadDashboard() {
+            try {
+                // Load KPIs and jobs
+                const jobs = await ptAPI.getJobs();
+                const vendors = await ptAPI.getVendors();
+                const overdueJobs = await ptAPI.getOverdueJobs().catch(() => ({results: []}));
+                const analytics = await ptAPI.getProductionAnalytics().catch(() => ({}));
+                
+                // Update KPI values
+                const activeJobs = jobs.results?.filter(j => j.status !== 'completed').length || 0;
+                document.getElementById('activeJobsCount').textContent = activeJobs;
+
+                const vendorsAtCapacity = vendors.results?.filter(v => v.workload?.utilization_percent > 80).length || 0;
+                document.getElementById('vendorsAtCapacityCount').textContent = vendorsAtCapacity;
+
+                const overdueCount = overdueJobs.results?.length || 0;
+                document.getElementById('overdueJobsCount').textContent = overdueCount;
+
+                // Update analytics
+                if (analytics.average_turnaround_days) {
+                    document.getElementById('avgCompletionTime').textContent = 
+                        analytics.average_turnaround_days.toFixed(1) + 'd';
+                }
+
+                // Load vendor workload
+                await loadVendorWorkload();
+
+                // Update overdue jobs table
+                updateOverdueJobsTable(overdueJobs.results || []);
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+                showNotification('Error loading dashboard data', 'error');
+            }
+        }
+
+        function updateOverdueJobsTable(jobs) {
+            const tbody = document.getElementById('overdueJobsTable');
+            tbody.innerHTML = '';
+
+            if (jobs.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding: 40px 20px;"><p style="font-size: 0.875rem; color: var(--text-muted);">No overdue jobs</p></td></tr>';
+                return;
+            }
+
+            jobs.forEach(job => {
+                const daysOverdue = Math.ceil(
+                    (new Date() - new Date(job.expected_completion)) / (1000 * 60 * 60 * 24)
+                );
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td><strong>${job.job_number}</strong></td>
+                    <td>${job.client?.name || 'N/A'}</td>
+                    <td>${job.vendor_stages?.[0]?.vendor?.name || 'Unassigned'}</td>
+                    <td>${new Date(job.expected_completion).toLocaleDateString()}</td>
+                    <td><span class="badge badge-danger">${daysOverdue} days</span></td>
+                    <td>
+                        <button class="btn btn-primary btn-sm" onclick="viewJobDetail(${job.id})">
+                            <i class="fas fa-arrow-right"></i> Details
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        async function loadVendorWorkload() {
+            try {
+                const vendors = await ptAPI.getVendorWorkload();
+
+                const container = document.getElementById('vendorWorkloadContainer');
+                container.innerHTML = '';
+
+                if (!vendors.results || vendors.results.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No vendors available</p></div>';
+                    return;
+                }
+
+                vendors.results.forEach(vendor => {
+                    const utilizationColor = vendor.workload.utilization_percent > 80 ? 'danger' : 
+                                           vendor.workload.utilization_percent > 50 ? 'warning' : 'success';
+                    
+                    const card = document.createElement('div');
+                    card.className = 'vendor-card';
+                    card.innerHTML = `
+                        <div class="vendor-header">
+                            <div>
+                                <div class="vendor-name">${vendor.name}</div>
+                                <div style="font-size: 0.75rem; color: var(--text-muted);">${vendor.services}</div>
+                            </div>
+                            <div class="vendor-vps">
+                                <i class="fas fa-star"></i>
+                                ${vendor.vps_score} (${vendor.vps_score_value?.toFixed(1) || 'N/A'})
+                            </div>
+                        </div>
+                        
+                        <div style="margin: 12px 0;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.75rem;">
+                                <span>Capacity Utilization</span>
+                                <span class="badge badge-${utilizationColor}">${vendor.workload?.utilization_percent?.toFixed(0) || 0}%</span>
+                            </div>
+                            <div class="progress-bar">
+                                <div class="progress-fill ${utilizationColor}" style="width: ${vendor.workload?.utilization_percent || 0}%"></div>
+                            </div>
+                        </div>
+
+                        <div class="vendor-status">
+                            <div class="vendor-stat">
+                                <div class="vendor-stat-label">Current Jobs</div>
+                                <div class="vendor-stat-value">${vendor.workload?.current_jobs || 0}/${vendor.workload?.max_capacity || 0}</div>
+                            </div>
+                            <div class="vendor-stat">
+                                <div class="vendor-stat-label">Available</div>
+                                <div class="vendor-stat-value">${vendor.workload?.available_capacity || 0}</div>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 12px;" onclick="viewVendorDetails(${vendor.id})">
+                            <i class="fas fa-arrow-right"></i> View Details
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading vendor workload:', error);
+                showNotification('Error loading vendor workload', 'error');
+            }
+        }
+
+        async function loadJobs() {
+            try {
+                const status = document.getElementById('jobStatusFilter')?.value || '';
+                const search = document.getElementById('jobSearch')?.value || '';
+                
+                const filters = {};
+                if (status) filters.status = status;
+                if (search) filters.search = search;
+
+                const data = await ptAPI.getJobs(filters);
+
+                const tbody = document.getElementById('jobsTable');
+                tbody.innerHTML = '';
+
+                if (!data.results || data.results.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><p>No jobs found</p></td></tr>';
+                    return;
+                }
+
+                data.results.forEach(job => {
+                    const statusColor = job.status === 'completed' ? 'success' : 
+                                       job.status === 'in_progress' ? 'primary' : 'warning';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${job.job_number}</strong></td>
+                        <td>${job.client?.name || 'N/A'}</td>
+                        <td>${job.product}</td>
+                        <td>${job.vendor_stages?.[0]?.vendor?.name || 'Unassigned'}</td>
+                        <td><span class="badge badge-${statusColor}">${job.status}</span></td>
+                        <td>${new Date(job.expected_completion).toLocaleDateString()}</td>
+                        <td>
+                            <div style="font-size: 0.75rem; margin-bottom: 4px;">
+                                ${job.progress || 0}%
+                            </div>
+                            <div class="progress-bar" style="height: 4px;">
+                                <div class="progress-fill" style="width: ${job.progress || 0}%"></div>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="viewJobDetail(${job.id})">
+                                <i class="fas fa-eye"></i> View
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading jobs:', error);
+                showNotification('Error loading jobs', 'error');
+            }
+        }
+
+        async function loadInvoices() {
+            try {
+                const status = document.getElementById('invoiceStatusFilter')?.value || '';
+                const search = document.getElementById('invoiceSearch')?.value || '';
+                
+                const filters = {};
+                if (status) filters.status = status;
+                if (search) filters.search = search;
+
+                const data = await ptAPI.getInvoices(filters);
+
+                const tbody = document.getElementById('invoicesTable');
+                tbody.innerHTML = '';
+
+                if (!data.results || data.results.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No invoices found</p></td></tr>';
+                    return;
+                }
+
+                data.results.forEach(invoice => {
+                    const statusColor = invoice.status === 'approved' ? 'success' : 
+                                       invoice.status === 'submitted' ? 'primary' : 
+                                       invoice.status === 'rejected' ? 'danger' : 'warning';
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><strong>${invoice.invoice_number}</strong></td>
+                        <td>${invoice.vendor?.name || 'N/A'}</td>
+                        <td>KSh ${(invoice.total_amount || 0).toFixed(2)}</td>
+                        <td>${new Date(invoice.submitted_at).toLocaleDateString()}</td>
+                        <td><span class="badge badge-${statusColor}">${invoice.status}</span></td>
+                        <td>
+                            ${invoice.is_validated ? '<span class="badge badge-success">✓ Valid</span>' : '<span class="badge badge-warning">⚠ Review</span>'}
+                        </td>
+                        <td>
+                            <button class="btn btn-primary btn-sm" onclick="viewInvoice(${invoice.id})">
+                                <i class="fas fa-eye"></i> Review
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                console.error('Error loading invoices:', error);
+                showNotification('Error loading invoices', 'error');
+            }
+        }
+
+        async function loadProofs() {
+            try {
+                const status = document.getElementById('proofStatusFilter')?.value || '';
+                
+                const filters = {};
+                if (status) filters.status = status;
+
+                const data = await ptAPI.getProofs(filters);
+
+                const container = document.getElementById('proofsContainer');
+                container.innerHTML = '';
+
+                if (!data.results || data.results.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No proofs found</p></div>';
+                    return;
+                }
+
+                data.results.forEach(proof => {
+                    const statusColor = proof.status === 'approved' ? 'success' : 
+                                       proof.status === 'pending' ? 'warning' : 'danger';
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">PO #${proof.purchase_order?.po_number || 'N/A'}</div>
+                                <div class="card-subtitle">${proof.proof_type}</div>
+                            </div>
+                            <span class="badge badge-${statusColor}">${proof.status}</span>
+                        </div>
+                        <div>
+                            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 12px;">
+                                <strong>Vendor:</strong> ${proof.purchase_order?.vendor?.name || 'N/A'}
+                            </p>
+                            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 12px;">
+                                <strong>Submitted:</strong> ${new Date(proof.submitted_at).toLocaleDateString()}
+                            </p>
+                            ${proof.files && proof.files.length > 0 ? `
+                                <div style="margin-bottom: 12px;">
+                                    <strong style="font-size: 0.875rem;">Files:</strong>
+                                    <div style="margin-top: 8px;">
+                                        ${proof.files.map(f => `<a href="${f.file}" target="_blank" class="btn btn-secondary btn-sm" style="display: inline-block; margin-bottom: 4px;"><i class="fas fa-download"></i> ${f.name}</a>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%; margin-top: 12px;" onclick="viewProof(${proof.id})">
+                            <i class="fas fa-eye"></i> Review
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading proofs:', error);
+                showNotification('Error loading proofs', 'error');
+            }
+        }
+
+        async function loadVendors() {
+            try {
+                const search = document.getElementById('vendorSearch')?.value || '';
+                
+                const filters = {};
+                if (search) filters.search = search;
+
+                const data = await ptAPI.getVendors(filters);
+
+                const container = document.getElementById('vendorsContainer');
+                container.innerHTML = '';
+
+                if (!data.results || data.results.length === 0) {
+                    container.innerHTML = '<div class="empty-state"><p>No vendors found</p></div>';
+                    return;
+                }
+
+                data.results.forEach(vendor => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <div>
+                                <div class="card-title">${vendor.name}</div>
+                                <div class="card-subtitle">${vendor.services || 'No services listed'}</div>
+                            </div>
+                        </div>
+                        <div style="margin: 12px 0; padding: 12px; background: var(--light-bg); border-radius: 6px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.875rem;">
+                                <span><strong>VPS Score:</strong></span>
+                                <span class="badge badge-primary">${vendor.vps_score} (${vendor.vps_score_value?.toFixed(1) || 'N/A'})</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; font-size: 0.875rem;">
+                                <span><strong>Rating:</strong></span>
+                                <span><i class="fas fa-star"></i> ${vendor.rating || 'N/A'}/5</span>
+                            </div>
+                        </div>
+                        <div style="font-size: 0.875rem; margin-bottom: 12px;">
+                            <p><strong>Contact:</strong> ${vendor.email || 'N/A'}</p>
+                            <p><strong>Phone:</strong> ${vendor.phone || 'N/A'}</p>
+                            <p><strong>Address:</strong> ${vendor.business_address || 'N/A'}</p>
+                        </div>
+                        <button class="btn btn-primary" style="width: 100%;" onclick="viewVendorDetails(${vendor.id})">
+                            <i class="fas fa-eye"></i> View Details
+                        </button>
+                    `;
+                    container.appendChild(card);
+                });
+            } catch (error) {
+                console.error('Error loading vendors:', error);
+                showNotification('Error loading vendors', 'error');
+            }
+        }
+
+        async function loadAnalytics() {
+            try {
+                const data = await ptAPI.getProductionAnalytics();
+
+                document.getElementById('avgTurnaroundTime').textContent = 
+                    `${data.average_turnaround_days?.toFixed(1) || 0} days`;
+                document.getElementById('qcRejectionRate').textContent = 
+                    `${data.qc_rejection_rate?.toFixed(1) || 0}%`;
+                document.getElementById('onTimeDeliveryRate').textContent = 
+                    `${data.vendor_on_time_rate?.toFixed(1) || 0}%`;
+                
+                if (data.monthly_revenue) {
+                    document.getElementById('monthlyRevenue').textContent = 
+                        `KSh ${(data.monthly_revenue || 0).toFixed(0)}`;
+                }
+            } catch (error) {
+                console.error('Error loading analytics:', error);
+                showNotification('Error loading analytics', 'error');
+            }
+        }
+
+        function viewInvoice(invoiceId) {
+            currentInvoiceId = invoiceId;
+            openModal('invoiceModal');
+            // Load invoice details
+            ptAPI.getInvoiceDetail(invoiceId)
+                .then(data => {
+                    document.getElementById('invoiceDetail').innerHTML = `
+                        <div>
+                            <p><strong>Invoice #:</strong> ${data.invoice_number}</p>
+                            <p><strong>Vendor:</strong> ${data.vendor?.name}</p>
+                            <p><strong>Amount:</strong> KSh ${(data.total_amount || 0).toFixed(2)}</p>
+                            <p><strong>Status:</strong> <span class="badge badge-${data.status === 'approved' ? 'success' : data.status === 'submitted' ? 'primary' : 'danger'}">${data.status}</span></p>
+                            <p><strong>Validation:</strong> ${data.is_validated ? 'Valid ✓' : 'Needs Review'}</p>
+                            ${data.validation_errors?.length > 0 ? `
+                                <div style="background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 6px; margin-top: 12px;">
+                                    <strong style="color: var(--danger-color);">Errors:</strong>
+                                    <ul style="margin-left: 20px; margin-top: 8px;">
+                                        ${data.validation_errors.map(e => `<li>${e}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            <div style="background: var(--light-bg); padding: 12px; border-radius: 6px; margin-top: 12px;">
+                                <strong>Notes:</strong>
+                                <p style="margin-top: 8px; font-size: 0.875rem;">${data.notes || 'No notes'}</p>
+                            </div>
+                        </div>
+                    `;
+
+                    // Update button states
+                    const approveBtn = document.getElementById('approveInvoiceBtn');
+                    const rejectBtn = document.getElementById('rejectInvoiceBtn');
+                    
+                    if (data.status === 'approved' || data.status === 'rejected') {
+                        approveBtn.disabled = true;
+                        rejectBtn.disabled = true;
+                    } else {
+                        approveBtn.disabled = false;
+                        rejectBtn.disabled = false;
+                    }
+                })
+                .catch(e => {
+                    showNotification('Error loading invoice details', 'error');
+                    console.error(e);
+                });
+        }
+
+        function viewProof(proofId) {
+            currentProofId = proofId;
+            openModal('proofModal');
+            // Load proof details
+            ptAPI.getProofDetail(proofId)
+                .then(data => {
+                    document.getElementById('proofDetail').innerHTML = `
+                        <div>
+                            <p><strong>PO #:</strong> ${data.purchase_order?.po_number}</p>
+                            <p><strong>Vendor:</strong> ${data.purchase_order?.vendor?.name}</p>
+                            <p><strong>Proof Type:</strong> ${data.proof_type}</p>
+                            <p><strong>Status:</strong> <span class="badge badge-${data.status === 'approved' ? 'success' : data.status === 'pending' ? 'warning' : 'danger'}">${data.status}</span></p>
+                            ${data.files?.length > 0 ? `
+                                <div style="margin-top: 12px;">
+                                    <strong>Files:</strong>
+                                    <div style="margin-top: 8px;">
+                                        ${data.files.map(f => `<a href="${f.file}" target="_blank" class="btn btn-secondary btn-sm"><i class="fas fa-download"></i> ${f.name}</a>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${data.rejection_reason ? `
+                                <div style="background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 6px; margin-top: 12px;">
+                                    <strong style="color: var(--danger-color);">Rejection Reason:</strong>
+                                    <p style="margin-top: 8px; font-size: 0.875rem;">${data.rejection_reason}</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    // Update button states
+                    const approveBtn = document.getElementById('approveProofBtn');
+                    const rejectBtn = document.getElementById('rejectProofBtn');
+                    
+                    if (data.status === 'approved' || data.status === 'rejected') {
+                        approveBtn.disabled = true;
+                        rejectBtn.disabled = true;
+                    } else {
+                        approveBtn.disabled = false;
+                        rejectBtn.disabled = false;
+                    }
+                })
+                .catch(e => {
+                    showNotification('Error loading proof details', 'error');
+                    console.error(e);
+                });
+        }
+
+        function approveInvoice() {
+            if (!currentInvoiceId) return;
+            
+            ptAPI.approveInvoice(currentInvoiceId)
+                .then(data => {
+                    showNotification('Invoice approved successfully', 'success');
+                    closeModal('invoiceModal');
+                    loadInvoices();
+                })
+                .catch(e => {
+                    showNotification('Error approving invoice: ' + e.message, 'error');
+                });
+        }
+
+        function showRejectReason() {
+            openModal('rejectReasonModal');
+        }
+
+        function confirmRejectInvoice() {
+            if (!currentInvoiceId) return;
+            
+            const reason = document.getElementById('rejectionReason').value;
+            if (!reason) {
+                showNotification('Please provide a reason for rejection', 'warning');
+                return;
+            }
+
+            ptAPI.rejectInvoice(currentInvoiceId, reason)
+                .then(data => {
+                    showNotification('Invoice rejected successfully', 'success');
+                    closeModal('rejectReasonModal');
+                    closeModal('invoiceModal');
+                    loadInvoices();
+                })
+                .catch(e => {
+                    showNotification('Error rejecting invoice: ' + e.message, 'error');
+                });
+        }
+
+        function approveProof() {
+            if (!currentProofId) return;
+            
+            ptAPI.approveProof(currentProofId)
+                .then(data => {
+                    showNotification('Proof approved successfully', 'success');
+                    closeModal('proofModal');
+                    loadProofs();
+                })
+                .catch(e => {
+                    showNotification('Error approving proof: ' + e.message, 'error');
+                });
+        }
+
+        function showProofRejectReason() {
+            openModal('proofRejectReasonModal');
+        }
+
+        function confirmRejectProof() {
+            if (!currentProofId) return;
+            
+            const reason = document.getElementById('proofRejectionReason').value;
+            if (!reason) {
+                showNotification('Please provide a reason for rejection', 'warning');
+                return;
+            }
+
+            ptAPI.rejectProof(currentProofId, reason)
+                .then(data => {
+                    showNotification('Proof rejected successfully', 'success');
+                    closeModal('proofRejectReasonModal');
+                    closeModal('proofModal');
+                    loadProofs();
+                })
+                .catch(e => {
+                    showNotification('Error rejecting proof: ' + e.message, 'error');
+                });
+        }
+
+        function viewJobDetail(jobId) {
+            window.location.href = `/jobs/${jobId}/`;
+        }
+
+        function viewVendorDetails(vendorId) {
+            window.location.href = `/vendors/${vendorId}/`;
+        }
+
+        function openModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        function refreshVendorWorkload() {
+            loadVendorWorkload();
+        }
+
+        function logout() {
+            window.location.href = '/accounts/logout/';
+        }
+
+        function sendMessage() {
+            const message = document.getElementById('messageInput').value;
+            if (!message) {
+                showNotification('Please type a message', 'warning');
+                return;
+            }
+            // TODO: Implement messaging
+            showNotification('Messaging feature coming soon', 'info');
+        }
+
+        function performGlobalSearch(query) {
+            if (!query) return;
+            
+            // Search in current section
+            const activeSection = document.querySelector('.section:not([style*="display: none"])');
+            if (!activeSection) return;
+
+            const sectionId = activeSection.id;
+            
+            if (sectionId === 'jobs') {
+                document.getElementById('jobSearch').value = query;
+                loadJobs();
+            } else if (sectionId === 'invoices') {
+                document.getElementById('invoiceSearch').value = query;
+                loadInvoices();
+            } else if (sectionId === 'vendors') {
+                document.getElementById('vendorSearch').value = query;
+                loadVendors();
+            }
+        }
+
+        function openNotifications() {
+            showNotification('Notifications feature coming soon', 'info');
+        }
+
+        function showNotification(message, type = 'info') {
+            // Create notification element
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? 'var(--success-color)' : 
+                             type === 'error' ? 'var(--danger-color)' : 
+                             type === 'warning' ? 'var(--warning-color)' : 
+                             'var(--primary-color)'};
+                color: white;
+                padding: 16px 20px;
+                border-radius: 6px;
+                box-shadow: var(--shadow-lg);
+                z-index: 3000;
+                animation: slideIn 0.3s ease;
+                max-width: 400px;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                notification.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Add slide animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>

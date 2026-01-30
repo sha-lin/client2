@@ -92,6 +92,10 @@
         grid-column: 1 / -1;
     }
 
+    .dashboard-card.three-col {
+        grid-column: span 1;
+    }
+
     .card-header {
         display: flex;
         align-items: center;
@@ -266,14 +270,274 @@
         border-radius: 4px;
     }
 
+    /* NEW: Vendor Workload Widget */
+    .vendor-workload-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .vendor-workload-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem;
+        background: #fafafa;
+        border-radius: 6px;
+        border-left: 3px solid #3b82f6;
+    }
+
+    .vendor-workload-info {
+        flex: 1;
+    }
+
+    .vendor-name-text {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #1a1a1a;
+    }
+
+    .vendor-job-count {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        margin-top: 0.2rem;
+    }
+
+    .vendor-workload-bar {
+        flex: 1;
+        height: 6px;
+        background: #e5e7eb;
+        border-radius: 3px;
+        margin: 0 1rem;
+        overflow: hidden;
+    }
+
+    .vendor-workload-fill {
+        height: 100%;
+        background: #3b82f6;
+        border-radius: 3px;
+    }
+
+    .vendor-capacity-pct {
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: #1a1a1a;
+        min-width: 50px;
+        text-align: right;
+    }
+
+    .vendor-capacity-alert {
+        background: #fee2e2;
+        border-left-color: #ef4444;
+    }
+
+    .vendor-capacity-warning {
+        background: #fef3c7;
+        border-left-color: #f59e0b;
+    }
+
+    /* NEW: Job Status Chart */
+    .job-status-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+    }
+
+    .job-status-box {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        border: 1px solid #e5e7eb;
+    }
+
+    .job-status-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+
+    .job-status-label {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        margin-top: 0.5rem;
+    }
+
+    .job-status-box.pending { border-top: 3px solid #f59e0b; }
+    .job-status-box.in-progress { border-top: 3px solid #3b82f6; }
+    .job-status-box.completed { border-top: 3px solid #10b981; }
+    .job-status-box.overdue { border-top: 3px solid #ef4444; }
+
+    /* NEW: Overdue Jobs List */
+    .overdue-jobs-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .overdue-job-item {
+        padding: 1rem;
+        background: #fff5f5;
+        border-radius: 8px;
+        border-left: 4px solid #ef4444;
+    }
+
+    .overdue-job-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        margin-bottom: 0.5rem;
+    }
+
+    .overdue-job-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: #1a1a1a;
+        flex: 1;
+    }
+
+    .overdue-days-badge {
+        background: #ef4444;
+        color: #fff;
+        padding: 0.3rem 0.6rem;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    .overdue-job-details {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+
+    .overdue-job-vendor {
+        font-weight: 500;
+    }
+
+    .overdue-job-deadline {
+        color: #9ca3af;
+    }
+
+    /* NEW: Performance Metrics Grid */
+    .performance-metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .perf-metric-card {
+        background: #f9fafb;
+        border-radius: 8px;
+        padding: 1rem;
+        border: 1px solid #e5e7eb;
+    }
+
+    .perf-metric-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+    }
+
+    .perf-metric-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1a1a1a;
+    }
+
+    .perf-metric-change {
+        font-size: 0.75rem;
+        margin-top: 0.25rem;
+    }
+
+    .perf-metric-change.positive {
+        color: #10b981;
+    }
+
+    .perf-metric-change.negative {
+        color: #ef4444;
+    }
+
+    /* NEW: Revenue by Vendor Chart */
+    .revenue-vendor-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .revenue-vendor-item {
+        display: flex;
+        gap: 0.75rem;
+        align-items: center;
+    }
+
+    .revenue-vendor-name {
+        min-width: 120px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #1a1a1a;
+    }
+
+    .revenue-vendor-bar-wrapper {
+        flex: 1;
+        height: 24px;
+        background: #f3f4f6;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .revenue-vendor-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6 0%, #1e40af 100%);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding-right: 0.5rem;
+    }
+
+    .revenue-vendor-amount {
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    /* Responsive */
+    .dashboard-grid-three {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    @media (max-width: 1200px) {
+        .dashboard-grid-three {
+            grid-template-columns: repeat(2, 1fr);
+        }
+        .job-status-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
     @media (max-width: 968px) {
         .dashboard-grid {
+            grid-template-columns: 1fr;
+        }
+        .dashboard-grid-three {
+            grid-template-columns: 1fr;
+        }
+        .job-status-grid {
             grid-template-columns: 1fr;
         }
     }
 </style>
 
 <div class="production-dashboard-container">
+    <!-- TOP STATS ROW -->
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-header">
@@ -307,9 +571,23 @@
             <div class="stat-value">2</div>
             <div class="stat-label">Requires attention</div>
         </div>
+
+        <!-- GAP 5: SLA Escalations -->
+        <div class="stat-card">
+            <div class="stat-header">
+                <span class="stat-title">SLA Escalations</span>
+                <div class="stat-icon alert">
+                    <i class="fas fa-clock"></i>
+                </div>
+            </div>
+            <div class="stat-value">2</div>
+            <div class="stat-label">Requiring attention</div>
+        </div>
     </div>
 
+    <!-- MAIN DASHBOARD GRID -->
     <div class="dashboard-grid">
+        <!-- Left: Existing Performance Card -->
         <div class="dashboard-card">
             <div class="card-header">
                 <i class="fas fa-tachometer-alt"></i>
@@ -337,6 +615,7 @@
             </div>
         </div>
 
+        <!-- Right: Existing Urgent Actions -->
         <div class="dashboard-card">
             <div class="card-header">
                 <i class="fas fa-exclamation-circle"></i>
@@ -365,6 +644,7 @@
             </div>
         </div>
 
+        <!-- FULL WIDTH: Quote Workflow Status (Existing) -->
         <div class="dashboard-card full-width">
             <div class="card-header">
                 <i class="fas fa-check-circle"></i>
@@ -410,6 +690,211 @@
                     </div>
                     <div class="workflow-bar">
                         <div class="workflow-bar-fill" style="width: 10%;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ENHANCED SECTION: NEW WIDGETS (GAPS 1, 2, 3, 5, 9) -->
+    <h2 style="font-size: 1.25rem; font-weight: 700; margin: 2rem 0 1.5rem; color: #1a1a1a;">
+        <i class="fas fa-chart-bar" style="color: #3b82f6; margin-right: 0.5rem;"></i>
+        Vendor & Job Analytics
+    </h2>
+
+    <!-- THREE-COLUMN GRID: Vendor Workload, Job Status, Overdue Jobs -->
+    <div class="dashboard-grid-three">
+        <!-- GAP 1: Vendor Workload Visualization -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <i class="fas fa-layer-group"></i>
+                <div>
+                    <div class="card-title">Vendor Workload</div>
+                    <div class="card-subtitle">Current job distribution</div>
+                </div>
+            </div>
+            <div class="vendor-workload-list">
+                <div class="vendor-workload-item">
+                    <div class="vendor-workload-info">
+                        <div class="vendor-name-text">PrintCorp Solutions</div>
+                        <div class="vendor-job-count">8 active jobs</div>
+                    </div>
+                    <div class="vendor-workload-bar">
+                        <div class="vendor-workload-fill" style="width: 85%;"></div>
+                    </div>
+                    <div class="vendor-capacity-pct">85%</div>
+                </div>
+                <div class="vendor-workload-item vendor-capacity-alert">
+                    <div class="vendor-workload-info">
+                        <div class="vendor-name-text">FastPrint Inc.</div>
+                        <div class="vendor-job-count">5 active jobs</div>
+                    </div>
+                    <div class="vendor-workload-bar">
+                        <div class="vendor-workload-fill" style="width: 95%; background: #ef4444;"></div>
+                    </div>
+                    <div class="vendor-capacity-pct">95%</div>
+                </div>
+                <div class="vendor-workload-item vendor-capacity-warning">
+                    <div class="vendor-workload-info">
+                        <div class="vendor-name-text">Quality Print Ltd.</div>
+                        <div class="vendor-job-count">6 active jobs</div>
+                    </div>
+                    <div class="vendor-workload-bar">
+                        <div class="vendor-workload-fill" style="width: 72%; background: #f59e0b;"></div>
+                    </div>
+                    <div class="vendor-capacity-pct">72%</div>
+                </div>
+                <div class="vendor-workload-item">
+                    <div class="vendor-workload-info">
+                        <div class="vendor-name-text">Elite Printing</div>
+                        <div class="vendor-job-count">3 active jobs</div>
+                    </div>
+                    <div class="vendor-workload-bar">
+                        <div class="vendor-workload-fill" style="width: 45%;"></div>
+                    </div>
+                    <div class="vendor-capacity-pct">45%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAP 2: Job Status by Vendor -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <i class="fas fa-tasks"></i>
+                <div>
+                    <div class="card-title">Job Status Distribution</div>
+                    <div class="card-subtitle">Across all vendors</div>
+                </div>
+            </div>
+            <div class="job-status-grid">
+                <div class="job-status-box pending">
+                    <div class="job-status-value">5</div>
+                    <div class="job-status-label">Pending</div>
+                </div>
+                <div class="job-status-box in-progress">
+                    <div class="job-status-value">18</div>
+                    <div class="job-status-label">In Progress</div>
+                </div>
+                <div class="job-status-box completed">
+                    <div class="job-status-value">42</div>
+                    <div class="job-status-label">Completed</div>
+                </div>
+                <div class="job-status-box overdue">
+                    <div class="job-status-value">2</div>
+                    <div class="job-status-label">Overdue</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- GAP 3: Overdue Jobs Widget -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <i class="fas fa-exclamation-triangle"></i>
+                <div>
+                    <div class="card-title">Overdue Jobs</div>
+                    <div class="card-subtitle">Requires immediate action</div>
+                </div>
+            </div>
+            <div class="overdue-jobs-list">
+                <div class="overdue-job-item">
+                    <div class="overdue-job-header">
+                        <div class="overdue-job-title">PO-2024-001: Branded Mugs</div>
+                        <span class="overdue-days-badge">2 days overdue</span>
+                    </div>
+                    <div class="overdue-job-details">
+                        <span class="overdue-job-vendor">PrintCorp Solutions</span>
+                        <span class="overdue-job-deadline">Due: 2024-01-15</span>
+                    </div>
+                </div>
+                <div class="overdue-job-item">
+                    <div class="overdue-job-header">
+                        <div class="overdue-job-title">PO-2024-005: T-Shirt Prints</div>
+                        <span class="overdue-days-badge">1 day overdue</span>
+                    </div>
+                    <div class="overdue-job-details">
+                        <span class="overdue-job-vendor">FastPrint Inc.</span>
+                        <span class="overdue-job-deadline">Due: 2024-01-16</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PERFORMANCE METRICS & REVENUE SECTION -->
+    <div class="dashboard-grid">
+        <!-- GAP 9: Vendor Performance Metrics -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <i class="fas fa-star"></i>
+                <div>
+                    <div class="card-title">Vendor Performance Metrics</div>
+                    <div class="card-subtitle">Quality & reliability scores</div>
+                </div>
+            </div>
+            <div class="performance-metrics-grid">
+                <div class="perf-metric-card">
+                    <div class="perf-metric-label">Average On-Time Rate</div>
+                    <div class="perf-metric-value">92%</div>
+                    <div class="perf-metric-change positive">↑ +3.2% vs last month</div>
+                </div>
+                <div class="perf-metric-card">
+                    <div class="perf-metric-label">Quality Score</div>
+                    <div class="perf-metric-value">8.7/10</div>
+                    <div class="perf-metric-change positive">↑ +0.3 vs last month</div>
+                </div>
+                <div class="perf-metric-card">
+                    <div class="perf-metric-label">Capacity Utilization</div>
+                    <div class="perf-metric-value">78%</div>
+                    <div class="perf-metric-change negative">↓ -2.1% vs last month</div>
+                </div>
+                <div class="perf-metric-card">
+                    <div class="perf-metric-label">Response Time</div>
+                    <div class="perf-metric-value">1.2 hrs</div>
+                    <div class="perf-metric-change positive">↓ 0.3 hrs faster</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue by Vendor Chart -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <i class="fas fa-dollar-sign"></i>
+                <div>
+                    <div class="card-title">Revenue by Vendor</div>
+                    <div class="card-subtitle">This month YTD</div>
+                </div>
+            </div>
+            <div class="revenue-vendor-list">
+                <div class="revenue-vendor-item">
+                    <div class="revenue-vendor-name">PrintCorp Solutions</div>
+                    <div class="revenue-vendor-bar-wrapper">
+                        <div class="revenue-vendor-bar-fill" style="width: 100%;">
+                            <div class="revenue-vendor-amount">$45,200</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="revenue-vendor-item">
+                    <div class="revenue-vendor-name">Quality Print Ltd.</div>
+                    <div class="revenue-vendor-bar-wrapper">
+                        <div class="revenue-vendor-bar-fill" style="width: 68%;">
+                            <div class="revenue-vendor-amount">$30,780</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="revenue-vendor-item">
+                    <div class="revenue-vendor-name">FastPrint Inc.</div>
+                    <div class="revenue-vendor-bar-wrapper">
+                        <div class="revenue-vendor-bar-fill" style="width: 52%;">
+                            <div class="revenue-vendor-amount">$23,490</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="revenue-vendor-item">
+                    <div class="revenue-vendor-name">Elite Printing</div>
+                    <div class="revenue-vendor-bar-wrapper">
+                        <div class="revenue-vendor-bar-fill" style="width: 31%;">
+                            <div class="revenue-vendor-amount">$14,120</div>
+                        </div>
                     </div>
                 </div>
             </div>

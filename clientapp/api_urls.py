@@ -110,6 +110,23 @@ router.register("sla-escalations", api_views.SLAEscalationViewSet, basename="sla
 router.register("vendor-performance-metrics", api_views.VendorPerformanceMetricsViewSet, basename="vendor-performance-metrics")
 router.register("profitability-analysis", api_views.ProfitabilityAnalysisViewSet, basename="profitability-analysis")
 
+# Phase 2: Messaging, Progress, Proofs, and Performance APIs
+router.register("messages", api_views.MessageViewSet, basename="message")
+router.register("progress-updates", api_views.ProgressUpdateViewSet, basename="progress-update")
+router.register("proof-submissions", api_views.ProofSubmissionViewSet, basename="proof-submission")
+router.register("vendor-performance", api_views.VendorPerformanceViewSet, basename="vendor-performance")
+
+# Phase 3: Client Portal, Analytics, and Payment Tracking APIs
+router.register("client-portal-notifications", api_views.ClientNotificationViewSet, basename="client-portal-notifications")
+router.register("client-messages", api_views.ClientMessageViewSet, basename="client-message")
+router.register("client-dashboard", api_views.ClientDashboardViewSet, basename="client-dashboard")
+router.register("client-feedback", api_views.ClientFeedbackViewSet, basename="client-feedback")
+router.register("order-metrics", api_views.OrderMetricsViewSet, basename="order-metrics")
+router.register("vendor-comparison", api_views.VendorComparisonViewSet, basename="vendor-comparison")
+router.register("performance-analytics", api_views.PerformanceAnalyticsViewSet, basename="performance-analytics")
+router.register("payment-status", api_views.PaymentStatusViewSet, basename="payment-status")
+router.register("payment-history", api_views.PaymentHistoryViewSet, basename="payment-history")
+
 # Vendor Portal APIs
 router.register("vendor-self-info", vendor_portal_views.VendorSelfInfoViewSet, basename="vendor-self-info")
 router.register("vendor-portal-pos", vendor_portal_views.PurchaseOrderViewSet, basename="vendor-portal-po")

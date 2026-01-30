@@ -626,6 +626,62 @@
                 <span>Settings</span>
             </a>
 
+            <!-- ✨ ENHANCED PT PORTAL SECTIONS -->
+            <div style="padding: 12px 0; margin-top: 12px; border-top: 1px solid #e5e7eb; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; color: #6b7280; padding-left: 16px;">Enhanced Features</div>
+
+            <a href="{% url 'jobs2_list' %}"
+                class="sidebar-item {% if current_view == 'jobs2_list' %}active{% endif %}">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                </svg>
+                <span>Jobs2</span>
+            </a>
+
+            <a href="{% url 'invoices2_list' %}"
+                class="sidebar-item {% if current_view == 'invoices2_list' %}active{% endif %}">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                    <line x1="7" y1="2" x2="7" y2="22"></line>
+                    <line x1="17" y1="2" x2="17" y2="22"></line>
+                    <line x1="2" y1="7" x2="22" y2="7"></line>
+                    <line x1="2" y1="17" x2="22" y2="17"></line>
+                </svg>
+                <span>Invoices2</span>
+            </a>
+
+            <a href="{% url 'proofs2_list' %}"
+                class="sidebar-item {% if current_view == 'proofs2_list' %}active{% endif %}">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 11-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span>Proofs2</span>
+            </a>
+
+            <a href="{% url 'messages2_list' %}"
+                class="sidebar-item {% if current_view == 'messages2_list' %}active{% endif %}">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"></path>
+                </svg>
+                <span>Messages2</span>
+            </a>
+
+            <a href="{% url 'vendors2_list' %}"
+                class="sidebar-item {% if current_view == 'vendors2_list' %}active{% endif %}">
+                <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M23 21v-2a4 4 0 00-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 010 7.75"></path>
+                </svg>
+                <span>Vendors2</span>
+            </a>
+
             {% else %}
             <a href="{% url 'dashboard' %}" class="sidebar-item {% if current_view == 'dashboard' %}active{% endif %}">
                 <svg class="icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"

@@ -1,0 +1,1772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Client Portal - Print Duka</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --dark-color: #343a40;
+            --light-color: #f8f9fa;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: white;
+            min-height: 100vh;
+            padding: 0;
+            margin: 0;
+        }
+
+        .container-wrapper {
+            max-width: 100%;
+            margin: 0;
+            background: white;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Header */
+        .portal-header {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid #0056b3;
+        }
+
+        .header-title h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .notification-badge {
+            position: relative;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        .notification-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ffc107;
+            color: black;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .user-menu:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Tab Navigation */
+        .tab-navigation {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            padding: 0;
+            overflow-x: auto;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 18px 20px;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: 500;
+            color: #666;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+            position: relative;
+        }
+
+        .tab-button:hover {
+            color: var(--primary-color);
+            background: rgba(0, 123, 255, 0.05);
+        }
+
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+            background: rgba(0, 123, 255, 0.05);
+        }
+
+        .tab-button i {
+            margin-right: 8px;
+        }
+
+        /* Content Area */
+        .content-area {
+            padding: 40px;
+            min-height: 600px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        /* Dashboard Section */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .kpi-card.active {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .kpi-card.pending {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .kpi-card.completed {
+            background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+        }
+
+        .kpi-label {
+            font-size: 13px;
+            opacity: 0.9;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .kpi-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-top: 10px;
+        }
+
+        .kpi-icon {
+            font-size: 28px;
+            margin-top: 15px;
+            opacity: 0.8;
+        }
+
+        /* Orders Section */
+        .orders-table {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .orders-table table {
+            width: 100%;
+            margin: 0;
+        }
+
+        .orders-table thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .orders-table th {
+            padding: 15px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+            text-align: left;
+        }
+
+        .orders-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .orders-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-in-progress {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .status-completed {
+            background: #d1e7dd;
+            color: #0a3622;
+        }
+
+        .status-approved {
+            background: #d1e7dd;
+            color: #0a3622;
+        }
+
+        /* Messages Section */
+        .messages-container {
+            display: flex;
+            gap: 20px;
+            height: 500px;
+        }
+
+        .messages-list {
+            flex: 0 0 300px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            overflow-y: auto;
+            border: 1px solid #e9ecef;
+        }
+
+        .message-thread-item {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .message-thread-item:hover {
+            background: #e9ecef;
+        }
+
+        .message-thread-item.active {
+            background: #007bff;
+            color: white;
+        }
+
+        .thread-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .thread-preview {
+            font-size: 12px;
+            opacity: 0.8;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .messages-main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .messages-header {
+            padding: 15px;
+            border-bottom: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+
+        .messages-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message-item {
+            display: flex;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        .message-item.own {
+            justify-content: flex-end;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 15px;
+            border-radius: 10px;
+            word-wrap: break-word;
+        }
+
+        .message-bubble.other {
+            background: #e9ecef;
+            color: #333;
+        }
+
+        .message-bubble.own {
+            background: #007bff;
+            color: white;
+        }
+
+        .message-sender {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .message-time {
+            font-size: 11px;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+
+        .messages-footer {
+            padding: 15px;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+
+        .message-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .message-input-group input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .message-input-group button {
+            padding: 12px 20px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .message-input-group button:hover {
+            background: #0056b3;
+        }
+
+        /* Proofs Section */
+        .proofs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .proof-card {
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .proof-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+        }
+
+        .proof-image {
+            width: 100%;
+            height: 200px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: #ccc;
+        }
+
+        .proof-info {
+            padding: 15px;
+        }
+
+        .proof-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .proof-status {
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .proof-actions {
+            display: flex;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .proof-actions button {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #007bff;
+            color: #007bff;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .proof-actions button:hover {
+            background: #007bff;
+            color: white;
+        }
+
+        /* Analytics Section */
+        .analytics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .analytics-tabs {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .analytics-tab {
+            padding: 10px 20px;
+            border: 2px solid #e9ecef;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s ease;
+        }
+
+        .analytics-tab:hover {
+            border-color: #007bff;
+            color: #007bff;
+        }
+
+        .analytics-tab.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+
+        .chart-placeholder {
+            background: white;
+            border: 2px dashed #e9ecef;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            color: #999;
+            min-height: 400px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-box {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #007bff;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .metric-label {
+            font-size: 12px;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+
+        /* Account Section */
+        .account-container {
+            max-width: 800px;
+        }
+
+        .account-section {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 25px;
+        }
+
+        .button-primary {
+            padding: 12px 30px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .button-primary:hover {
+            background: #0056b3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+        }
+
+        .button-secondary {
+            padding: 12px 30px;
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .button-secondary:hover {
+            background: #e9ecef;
+        }
+
+        /* Loading State */
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            color: #007bff;
+            font-weight: 600;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-message {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .empty-description {
+            font-size: 14px;
+            opacity: 0.7;
+        }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            max-width: 400px;
+        }
+
+        .toast {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            margin-bottom: 10px;
+            border-left: 4px solid #007bff;
+            animation: slideInRight 0.3s ease;
+        }
+
+        .toast.success {
+            border-left-color: #28a745;
+        }
+
+        .toast.error {
+            border-left-color: #dc3545;
+        }
+
+        .toast.warning {
+            border-left-color: #ffc107;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+            max-width: 600px;
+            width: 90%;
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .modal-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #999;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .portal-header {
+                flex-direction: column;
+                gap: 20px;
+                text-align: center;
+            }
+
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .kpi-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .messages-container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .messages-list {
+                flex: 0 0 auto;
+                max-height: 300px;
+            }
+
+            .proofs-grid {
+                grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            }
+
+            .tab-button {
+                font-size: 13px;
+                padding: 14px 10px;
+            }
+
+            .content-area {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-wrapper">
+        <!-- Header -->
+        <div class="portal-header">
+            <div class="header-title">
+                <i class="bi bi-briefcase-fill"></i>
+                <h1>Client Portal</h1>
+            </div>
+            <div class="header-actions">
+                <div class="notification-badge" id="notificationBell">
+                    <i class="bi bi-bell-fill"></i>
+                    <span class="notification-count" id="notificationCount">0</span>
+                </div>
+                <div class="user-menu" id="userMenu">
+                    <img src="https://via.placeholder.com/32" style="width: 32px; height: 32px; border-radius: 50%; object-fit: cover;" alt="User">
+                    <span id="userName">User</span>
+                    <i class="bi bi-chevron-down"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="tab-navigation">
+            <button class="tab-button active" data-tab="dashboard">
+                <i class="bi bi-speedometer2"></i> Dashboard
+            </button>
+            <button class="tab-button" data-tab="orders">
+                <i class="bi bi-box"></i> Orders
+            </button>
+            <button class="tab-button" data-tab="messages">
+                <i class="bi bi-chat-dots"></i> Messages
+            </button>
+            <button class="tab-button" data-tab="proofs">
+                <i class="bi bi-images"></i> Proofs
+            </button>
+            <button class="tab-button" data-tab="analytics">
+                <i class="bi bi-graph-up"></i> Analytics
+            </button>
+            <button class="tab-button" data-tab="account">
+                <i class="bi bi-person-circle"></i> Account
+            </button>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content-area">
+            <!-- DASHBOARD TAB -->
+            <div class="tab-content active" id="dashboard">
+                <h2 style="margin-bottom: 30px;">Dashboard Overview</h2>
+                
+                <div class="kpi-grid" id="dashboardKpis">
+                    <div class="kpi-card active">
+                        <div class="kpi-label">Total Orders</div>
+                        <div class="kpi-value" id="totalOrders">0</div>
+                        <div class="kpi-icon"><i class="bi bi-box"></i></div>
+                    </div>
+                    <div class="kpi-card active">
+                        <div class="kpi-label">Active Orders</div>
+                        <div class="kpi-value" id="activeOrders">0</div>
+                        <div class="kpi-icon"><i class="bi bi-clock"></i></div>
+                    </div>
+                    <div class="kpi-card completed">
+                        <div class="kpi-label">Completed Orders</div>
+                        <div class="kpi-value" id="completedOrders">0</div>
+                        <div class="kpi-icon"><i class="bi bi-check-circle"></i></div>
+                    </div>
+                    <div class="kpi-card pending">
+                        <div class="kpi-label">Pending Proofs</div>
+                        <div class="kpi-value" id="pendingProofs">0</div>
+                        <div class="kpi-icon"><i class="bi bi-exclamation-circle"></i></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Total Spent</div>
+                        <div class="kpi-value" id="totalSpent">$0</div>
+                        <div class="kpi-icon"><i class="bi bi-wallet2"></i></div>
+                    </div>
+                    <div class="kpi-card">
+                        <div class="kpi-label">Pending Payment</div>
+                        <div class="kpi-value" id="pendingPayment">$0</div>
+                        <div class="kpi-icon"><i class="bi bi-cash-coin"></i></div>
+                    </div>
+                </div>
+
+                <h3 style="margin-top: 40px; margin-bottom: 20px;">Recent Activity</h3>
+                <div class="orders-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Completion Rate</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dashboardRecentOrders">
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                        <span>Loading...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ORDERS TAB -->
+            <div class="tab-content" id="orders">
+                <h2 style="margin-bottom: 30px;">Your Orders</h2>
+                
+                <div style="margin-bottom: 20px; display: flex; gap: 10px;">
+                    <input type="text" id="orderSearch" placeholder="Search orders..." style="flex: 1; padding: 12px; border: 1px solid #e9ecef; border-radius: 6px;">
+                    <select id="orderFilter" style="padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; min-width: 150px;">
+                        <option value="">All Status</option>
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In Progress</option>
+                        <option value="approved">Approved</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+
+                <div class="orders-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Order #</th>
+                                <th>Items</th>
+                                <th>Status</th>
+                                <th>Total</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ordersTableBody">
+                            <tr>
+                                <td colspan="6" class="text-center py-4">
+                                    <div class="loading">
+                                        <div class="spinner"></div>
+                                        <span>Loading orders...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- MESSAGES TAB -->
+            <div class="tab-content" id="messages">
+                <h2 style="margin-bottom: 30px;">Messages</h2>
+                
+                <div class="messages-container">
+                    <div class="messages-list" id="messagesList">
+                        <div class="empty-state" style="padding: 30px 15px;">
+                            <div class="empty-icon"><i class="bi bi-chat-dots"></i></div>
+                            <div class="empty-message">No messages</div>
+                        </div>
+                    </div>
+
+                    <div class="messages-main">
+                        <div class="messages-header" id="messagesHeader">
+                            <div class="thread-title">Select a conversation</div>
+                        </div>
+
+                        <div class="messages-body" id="messagesBody">
+                            <div class="empty-state">
+                                <div class="empty-icon"><i class="bi bi-chat-dots"></i></div>
+                                <div class="empty-message">No conversation selected</div>
+                                <div class="empty-description">Select a conversation from the list to start messaging</div>
+                            </div>
+                        </div>
+
+                        <div class="messages-footer">
+                            <div class="message-input-group">
+                                <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+                                <button id="sendMessageBtn" onclick="sendMessage()" disabled style="display: none;">
+                                    <i class="bi bi-send-fill"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- PROOFS TAB -->
+            <div class="tab-content" id="proofs">
+                <h2 style="margin-bottom: 30px;">Proofs Received</h2>
+                
+                <div style="margin-bottom: 20px;">
+                    <button onclick="filterProofs('all')" class="analytics-tab active" data-filter="all">All Proofs</button>
+                    <button onclick="filterProofs('approved')" class="analytics-tab" data-filter="approved">Approved</button>
+                    <button onclick="filterProofs('revision')" class="analytics-tab" data-filter="revision">Revision Needed</button>
+                    <button onclick="filterProofs('pending')" class="analytics-tab" data-filter="pending">Pending Review</button>
+                </div>
+
+                <div class="proofs-grid" id="proofsGrid">
+                    <div class="empty-state" style="grid-column: 1/-1; padding: 60px 20px;">
+                        <div class="empty-icon"><i class="bi bi-images"></i></div>
+                        <div class="empty-message">No proofs yet</div>
+                        <div class="empty-description">Proofs will appear here as PT team submits them for review</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANALYTICS TAB -->
+            <div class="tab-content" id="analytics">
+                <h2 style="margin-bottom: 30px;">Analytics & Reports</h2>
+                
+                <div class="analytics-tabs">
+                    <button class="analytics-tab active" onclick="switchAnalyticsTab('metrics')" data-tab="metrics">
+                        <i class="bi bi-graph-up"></i> Metrics
+                    </button>
+                    <button class="analytics-tab" onclick="switchAnalyticsTab('vendor')" data-tab="vendor">
+                        <i class="bi bi-building"></i> Vendor Comparison
+                    </button>
+                    <button class="analytics-tab" onclick="switchAnalyticsTab('trends')" data-tab="trends">
+                        <i class="bi bi-arrow-up"></i> Trends
+                    </button>
+                </div>
+
+                <div id="metricsTab" class="analytics-section">
+                    <div class="metrics-summary" id="metricsSummary">
+                        <div class="metric-box">
+                            <div class="metric-label">On-Time Delivery</div>
+                            <div class="metric-value">0%</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-label">Avg Completion Time</div>
+                            <div class="metric-value">- days</div>
+                        </div>
+                        <div class="metric-box">
+                            <div class="metric-label">Quality Score</div>
+                            <div class="metric-value">-/5</div>
+                        </div>
+                    </div>
+                    <div class="chart-placeholder">
+                        <i class="bi bi-graph-up" style="font-size: 64px; margin-right: 20px;"></i>
+                        <div>
+                            <div style="font-size: 18px; margin-bottom: 10px;">Order Trends Chart</div>
+                            <div style="font-size: 13px; opacity: 0.7;">Chart will be displayed here (Chart.js)</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="vendorTab" class="analytics-section" style="display: none;">
+                    <div class="chart-placeholder">
+                        <i class="bi bi-building" style="font-size: 64px; margin-right: 20px;"></i>
+                        <div>
+                            <div style="font-size: 18px; margin-bottom: 10px;">Vendor Comparison</div>
+                            <div style="font-size: 13px; opacity: 0.7;">Compare vendor performance metrics</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="trendsTab" class="analytics-section" style="display: none;">
+                    <div class="chart-placeholder">
+                        <i class="bi bi-arrow-up" style="font-size: 64px; margin-right: 20px;"></i>
+                        <div>
+                            <div style="font-size: 18px; margin-bottom: 10px;">Performance Trends</div>
+                            <div style="font-size: 13px; opacity: 0.7;">Historical performance data and trends</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ACCOUNT TAB -->
+            <div class="tab-content" id="account">
+                <h2 style="margin-bottom: 30px;">Account Settings</h2>
+                
+                <div class="account-container">
+                    <!-- Profile Section -->
+                    <div class="account-section">
+                        <div class="section-title">
+                            <i class="bi bi-person-circle" style="margin-right: 10px;"></i>
+                            Company Profile
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Company Name</label>
+                                <input type="text" id="companyName" placeholder="Your company name" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Email</label>
+                                <input type="email" id="companyEmail" placeholder="company@email.com" readonly>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Phone</label>
+                                <input type="tel" id="companyPhone" placeholder="+1 (555) 000-0000" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>City</label>
+                                <input type="text" id="companyCity" placeholder="City" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preferences Section -->
+                    <div class="account-section">
+                        <div class="section-title">
+                            <i class="bi bi-sliders" style="margin-right: 10px;"></i>
+                            Preferences
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="notificationPreference" checked>
+                                <span style="margin-left: 10px;">Receive email notifications</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="orderUpdatePreference" checked>
+                                <span style="margin-left: 10px;">Notify me on order status changes</span>
+                            </label>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="proofPreference" checked>
+                                <span style="margin-left: 10px;">Notify me when proofs are ready</span>
+                            </label>
+                        </div>
+                        <div class="button-group">
+                            <button class="button-primary" onclick="savePreferences()">
+                                <i class="bi bi-check-circle" style="margin-right: 8px;"></i>
+                                Save Preferences
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Help Section -->
+                    <div class="account-section">
+                        <div class="section-title">
+                            <i class="bi bi-question-circle" style="margin-right: 10px;"></i>
+                            Need Help?
+                        </div>
+                        <p style="margin-bottom: 15px; color: #666;">
+                            For questions or issues, please contact our support team.
+                        </p>
+                        <div class="button-group">
+                            <button class="button-secondary" onclick="contactSupport()">
+                                <i class="bi bi-envelope" style="margin-right: 8px;"></i>
+                                Contact Support
+                            </button>
+                            <button class="button-secondary" onclick="downloadGuide()">
+                                <i class="bi bi-download" style="margin-right: 8px;"></i>
+                                Download User Guide
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Modals -->
+    <div class="modal-overlay" id="orderDetailModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title">Order Details</div>
+                <button class="modal-close" onclick="closeModal('orderDetailModal')"><i class="bi bi-x"></i></button>
+            </div>
+            <div id="orderDetailContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        const API_BASE_URL = '/api/v1';
+        let currentOrderId = null;
+        let currentMessageThread = null;
+        let messageAutoRefreshInterval = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            loadDashboard();
+            setupAutoRefresh();
+        });
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Tab switching
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.addEventListener('click', function() {
+                    switchTab(this.dataset.tab);
+                });
+            });
+
+            // Notification bell
+            document.getElementById('notificationBell').addEventListener('click', function() {
+                loadNotifications();
+            });
+
+            // User menu
+            document.getElementById('userMenu').addEventListener('click', function() {
+                showUserMenu();
+            });
+
+            // Order search and filter
+            document.getElementById('orderSearch').addEventListener('input', function() {
+                filterOrders();
+            });
+
+            document.getElementById('orderFilter').addEventListener('change', function() {
+                filterOrders();
+            });
+
+            // Keyboard shortcut for message send
+            document.getElementById('messageInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    sendMessage();
+                }
+            });
+        }
+
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+
+            // Remove active from all buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+
+            // Add active to button
+            document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+            // Load data for specific tabs
+            if (tabName === 'orders') {
+                loadOrders();
+            } else if (tabName === 'messages') {
+                loadMessagesList();
+            } else if (tabName === 'proofs') {
+                loadProofs();
+            } else if (tabName === 'analytics') {
+                loadAnalytics();
+            }
+        }
+
+        // Load dashboard
+        function loadDashboard() {
+            fetch(`${API_BASE_URL}/client-dashboard/my_dashboard/`, {
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('totalOrders').textContent = data.total_orders;
+                document.getElementById('activeOrders').textContent = data.active_orders;
+                document.getElementById('completedOrders').textContent = data.completed_orders;
+                document.getElementById('pendingProofs').textContent = data.pending_proofs;
+                document.getElementById('totalSpent').textContent = `$${formatNumber(data.total_spent)}`;
+                document.getElementById('pendingPayment').textContent = `$${formatNumber(data.pending_payment)}`;
+                
+                loadRecentOrders();
+            })
+            .catch(err => {
+                console.error('Error loading dashboard:', err);
+                showToast('Error loading dashboard', 'error');
+            });
+        }
+
+        // Load recent orders
+        function loadRecentOrders() {
+            fetch(`${API_BASE_URL}/orders/?limit=5`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('dashboardRecentOrders');
+                if (data.results && data.results.length > 0) {
+                    tbody.innerHTML = data.results.map(order => `
+                        <tr>
+                            <td><strong>${order.job_number || 'N/A'}</strong></td>
+                            <td>
+                                <span class="status-badge status-${order.status}">
+                                    ${order.status || 'Unknown'}
+                                </span>
+                            </td>
+                            <td>${formatDate(order.created_at)}</td>
+                            <td>${order.percentage_complete || 0}%</td>
+                            <td>
+                                <button class="button-secondary" onclick="viewOrderDetail('${order.id}')" style="padding: 6px 12px; font-size: 12px;">
+                                    View
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4">No orders yet</td></tr>';
+                }
+            });
+        }
+
+        // Load orders
+        function loadOrders() {
+            fetch(`${API_BASE_URL}/orders/`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                const tbody = document.getElementById('ordersTableBody');
+                if (data.results && data.results.length > 0) {
+                    tbody.innerHTML = data.results.map(order => `
+                        <tr>
+                            <td><strong>${order.job_number || 'N/A'}</strong></td>
+                            <td>${order.total_items || 0}</td>
+                            <td>
+                                <span class="status-badge status-${order.status}">
+                                    ${order.status || 'Unknown'}
+                                </span>
+                            </td>
+                            <td>$${formatNumber(order.total_price || 0)}</td>
+                            <td>${formatDate(order.created_at)}</td>
+                            <td>
+                                <button class="button-secondary" onclick="viewOrderDetail('${order.id}')" style="padding: 6px 12px; font-size: 12px;">
+                                    Details
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No orders found</td></tr>';
+                }
+            });
+        }
+
+        // Filter orders
+        function filterOrders() {
+            const search = document.getElementById('orderSearch').value;
+            const status = document.getElementById('orderFilter').value;
+            
+            let url = `${API_BASE_URL}/orders/`;
+            const params = new URLSearchParams();
+            
+            if (status) params.append('status', status);
+            if (search) params.append('search', search);
+            
+            if (params.toString()) url += '?' + params.toString();
+            
+            fetch(url, { credentials: 'include' })
+                .then(r => r.json())
+                .then(data => {
+                    const tbody = document.getElementById('ordersTableBody');
+                    if (data.results && data.results.length > 0) {
+                        tbody.innerHTML = data.results.map(order => `
+                            <tr>
+                                <td><strong>${order.job_number || 'N/A'}</strong></td>
+                                <td>${order.total_items || 0}</td>
+                                <td>
+                                    <span class="status-badge status-${order.status}">
+                                        ${order.status || 'Unknown'}
+                                    </span>
+                                </td>
+                                <td>$${formatNumber(order.total_price || 0)}</td>
+                                <td>${formatDate(order.created_at)}</td>
+                                <td>
+                                    <button class="button-secondary" onclick="viewOrderDetail('${order.id}')" style="padding: 6px 12px; font-size: 12px;">
+                                        Details
+                                    </button>
+                                </td>
+                            </tr>
+                        `).join('');
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No matching orders</td></tr>';
+                    }
+                });
+        }
+
+        // Load messages list
+        function loadMessagesList() {
+            fetch(`${API_BASE_URL}/orders/`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                const list = document.getElementById('messagesList');
+                if (data.results && data.results.length > 0) {
+                    list.innerHTML = data.results.map(order => `
+                        <div class="message-thread-item" onclick="loadMessages('${order.id}')">
+                            <div class="thread-title">${order.job_number || 'Order'} - ${order.client_name || 'Unknown'}</div>
+                            <div class="thread-preview">Last message: 2 hours ago</div>
+                        </div>
+                    `).join('');
+                } else {
+                    list.innerHTML = '<div class="empty-state"><div class="empty-icon"><i class="bi bi-chat-dots"></i></div><div class="empty-message">No conversations</div></div>';
+                }
+            });
+        }
+
+        // Load messages for order
+        function loadMessages(orderId) {
+            currentMessageThread = orderId;
+            
+            fetch(`${API_BASE_URL}/client-messages/?order=${orderId}`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                const messagesBody = document.getElementById('messagesBody');
+                const header = document.getElementById('messagesHeader');
+                
+                header.innerHTML = '<div class="thread-title">Order Messages</div>';
+                
+                if (data.results && data.results.length > 0) {
+                    messagesBody.innerHTML = data.results.map(msg => `
+                        <div class="message-item ${msg.sender_type === 'client' ? 'own' : ''}">
+                            <div class="message-bubble ${msg.sender_type === 'client' ? 'own' : 'other'}">
+                                <div class="message-sender">${msg.sender_name}</div>
+                                <div>${msg.message}</div>
+                                <div class="message-time">${formatTime(msg.created_at)}</div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    messagesBody.innerHTML = '<div class="empty-state"><div class="empty-message">No messages yet</div></div>';
+                }
+                
+                // Enable message input
+                document.getElementById('messageInput').disabled = false;
+                document.getElementById('messageInput').placeholder = 'Type a message...';
+                
+                // Scroll to bottom
+                messagesBody.scrollTop = messagesBody.scrollHeight;
+            });
+        }
+
+        // Send message
+        function sendMessage() {
+            if (!currentMessageThread) {
+                showToast('Please select a conversation', 'warning');
+                return;
+            }
+            
+            const message = document.getElementById('messageInput').value.trim();
+            if (!message) return;
+            
+            fetch(`${API_BASE_URL}/client-messages/`, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({
+                    order: currentMessageThread,
+                    message: message
+                })
+            })
+            .then(r => {
+                if (r.ok) {
+                    document.getElementById('messageInput').value = '';
+                    loadMessages(currentMessageThread);
+                    showToast('Message sent successfully', 'success');
+                } else {
+                    showToast('Error sending message', 'error');
+                }
+            })
+            .catch(err => {
+                console.error('Error sending message:', err);
+                showToast('Error sending message', 'error');
+            });
+        }
+
+        // Load proofs
+        function loadProofs() {
+            fetch(`${API_BASE_URL}/proof-submissions/`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                const grid = document.getElementById('proofsGrid');
+                if (data.results && data.results.length > 0) {
+                    grid.innerHTML = data.results.map(proof => `
+                        <div class="proof-card">
+                            <div class="proof-image">
+                                <i class="bi bi-image"></i>
+                            </div>
+                            <div class="proof-info">
+                                <div class="proof-title">${proof.job}</div>
+                                <div class="proof-status">
+                                    <span class="status-badge status-${proof.status}">
+                                        ${proof.status || 'Pending'}
+                                    </span>
+                                </div>
+                                <div class="proof-actions">
+                                    <button onclick="downloadProof('${proof.id}')">Download</button>
+                                    <button onclick="viewProofDetail('${proof.id}')">View</button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="empty-icon"><i class="bi bi-images"></i></div><div class="empty-message">No proofs yet</div></div>';
+                }
+            });
+        }
+
+        // Filter proofs
+        function filterProofs(filter) {
+            document.querySelectorAll('[data-filter]').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-filter="${filter}"]`).classList.add('active');
+            
+            const params = filter === 'all' ? '' : `?status=${filter}`;
+            fetch(`${API_BASE_URL}/proof-submissions/${params}`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                loadProofs();
+            });
+        }
+
+        // Load analytics
+        function loadAnalytics() {
+            fetch(`${API_BASE_URL}/order-metrics/`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    const latest = data.results[0];
+                    document.querySelectorAll('.metric-value').forEach((el, i) => {
+                        if (i === 0) el.textContent = `${latest.on_time_delivery_rate || 0}%`;
+                        if (i === 1) el.textContent = `${latest.avg_turnaround_days || 0} days`;
+                        if (i === 2) el.textContent = `${latest.avg_quality_score || 0}/5`;
+                    });
+                }
+            });
+        }
+
+        // Switch analytics tab
+        function switchAnalyticsTab(tab) {
+            document.querySelectorAll('.analytics-tab').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+            
+            document.querySelectorAll('.analytics-section').forEach(section => section.style.display = 'none');
+            
+            if (tab === 'metrics') {
+                document.getElementById('metricsTab').style.display = 'block';
+            } else if (tab === 'vendor') {
+                document.getElementById('vendorTab').style.display = 'block';
+            } else if (tab === 'trends') {
+                document.getElementById('trendsTab').style.display = 'block';
+            }
+        }
+
+        // Load notifications
+        function loadNotifications() {
+            fetch(`${API_BASE_URL}/client-portal-notifications/`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                const count = data.results ? data.results.filter(n => !n.is_read).length : 0;
+                document.getElementById('notificationCount').textContent = count;
+                showToast(`You have ${count} unread notifications`, 'info');
+            });
+        }
+
+        // Setup auto-refresh
+        function setupAutoRefresh() {
+            // Refresh dashboard every 30 seconds
+            setInterval(() => {
+                if (document.getElementById('dashboard').classList.contains('active')) {
+                    loadDashboard();
+                }
+            }, 30000);
+            
+            // Refresh messages every 10 seconds if in messages tab
+            setInterval(() => {
+                if (document.getElementById('messages').classList.contains('active') && currentMessageThread) {
+                    loadMessages(currentMessageThread);
+                }
+            }, 10000);
+        }
+
+        // Helper functions
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        }
+
+        function formatTime(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatNumber(num) {
+            return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+            return '';
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<strong>${type.charAt(0).toUpperCase() + type.slice(1)}:</strong> ${message}`;
+            container.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 5000);
+        }
+
+        function viewOrderDetail(orderId) {
+            currentOrderId = orderId;
+            fetch(`${API_BASE_URL}/orders/${orderId}/`, {
+                credentials: 'include'
+            })
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('orderDetailContent').innerHTML = `
+                    <div class="form-group">
+                        <label>Order Number</label>
+                        <input type="text" value="${data.job_number || 'N/A'}" readonly>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Status</label>
+                            <input type="text" value="${data.status || 'Unknown'}" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Total Price</label>
+                            <input type="text" value="$${formatNumber(data.total_price || 0)}" readonly>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Created</label>
+                            <input type="text" value="${formatDate(data.created_at)}" readonly>
+                        </div>
+                        <div class="form-group">
+                            <label>Items</label>
+                            <input type="text" value="${data.total_items || 0}" readonly>
+                        </div>
+                    </div>
+                    <div class="button-group">
+                        <button class="button-secondary" onclick="closeModal('orderDetailModal')">Close</button>
+                    </div>
+                `;
+                document.getElementById('orderDetailModal').classList.add('active');
+            });
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function downloadProof(proofId) {
+            showToast('Downloading proof...', 'info');
+            // In real implementation, this would trigger a file download
+        }
+
+        function viewProofDetail(proofId) {
+            showToast('Opening proof detail...', 'info');
+        }
+
+        function savePreferences() {
+            showToast('Preferences saved successfully', 'success');
+        }
+
+        function contactSupport() {
+            window.location.href = 'mailto:support@printduka.com';
+        }
+
+        function downloadGuide() {
+            showToast('Downloading user guide...', 'info');
+        }
+
+        function showUserMenu() {
+            showToast('User menu clicked', 'info');
+        }
+    </script>
+
+    {% csrf_token %}
+</body>
+</html>

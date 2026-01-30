@@ -399,7 +399,9 @@
                     </span>
                 </td>
                 <td class="price">
-                    {% if product.base_price %}
+                    {% if product.customization_level == 'fully_customizable' %}
+                        <span class="text-xs text-gray-600">Formula-Based</span>
+                    {% elif product.base_price %}
                         KES {{ product.base_price|floatformat:2 }}
                     {% elif product.pricing and product.pricing.base_cost %}
                         KES {{ product.pricing.base_cost|floatformat:2 }} <span class="text-xs text-gray-400">(cost)</span>

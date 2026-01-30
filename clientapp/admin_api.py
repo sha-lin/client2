@@ -732,6 +732,7 @@ def api_admin_update_product(request, product_id):
         product.name = request.POST.get('name', product.name).strip()
         product.short_description = request.POST.get('short_description', product.short_description).strip()
         product.long_description = request.POST.get('long_description', product.long_description).strip()
+        product.maintenance = request.POST.get('maintenance', product.maintenance).strip()
         product.technical_specs = request.POST.get('technical_specs', product.technical_specs).strip()
         product.primary_category = request.POST.get('primary_category', product.primary_category).strip()
         product.sub_category = request.POST.get('sub_category', product.sub_category).strip()

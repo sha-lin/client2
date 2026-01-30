@@ -1,0 +1,333 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vendor Invoices - Print Duka{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Vendor Invoices</h1>
+                    <p class="text-gray-600 mt-1">Review and approve vendor invoices</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Filters Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select id="invoiceStatusFilter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">All Status</option>
+                        <option value="submitted">Submitted</option>
+                        <option value="approved">Approved</option>
+                        <option value="rejected">Rejected</option>
+                        <option value="paid">Paid</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search Vendor</label>
+                    <input type="text" id="invoiceSearch" placeholder="Vendor name..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div class="flex items-end gap-2">
+                    <button onclick="loadInvoicesData()" class="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <button onclick="resetInvoiceFilters()" class="flex-1 px-6 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium">
+                        Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoices Table -->
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Invoice #</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Vendor</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Submitted Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">Validation</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="invoicesTableBody">
+                        <tr>
+                            <td colspan="7" class="px-6 py-12 text-center">
+                                <div class="text-gray-500">
+                                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                                    <p>Loading invoices...</p>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Invoice Detail Modal -->
+<div id="invoiceDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-gray-900">Invoice Details</h2>
+            <button onclick="closeModal('invoiceDetailModal')" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <div id="invoiceDetailContent" class="p-6">
+            <!-- Content loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Reason Modal -->
+<div id="rejectionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4">
+        <div class="border-b border-gray-200 px-6 py-4">
+            <h2 class="text-xl font-bold text-gray-900">Reject Invoice</h2>
+        </div>
+        <div class="p-6">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Reason for Rejection</label>
+            <textarea id="rejectionReason" placeholder="Explain why the invoice is being rejected..." rows="5" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"></textarea>
+        </div>
+        <div class="bg-gray-50 border-t border-gray-200 px-6 py-4 flex gap-2 justify-end">
+            <button onclick="closeModal('rejectionModal')" class="px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium">
+                Cancel
+            </button>
+            <button onclick="confirmRejectInvoice()" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
+                Reject Invoice
+            </button>
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/pt-portal-api.js' %}"></script>
+<script>
+const ptAPI = new PTPortalAPI();
+let currentInvoiceId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadInvoicesData();
+});
+
+async function loadInvoicesData() {
+    try {
+        const status = document.getElementById('invoiceStatusFilter').value;
+        const search = document.getElementById('invoiceSearch').value;
+        
+        const filters = {};
+        if (status) filters.status = status;
+        if (search) filters.search = search;
+
+        const data = await ptAPI.getInvoices(filters);
+        displayInvoicesTable(data.results || data);
+    } catch (error) {
+        console.error('Error loading invoices:', error);
+        showNotification('Error loading invoices', 'error');
+    }
+}
+
+function displayInvoicesTable(invoices) {
+    const tbody = document.getElementById('invoicesTableBody');
+    tbody.innerHTML = '';
+
+    if (!invoices || invoices.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="px-6 py-12 text-center text-gray-500">No invoices found</td></tr>';
+        return;
+    }
+
+    invoices.forEach(invoice => {
+        const statusBadge = getStatusBadge(invoice.status);
+        const validationBadge = invoice.is_validated ? 
+            '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">✓ Valid</span>' :
+            '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">⚠ Review</span>';
+        const submittedDate = new Date(invoice.submitted_at).toLocaleDateString();
+        const amount = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(invoice.total_amount || 0);
+
+        const row = document.createElement('tr');
+        row.className = 'hover:bg-gray-50';
+        row.innerHTML = `
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-blue-600">${invoice.invoice_number}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${invoice.vendor?.name || 'N/A'}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${amount}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${submittedDate}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${statusBadge}</td>
+            <td class="px-6 py-4 whitespace-nowrap">${validationBadge}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-right text-sm">
+                <button onclick="viewInvoiceDetail(${invoice.id})" class="text-blue-600 hover:text-blue-900 font-medium">Review</button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getStatusBadge(status) {
+    const statusMap = {
+        'submitted': '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">Submitted</span>',
+        'approved': '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Approved</span>',
+        'rejected': '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800">Rejected</span>',
+        'paid': '<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">Paid</span>'
+    };
+    return statusMap[status] || `<span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">${status}</span>`;
+}
+
+async function viewInvoiceDetail(invoiceId) {
+    try {
+        currentInvoiceId = invoiceId;
+        const invoice = await ptAPI.getInvoiceDetail(invoiceId);
+        const content = document.getElementById('invoiceDetailContent');
+        
+        const submittedDate = new Date(invoice.submitted_at).toLocaleDateString();
+        const amount = new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(invoice.total_amount || 0);
+        const validationStatus = invoice.is_validated ? '✓ Valid' : '⚠ Needs Review';
+        
+        let validationErrorsHTML = '';
+        if (invoice.validation_errors && invoice.validation_errors.length > 0) {
+            validationErrorsHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 class="font-semibold text-red-800 mb-2">Validation Errors:</h4>
+                    <ul class="list-disc list-inside space-y-1">
+                        ${invoice.validation_errors.map(e => `<li class="text-red-700">${e}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        content.innerHTML = `
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Invoice Number</label>
+                        <p class="text-lg font-bold text-gray-900">${invoice.invoice_number}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Status</label>
+                        <p class="text-lg font-bold text-gray-900">${invoice.status}</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Vendor</label>
+                        <p class="text-gray-900">${invoice.vendor?.name || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Amount</label>
+                        <p class="text-lg font-bold text-gray-900">${amount}</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Submitted Date</label>
+                        <p class="text-gray-900">${submittedDate}</p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700">Validation</label>
+                        <p class="text-gray-900">${validationStatus}</p>
+                    </div>
+                </div>
+                
+                ${validationErrorsHTML}
+                
+                ${invoice.notes ? `
+                    <div>
+                        <label class="block text-xs font-medium text-gray-700 mb-2">Notes</label>
+                        <p class="text-gray-900 bg-gray-50 rounded p-3">${invoice.notes}</p>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="flex gap-2 mt-6">
+                ${invoice.status === 'submitted' ? `
+                    <button onclick="approveInvoice()" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium">
+                        ✓ Approve
+                    </button>
+                    <button onclick="showRejectionModal()" class="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium">
+                        ✕ Reject
+                    </button>
+                ` : ''}
+                <button onclick="closeModal('invoiceDetailModal')" class="px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium">
+                    Close
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('invoiceDetailModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading invoice details:', error);
+        showNotification('Error loading invoice details', 'error');
+    }
+}
+
+async function approveInvoice() {
+    try {
+        await ptAPI.approveInvoice(currentInvoiceId);
+        showNotification('Invoice approved successfully', 'success');
+        closeModal('invoiceDetailModal');
+        loadInvoicesData();
+    } catch (error) {
+        console.error('Error approving invoice:', error);
+        showNotification('Error approving invoice', 'error');
+    }
+}
+
+function showRejectionModal() {
+    document.getElementById('rejectionModal').classList.remove('hidden');
+}
+
+async function confirmRejectInvoice() {
+    const reason = document.getElementById('rejectionReason').value.trim();
+    if (!reason) {
+        showNotification('Please provide a reason for rejection', 'error');
+        return;
+    }
+    
+    try {
+        await ptAPI.rejectInvoice(currentInvoiceId, reason);
+        showNotification('Invoice rejected successfully', 'success');
+        closeModal('rejectionModal');
+        closeModal('invoiceDetailModal');
+        document.getElementById('rejectionReason').value = '';
+        loadInvoicesData();
+    } catch (error) {
+        console.error('Error rejecting invoice:', error);
+        showNotification('Error rejecting invoice', 'error');
+    }
+}
+
+function resetInvoiceFilters() {
+    document.getElementById('invoiceStatusFilter').value = '';
+    document.getElementById('invoiceSearch').value = '';
+    loadInvoicesData();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+    notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}

@@ -164,6 +164,15 @@
                                     </div>
                                 </div>
                                 {% endif %}
+
+                                {% if product.maintenance %}
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">Maintenance</label>
+                                    <div class="text-gray-900 bg-white p-3 rounded border border-gray-200">
+                                        {{ product.maintenance|striptags }}
+                                    </div>
+                                </div>
+                                {% endif %}
                             </div>
                         </div>
 
@@ -238,6 +247,18 @@
                         <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-6 border border-blue-200">
                             <h3 class="text-lg font-semibold text-gray-900 mb-4">Pricing</h3>
                             <div class="space-y-3">
+                                <!-- Fully Customizable with Formula Process -->
+                                {% if product.customization_level == 'fully_customizable' and pricing.0.formula_process %}
+                                <div>
+                                    <p class="text-sm text-gray-600">Pricing Type</p>
+                                    <p class="text-gray-900">Formula-Based (Customization Pricing)</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Process</p>
+                                    <p class="text-gray-900">{{ pricing.0.formula_process.process_name }}</p>
+                                </div>
+                                <!-- Non-Customizable with Base Price -->
+                                {% elif product.customization_level == 'non_customizable' %}
                                 <div>
                                     <p class="text-sm text-gray-600">Base Price</p>
                                     <p class="text-2xl font-bold text-blue-600">
@@ -252,6 +273,35 @@
                                 <div>
                                     <p class="text-sm text-gray-600">Base Cost</p>
                                     <p class="text-gray-900">KES {{ product.base_cost|floatformat:2 }}</p>
+                                </div>
+                                {% endif %}
+                                <!-- Semi-Customizable -->
+                                {% elif product.customization_level == 'semi_customizable' %}
+                                <div>
+                                    <p class="text-sm text-gray-600">Base Price</p>
+                                    <p class="text-2xl font-bold text-blue-600">
+                                        {% if product.base_price %}
+                                            KES {{ product.base_price|floatformat:2 }}
+                                        {% else %}
+                                            Starting Price
+                                        {% endif %}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Pricing Model</p>
+                                    <p class="text-gray-900">Variable (with customization options)</p>
+                                </div>
+                                {% else %}
+                                <!-- Default Fallback -->
+                                <div>
+                                    <p class="text-sm text-gray-600">Base Price</p>
+                                    <p class="text-2xl font-bold text-blue-600">
+                                        {% if product.base_price %}
+                                            KES {{ product.base_price|floatformat:2 }}
+                                        {% else %}
+                                            Custom Quote
+                                        {% endif %}
+                                    </p>
                                 </div>
                                 {% endif %}
                             </div>
@@ -336,10 +386,124 @@
             <!-- Pricing Tab -->
             <div id="pricing-panel" role="tabpanel" class="tab-panel hidden">
                 <div class="space-y-6">
-                    <!-- Quantity-Based Pricing Tiers -->
+                    <!-- Fully Customizable - Formula Process Only -->
+                    {% if product.customization_level == 'fully_customizable' and pricing.0.formula_process %}
                     <div class="bg-white rounded-lg shadow-lg p-6">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Pricing Tiers</h3>
-                        {% if product.quantity_pricing.all %}
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Formula-Based Pricing</h3>
+                        <div class="space-y-4">
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Pricing Type</label>
+                                    <p class="text-gray-900">Formula-Based (Customization)</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Selected Process</label>
+                                    <p class="text-gray-900">{{ pricing.0.formula_process.process_name }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Pricing Category</label>
+                                    <p class="text-gray-900">{{ pricing.0.formula_process.get_category_display }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Lead Time</label>
+                                    <p class="text-gray-900">{{ pricing.0.formula_process.standard_lead_time }} days</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Base Cost (per unit)</label>
+                                    <p class="text-gray-900 font-semibold">KES {{ pricing.0.formula_process.base_cost|floatformat:2 }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Pricing Type</label>
+                                    <p class="text-gray-900">{{ pricing.0.formula_process.get_pricing_type_display }}</p>
+                                </div>
+                                {% if formula_process_variables_cost %}
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Total Variables Cost</label>
+                                    <p class="text-gray-900 font-semibold text-lg text-green-600">KES {{ formula_process_variables_cost|floatformat:2 }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% if pricing.0.formula_process.description %}
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <label class="text-sm font-medium text-gray-600">Process Description</label>
+                                <p class="text-gray-700 mt-2">{{ pricing.0.formula_process.description }}</p>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Variables Breakdown -->
+                            {% if pricing.0.formula_process.variables.all %}
+                            <div class="mt-4 pt-4 border-t border-gray-200">
+                                <label class="text-sm font-medium text-gray-600 mb-3 block">Process Variables</label>
+                                <div class="space-y-2">
+                                    {% for var in pricing.0.formula_process.variables.all %}
+                                    <div class="flex justify-between items-center bg-gray-50 p-3 rounded">
+                                        <div>
+                                            <p class="font-medium text-gray-900">{{ var.variable_name }}</p>
+                                            {% if var.unit %}<p class="text-xs text-gray-600">Unit: {{ var.unit }}</p>{% endif %}
+                                        </div>
+                                        <div class="text-right">
+                                            {% if var.price > 0 %}
+                                            <p class="font-semibold text-gray-900">KES {{ var.price|floatformat:2 }}</p>
+                                            {% elif var.ranges.all %}
+                                            <p class="font-semibold text-gray-900">KES {{ var.ranges.first.price|floatformat:2 }}</p>
+                                            <p class="text-xs text-gray-600">(from first range)</p>
+                                            {% else %}
+                                            <p class="text-gray-500">No pricing</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                                <p class="text-sm text-blue-800">
+                                    <i class="fas fa-info-circle mr-2"></i>
+                                    This product uses a formula-based pricing model. Price is calculated based on selected customization options.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Non-Customizable - Base Price Only -->
+                    {% elif product.customization_level == 'non_customizable' and pricing %}
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Fixed Price Configuration</h3>
+                        <div class="space-y-4">
+                            {% for price_config in pricing %}
+                            <div class="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Pricing Model</label>
+                                    <p class="text-gray-900">{{ price_config.get_pricing_model_display }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Base Cost</label>
+                                    <p class="text-gray-900">KES {{ price_config.base_cost|floatformat:2 }}</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Default Margin</label>
+                                    <p class="text-gray-900">{{ price_config.default_margin }}%</p>
+                                </div>
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Minimum Margin</label>
+                                    <p class="text-gray-900">{{ price_config.minimum_margin }}%</p>
+                                </div>
+                                {% if price_config.production_method %}
+                                <div>
+                                    <label class="text-sm font-medium text-gray-600">Production Method</label>
+                                    <p class="text-gray-900">{{ price_config.get_production_method_display }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Quantity-Based Pricing Tiers -->
+                    {% if product.quantity_pricing.all %}
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Quantity-Based Pricing Tiers</h3>
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm">
                                 <thead class="bg-gray-100">
@@ -374,15 +538,11 @@
                                 </tbody>
                             </table>
                         </div>
-                        {% else %}
-                        <div class="bg-gray-50 rounded-lg p-6 text-center text-gray-600">
-                            <p>No pricing tiers configured</p>
-                        </div>
-                        {% endif %}
                     </div>
+                    {% endif %}
 
-                    <!-- Base Pricing Configuration -->
-                    {% if pricing %}
+                    <!-- Semi-Customizable - Base Price + Customization Options -->
+                    {% elif product.customization_level == 'semi_customizable' and pricing %}
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Base Pricing Configuration</h3>
                         <div class="space-y-4">
@@ -404,12 +564,6 @@
                                     <label class="text-sm font-medium text-gray-600">Minimum Margin</label>
                                     <p class="text-gray-900">{{ price_config.minimum_margin }}%</p>
                                 </div>
-                                {% if price_config.lead_time_value %}
-                                <div>
-                                    <label class="text-sm font-medium text-gray-600">Lead Time</label>
-                                    <p class="text-gray-900">{{ price_config.lead_time_value }} {{ price_config.get_lead_time_unit_display|lower }}</p>
-                                </div>
-                                {% endif %}
                                 {% if price_config.production_method %}
                                 <div>
                                     <label class="text-sm font-medium text-gray-600">Production Method</label>
@@ -420,9 +574,51 @@
                             {% endfor %}
                         </div>
                     </div>
+
+                    <!-- Quantity-Based Pricing Tiers -->
+                    {% if product.quantity_pricing.all %}
+                    <div class="bg-white rounded-lg shadow-lg p-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Pricing Tiers</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-100">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Quantity Range</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Unit Price</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Discount</th>
+                                        <th class="px-4 py-3 text-left font-semibold text-gray-900">Total Price</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    {% for tier in product.quantity_pricing.all %}
+                                    <tr class="hover:bg-gray-50">
+                                        <td class="px-4 py-3 text-gray-900">
+                                            {% if tier.max_quantity %}
+                                                {{ tier.min_quantity }}-{{ tier.max_quantity }} units
+                                            {% else %}
+                                                {{ tier.min_quantity }}+ units
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-4 py-3 font-semibold text-gray-900">KES {{ tier.unit_price|floatformat:2 }}</td>
+                                        <td class="px-4 py-3 text-gray-700">
+                                            {% if tier.percentage_discount > 0 %}
+                                                {{ tier.percentage_discount }}%
+                                            {% else %}
+                                                —
+                                            {% endif %}
+                                        </td>
+                                        <td class="px-4 py-3 font-semibold text-green-600">KES {{ tier.unit_price|floatformat:2 }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                     {% endif %}
 
-                    <!-- Customization Options -->
+                    <!-- Customization Options (Semi and Fully Customizable) -->
+                    {% endif %}
+                    
                     {% if product.variables.all %}
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4">Customization Options</h3>
@@ -463,44 +659,42 @@
                 {% if images %}
                 <div class="space-y-6">
                     <!-- Primary Image Display -->
-                    {% with primary=images|first %}
-                    {% if primary.is_primary %}
-                    <div class="bg-white rounded-lg overflow-hidden shadow-lg border-2 border-blue-200">
-                        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 flex items-center justify-between">
-                            <h3 class="text-lg font-semibold text-gray-900">Primary Product Image</h3>
-                            <span class="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded-full">Featured</span>
-                        </div>
-                        <div class="relative bg-gray-100 flex items-center justify-center" style="min-height: 400px;">
-                            {% if primary.image %}
-                            <img src="{{ primary.image.url }}" alt="{{ primary.alt_text }}" class="max-w-full max-h-96 object-contain">
-                            {% else %}
-                            <div class="flex flex-col items-center justify-center">
-                                <i class="fas fa-image text-gray-400 text-6xl mb-4"></i>
-                                <p class="text-gray-500">No image available</p>
+                    {% for primary_img in images %}
+                        {% if primary_img.is_primary %}
+                        <div class="bg-white rounded-lg overflow-hidden shadow-lg border-2 border-blue-200">
+                            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 flex items-center justify-between">
+                                <h3 class="text-lg font-semibold text-gray-900">Primary Product Image</h3>
+                                <span class="px-3 py-1 bg-blue-600 text-white text-xs font-medium rounded-full">Featured</span>
                             </div>
-                            {% endif %}
+                            <div class="relative bg-gray-100 flex items-center justify-center" style="min-height: 400px;">
+                                {% if primary_img.image %}
+                                <img src="{{ primary_img.image.url }}" alt="{{ primary_img.alt_text }}" class="max-w-full max-h-96 object-contain">
+                                {% else %}
+                                <div class="flex flex-col items-center justify-center">
+                                    <i class="fas fa-image text-gray-400 text-6xl mb-4"></i>
+                                    <p class="text-gray-500">No image available</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="p-6 bg-white border-t border-gray-200">
+                                <p class="text-sm text-gray-600 mb-2"><strong>Description:</strong></p>
+                                <p class="text-gray-900">{{ primary_img.alt_text }}</p>
+                                {% if primary_img.caption %}
+                                <p class="text-sm text-gray-600 mt-2"><strong>Caption:</strong> {{ primary_img.caption }}</p>
+                                {% endif %}
+                            </div>
                         </div>
-                        <div class="p-6 bg-white border-t border-gray-200">
-                            <p class="text-sm text-gray-600 mb-2"><strong>Description:</strong></p>
-                            <p class="text-gray-900">{{ primary.alt_text }}</p>
-                            {% if primary.caption %}
-                            <p class="text-sm text-gray-600 mt-2"><strong>Caption:</strong> {{ primary.caption }}</p>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endif %}
-                    {% endwith %}
+                        {% endif %}
+                    {% endfor %}
 
                     <!-- Additional Images Gallery -->
-                    {% with additional=images|slice:"1:" %}
-                    {% if additional %}
                     <div class="bg-white rounded-lg shadow-lg p-6">
                         <h3 class="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                             <i class="fas fa-images text-blue-600"></i>
-                            Additional Product Images ({{ additional|length }})
+                            All Product Images ({{ images|length }})
                         </h3>
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                            {% for image in additional %}
+                            {% for image in images %}
                             <div class="group relative bg-gray-100 rounded-lg overflow-hidden shadow hover:shadow-lg transition-shadow cursor-pointer border-2 border-transparent hover:border-blue-400" 
                                  onclick="openImageLightbox('{{ image.image.url }}', '{{ image.alt_text }}')">
                                 <div class="relative overflow-hidden bg-gray-100">
@@ -510,6 +704,11 @@
                                     <div class="w-full h-48 flex items-center justify-center bg-gray-300">
                                         <i class="fas fa-image text-gray-400 text-3xl"></i>
                                     </div>
+                                    {% endif %}
+                                    
+                                    <!-- Primary Badge -->
+                                    {% if image.is_primary %}
+                                    <div class="absolute top-2 right-2 px-2 py-1 bg-blue-600 text-white text-xs font-medium rounded">Primary</div>
                                     {% endif %}
                                     
                                     <!-- Hover Overlay -->
@@ -529,8 +728,6 @@
                             {% endfor %}
                         </div>
                     </div>
-                    {% endif %}
-                    {% endwith %}
                 </div>
 
                 <!-- Lightbox Modal -->

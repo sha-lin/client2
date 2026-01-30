@@ -482,7 +482,7 @@ class Product(models.Model):
         ('packs', 'Packs'),
         ('sets', 'Sets'),
         ('sqm', 'm²'),
-        ('other', 'Other'),
+        ('cm', 'Centimeters'),
     ]
     
     # Weight Unit Choices
@@ -528,6 +528,7 @@ class Product(models.Model):
     auto_generate_code = models.BooleanField(default=True, editable=False)  
     short_description = models.CharField(max_length=150)
     long_description = models.TextField()
+    maintenance = models.TextField(blank=True, help_text="Product maintenance details and care instructions")
     technical_specs = models.TextField(blank=True)
     
     # Classification
@@ -770,10 +771,7 @@ class ProductPricing(models.Model):
     return_margin = models.DecimalField(max_digits=5, decimal_places=2, default=30, validators=[MinValueValidator(0), MaxValueValidator(100)], help_text="Margin percentage for this product")
     
     # Production & Vendor Information
-    lead_time_value = models.IntegerField(default=3)
-    lead_time_unit = models.CharField(max_length=10, choices=LEAD_TIME_UNIT_CHOICES, default='days')
     production_method = models.CharField(max_length=50, choices=PRODUCTION_METHOD_CHOICES, default='digital-offset')
-    primary_vendor = models.ForeignKey('Vendor', on_delete=models.PROTECT, related_name='primary_products', null=True, blank=True)
     alternative_vendors = models.ManyToManyField('Vendor', related_name='alternative_products', blank=True)
     minimum_quantity = models.IntegerField(default=1)
     
@@ -4879,10 +4877,16 @@ class PurchaseOrderNote(models.Model):
     sender = models.ForeignKey(User, on_delete=models.CASCADE)
     category = models.CharField(max_length=20)
     message = models.TextField()
+    file_attachment = models.FileField(upload_to='po_notes/%Y/%m/', null=True, blank=True)
+    read_by = models.ManyToManyField(User, related_name='read_po_notes', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     
     class Meta:
         ordering = ['created_at']
+    
+    @property
+    def has_attachment(self):
+        return bool(self.file_attachment)
 
 
 
@@ -6514,3 +6518,1052 @@ class ProductionUnit(models.Model):
             if self.job:
                 self.unit_id = f"UNIT-{self.job.job_number}-{str(self.unit_sequence).zfill(2)}"
         super().save(*args, **kwargs)
+
+
+# ==================== PHASE 2 MODELS ====================
+
+class Message(models.Model):
+    """Messaging between vendors and production team"""
+    SENDER_TYPES = [
+        ('PT', 'Production Team'),
+        ('Vendor', 'Vendor'),
+    ]
+    TASK_STATUS = [
+        ('pending', 'Pending'),
+        ('acknowledged', 'Acknowledged'),
+        ('escalated', 'Escalated'),
+    ]
+    PRIORITY_LEVELS = [
+        ('low', 'Low'),
+        ('normal', 'Normal'),
+        ('high', 'High'),
+    ]
+    
+    job = models.ForeignKey('Job', on_delete=models.CASCADE, related_name='phase2_messages')
+    sender_type = models.CharField(max_length=20, choices=SENDER_TYPES)
+    sender_id = models.IntegerField()  # User ID
+    sender_name = models.CharField(max_length=200)
+    recipient_type = models.CharField(max_length=20, choices=SENDER_TYPES)
+    recipient_id = models.IntegerField()  # User ID
+    recipient_name = models.CharField(max_length=200)
+    content = models.TextField()
+    
+    # Task fields
+    is_task = models.BooleanField(default=False)
+    task_status = models.CharField(max_length=20, choices=TASK_STATUS, default='pending')
+    task_priority = models.CharField(max_length=20, choices=PRIORITY_LEVELS, default='normal')
+    task_due_date = models.DateTimeField(null=True, blank=True)
+    task_acknowledged_at = models.DateTimeField(null=True, blank=True)
+    
+    # Status
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['job', 'created_at']),
+            models.Index(fields=['recipient_id', 'is_read']),
+        ]
+    
+    def __str__(self):
+        return f"{self.sender_name} → {self.recipient_name} ({self.job.job_number})"
+    
+    def acknowledge_task(self):
+        """Mark task as acknowledged"""
+        if self.is_task:
+            self.task_status = 'acknowledged'
+            self.task_acknowledged_at = timezone.now()
+            self.save()
+
+
+class MessageAttachment(models.Model):
+    """File attachments in messages"""
+    message = models.ForeignKey(Message, on_delete=models.CASCADE, related_name='attachments')
+    file = models.FileField(upload_to='message_attachments/%Y/%m/%d/')
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=50)  # 'pdf', 'jpg', 'png', 'doc'
+    file_size = models.IntegerField()  # in bytes
+    thumbnail = models.ImageField(upload_to='message_thumbnails/%Y/%m/%d/', null=True, blank=True)
+    duration = models.IntegerField(null=True, blank=True)  # for videos, in seconds
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.file_name} ({self.message.id})"
+
+
+class ProgressUpdate(models.Model):
+    """Vendor progress updates on jobs"""
+    STATUS_CHOICES = [
+        ('on_schedule', 'On Schedule'),
+        ('behind', 'Behind'),
+        ('ahead', 'Ahead'),
+    ]
+    
+    job = models.ForeignKey('Job', on_delete=models.CASCADE, related_name='progress_updates')
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='progress_updates')
+    percentage_complete = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)])
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    notes = models.TextField(blank=True)
+    issues = models.TextField(blank=True)  # Any blockers or issues
+    eta = models.DateTimeField(null=True, blank=True)  # Estimated completion
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['job', 'created_at']),
+            models.Index(fields=['vendor', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.job.job_number} - {self.percentage_complete}% ({self.status})"
+
+
+class ProgressUpdatePhoto(models.Model):
+    """Photos attached to progress updates"""
+    progress_update = models.ForeignKey(ProgressUpdate, on_delete=models.CASCADE, related_name='photos')
+    photo = models.ImageField(upload_to='progress_photos/%Y/%m/%d/')
+    caption = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['created_at']
+    
+    def __str__(self):
+        return f"Photo - {self.progress_update.job.job_number}"
+
+
+class ProofSubmission(models.Model):
+    """Vendor proof submissions (deliverables)"""
+    PROOF_TYPES = [
+        ('sample', 'Sample'),
+        ('final', 'Final'),
+        ('before_after', 'Before/After'),
+    ]
+    REVIEW_STATUS = [
+        ('pending_review', 'Pending Review'),
+        ('approved', 'Approved'),
+        ('revision_requested', 'Revision Requested'),
+    ]
+    
+    job = models.ForeignKey('Job', on_delete=models.CASCADE, related_name='proofs')
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='proofs')
+    proof_type = models.CharField(max_length=20, choices=PROOF_TYPES)
+    description = models.TextField()
+    status = models.CharField(max_length=20, choices=REVIEW_STATUS, default='pending_review')
+    
+    # Review fields
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_proofs')
+    review_notes = models.TextField(blank=True)  # Feedback for revisions or notes
+    
+    class Meta:
+        ordering = ['-submitted_at']
+        indexes = [
+            models.Index(fields=['job', 'status']),
+            models.Index(fields=['vendor', 'submitted_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.job.job_number} - {self.proof_type} ({self.status})"
+
+
+class VendorPerformanceScore(models.Model):
+    """Calculated vendor performance metrics"""
+    vendor = models.OneToOneField('Vendor', on_delete=models.CASCADE, related_name='vps_history')
+    
+    # Scores (0-100)
+    on_time_delivery_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    quality_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    communication_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    average_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Job counts
+    jobs_completed_90_days = models.IntegerField(default=0)
+    on_time_jobs = models.IntegerField(default=0)
+    
+    # Calculated metrics
+    on_time_delivery_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    average_quality_rating = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    average_communication_rating = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Metadata
+    last_recalculated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name = "Vendor Performance Score"
+        verbose_name_plural = "Vendor Performance Scores"
+    
+    def __str__(self):
+        return f"{self.vendor.name} - {self.average_score:.1f}"
+
+
+# ==================== PHASE 3: CLIENT PORTAL MODELS ====================
+
+class ClientNotification(models.Model):
+    """Notifications for clients about their orders and system events"""
+    NOTIFICATION_TYPES = [
+        ('order_update', 'Order Update'),
+        ('proof_ready', 'Proof Ready'),
+        ('message', 'New Message'),
+        ('payment', 'Payment Notice'),
+        ('alert', 'Alert'),
+        ('system', 'System Notification'),
+    ]
+    
+    client = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
+    
+    # Tracking
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    
+    # Optional link to related object
+    link = models.URLField(blank=True, null=True, help_text="Link to related order or resource")
+    
+    # Related object references
+    order = models.ForeignKey('Order', on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications')
+    proof = models.ForeignKey(ProofSubmission, on_delete=models.SET_NULL, null=True, blank=True, related_name='notifications')
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', '-created_at']),
+            models.Index(fields=['client', 'is_read']),
+        ]
+    
+    def __str__(self):
+        return f"{self.client.client_id} - {self.title[:50]}"
+    
+    def mark_as_read(self):
+        """Mark notification as read"""
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save()
+
+
+class ClientMessage(models.Model):
+    """Real-time messaging between clients and PT team"""
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='client_messages')
+    sender = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='client_messages_sent')
+    sender_type = models.CharField(max_length=10, choices=[('client', 'Client'), ('staff', 'PT Staff')])
+    
+    message = models.TextField()
+    attachment = models.FileField(upload_to='client_messages/%Y/%m/%d/', null=True, blank=True)
+    
+    # Tracking
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    read_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['created_at']
+        indexes = [
+            models.Index(fields=['order', 'created_at']),
+            models.Index(fields=['sender', 'created_at']),
+        ]
+    
+    def __str__(self):
+        return f"{self.order.job_number} - {self.sender.username} ({self.created_at.strftime('%Y-%m-%d %H:%M')})"
+    
+    def mark_as_read(self):
+        """Mark message as read"""
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save()
+
+
+class ClientDashboard(models.Model):
+    """Client dashboard metrics aggregated for quick view"""
+    client = models.OneToOneField('Client', on_delete=models.CASCADE, related_name='dashboard')
+    
+    # Order metrics
+    total_orders = models.IntegerField(default=0)
+    active_orders = models.IntegerField(default=0)
+    completed_orders = models.IntegerField(default=0)
+    pending_proofs = models.IntegerField(default=0)
+    overdue_orders = models.IntegerField(default=0)
+    
+    # Financial metrics
+    total_spent = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    pending_payment = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Trends (last 30 days)
+    orders_this_month = models.IntegerField(default=0)
+    avg_completion_days = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    on_time_delivery_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Tracking
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        verbose_name_plural = "Client Dashboards"
+    
+    def __str__(self):
+        return f"{self.client.client_id} - Dashboard"
+    
+    def refresh_metrics(self):
+        """Recalculate dashboard metrics from related orders"""
+        from django.db.models import Count, Q
+        from datetime import timedelta
+        
+        now = timezone.now()
+        thirty_days_ago = now - timedelta(days=30)
+        
+        # Count orders by status
+        orders = self.client.orders.all()
+        self.total_orders = orders.count()
+        self.completed_orders = orders.filter(status='completed').count()
+        self.active_orders = orders.filter(status__in=['pending', 'in_progress', 'approved']).count()
+        self.overdue_orders = orders.filter(deadline__lt=now, status__in=['pending', 'in_progress']).count()
+        
+        # Count pending proofs
+        self.pending_proofs = orders.filter(
+            proofs__status='pending_review'
+        ).distinct().count()
+        
+        # Financial metrics
+        self.total_spent = sum([o.total_price for o in orders]) or 0
+        self.pending_payment = sum([o.total_price for o in orders.filter(payment_status='pending')]) or 0
+        
+        # This month metrics
+        self.orders_this_month = orders.filter(created_at__gte=thirty_days_ago).count()
+        
+        # Calculate completion time
+        completed = orders.filter(status='completed').exclude(completed_at__isnull=True)
+        if completed.exists():
+            avg_days = sum([(o.completed_at - o.created_at).days for o in completed]) / completed.count()
+            self.avg_completion_days = avg_days
+        
+        self.save()
+
+
+class ClientFeedback(models.Model):
+    """Feedback from clients about orders and vendors"""
+    FEEDBACK_TYPES = [
+        ('quality', 'Quality'),
+        ('cost', 'Cost/Pricing'),
+        ('timeline', 'Timeline/Delivery'),
+        ('vendor', 'Vendor Performance'),
+        ('general', 'General Feedback'),
+    ]
+    
+    RATINGS = [(i, str(i)) for i in range(1, 6)]  # 1-5 star rating
+    
+    order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='client_feedback')
+    client = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='feedback_given')
+    
+    feedback_type = models.CharField(max_length=20, choices=FEEDBACK_TYPES)
+    rating = models.IntegerField(choices=RATINGS, help_text="1 = Poor, 5 = Excellent")
+    comment = models.TextField(blank=True, help_text="Detailed feedback or comments")
+    
+    # Vendor reference (optional)
+    vendor = models.ForeignKey('Vendor', on_delete=models.SET_NULL, null=True, blank=True, related_name='client_feedback')
+    
+    # Proof reference (optional)
+    proof = models.ForeignKey(ProofSubmission, on_delete=models.SET_NULL, null=True, blank=True, related_name='client_feedback')
+    
+    # Status
+    is_addressed = models.BooleanField(default=False, help_text="Whether PT has addressed this feedback")
+    response = models.TextField(blank=True, help_text="PT response to feedback")
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['order', 'created_at']),
+            models.Index(fields=['client', 'created_at']),
+            models.Index(fields=['vendor', 'rating']),
+        ]
+    
+    def __str__(self):
+        return f"{self.order.job_number} - {self.feedback_type} ({self.rating}/5)"
+
+
+# ==================== PHASE 3: ANALYTICS MODELS ====================
+
+class OrderMetrics(models.Model):
+    """Monthly order metrics aggregated by client and time period"""
+    client = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='order_metrics')
+    month = models.DateField(help_text="First day of month for this metric")
+    
+    # Order counts
+    total_orders = models.IntegerField(default=0)
+    completed_orders = models.IntegerField(default=0)
+    pending_orders = models.IntegerField(default=0)
+    cancelled_orders = models.IntegerField(default=0)
+    
+    # Financial metrics
+    total_value = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    avg_order_value = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    total_revenue = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Performance metrics
+    avg_turnaround_days = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    on_time_delivery_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text="Percentage 0-100")
+    completion_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Quality metrics
+    avg_quality_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    proofs_approved_first_attempt = models.IntegerField(default=0)
+    revision_requests = models.IntegerField(default=0)
+    
+    # Tracking
+    calculated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-month']
+        unique_together = ['client', 'month']
+        indexes = [
+            models.Index(fields=['client', 'month']),
+            models.Index(fields=['month']),
+        ]
+        verbose_name_plural = "Order Metrics"
+    
+    def __str__(self):
+        return f"{self.client.client_id} - {self.month.strftime('%B %Y')}"
+
+
+class VendorComparison(models.Model):
+    """Compare vendor performance for client insights"""
+    client = models.ForeignKey('Client', on_delete=models.CASCADE, related_name='vendor_comparisons')
+    vendor1 = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='comparisons_as_vendor1')
+    vendor2 = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='comparisons_as_vendor2')
+    
+    comparison_date = models.DateField(auto_now_add=True)
+    
+    # Quality scores
+    quality_score_1 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    quality_score_2 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Cost comparison (average cost per unit)
+    avg_cost_1 = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    avg_cost_2 = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    
+    # Speed (average turnaround days)
+    avg_turnaround_1 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    avg_turnaround_2 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Reliability (on-time percentage)
+    on_time_rate_1 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    on_time_rate_2 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Overall scores
+    overall_score_1 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    overall_score_2 = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Recommendation
+    winner = models.CharField(max_length=10, choices=[('vendor1', 'Vendor 1'), ('vendor2', 'Vendor 2'), ('tie', 'Tie')], null=True, blank=True)
+    reason = models.TextField(blank=True)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-comparison_date']
+        indexes = [
+            models.Index(fields=['client', 'comparison_date']),
+            models.Index(fields=['vendor1', 'vendor2']),
+        ]
+        verbose_name_plural = "Vendor Comparisons"
+    
+    def __str__(self):
+        return f"{self.client.client_id} - {self.vendor1.name} vs {self.vendor2.name}"
+
+
+class PerformanceAnalytics(models.Model):
+    """Monthly performance analytics for vendors"""
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='performance_analytics')
+    month = models.DateField(help_text="First day of month for this metric")
+    
+    # Order statistics
+    orders_completed = models.IntegerField(default=0)
+    orders_on_time = models.IntegerField(default=0)
+    orders_late = models.IntegerField(default=0)
+    
+    # Quality metrics
+    quality_score = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text="0-100 scale")
+    proofs_approved_first_attempt = models.IntegerField(default=0)
+    revision_requests = models.IntegerField(default=0)
+    rejection_rate = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Efficiency metrics
+    avg_turnaround_hours = models.DecimalField(max_digits=6, decimal_places=2, default=0)
+    on_time_delivery_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Cost efficiency
+    avg_cost_per_unit = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    cost_variance_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0, help_text="vs average")
+    
+    # Communication & reliability
+    communication_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    reliability_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    # Trend
+    TREND_CHOICES = [
+        ('up', 'Improving ↑'),
+        ('down', 'Declining ↓'),
+        ('stable', 'Stable →'),
+    ]
+    overall_trend = models.CharField(max_length=10, choices=TREND_CHOICES, default='stable')
+    trend_description = models.CharField(max_length=255, blank=True)
+    
+    # Ranking
+    ranking = models.IntegerField(null=True, blank=True, help_text="Rank among all vendors this month")
+    percentile = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True, help_text="Percentile 0-100")
+    
+    # Tracking
+    calculated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-month', '-overall_trend']
+        unique_together = ['vendor', 'month']
+        indexes = [
+            models.Index(fields=['vendor', 'month']),
+            models.Index(fields=['month', 'ranking']),
+        ]
+        verbose_name_plural = "Performance Analytics"
+    
+    def __str__(self):
+        return f"{self.vendor.name} - {self.month.strftime('%B %Y')}"
+
+
+# ==================== PHASE 3: PAYMENT TRACKING MODELS ====================
+
+class PaymentStatus(models.Model):
+    """Track payment status for invoices"""
+    PAYMENT_STATUS = [
+        ('pending', 'Pending'),
+        ('partial', 'Partially Paid'),
+        ('paid', 'Fully Paid'),
+        ('overdue', 'Overdue'),
+        ('cancelled', 'Cancelled'),
+    ]
+    
+    PAYMENT_METHODS = [
+        ('bank_transfer', 'Bank Transfer'),
+        ('mpesa', 'M-Pesa'),
+        ('cash', 'Cash'),
+        ('check', 'Check'),
+        ('credit_card', 'Credit Card'),
+    ]
+    
+    # Reference to ClientInvoice (nullable if invoice gets deleted)
+    client_invoice = models.OneToOneField('ClientInvoice', on_delete=models.CASCADE, related_name='payment_status', null=True, blank=True)
+    
+    # Payment amounts
+    amount_due = models.DecimalField(max_digits=12, decimal_places=2)
+    amount_paid = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    amount_pending = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Status tracking
+    status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    
+    # Dates
+    due_date = models.DateField()
+    paid_date = models.DateField(null=True, blank=True)
+    payment_method = models.CharField(max_length=20, choices=PAYMENT_METHODS, null=True, blank=True)
+    
+    # Tracking
+    days_overdue = models.IntegerField(default=0)
+    is_overdue = models.BooleanField(default=False)
+    last_payment_date = models.DateField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['due_date']
+        indexes = [
+            models.Index(fields=['status', 'due_date']),
+            models.Index(fields=['client_invoice', 'status']),
+        ]
+    
+    def __str__(self):
+        invoice_num = self.client_invoice.invoice_number if self.client_invoice else "Unknown"
+        return f"{invoice_num} - {self.status}"
+    
+    def calculate_overdue(self):
+        """Calculate if payment is overdue and days overdue"""
+        if self.status != 'paid' and self.due_date < timezone.now().date():
+            self.is_overdue = True
+            self.days_overdue = (timezone.now().date() - self.due_date).days
+        else:
+            self.is_overdue = False
+            self.days_overdue = 0
+
+
+class PaymentHistory(models.Model):
+    """Track individual payment transactions"""
+    payment_status = models.ForeignKey(PaymentStatus, on_delete=models.CASCADE, related_name='payment_history')
+    
+    payment_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    payment_date = models.DateField()
+    
+    # Transaction details
+    reference_number = models.CharField(max_length=100, help_text="Bank reference, M-Pesa ref, etc")
+    payment_method = models.CharField(
+        max_length=20,
+        choices=PaymentStatus.PAYMENT_METHODS
+    )
+    
+    # Additional info
+    bank_account = models.CharField(max_length=50, blank=True, null=True)
+    depositor_name = models.CharField(max_length=255, blank=True, null=True)
+    notes = models.TextField(blank=True, help_text="Internal notes about this payment")
+    
+    # Reconciliation
+    reconciled = models.BooleanField(default=False)
+    reconciled_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reconciled_payments')
+    reconciled_at = models.DateTimeField(null=True, blank=True)
+    
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='payments_recorded')
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-payment_date']
+        indexes = [
+            models.Index(fields=['payment_status', 'payment_date']),
+            models.Index(fields=['reference_number']),
+        ]
+    
+    def __str__(self):
+        invoice_num = self.payment_status.client_invoice.invoice_number if self.payment_status.client_invoice else "Unknown"
+        return f"{invoice_num} - {self.payment_amount} ({self.payment_date})"
+
+
+# =====================================
+# NEW: BACKEND GAPS - ALERTING & NOTIFICATIONS
+# =====================================
+
+class VendorCapacityAlert(models.Model):
+    """Alert system for vendor capacity thresholds"""
+    ALERT_TYPES = [
+        ('capacity_warning', 'Capacity Warning (80%+)'),
+        ('capacity_critical', 'Capacity Critical (100%+)'),
+        ('overdue_job', 'Overdue Job'),
+        ('sla_breach', 'SLA Breach'),
+        ('deadline_approaching', 'Deadline Approaching (3 days)'),
+    ]
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('acknowledged', 'Acknowledged'),
+        ('resolved', 'Resolved'),
+    ]
+    
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='capacity_alerts')
+    alert_type = models.CharField(max_length=30, choices=ALERT_TYPES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.SET_NULL, null=True, blank=True)
+    message = models.TextField()
+    severity = models.IntegerField(default=1, help_text="1=info, 2=warning, 3=critical")
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='acknowledged_alerts')
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['vendor', 'status']),
+            models.Index(fields=['alert_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_alert_type_display()} - {self.vendor.name}"
+
+
+class POSMilestone(models.Model):
+    """Milestone tracking for Purchase Orders"""
+    MILESTONE_TYPES = [
+        ('acceptance', 'Awaiting Acceptance'),
+        ('production_start', 'Production Start'),
+        ('production_mid', 'Production Midpoint'),
+        ('quality_check', 'Quality Check'),
+        ('final_approval', 'Final Approval'),
+        ('delivery', 'Delivery'),
+    ]
+    
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='milestones')
+    milestone_type = models.CharField(max_length=30, choices=MILESTONE_TYPES)
+    target_date = models.DateField()
+    
+    completed = models.BooleanField(default=False)
+    completed_on_time = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    
+    alert_sent = models.BooleanField(default=False)
+    alert_sent_at = models.DateTimeField(null=True, blank=True)
+    
+    notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['target_date']
+        indexes = [
+            models.Index(fields=['purchase_order', 'target_date']),
+            models.Index(fields=['completed']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_milestone_type_display()} - {self.purchase_order.po_number}"
+    
+    @property
+    def is_overdue(self):
+        if self.completed:
+            return False
+        return timezone.now().date() > self.target_date
+    
+    @property
+    def days_until_due(self):
+        if self.completed:
+            return 0
+        delta = self.target_date - timezone.now().date()
+        return max(0, delta.days)
+
+
+class MaterialSubstitutionApproval(models.Model):
+    """Track approval workflow for material substitutions"""
+    APPROVAL_STATUS = [
+        ('pending', 'Pending PT Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('customer_notified', 'Customer Notified'),
+    ]
+    
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='substitutions')
+    original_material = models.CharField(max_length=255)
+    substitute_material = models.CharField(max_length=255)
+    reason = models.TextField()
+    
+    original_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    substitute_cost = models.DecimalField(max_digits=10, decimal_places=2)
+    
+    approval_status = models.CharField(max_length=20, choices=APPROVAL_STATUS, default='pending')
+    approval_notes = models.TextField(blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_substitutions')
+    approved_at = models.DateTimeField(null=True, blank=True)
+    
+    customer_notified = models.BooleanField(default=False)
+    customer_notified_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['approval_status']),
+        ]
+    
+    def __str__(self):
+        return f"Sub: {self.original_material} → {self.substitute_material}"
+    
+    @property
+    def cost_difference(self):
+        return self.substitute_cost - self.original_cost
+    
+    @property
+    def cost_impact_percentage(self):
+        if self.original_cost == 0:
+            return 0
+        return (self.cost_difference / self.original_cost) * 100
+
+
+class InvoiceHold(models.Model):
+    """Track held invoices and reasons"""
+    HOLD_REASONS = [
+        ('qc_failed', 'QC Inspection Failed'),
+        ('pending_approval', 'Pending PT Approval'),
+        ('cost_discrepancy', 'Cost Discrepancy'),
+        ('validation_error', 'Validation Error'),
+        ('dispute', 'Payment Dispute'),
+        ('other', 'Other'),
+    ]
+    
+    invoice = models.OneToOneField('VendorInvoice', on_delete=models.CASCADE, related_name='hold')
+    hold_reason = models.CharField(max_length=30, choices=HOLD_REASONS)
+    hold_details = models.TextField()
+    held_at = models.DateTimeField(auto_now_add=True)
+    held_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    released = models.BooleanField(default=False)
+    released_at = models.DateTimeField(null=True, blank=True)
+    released_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='released_holds')
+    
+    class Meta:
+        ordering = ['-held_at']
+    
+    def __str__(self):
+        return f"Hold: {self.invoice.invoice_number} - {self.get_hold_reason_display()}"
+
+
+class SLAEscalation(models.Model):
+    """Track SLA/deadline escalations for overdue jobs"""
+    ESCALATION_LEVEL = [
+        ('level_1', 'Level 1 - Vendor Alert'),
+        ('level_2', 'Level 2 - PT Review'),
+        ('level_3', 'Level 3 - Management Escalation'),
+    ]
+    
+    ESCALATION_STATUS = [
+        ('pending', 'Pending'),
+        ('notified', 'Notified'),
+        ('resolved', 'Resolved'),
+        ('overdue', 'Still Overdue'),
+    ]
+    
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='sla_escalations', null=True, blank=True)
+    escalation_level = models.CharField(max_length=20, choices=ESCALATION_LEVEL, default='level_1')
+    escalation_status = models.CharField(max_length=20, choices=ESCALATION_STATUS, default='pending')
+    
+    # SLA/Deadline info
+    original_deadline = models.DateField(null=True, blank=True)
+    current_deadline = models.DateField(null=True, blank=True)
+    days_overdue = models.IntegerField(default=0)
+    
+    # Escalation details
+    escalation_reason = models.TextField(default='')
+    escalation_notes = models.TextField(blank=True)
+    
+    # Tracking
+    escalated_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    escalated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='escalations_created')
+    
+    # Notification tracking
+    vendor_notified = models.BooleanField(default=False)
+    vendor_notified_at = models.DateTimeField(null=True, blank=True)
+    pt_notified = models.BooleanField(default=False)
+    pt_notified_at = models.DateTimeField(null=True, blank=True)
+    
+    # Resolution
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='escalations_resolved')
+    resolution_notes = models.TextField(blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-escalated_at']
+        indexes = [
+            models.Index(fields=['escalation_status']),
+            models.Index(fields=['escalation_level']),
+            models.Index(fields=['purchase_order']),
+        ]
+    
+    def __str__(self):
+        return f"Escalation: {self.purchase_order.po_number} - Level {self.escalation_level}"
+    
+    def mark_as_notified(self, notify_vendor=False, notify_pt=False):
+        """Mark notifications as sent"""
+        if notify_vendor:
+            self.vendor_notified = True
+            self.vendor_notified_at = timezone.now()
+        if notify_pt:
+            self.pt_notified = True
+            self.pt_notified_at = timezone.now()
+        
+        if notify_vendor and notify_pt:
+            self.escalation_status = 'notified'
+        
+        
+        self.save()
+    
+    def resolve(self, resolution_notes='', resolved_by=None):
+        """Mark escalation as resolved"""
+        self.escalation_status = 'resolved'
+        self.resolved_at = timezone.now()
+        self.resolved_by = resolved_by
+        self.resolution_notes = resolution_notes
+        self.save()
+
+
+class ProgressUpdateBatch(models.Model):
+    """Batch progress updates from vendors"""
+    purchase_order = models.ForeignKey('PurchaseOrder', on_delete=models.CASCADE, related_name='progress_batches')
+    submission_date = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    submitted_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    # Progress details
+    percentage_complete = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    status = models.CharField(max_length=50, default='on_track', choices=[
+        ('on_track', 'On Track'),
+        ('at_risk', 'At Risk'),
+        ('behind_schedule', 'Behind Schedule'),
+    ])
+    description = models.TextField(default='')
+    notes = models.TextField(blank=True)
+    
+    # Milestone tracking
+    next_milestone = models.CharField(max_length=200, blank=True)
+    next_milestone_date = models.DateField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-submission_date']
+        indexes = [
+            models.Index(fields=['purchase_order', '-submission_date']),
+        ]
+    
+    def __str__(self):
+        return f"Update for {self.purchase_order.po_number} - {self.percentage_complete}%"
+
+
+class QCProofLink(models.Model):
+    """Link QC inspection results to purchase order proofs"""
+    qc_inspection = models.ForeignKey('QCInspection', on_delete=models.CASCADE, related_name='proof_links')
+    proof = models.ForeignKey('PurchaseOrderProof', on_delete=models.CASCADE, related_name='qc_links')
+    
+    # QC result snapshot
+    qc_status = models.CharField(max_length=20, default='passed', choices=[
+        ('passed', 'Passed'),
+        ('failed', 'Failed'),
+        ('conditional', 'Conditional Pass'),
+    ])
+    qc_notes = models.TextField(blank=True)
+    
+    # Impact on invoice
+    auto_held_invoice = models.BooleanField(default=False)
+    hold_reason = models.CharField(max_length=200, blank=True)
+    
+    # VPS impact
+    vps_impact_calculated = models.BooleanField(default=False)
+    vps_score_adjustment = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    linked_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-linked_at']
+        unique_together = ('qc_inspection', 'proof')
+    
+    def __str__(self):
+        return f"QC {self.qc_inspection.id} → Proof {self.proof.id}"
+
+
+class VPSRecalculationLog(models.Model):
+    """Log all VPS recalculation events"""
+    vendor = models.ForeignKey('Vendor', on_delete=models.CASCADE, related_name='vps_logs')
+    trigger_type = models.CharField(max_length=50, choices=[
+        ('qc_fail', 'QC Failure'),
+        ('late_delivery', 'Late Delivery'),
+        ('quality_issue', 'Quality Issue'),
+        ('manual', 'Manual Recalculation'),
+    ])
+    
+    previous_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    new_score = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    score_change = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    
+    reason = models.TextField(default='')
+    reference_id = models.CharField(max_length=100, blank=True)  # QC ID, PO ID, etc
+    
+    recalculated_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    recalculated_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-recalculated_at']
+        indexes = [
+            models.Index(fields=['vendor', '-recalculated_at']),
+        ]
+    
+    def __str__(self):
+        return f"VPS adjustment for {self.vendor.name}: {self.score_change:+.2f}"
+
+
+class CustomerNotification(models.Model):
+    """Track customer notifications for substitutions"""
+    substitution = models.ForeignKey('MaterialSubstitutionApproval', on_delete=models.CASCADE, related_name='notifications')
+    
+    NOTIFICATION_STATUS = [
+        ('pending', 'Pending'),
+        ('sent', 'Sent'),
+        ('failed', 'Failed'),
+        ('acknowledged', 'Acknowledged'),
+    ]
+    
+    status = models.CharField(max_length=20, choices=NOTIFICATION_STATUS, default='pending')
+    notification_method = models.CharField(max_length=20, choices=[
+        ('email', 'Email'),
+        ('sms', 'SMS'),
+        ('portal', 'Portal Message'),
+    ], default='email')
+    
+    recipient_email = models.EmailField(blank=True)
+    recipient_phone = models.CharField(max_length=20, blank=True)
+    
+    subject = models.CharField(max_length=255, blank=True)
+    message = models.TextField(default='')
+    
+    sent_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"Notification for {self.substitution.id} - {self.status}"
+
+
+class DeadlineCalculation(models.Model):
+    """Store deadline calculations and logic"""
+    purchase_order = models.OneToOneField('PurchaseOrder', on_delete=models.CASCADE, related_name='deadline_calc')
+    
+    # Base inputs
+    job_complexity = models.CharField(max_length=20, default='medium', choices=[
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+    ])
+    vendor_capacity_available = models.IntegerField(default=5, help_text="Days available considering vendor capacity")
+    sla_days = models.IntegerField(default=14, help_text="Standard SLA for this product")
+    
+    # Calculated values
+    base_deadline = models.IntegerField(default=0, help_text="Base days required")
+    adjusted_deadline = models.IntegerField(default=0, help_text="Final deadline in days")
+    risk_score = models.IntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    
+    # Reasoning
+    calculation_notes = models.TextField(default='')
+    
+    calculated_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-calculated_at']
+    
+    def __str__(self):
+        return f"Deadline calc for {self.purchase_order.po_number}"
+

@@ -1,19 +1,22 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block title %}Create New Process - Vendor Management{% endblock %}
+{% block title %}{% if mode == 'edit' %}{{ process.process_name }} - Edit Process{% else %}Create New Process{% endif %} - Vendor Management{% endblock %}
 
 {% block content %}
 <div class="p-8">
 
     <!-- Page Title -->
-    <h1 class="text-3xl font-semibold mb-6">CREATE NEW PROCESS</h1>
+    <h1 class="text-3xl font-semibold mb-6">{% if mode == 'edit' %}EDIT PROCESS{% else %}CREATE NEW PROCESS{% endif %}</h1>
 
     <form method="POST">
         {% csrf_token %}
         
         <!-- Hidden field for pricing method -->
-        <input type="hidden" name="pricing_method" value="tier" id="pricing-method-input">
+        <input type="hidden" name="pricing_method" value="{% if mode == 'edit' %}{{ process.pricing_type }}{% else %}tier{% endif %}" id="pricing-method-input">
+        
+        <!-- Hidden field for process ID in edit mode -->
+        {% if mode == 'edit' %}<input type="hidden" name="process_id" value="{{ process.process_id }}">{% endif %}
 
         <!-- ====================== BASIC INFORMATION ====================== -->
         <div class="bg-white border rounded-lg p-6 mb-6">
@@ -27,19 +30,19 @@
             <!-- Process Name -->
             <div class="mb-5">
                 <label class="block font-medium mb-2">Process Name: <span class="text-red-500">*</span></label>
-                <input type="text" name="process_name" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Hoodie Embroidery" required>
+                <input type="text" name="process_name" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Hoodie Embroidery" value="{% if mode == 'edit' %}{{ process.process_name }}{% endif %}" required>
             </div>
 
             <!-- Process ID -->
             <div class="mb-5">
-                <label class="block font-medium mb-2">Process ID: <span class="text-sm text-gray-500">(auto-generated)</span></label>
-                <input type="text" name="process_id" class="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100 text-gray-500" value="Generated from name" readonly>
+                <label class="block font-medium mb-2">Process ID: <span class="text-sm text-gray-500">({% if mode == 'edit' %}fixed{% else %}auto-generated{% endif %})</span></label>
+                <input type="text" name="process_id_display" class="w-full border border-gray-300 rounded px-3 py-2 bg-gray-100 text-gray-500" value="{% if mode == 'edit' %}{{ process.process_id }}{% else %}Generated from name{% endif %}" readonly>
             </div>
 
             <!-- Description -->
             <div class="mb-5">
                 <label class="block font-medium mb-2">Description:</label>
-                <textarea name="description" rows="3" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Embroidery service specifically for hoodies. Pricing based on stitch count, positions, and quantity."></textarea>
+                <textarea name="description" rows="3" class="w-full border border-gray-300 rounded px-3 py-2" placeholder="Embroidery service specifically for hoodies. Pricing based on stitch count, positions, and quantity.">{% if mode == 'edit' %}{{ process.description }}{% endif %}</textarea>
             </div>
 
             <!-- Category -->
@@ -47,14 +50,14 @@
                 <label class="block font-medium mb-2">Category: <span class="text-red-500">*</span></label>
                 <div class="space-y-2">
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="category" value="outsourced" checked class="w-4 h-4 text-purple-600">
+                        <input type="radio" name="category" value="outsourced" {% if mode != 'edit' or process.category == 'outsourced' %}checked{% endif %} class="w-4 h-4 text-purple-600">
                         <div>
                             <div class="font-medium">Outsourced</div>
                             <div class="text-sm text-gray-500">Uses external vendors</div>
                         </div>
                     </label>
                     <label class="flex items-center gap-3 cursor-pointer">
-                        <input type="radio" name="category" value="in-house" class="w-4 h-4 text-purple-600">
+                        <input type="radio" name="category" value="in-house" {% if mode == 'edit' and process.category == 'in-house' %}checked{% endif %} class="w-4 h-4 text-purple-600">
                         <div>
                             <div class="font-medium">In-house</div>
                             <div class="text-sm text-gray-500">Internal production</div>
@@ -67,7 +70,7 @@
             <div>
                 <label class="block font-medium mb-2">Standard Lead Time: <span class="text-red-500">*</span></label>
                 <div class="flex items-center gap-2">
-                    <input type="number" name="standard_lead_time" class="border border-gray-300 rounded px-3 py-2 w-20" value="5" required>
+                    <input type="number" name="standard_lead_time" class="border border-gray-300 rounded px-3 py-2 w-20" value="{% if mode == 'edit' %}{{ process.standard_lead_time }}{% else %}5{% endif %}" required>
                     <span class="text-gray-600">days</span>
                 </div>
             </div>

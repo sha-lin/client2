@@ -32,11 +32,6 @@
             </div>
 
             <div class="flex items-center gap-3">
-                <button type="button"
-                    class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 transition-all">
-                    <i data-lucide="eye" class="w-4 h-4"></i>
-                    Preview
-                </button>
                 <button type="submit" form="productForm" name="action" value="save_draft"
                     class="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2 transition-all">
                     <i data-lucide="save" class="w-4 h-4"></i>
@@ -193,6 +188,18 @@
     <div class="text-xs text-red-600 mt-1">{{ general_form.errors.long_description|join:", " }}</div>
 {% endif %}
                                 </div>
+
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">
+                                        Maintenance
+                                    </label>
+                                    <textarea name="maintenance" rows="4"
+    placeholder="Product maintenance details and care instructions..."
+    class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-none">{{ product.maintenance|default:'' }}</textarea>
+{% if general_form and general_form.errors.maintenance %}
+    <div class="text-xs text-red-600 mt-1">{{ general_form.errors.maintenance|join:", " }}</div>
+{% endif %}
+                                </div>
                             </div>
                         </div>
 
@@ -209,7 +216,7 @@
                                         <option value="packs" {% if product.unit_of_measure == 'packs' %}selected{% endif %}>Packs</option>
                                         <option value="sets" {% if product.unit_of_measure == 'sets' %}selected{% endif %}>Sets</option>
                                         <option value="sqm" {% if product.unit_of_measure == 'sqm' %}selected{% endif %}>m²</option>
-                                        <option value="other" {% if product.unit_of_measure == 'other' %}selected{% endif %}>Other</option>
+                                        <option value="cm" {% if product.unit_of_measure == 'cm' %}selected{% endif %}>Centimeters</option>
                                     </select>
                                     {% if general_form and general_form.errors.unit_of_measure %}
                                     <div class="text-xs text-red-600 mt-1">{{ general_form.errors.unit_of_measure|join:", " }}</div>
@@ -657,72 +664,6 @@
                                     <div id="price-breakdown"
                                         class="text-[10px] text-gray-500 font-mono space-y-1 pt-2">
                                         <!-- Breakdown lines -->
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                            <div class="p-6 border-b border-gray-100 bg-gray-50/50">
-                                <h3 class="text-base font-bold text-gray-900">Production & Vendor</h3>
-                            </div>
-                            <div class="p-6 space-y-4">
-                                <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1.5">Primary
-                                        Vendor</label>
-                                    <select name="primary_vendor"
-                                        class="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 outline-none">
-                                        <option value="">-- Select Vendor --</option>
-                                        {% for vendor in vendors %}
-                                        <option value="{{ vendor.id }}" {% if product.pricing.primary_vendor_id == vendor.id %}selected{% endif %}>{{ vendor.name }}</option>
-                                        {% endfor %}
-                                    </select>
-{% if general_form and general_form.errors.country_of_origin %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.country_of_origin|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.warranty %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.warranty|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.dimension_unit %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.dimension_unit|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.weight_unit %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.weight_unit|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.unit_of_measure %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.unit_of_measure|join:", " }}</div>
-{% endif %}
-                                </div>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Lead
-                                            Time</label>
-                                        <input type="number" name="lead_time_value"
-                                            value="{{ product.pricing.lead_time_value|default:'3' }}"
-                                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none">
-                                    </div>
-                                    <div>
-                                        <label class="block text-sm font-semibold text-gray-700 mb-1.5">Unit</label>
-                                        <select name="lead_time_unit"
-                                            class="w-full px-4 py-2.5 border border-gray-300 rounded-lg outline-none">
-                                            <option value="days" {% if product.pricing.lead_time_unit == 'days' %}selected{% endif %}>Days</option>
-                                            <option value="weeks" {% if product.pricing.lead_time_unit == 'weeks' %}selected{% endif %}>Weeks</option>
-                                        </select>
-{% if general_form and general_form.errors.country_of_origin %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.country_of_origin|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.warranty %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.warranty|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.dimension_unit %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.dimension_unit|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.weight_unit %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.weight_unit|join:", " }}</div>
-{% endif %}
-{% if general_form and general_form.errors.unit_of_measure %}
-<div class="text-xs text-red-600 mt-1">{{ general_form.errors.unit_of_measure|join:", " }}</div>
-{% endif %}
                                     </div>
                                 </div>
                             </div>

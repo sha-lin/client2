@@ -8,8 +8,8 @@
     <!-- Header -->
     <div class="flex justify-between items-start mb-8">
         <div>
-            <h1 class="text-3xl font-bold text-gray-900">COST QUOTE: {{ quote_id }}</h1>
-            <p class="text-gray-600 mt-2">Use process-based costing to quickly cost this quote</p>
+            <h1 class="text-3xl font-bold text-gray-900">📊 Cost Quote - {{ quote_id }}</h1>
+            <p class="text-gray-600 mt-2">Review products from Account Manager and add production costs</p>
         </div>
         <div class="text-right">
             <div class="text-sm text-gray-600">Created by</div>
@@ -18,26 +18,163 @@
         </div>
     </div>
 
+    <!-- Quote Summary Card -->
+    <div class="bg-white rounded-lg shadow-sm border mb-6 p-6">
+        <div class="grid grid-cols-2 gap-6 md:grid-cols-4">
+            <div class="border-r pr-6">
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Client</div>
+                <div class="text-lg font-bold text-gray-900">
+                    {% if quote.client %}
+                        {{ quote.client.company|default:quote.client.name }}
+                    {% elif quote.lead %}
+                        {{ quote.lead.name }}
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </div>
+            </div>
+            <div class="border-r pr-6">
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Quote Value</div>
+                <div class="text-lg font-bold text-gray-900">KES {{ quote.total_amount|floatformat:1 }}</div>
+            </div>
+            <div class="border-r pr-6">
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Products</div>
+                <div class="text-lg font-bold text-gray-900">{{ line_items|length }}</div>
+            </div>
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Status</div>
+                <div class="text-lg font-bold">
+                    <span class="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-medium">
+                        Draft
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cost Breakdown Table -->
+    <div class="bg-white rounded-lg shadow-sm border mb-6 overflow-hidden">
+        <div class="p-6 border-b bg-gray-50">
+            <h2 class="text-lg font-semibold text-gray-900">Cost Breakdown</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="bg-gray-50 border-b">
+                        <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Product</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Qty</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Unit Cost</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Production Cost</th>
+                        <th class="px-6 py-3 text-right text-xs font-semibold text-gray-700 uppercase">Total Cost</th>
+                        <th class="px-6 py-3 text-center text-xs font-semibold text-gray-700 uppercase">Margin %</th>
+                    </tr>
+                </thead>
+                <tbody id="costTableBody" class="divide-y">
+                    {% for item_data in line_items %}
+                    {% with item=item_data.line_item|default:item_data.quote %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-4 text-sm font-medium text-gray-900">
+                            {% if item_data.line_item %}
+                                {{ item_data.line_item.product_name }}
+                            {% else %}
+                                {{ item_data.quote.product_name }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-700">
+                            {% if item_data.line_item %}
+                                {{ item_data.line_item.quantity }}
+                            {% else %}
+                                {{ item_data.quote.quantity }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-700">
+                            KES {{ item_data.line_item.unit_price|default:item_data.quote.unit_price|floatformat:2 }}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right text-gray-700">
+                            {% if item_data.current_cost %}
+                                KES {{ item_data.current_cost|floatformat:2 }}
+                            {% else %}
+                                <span class="text-gray-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-right font-semibold text-gray-900">
+                            {% if item_data.line_item %}
+                                KES {{ item_data.line_item.line_total|floatformat:2 }}
+                            {% else %}
+                                KES {{ item_data.quote.total_amount|floatformat:2 }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-sm text-center text-gray-700">
+                            <span class="inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-medium">
+                                0.0%
+                            </span>
+                        </td>
+                    </tr>
+                    {% endwith %}
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+                            No line items found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="p-6 bg-gray-50 border-t grid grid-cols-4 gap-6">
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Total Quote Value</div>
+                <div class="text-xl font-bold text-gray-900">KES {{ quote.total_amount|floatformat:2 }}</div>
+            </div>
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Total Production Cost</div>
+                <div class="text-xl font-bold text-gray-900" id="totalProductionCost">KES 0.00</div>
+            </div>
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Total Gross Margin</div>
+                <div class="text-xl font-bold text-green-600" id="totalGrossMargin">KES 0.00</div>
+            </div>
+            <div>
+                <div class="text-xs font-semibold text-gray-500 uppercase mb-1">Margin %</div>
+                <div class="text-xl font-bold text-green-600" id="totalMarginPercent">0.0%</div>
+            </div>
+        </div>
+    </div>
+
     <form method="POST" id="costing-form">
         {% csrf_token %}
 
-        <!-- Line Items -->
+        <!-- Line Items Costing Form -->
         <div class="bg-white rounded-lg shadow-sm border mb-6">
             <div class="p-6 border-b bg-gray-50">
-                <h2 class="text-lg font-semibold">QUOTE LINE ITEMS</h2>
+                <h2 class="text-lg font-semibold text-gray-900">Costing Details</h2>
                 <p class="text-sm text-gray-600 mt-1">Cost each product using process pricing or manual input</p>
             </div>
 
             <div class="divide-y">
-                {% for item in line_items %}
-                <div class="p-6">
+                {% for item_data in line_items %}
+                {% with item=item_data.line_item|default:item_data.quote %}
+                <div class="p-6 bg-white">
                     <!-- Product Header -->
-                    <div class="flex justify-between items-start mb-4">
+                    <div class="flex justify-between items-start mb-6">
                         <div>
-                            <h3 class="text-lg font-semibold text-gray-900">{{ item.quote.product_name }}</h3>
-                            <div class="text-sm text-gray-600 mt-1">Quantity: {{ item.quote.quantity }}</div>
+                            <h3 class="text-lg font-semibold text-gray-900">
+                                {% if item_data.line_item %}
+                                    {{ item_data.line_item.product_name }}
+                                {% else %}
+                                    {{ item_data.quote.product_name }}
+                                {% endif %}
+                            </h3>
+                            <div class="text-sm text-gray-600 mt-1">
+                                Quantity: 
+                                {% if item_data.line_item %}
+                                    {{ item_data.line_item.quantity }} units
+                                {% else %}
+                                    {{ item_data.quote.quantity }} units
+                                {% endif %}
+                            </div>
                         </div>
-                        {% if item.suggested_process %}
+                        {% if item_data.suggested_process %}
                         <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
                             ✓ Process Found
                         </span>
@@ -48,114 +185,131 @@
                         {% endif %}
                     </div>
 
-                    <div class="grid grid-cols-3 gap-6">
-                        <!-- Process Selection -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Select Process
-                            </label>
-                            <select name="process_{{ item.quote.id }}" 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 process-select"
-                                    data-quote-id="{{ item.quote.id }}"
-                                    data-quantity="{{ item.quote.quantity }}">
-                                <option value="">Manual Cost Entry</option>
-                                {% for process in processes %}
-                                <option value="{{ process.id }}"
-                                        data-pricing-type="{{ process.pricing_type }}"
-                                        {% if item.suggested_process and process.id == item.suggested_process.id %}selected{% endif %}>
-                                    {{ process.process_name }} ({{ process.get_pricing_type_display }})
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                    <!-- Costing Options Section -->
+                    <div class="bg-gray-50 p-6 rounded-lg border border-gray-200">
+                        <h4 class="font-semibold text-gray-900 mb-6 text-base">Cost This Product</h4>
+                        
+                        <div class="space-y-6">
+                            <!-- Option 1: Use Process Pricing -->
+                            <div class="border-b pb-6">
+                                <div class="flex items-center mb-4">
+                                    <input type="radio" id="method_process_{{ item.id }}" name="costing_method_{{ item.id }}" value="process" 
+                                           class="w-4 h-4 text-blue-600 costing-method" data-item-id="{{ item.id }}">
+                                    <label for="method_process_{{ item.id }}" class="ml-3 text-sm font-medium text-gray-900">
+                                        Use Costing Process
+                                    </label>
+                                </div>
+                                
+                                <div class="ml-7 space-y-4 process-method-{{ item.id }}" style="opacity: 0.5; pointer-events: none;">
+                                    <!-- Process Selection -->
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Select Process Type
+                                        </label>
+                                        <select name="process_{{ item.id }}" 
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 process-select"
+                                                data-quote-id="{{ item.id }}"
+                                                data-quantity="{% if item_data.line_item %}{{ item_data.line_item.quantity }}{% else %}{{ item_data.quote.quantity }}{% endif %}">
+                                            <option value="">-- Select process --</option>
+                                            {% for process in processes %}
+                                            <option value="{{ process.id }}"
+                                                    data-pricing-type="{{ process.pricing_type }}"
+                                                    {% if item_data.suggested_process and process.id == item_data.suggested_process.id %}selected{% endif %}>
+                                                {{ process.process_name }} ({{ process.get_pricing_type_display }})
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
 
-                        <!-- Vendor Selection -->
-                        <div class="vendor-selection-{{ item.quote.id }}" 
-                             {% if not item.suggested_process %}style="display: none;"{% endif %}>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Select Vendor
-                            </label>
-                            <select name="selected_vendor_{{ item.quote.id }}" 
-                                    class="w-full border border-gray-300 rounded-lg px-3 py-2 vendor-select"
-                                    data-quote-id="{{ item.quote.id }}">
-                                <option value="">Choose vendor...</option>
-                                {% for vendor in item.available_vendors %}
-                                <option value="{{ vendor.id }}"
-                                        data-vps="{{ vendor.vps_score }}"
-                                        data-tier-costs="{{ vendor.tier_costs|default:'{}' }}"
-                                        data-formula-rates="{{ vendor.formula_rates|default:'{}' }}">
-                                    {{ vendor.vendor_name }} (VPS: {{ vendor.vps_score }}%)
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+                                    <!-- Vendor Selection -->
+                                    <div class="vendor-selection-{{ item.id }}" 
+                                         {% if not item_data.suggested_process %}style="display: none;"{% endif %}>
+                                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                                            Pre-select Vendor (Optional)
+                                        </label>
+                                        <select name="selected_vendor_{{ item.id }}" 
+                                                class="w-full border border-gray-300 rounded-lg px-3 py-2 vendor-select"
+                                                data-quote-id="{{ item.id }}">
+                                            <option value="">-- No preference --</option>
+                                            {% for vendor in item_data.available_vendors %}
+                                            <option value="{{ vendor.id }}"
+                                                    data-vps="{{ vendor.vps_score }}"
+                                                    data-tier-costs="{{ vendor.tier_costs|default:'{}' }}"
+                                                    data-formula-rates="{{ vendor.formula_rates|default:'{}' }}">
+                                                {{ vendor.vendor_name }} (VPS: {{ vendor.vps_score }}%)
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
 
-                        <!-- Production Cost -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-2">
-                                Production Cost (KES)
-                            </label>
-                            <input type="number" 
-                                   name="production_cost_{{ item.quote.id }}" 
-                                   id="cost_{{ item.quote.id }}"
-                                   class="w-full border border-gray-300 rounded-lg px-3 py-2 font-semibold"
-                                   value="{{ item.current_cost|floatformat:2 }}"
-                                   step="0.01"
-                                   required>
-                            {% if item.process_cost %}
-                            <div class="text-sm text-green-600 mt-1">
-                                Suggested: KES {{ item.process_cost|floatformat:2 }}
+                                    <!-- Cost Breakdown (shown when process selected) -->
+                                    <div class="cost-breakdown-{{ item.id }}" style="display: none;">
+                                        <div class="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                            <h5 class="font-semibold text-blue-900 mb-2 text-sm">Cost Breakdown</h5>
+                                            <div class="text-sm space-y-1 text-blue-800" id="breakdown-{{ item.id }}">
+                                                <!-- Populated via JavaScript -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            {% endif %}
-                        </div>
-                    </div>
 
-                    <!-- Cost Breakdown (shown when process selected) -->
-                    <div class="cost-breakdown-{{ item.quote.id }} mt-4 p-4 bg-blue-50 rounded-lg" style="display: none;">
-                        <h4 class="font-semibold text-blue-900 mb-2">Cost Breakdown</h4>
-                        <div class="text-sm space-y-1" id="breakdown-{{ item.quote.id }}">
-                            <!-- Populated via JavaScript -->
+                            <!-- Option 2: Manual Entry -->
+                            <div>
+                                <div class="flex items-center mb-4">
+                                    <input type="radio" id="method_manual_{{ item.id }}" name="costing_method_{{ item.id }}" value="manual" 
+                                           class="w-4 h-4 text-blue-600 costing-method" data-item-id="{{ item.id }}" checked>
+                                    <label for="method_manual_{{ item.id }}" class="ml-3 text-sm font-medium text-gray-900">
+                                        Enter Production Cost Manually
+                                    </label>
+                                </div>
+                                
+                                <div class="ml-7">
+                                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                                        Production Cost (KES)
+                                    </label>
+                                    <input type="number" 
+                                           name="production_cost_{{ item.id }}" 
+                                           id="cost_{{ item.id }}"
+                                           class="w-full border border-gray-300 rounded-lg px-3 py-2 font-semibold production-cost-input"
+                                           value="{% if item_data.current_cost %}{{ item_data.current_cost|floatformat:2 }}{% else %}0.00{% endif %}"
+                                           step="0.01"
+                                           data-quote-id="{{ item.id }}"
+                                           required>
+                                    {% if item_data.process_cost %}
+                                    <div class="text-sm text-green-600 mt-1">
+                                        💡 Suggested from process: KES {{ item_data.process_cost|floatformat:2 }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
                         </div>
                     </div>
+                </div>
+                {% endwith %}
+                {% empty %}
+                <div class="p-6">
+                    <p class="text-center text-gray-500">No line items found</p>
                 </div>
                 {% endfor %}
-            </div>
-        </div>
-
-        <!-- Total Summary -->
-        <div class="bg-white rounded-lg shadow-sm border mb-6 p-6">
-            <h3 class="text-lg font-semibold mb-4">COST SUMMARY</h3>
-            <div class="space-y-3">
-                <div class="flex justify-between text-gray-700">
-                    <span>Total Production Cost:</span>
-                    <span class="font-semibold" id="total-cost">KES 0.00</span>
-                </div>
-                <div class="flex justify-between text-gray-700">
-                    <span>Quoted Price (to client):</span>
-                    <span class="font-semibold">KES {{ quote.total_amount|floatformat:2 }}</span>
-                </div>
-                <div class="flex justify-between pt-3 border-t">
-                    <span class="font-semibold">Expected Margin:</span>
-                    <span class="font-semibold text-green-600" id="margin">0%</span>
-                </div>
             </div>
         </div>
 
         <!-- Production Notes -->
         <div class="bg-white rounded-lg shadow-sm border mb-6 p-6">
             <label class="block text-sm font-medium text-gray-700 mb-2">
-                Production Notes
+                Production Notes (Optional)
             </label>
             <textarea name="production_notes" 
                       rows="4" 
                       class="w-full border border-gray-300 rounded-lg px-3 py-2"
-                      placeholder="Add any notes about production requirements, lead times, or special instructions..."></textarea>
+                      placeholder="Add any special instructions for production team..."></textarea>
         </div>
 
         <!-- Actions -->
         <div class="flex justify-between items-center">
             <a href="{% url 'my_quotes' %}" class="px-6 py-2 text-gray-700 hover:text-gray-900">
-                ← Back to Quotes
+                ← Back to queue
             </a>
             <div class="flex gap-3">
                 <button type="submit" name="action" value="save"
@@ -173,7 +327,30 @@
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🚀 Quote costing script initialized');
+    console.log('🚀 Quote costing v2 script initialized');
+    
+    // Handle costing method radio buttons
+    document.querySelectorAll('.costing-method').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const itemId = this.dataset.itemId;
+            const method = this.value;
+            
+            const processSection = document.querySelector(`.process-method-${itemId}`);
+            const manualInput = document.getElementById(`cost_${itemId}`);
+            
+            if (method === 'process') {
+                // Enable process section
+                processSection.style.opacity = '1';
+                processSection.style.pointerEvents = 'auto';
+                processSection.querySelectorAll('select, input').forEach(el => el.disabled = false);
+            } else {
+                // Enable manual entry
+                processSection.style.opacity = '0.5';
+                processSection.style.pointerEvents = 'none';
+                processSection.querySelectorAll('select, input').forEach(el => el.disabled = true);
+            }
+        });
+    });
     
     // Process selection handlers
     document.querySelectorAll('.process-select').forEach(select => {
@@ -186,14 +363,17 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (processId) {
                 // Show vendor selection
-                document.querySelector(`.vendor-selection-${quoteId}`).style.display = 'block';
+                const vendorDiv = document.querySelector(`.vendor-selection-${quoteId}`);
+                if (vendorDiv) vendorDiv.style.display = 'block';
                 
                 // Fetch process pricing
                 fetchProcessPricing(processId, quoteId, quantity);
             } else {
-                // Hide vendor selection
-                document.querySelector(`.vendor-selection-${quoteId}`).style.display = 'none';
-                document.querySelector(`.cost-breakdown-${quoteId}`).style.display = 'none';
+                // Hide vendor selection and breakdown
+                const vendorDiv = document.querySelector(`.vendor-selection-${quoteId}`);
+                if (vendorDiv) vendorDiv.style.display = 'none';
+                const breakdownDiv = document.querySelector(`.cost-breakdown-${quoteId}`);
+                if (breakdownDiv) breakdownDiv.style.display = 'none';
             }
         });
     });
@@ -215,7 +395,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     // Cost input handlers - recalculate totals
-    document.querySelectorAll('input[name^="production_cost_"]').forEach(input => {
+    document.querySelectorAll('.production-cost-input').forEach(input => {
         input.addEventListener('input', calculateTotals);
     });
     
@@ -224,7 +404,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    const breakdownDiv = document.getElementById(`breakdown-${quoteId}`);
+                    const breakdownDiv = document.querySelector(`.cost-breakdown-${quoteId}`);
                     const costInput = document.getElementById(`cost_${quoteId}`);
                     
                     if (data.pricing_type === 'tier') {
@@ -235,21 +415,27 @@ document.addEventListener('DOMContentLoaded', function() {
                         
                         if (matchingTier) {
                             costInput.value = parseFloat(matchingTier.cost).toFixed(2);
-                            breakdownDiv.innerHTML = `
-                                <div class="text-blue-800">
-                                    <strong>Tier ${matchingTier.tier_number}:</strong> ${matchingTier.quantity_from}-${matchingTier.quantity_to} units
-                                </div>
-                                <div>Cost per unit: KES ${(matchingTier.cost / quantity).toFixed(2)}</div>
-                                <div>Total cost: KES ${parseFloat(matchingTier.cost).toFixed(2)}</div>
-                            `;
-                            document.querySelector(`.cost-breakdown-${quoteId}`).style.display = 'block';
+                            const detailsDiv = document.getElementById(`breakdown-${quoteId}`);
+                            if (detailsDiv) {
+                                detailsDiv.innerHTML = `
+                                    <div class="text-blue-800">
+                                        <strong>Tier ${matchingTier.tier_number}:</strong> ${matchingTier.quantity_from}-${matchingTier.quantity_to} units
+                                    </div>
+                                    <div>Cost per unit: KES ${(matchingTier.cost / quantity).toFixed(2)}</div>
+                                    <div>Total cost: KES ${parseFloat(matchingTier.cost).toFixed(2)}</div>
+                                `;
+                            }
+                            if (breakdownDiv) breakdownDiv.style.display = 'block';
                         }
                     } else if (data.pricing_type === 'formula') {
-                        breakdownDiv.innerHTML = `
-                            <div class="text-blue-800">Formula-based pricing</div>
-                            <div class="text-sm text-gray-600">Variables: ${data.variables.map(v => v.name).join(', ')}</div>
-                        `;
-                        document.querySelector(`.cost-breakdown-${quoteId}`).style.display = 'block';
+                        const detailsDiv = document.getElementById(`breakdown-${quoteId}`);
+                        if (detailsDiv) {
+                            detailsDiv.innerHTML = `
+                                <div class="text-blue-800">Formula-based pricing</div>
+                                <div class="text-sm text-gray-600">Variables: ${data.variables.map(v => v.name).join(', ')}</div>
+                            `;
+                        }
+                        if (breakdownDiv) breakdownDiv.style.display = 'block';
                     }
                     
                     calculateTotals();
@@ -274,27 +460,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function calculateTotals() {
-        let totalCost = 0;
+        let totalProductionCost = 0;
         
-        document.querySelectorAll('input[name^="production_cost_"]').forEach(input => {
+        document.querySelectorAll('.production-cost-input').forEach(input => {
             const cost = parseFloat(input.value) || 0;
-            totalCost += cost;
+            totalProductionCost += cost;
         });
         
         const quotedPrice = {{ quote.total_amount }};
-        const margin = quotedPrice > 0 ? ((quotedPrice - totalCost) / quotedPrice * 100) : 0;
+        const grossMargin = quotedPrice - totalProductionCost;
+        const marginPercent = quotedPrice > 0 ? ((grossMargin) / quotedPrice * 100) : 0;
         
-        document.getElementById('total-cost').textContent = `KES ${totalCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-        document.getElementById('margin').textContent = `${margin.toFixed(1)}%`;
+        document.getElementById('totalProductionCost').textContent = `KES ${totalProductionCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        document.getElementById('totalGrossMargin').textContent = `KES ${grossMargin.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+        document.getElementById('totalMarginPercent').textContent = `${marginPercent.toFixed(1)}%`;
         
         // Color code margin
-        const marginEl = document.getElementById('margin');
-        if (margin >= 25) {
-            marginEl.className = 'font-semibold text-green-600';
-        } else if (margin >= 15) {
-            marginEl.className = 'font-semibold text-yellow-600';
+        const marginEl = document.getElementById('totalMarginPercent');
+        if (marginPercent >= 25) {
+            marginEl.className = 'text-xl font-bold text-green-600';
+        } else if (marginPercent >= 15) {
+            marginEl.className = 'text-xl font-bold text-yellow-600';
         } else {
-            marginEl.className = 'font-semibold text-red-600';
+            marginEl.className = 'text-xl font-bold text-red-600';
         }
     }
     

@@ -1,11 +1,12 @@
 from django.utils import timezone
 from django.contrib.auth.models import User, Group
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.db.models import Q
+from django.db.models import Q, F
 from rest_framework import viewsets, status, decorators, serializers
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError
 from rest_framework.views import APIView
 from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from decimal import Decimal
@@ -128,6 +129,23 @@ from .models import (
     VendorPerformanceMetrics,
     ProfitabilityAnalysis,
     WebhookDelivery,
+    # Phase 2 models
+    Message,
+    MessageAttachment,
+    ProgressUpdate,
+    ProgressUpdatePhoto,
+    ProofSubmission,
+    VendorPerformanceScore,
+    # Phase 3 models
+    ClientNotification,
+    ClientMessage,
+    ClientDashboard,
+    ClientFeedback,
+    OrderMetrics,
+    VendorComparison,
+    PerformanceAnalytics,
+    PaymentStatus,
+    PaymentHistory,
 )
 from .api_serializers import (
     LeadSerializer,
@@ -228,6 +246,24 @@ from .api_serializers import (
     AdjustmentSerializer,
     WebhookSubscriptionSerializer,
     WebhookDeliverySerializer,
+    # Phase 2 serializers
+    MessageSerializer,
+    MessageAttachmentSerializer,
+    ProgressUpdateSerializer,
+    ProgressUpdatePhotoSerializer,
+    ProofSubmissionSerializer,
+    VendorPerformanceSerializer,
+    NotificationSerializer,
+    # Phase 3 serializers
+    ClientNotificationSerializer,
+    ClientMessageSerializer,
+    ClientDashboardSerializer,
+    ClientFeedbackSerializer,
+    OrderMetricsSerializer,
+    VendorComparisonSerializer,
+    PerformanceAnalyticsSerializer,
+    PaymentStatusSerializer,
+    PaymentHistorySerializer,
 )
 from .permissions import (
     IsAdmin,
@@ -1185,7 +1221,7 @@ class StorefrontProductViewSet(viewsets.ReadOnlyModelViewSet):
 class QuoteViewSet(viewsets.ModelViewSet):
     queryset = Quote.objects.select_related("client", "lead", "created_by").prefetch_related("line_items")
     serializer_class = QuoteSerializer
-    permission_classes = [IsAuthenticated, IsAccountManager | IsAdmin]
+    permission_classes = [IsAuthenticated, IsAccountManager | IsAdmin | IsProductionTeam]
     filterset_fields = ["status", "production_status", "client", "lead", "channel", "checkout_status"]
     search_fields = ["quote_id", "product_name", "reference_number"]
     ordering_fields = ["created_at", "quote_date", "valid_until"]
@@ -6312,3 +6348,801 @@ class ProfitabilityAnalysisViewSet(viewsets.ReadOnlyModelViewSet):
                 ref_name = 'ProfitabilityAnalysisDetail'
         
         return ProfitSerializer
+
+
+# ============================================================================
+# PHASE 2: MESSAGING, PROGRESS, & PROOFS VIEWSETS
+# ============================================================================
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 2 - Messaging']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Phase 2 - Messaging']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 2 - Messaging']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Phase 2 - Messaging']))
+class MessageViewSet(viewsets.ModelViewSet):
+    """
+    Message ViewSet - Vendor-PT communication
+    Features: Send messages, file attachments, task assignment with acknowledgment, read status
+    Endpoints:
+        GET /api/v1/messages/ - List messages (filtered by job)
+        POST /api/v1/messages/ - Create new message
+        GET /api/v1/messages/{id}/ - Retrieve single message
+        POST /api/v1/messages/{id}/acknowledge_task/ - Acknowledge task message
+        POST /api/v1/messages/{id}/mark_read/ - Mark message as read
+        GET /api/v1/messages/unread_count/ - Get unread message count
+    """
+    queryset = Message.objects.select_related('job', 'sender_vendor', 'recipient_vendor').prefetch_related('attachments').all()
+    serializer_class = MessageSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsVendor]
+    filterset_fields = ['job', 'sender_type', 'is_task', 'is_read', 'task_status']
+    search_fields = ['content', 'sender_name', 'recipient_name']
+    ordering = ['-created_at']
+    pagination_class = None  # No pagination for messages (load all)
+
+    def get_queryset(self):
+        """Filter messages based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # Vendors can only see messages related to their jobs
+        if hasattr(user, 'vendor'):
+            queryset = queryset.filter(
+                Q(sender_vendor=user.vendor) | Q(recipient_vendor=user.vendor)
+            )
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        """Create message with sender info"""
+        user = self.request.user
+        sender_type = self.request.data.get('sender_type', 'PT')
+        
+        message = serializer.save(
+            sender_type=sender_type,
+            sender_name=user.get_full_name() or user.username,
+            sender_id=user.id if sender_type == 'PT' else None,
+            sender_vendor=user.vendor if sender_type == 'Vendor' and hasattr(user, 'vendor') else None
+        )
+        
+        # Auto-create notification for recipient
+        self._create_notification(message)
+
+    def _create_notification(self, message):
+        """Create notification for message recipient"""
+        if message.recipient_type == 'PT':
+            Notification.objects.create(
+                recipient_type='PT',
+                recipient_id=message.recipient_id,
+                notification_type='message',
+                title=f"New message from {message.sender_name}",
+                message=f"Job {message.job.job_number}: {message.content[:50]}...",
+                related_object_type='Message',
+                related_object_id=message.id
+            )
+        elif message.recipient_type == 'Vendor' and message.recipient_vendor:
+            # TODO: Add vendor notification when vendor user model updated
+            pass
+
+    @action(detail=True, methods=['post'])
+    def acknowledge_task(self, request, pk=None):
+        """Acknowledge a task message"""
+        message = self.get_object()
+        
+        if not message.is_task:
+            return Response(
+                {'detail': 'This message is not a task'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        message.task_status = 'acknowledged'
+        message.save()
+        
+        return Response(
+            {'detail': 'Task acknowledged', 'status': message.task_status},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """Mark message as read"""
+        message = self.get_object()
+        message.is_read = True
+        message.read_at = timezone.now()
+        message.save()
+        
+        return Response(
+            {'detail': 'Message marked as read'},
+            status=status.HTTP_200_OK
+        )
+
+    @action(detail=False, methods=['get'])
+    def unread_count(self, request):
+        """Get count of unread messages for current user"""
+        user = request.user
+        
+        # Count unread messages (recipient)
+        unread = Message.objects.filter(
+            is_read=False,
+            recipient_type='PT',
+            recipient_id=user.id
+        ).count() if hasattr(user, 'id') else 0
+        
+        return Response({'unread_count': unread}, status=status.HTTP_200_OK)
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 2 - Progress']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Phase 2 - Progress']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 2 - Progress']))
+class ProgressUpdateViewSet(viewsets.ModelViewSet):
+    """
+    Progress Update ViewSet - Vendor job progress tracking
+    Features: Update percentage complete, add status/issues, attach progress photos
+    Endpoints:
+        GET /api/v1/progress-updates/ - List updates (filtered by job/vendor)
+        POST /api/v1/progress-updates/ - Create new progress update with photos
+        GET /api/v1/progress-updates/{id}/ - Retrieve single update
+    """
+    queryset = ProgressUpdate.objects.select_related('job', 'vendor').prefetch_related('photos').all()
+    serializer_class = ProgressUpdateSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsVendor]
+    filterset_fields = ['job', 'vendor', 'status']
+    ordering = ['-created_at']
+    pagination_class = None
+
+    def get_queryset(self):
+        """Filter progress updates based on user role"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # Vendors can only see their own updates
+        if hasattr(user, 'vendor'):
+            queryset = queryset.filter(vendor=user.vendor)
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        """Create progress update"""
+        user = self.request.user
+        job_id = self.request.data.get('job')
+        
+        # Verify vendor owns the job (if vendor submitting)
+        if hasattr(user, 'vendor'):
+            job = Job.objects.get(id=job_id)
+            if job.vendor != user.vendor:
+                raise ValidationError("You can only update progress on your own jobs")
+        
+        progress = serializer.save()
+        
+        # Auto-create notification to PT
+        Notification.objects.create(
+            recipient_type='PT',
+            recipient_id=None,  # Will be set to job's PT coordinator
+            notification_type='progress_update',
+            title=f"Progress update: Job {progress.job.job_number}",
+            message=f"{progress.vendor.name}: {progress.percentage_complete}% complete",
+            related_object_type='ProgressUpdate',
+            related_object_id=progress.id
+        )
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 2 - Proofs']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Phase 2 - Proofs']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 2 - Proofs']))
+@method_decorator(name='update', decorator=swagger_auto_schema(tags=['Phase 2 - Proofs']))
+class ProofSubmissionViewSet(viewsets.ModelViewSet):
+    """
+    Proof Submission ViewSet - QC review workflow
+    Features: Submit final proofs, track approval status, revision requests
+    Endpoints:
+        GET /api/v1/proof-submissions/ - List submissions (filtered by job/status)
+        POST /api/v1/proof-submissions/ - Submit new proofs
+        GET /api/v1/proof-submissions/{id}/ - Retrieve submission
+        POST /api/v1/proof-submissions/{id}/approve/ - Approve submission
+        POST /api/v1/proof-submissions/{id}/reject/ - Request revisions
+    """
+    queryset = ProofSubmission.objects.select_related('job', 'vendor').all()
+    serializer_class = ProofSubmissionSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsVendor]
+    filterset_fields = ['job', 'vendor', 'status', 'proof_type']
+    ordering = ['-created_at']
+    pagination_class = None
+
+    def get_queryset(self):
+        """Filter proof submissions"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # Vendors can only see their own submissions
+        if hasattr(user, 'vendor'):
+            queryset = queryset.filter(vendor=user.vendor)
+        
+        return queryset
+
+    def perform_create(self, serializer):
+        """Create proof submission"""
+        user = self.request.user
+        job_id = self.request.data.get('job')
+        
+        if hasattr(user, 'vendor'):
+            job = Job.objects.get(id=job_id)
+            if job.vendor != user.vendor:
+                raise ValidationError("You can only submit proofs for your own jobs")
+        
+        proof = serializer.save(status='pending')
+        
+        # Auto-create QC notification
+        Notification.objects.create(
+            recipient_type='PT',
+            notification_type='proof_submission',
+            title=f"Proof submission: Job {proof.job.job_number}",
+            message=f"Awaiting QC review - {proof.proof_type}",
+            related_object_type='ProofSubmission',
+            related_object_id=proof.id
+        )
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve proof submission"""
+        proof = self.get_object()
+        
+        if request.user.groups.filter(name='ProductionTeam').exists() or request.user.is_staff:
+            proof.status = 'approved'
+            proof.reviewed_by = request.user
+            proof.reviewed_at = timezone.now()
+            proof.save()
+            
+            # Notify vendor of approval
+            Notification.objects.create(
+                recipient_type='Vendor',
+                notification_type='proof_approved',
+                title=f"Proof approved: Job {proof.job.job_number}",
+                message="Your proof submission has been approved",
+                related_object_type='ProofSubmission',
+                related_object_id=proof.id
+            )
+            
+            return Response({'detail': 'Proof approved', 'status': 'approved'})
+        
+        return Response({'detail': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Request revision for proof submission"""
+        proof = self.get_object()
+        revision_reason = request.data.get('revision_reason', 'Please revise and resubmit')
+        
+        if request.user.groups.filter(name='ProductionTeam').exists() or request.user.is_staff:
+            proof.status = 'revision_requested'
+            proof.revision_reason = revision_reason
+            proof.reviewed_by = request.user
+            proof.reviewed_at = timezone.now()
+            proof.save()
+            
+            # Notify vendor
+            Notification.objects.create(
+                recipient_type='Vendor',
+                notification_type='proof_revision_requested',
+                title=f"Revision requested: Job {proof.job.job_number}",
+                message=revision_reason,
+                related_object_type='ProofSubmission',
+                related_object_id=proof.id
+            )
+            
+            return Response({'detail': 'Revision requested', 'status': 'revision_requested'})
+        
+        return Response({'detail': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 2 - Notifications']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 2 - Notifications']))
+class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Notification ViewSet - System notifications
+    Features: List notifications, mark as read
+    Endpoints:
+        GET /api/v1/notifications/ - List notifications (filtered by recipient)
+        GET /api/v1/notifications/{id}/ - Retrieve single notification
+        POST /api/v1/notifications/{id}/mark_read/ - Mark notification as read
+    """
+    queryset = Notification.objects.all()
+    serializer_class = NotificationSerializer
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['notification_type', 'is_read', 'recipient_type']
+    ordering = ['-created_at']
+    pagination_class = None
+
+    def get_queryset(self):
+        """Filter notifications for current user"""
+        user = self.request.user
+        queryset = super().get_queryset()
+        
+        # Get notifications for this PT user
+        queryset = queryset.filter(
+            recipient_type='PT',
+            recipient_id=user.id
+        )
+        
+        return queryset
+
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """Mark notification as read"""
+        notification = self.get_object()
+        notification.is_read = True
+        notification.save()
+        
+        return Response(
+            {'detail': 'Notification marked as read'},
+            status=status.HTTP_200_OK
+        )
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 2 - Performance']))
+class VendorPerformanceViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Vendor Performance ViewSet - VPS scores and metrics
+    Features: Read-only access to vendor performance scores
+    Endpoints:
+        GET /api/v1/vendor-performance/ - List VPS scores (filtered by vendor)
+        GET /api/v1/vendor-performance/{id}/ - Retrieve single score
+        POST /api/v1/vendor-performance/recalculate_all/ - Recalculate all VPS scores
+    """
+    queryset = VendorPerformanceScore.objects.select_related('vendor').all()
+    serializer_class = VendorPerformanceSerializer
+    permission_classes = [IsAuthenticated, IsProductionTeam | IsAdmin]
+    filterset_fields = ['vendor']
+    ordering = ['-average_score']
+    pagination_class = None
+
+    @action(detail=False, methods=['post'])
+    def recalculate_all(self, request):
+        """
+        Recalculate all VPS scores
+        Formula: (on_time_percentage * 0.3) + (quality_score * 0.4) + (communication_score * 0.2) + (delivery_percentage * 0.1)
+        """
+        if not (request.user.groups.filter(name='ProductionTeam').exists() or request.user.is_staff):
+            return Response({'detail': 'Permission denied'}, status=status.HTTP_403_FORBIDDEN)
+        
+        vendors = Vendor.objects.all()
+        updated_count = 0
+        
+        for vendor in vendors:
+            # Calculate on-time percentage
+            completed_jobs = Job.objects.filter(vendor=vendor, status='completed')
+            on_time_jobs = completed_jobs.filter(completed_date__lte=F('expected_completion')).count()
+            on_time_percentage = (on_time_jobs / completed_jobs.count() * 100) if completed_jobs.exists() else 0
+            
+            # Calculate quality score (based on QC passes)
+            qc_inspections = QCInspection.objects.filter(job__vendor=vendor)
+            passed_qc = qc_inspections.filter(qc_status='passed').count()
+            quality_score = (passed_qc / qc_inspections.count() * 100) if qc_inspections.exists() else 0
+            
+            # Calculate communication score (message response rate)
+            # TODO: Implement based on message acknowledgment rate
+            communication_score = 85.0  # Placeholder
+            
+            # Calculate delivery percentage
+            delivery_percentage = 100.0 if on_time_percentage > 80 else 50.0
+            
+            # Calculate average score
+            average_score = (
+                (on_time_percentage * 0.3) +
+                (quality_score * 0.4) +
+                (communication_score * 0.2) +
+                (delivery_percentage * 0.1)
+            )
+            
+            # Update or create VPS record
+            vps, created = VendorPerformanceScore.objects.update_or_create(
+                vendor=vendor,
+                defaults={
+                    'on_time_percentage': on_time_percentage,
+                    'quality_score': quality_score,
+                    'communication_score': communication_score,
+                    'average_score': average_score,
+                    'on_time_jobs': on_time_jobs,
+                    'total_jobs': completed_jobs.count(),
+                    'delivery_percentage': delivery_percentage,
+                    'quality_rating': quality_score,
+                    'communication_rating': communication_score,
+                    'last_recalculated': timezone.now()
+                }
+            )
+            updated_count += 1
+        
+        return Response(
+            {
+                'detail': f'VPS scores recalculated for {updated_count} vendors',
+                'updated_count': updated_count
+            },
+            status=status.HTTP_200_OK
+        )
+
+
+# ==================== PHASE 3: CLIENT PORTAL VIEWSETS ====================
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Client Portal']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 3 - Client Portal']))
+class ClientNotificationViewSet(viewsets.ModelViewSet):
+    """
+    Client Notification ViewSet - Notifications for clients
+    Features: Create, list, mark as read
+    Endpoints:
+        GET /api/v1/client-notifications/ - List client's notifications
+        GET /api/v1/client-notifications/{id}/ - Retrieve single notification
+        PATCH /api/v1/client-notifications/{id}/mark_read/ - Mark as read
+    """
+    serializer_class = ClientNotificationSerializer
+    permission_classes = [IsAuthenticated, IsClient]
+    filterset_fields = ['is_read', 'notification_type']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Return notifications for the authenticated client"""
+        if not hasattr(self.request.user, 'client_profile'):
+            return ClientNotification.objects.none()
+        return ClientNotification.objects.filter(client=self.request.user.client_profile).select_related('order', 'proof')
+    
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """Mark a notification as read"""
+        notification = self.get_object()
+        notification.mark_as_read()
+        return Response({'detail': 'Notification marked as read'}, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def mark_all_read(self, request):
+        """Mark all notifications as read for this client"""
+        if not hasattr(request.user, 'client_profile'):
+            return Response({'detail': 'Not a client'}, status=status.HTTP_403_FORBIDDEN)
+        
+        client = request.user.client_profile
+        unread = ClientNotification.objects.filter(client=client, is_read=False)
+        count = unread.count()
+        
+        for notification in unread:
+            notification.mark_as_read()
+        
+        return Response({
+            'detail': f'{count} notifications marked as read',
+            'count': count
+        }, status=status.HTTP_200_OK)
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Client Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Phase 3 - Client Portal']))
+class ClientMessageViewSet(viewsets.ModelViewSet):
+    """
+    Client Message ViewSet - Real-time messaging between clients and PT team
+    Features: Create messages, list messages, mark as read
+    Endpoints:
+        GET /api/v1/client-messages/?order=ID - List messages for order
+        POST /api/v1/client-messages/ - Send message
+        PATCH /api/v1/client-messages/{id}/mark_read/ - Mark as read
+    """
+    serializer_class = ClientMessageSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsProductionTeam]
+    filterset_fields = ['order', 'sender_type']
+    ordering = ['created_at']
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    
+    def get_queryset(self):
+        """Return messages accessible to the user"""
+        user = self.request.user
+        
+        # If client, return their own messages
+        if hasattr(user, 'client_profile'):
+            return ClientMessage.objects.filter(order__client=user.client_profile).select_related('sender', 'order')
+        
+        # If PT staff, return messages for orders they have access to
+        return ClientMessage.objects.all().select_related('sender', 'order')
+    
+    def perform_create(self, serializer):
+        """Create message and set sender info"""
+        user = self.request.user
+        sender_type = 'client' if hasattr(user, 'client_profile') else 'staff'
+        serializer.save(sender=user, sender_type=sender_type)
+    
+    @action(detail=True, methods=['post'])
+    def mark_read(self, request, pk=None):
+        """Mark a message as read"""
+        message = self.get_object()
+        message.mark_as_read()
+        return Response({'detail': 'Message marked as read'}, status=status.HTTP_200_OK)
+
+
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 3 - Client Portal']))
+class ClientDashboardViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Client Dashboard ViewSet - Client dashboard metrics
+    Features: Read-only access to dashboard metrics
+    Endpoints:
+        GET /api/v1/client-dashboard/ - Get client's dashboard metrics
+        POST /api/v1/client-dashboard/refresh/ - Refresh metrics
+    """
+    serializer_class = ClientDashboardSerializer
+    permission_classes = [IsAuthenticated, IsClient]
+    
+    def get_queryset(self):
+        """Return dashboard for authenticated client"""
+        if not hasattr(self.request.user, 'client_profile'):
+            return ClientDashboard.objects.none()
+        return ClientDashboard.objects.filter(client=self.request.user.client_profile)
+    
+    @action(detail=False, methods=['get'])
+    def my_dashboard(self, request):
+        """Get current client's dashboard"""
+        if not hasattr(request.user, 'client_profile'):
+            return Response({'detail': 'Not a client'}, status=status.HTTP_403_FORBIDDEN)
+        
+        client = request.user.client_profile
+        dashboard, created = ClientDashboard.objects.get_or_create(client=client)
+        dashboard.refresh_metrics()
+        
+        serializer = self.get_serializer(dashboard)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['post'])
+    def refresh(self, request):
+        """Refresh dashboard metrics"""
+        if not hasattr(request.user, 'client_profile'):
+            return Response({'detail': 'Not a client'}, status=status.HTTP_403_FORBIDDEN)
+        
+        client = request.user.client_profile
+        dashboard, created = ClientDashboard.objects.get_or_create(client=client)
+        dashboard.refresh_metrics()
+        
+        serializer = self.get_serializer(dashboard)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Client Portal']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Phase 3 - Client Portal']))
+class ClientFeedbackViewSet(viewsets.ModelViewSet):
+    """
+    Client Feedback ViewSet - Feedback from clients about orders
+    Features: Create feedback, list feedback, mark addressed
+    Endpoints:
+        GET /api/v1/client-feedback/?order=ID - List feedback
+        POST /api/v1/client-feedback/ - Submit feedback
+        PATCH /api/v1/client-feedback/{id}/mark_addressed/ - Mark as addressed
+    """
+    serializer_class = ClientFeedbackSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsProductionTeam | IsAdmin]
+    filterset_fields = ['order', 'feedback_type', 'rating']
+    ordering = ['-created_at']
+    
+    def get_queryset(self):
+        """Return feedback accessible to the user"""
+        user = self.request.user
+        
+        # Clients see their own feedback
+        if hasattr(user, 'client_profile'):
+            return ClientFeedback.objects.filter(client=user.client_profile)
+        
+        # PT staff and admin see all feedback
+        return ClientFeedback.objects.all()
+    
+    def perform_create(self, serializer):
+        """Create feedback and set client"""
+        if hasattr(self.request.user, 'client_profile'):
+            serializer.save(client=self.request.user.client_profile)
+        else:
+            serializer.save()
+    
+    @action(detail=True, methods=['post'])
+    def mark_addressed(self, request, pk=None):
+        """Mark feedback as addressed by PT"""
+        feedback = self.get_object()
+        feedback.is_addressed = True
+        feedback.response = request.data.get('response', '')
+        feedback.save()
+        return Response({'detail': 'Feedback marked as addressed'}, status=status.HTTP_200_OK)
+
+
+# ==================== PHASE 3: ANALYTICS VIEWSETS ====================
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Analytics']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 3 - Analytics']))
+class OrderMetricsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Order Metrics ViewSet - Monthly order metrics
+    Features: Get order metrics by month/client
+    Endpoints:
+        GET /api/v1/order-metrics/?client=ID&month=YYYY-MM - List metrics
+        GET /api/v1/order-metrics/trends/?client=ID - Get trends
+    """
+    queryset = OrderMetrics.objects.select_related('client').all()
+    serializer_class = OrderMetricsSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsProductionTeam | IsAdmin]
+    filterset_fields = ['client', 'month']
+    ordering = ['-month']
+    
+    @action(detail=False, methods=['get'])
+    def trends(self, request):
+        """Get order trends for last N months"""
+        client_id = request.query_params.get('client')
+        months = request.query_params.get('months', 12)
+        
+        try:
+            months = int(months)
+        except:
+            months = 12
+        
+        if not client_id:
+            return Response({'detail': 'client parameter required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        from django.utils.timezone import now
+        from datetime import timedelta
+        from django.db.models import Avg, Sum, Q
+        
+        now_date = now().date()
+        start_date = now_date.replace(day=1) - timedelta(days=months*30)
+        
+        metrics = OrderMetrics.objects.filter(
+            client__id=client_id,
+            month__gte=start_date
+        ).order_by('month').values(
+            'month'
+        ).annotate(
+            avg_value=Avg('total_value'),
+            total_orders=Sum('total_orders'),
+            completed_rate=Avg('completion_rate'),
+            quality=Avg('avg_quality_score')
+        )
+        
+        return Response(metrics, status=status.HTTP_200_OK)
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Analytics']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 3 - Analytics']))
+class VendorComparisonViewSet(viewsets.ModelViewSet):
+    """
+    Vendor Comparison ViewSet - Compare vendor performance
+    Endpoints:
+        GET /api/v1/vendor-comparison/ - List comparisons
+        POST /api/v1/vendor-comparison/ - Create comparison
+    """
+    queryset = VendorComparison.objects.select_related('client', 'vendor1', 'vendor2').all()
+    serializer_class = VendorComparisonSerializer
+    permission_classes = [IsAuthenticated, IsAdmin | IsProductionTeam]
+    filterset_fields = ['client', 'vendor1', 'vendor2']
+    ordering = ['-comparison_date']
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Analytics']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 3 - Analytics']))
+class PerformanceAnalyticsViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Performance Analytics ViewSet - Vendor performance analytics
+    Endpoints:
+        GET /api/v1/performance-analytics/ - List analytics
+        GET /api/v1/performance-analytics/by_month/ - Get analytics by month
+        GET /api/v1/performance-analytics/rankings/ - Get vendor rankings
+    """
+    queryset = PerformanceAnalytics.objects.select_related('vendor').all()
+    serializer_class = PerformanceAnalyticsSerializer
+    permission_classes = [IsAuthenticated, IsAdmin | IsProductionTeam]
+    filterset_fields = ['vendor', 'month']
+    ordering = ['-month', '-overall_trend']
+    
+    @action(detail=False, methods=['get'])
+    def by_month(self, request):
+        """Get performance analytics for a specific month"""
+        month = request.query_params.get('month')
+        
+        if not month:
+            return Response({'detail': 'month parameter required (YYYY-MM)'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from datetime import datetime
+            month_date = datetime.strptime(month, '%Y-%m').date().replace(day=1)
+        except:
+            return Response({'detail': 'Invalid month format'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        analytics = PerformanceAnalytics.objects.filter(month=month_date).order_by('-overall_trend', '-quality_score')
+        serializer = self.get_serializer(analytics, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def rankings(self, request):
+        """Get vendor rankings by month"""
+        month = request.query_params.get('month')
+        
+        if not month:
+            return Response({'detail': 'month parameter required'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            from datetime import datetime
+            month_date = datetime.strptime(month, '%Y-%m').date().replace(day=1)
+        except:
+            return Response({'detail': 'Invalid month format'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        analytics = PerformanceAnalytics.objects.filter(
+            month=month_date
+        ).order_by('ranking').values(
+            'vendor__name', 'ranking', 'percentile', 'quality_score',
+            'on_time_delivery_percentage', 'overall_trend'
+        )
+        
+        return Response(analytics, status=status.HTTP_200_OK)
+
+
+# ==================== PHASE 3: PAYMENT TRACKING VIEWSETS ====================
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Payment Tracking']))
+@method_decorator(name='retrieve', decorator=swagger_auto_schema(tags=['Phase 3 - Payment Tracking']))
+class PaymentStatusViewSet(viewsets.ModelViewSet):
+    """
+    Payment Status ViewSet - Track payment status for invoices
+    Endpoints:
+        GET /api/v1/payment-status/ - List payment statuses
+        PATCH /api/v1/payment-status/{id}/ - Update payment status
+        POST /api/v1/payment-status/{id}/mark_paid/ - Mark as paid
+    """
+    queryset = PaymentStatus.objects.select_related('invoice').all()
+    serializer_class = PaymentStatusSerializer
+    permission_classes = [IsAuthenticated, IsClient | IsProductionTeam | IsAdmin]
+    filterset_fields = ['status', 'invoice']
+    ordering = ['due_date']
+    
+    @action(detail=True, methods=['post'])
+    def mark_paid(self, request, pk=None):
+        """Mark payment as paid"""
+        payment_status = self.get_object()
+        payment_status.status = 'paid'
+        payment_status.paid_date = timezone.now().date()
+        payment_status.amount_paid = payment_status.amount_due
+        payment_status.amount_pending = Decimal('0.00')
+        payment_status.is_overdue = False
+        payment_status.save()
+        
+        serializer = self.get_serializer(payment_status)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def overdue(self, request):
+        """Get all overdue payments"""
+        from django.utils import timezone
+        overdue = PaymentStatus.objects.filter(
+            status__in=['pending', 'partial', 'overdue'],
+            due_date__lt=timezone.now().date()
+        ).select_related('invoice')
+        
+        serializer = self.get_serializer(overdue, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+@method_decorator(name='list', decorator=swagger_auto_schema(tags=['Phase 3 - Payment Tracking']))
+@method_decorator(name='create', decorator=swagger_auto_schema(tags=['Phase 3 - Payment Tracking']))
+class PaymentHistoryViewSet(viewsets.ModelViewSet):
+    """
+    Payment History ViewSet - Track individual payment transactions
+    Endpoints:
+        GET /api/v1/payment-history/ - List payments
+        POST /api/v1/payment-history/ - Record payment
+        POST /api/v1/payment-history/{id}/reconcile/ - Mark as reconciled
+    """
+    queryset = PaymentHistory.objects.select_related('payment_status', 'created_by', 'reconciled_by').all()
+    serializer_class = PaymentHistorySerializer
+    permission_classes = [IsAuthenticated, IsAdmin | IsProductionTeam]
+    filterset_fields = ['payment_status', 'payment_method']
+    ordering = ['-payment_date']
+    
+    @action(detail=True, methods=['post'])
+    def reconcile(self, request, pk=None):
+        """Mark payment as reconciled"""
+        payment = self.get_object()
+        payment.reconciled = True
+        payment.reconciled_by = request.user
+        payment.reconciled_at = timezone.now()
+        payment.save()
+        
+        serializer = self.get_serializer(payment)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def unreconciled(self, request):
+        """Get all unreconciled payments"""
+        unreconciled = PaymentHistory.objects.filter(reconciled=False)
+        serializer = self.get_serializer(unreconciled, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

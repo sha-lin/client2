@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Vendor Directory - Print Duka{% endblock %}
+
+{% block content %}
+<div class="min-h-screen bg-gray-50">
+    <!-- Header -->
+    <div class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 py-6">
+            <div class="flex justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-gray-900">Vendor Directory</h1>
+                    <p class="text-gray-600 mt-1">View vendor performance and workload</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Filters Section -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Search Vendor</label>
+                    <input type="text" id="vendorSearch" placeholder="Vendor name..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                    <select id="vendorCategory" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">All Categories</option>
+                        <option value="printing">Printing</option>
+                        <option value="packaging">Packaging</option>
+                        <option value="shipping">Shipping</option>
+                        <option value="design">Design</option>
+                    </select>
+                </div>
+                <div class="flex items-end gap-2">
+                    <button onclick="loadVendorsData()" class="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <button onclick="resetVendorFilters()" class="flex-1 px-6 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium">
+                        Reset
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vendors Grid -->
+        <div id="vendorsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Vendor cards loaded dynamically -->
+            <div class="col-span-full text-center py-12">
+                <div class="text-gray-500">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading vendors...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Vendor Detail Modal -->
+<div id="vendorDetailModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 overflow-y-auto">
+    <div class="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 my-8">
+        <div class="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+            <h2 class="text-xl font-bold text-gray-900">Vendor Details</h2>
+            <button onclick="closeModal('vendorDetailModal')" class="text-gray-500 hover:text-gray-700">
+                <i class="fas fa-times text-2xl"></i>
+            </button>
+        </div>
+        <div id="vendorDetailContent" class="p-6 max-h-[70vh] overflow-y-auto">
+            <!-- Content loaded dynamically -->
+        </div>
+    </div>
+</div>
+
+<script src="{% static 'js/pt-portal-api.js' %}"></script>
+<script>
+const ptAPI = new PTPortalAPI();
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadVendorsData();
+});
+
+async function loadVendorsData() {
+    try {
+        const search = document.getElementById('vendorSearch').value;
+        const category = document.getElementById('vendorCategory').value;
+        
+        const filters = {};
+        if (search) filters.search = search;
+        if (category) filters.category = category;
+
+        const data = await ptAPI.getVendors(filters);
+        displayVendorsGrid(data.results || data);
+    } catch (error) {
+        console.error('Error loading vendors:', error);
+        showNotification('Error loading vendors', 'error');
+    }
+}
+
+function displayVendorsGrid(vendors) {
+    const grid = document.getElementById('vendorsGrid');
+    grid.innerHTML = '';
+
+    if (!vendors || vendors.length === 0) {
+        grid.innerHTML = '<div class="col-span-full text-center py-12 text-gray-500">No vendors found</div>';
+        return;
+    }
+
+    vendors.forEach(vendor => {
+        const performanceScore = vendor.performance_score || 0;
+        const scoreColor = performanceScore >= 80 ? 'text-green-600' : performanceScore >= 60 ? 'text-yellow-600' : 'text-red-600';
+        const activeJobs = vendor.active_jobs_count || 0;
+        const completedJobs = vendor.completed_jobs_count || 0;
+        const capacity = vendor.capacity_utilization || 0;
+        const rating = vendor.rating || 0;
+        
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-lg shadow hover:shadow-lg transition-shadow overflow-hidden cursor-pointer';
+        card.innerHTML = `
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">${vendor.name}</h3>
+                        <p class="text-sm text-gray-600">${vendor.category || 'General'}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-3xl font-bold ${scoreColor}">${performanceScore}%</p>
+                        <p class="text-xs text-gray-600">Performance</p>
+                    </div>
+                </div>
+                
+                <div class="space-y-3 mb-4">
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-xs font-medium text-gray-700">Capacity Utilization</span>
+                            <span class="text-xs text-gray-600">${capacity}%</span>
+                        </div>
+                        <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-blue-600 rounded-full" style="width: ${capacity}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <p class="text-xs text-gray-600">Active Jobs</p>
+                            <p class="text-xl font-bold text-blue-600">${activeJobs}</p>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-xs text-gray-600">Completed</p>
+                            <p class="text-xl font-bold text-green-600">${completedJobs}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center">
+                        <div class="flex text-yellow-400">
+                            ${Array.from({length: 5}, (_, i) => 
+                                `<i class="fas fa-star ${i < Math.floor(rating) ? '' : 'text-gray-300'}"></i>`
+                            ).join('')}
+                        </div>
+                        <span class="text-xs text-gray-600 ml-2">${rating.toFixed(1)}/5</span>
+                    </div>
+                </div>
+                
+                <button onclick="viewVendorDetail(${vendor.id})" class="w-full px-3 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 font-medium">
+                    View Details
+                </button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+}
+
+async function viewVendorDetail(vendorId) {
+    try {
+        const vendor = await ptAPI.getVendorDetail(vendorId);
+        const workload = await ptAPI.getVendorWorkload(vendorId);
+        const performance = await ptAPI.getVendorPerformance(vendorId);
+        
+        const content = document.getElementById('vendorDetailContent');
+        
+        const performanceScore = vendor.performance_score || 0;
+        const scoreColor = performanceScore >= 80 ? 'text-green-600' : performanceScore >= 60 ? 'text-yellow-600' : 'text-red-600';
+        
+        content.innerHTML = `
+            <div class="space-y-6">
+                <!-- Header Info -->
+                <div class="border-b pb-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h3 class="text-2xl font-bold text-gray-900">${vendor.name}</h3>
+                            <p class="text-gray-600">${vendor.category || 'General Vendor'}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-4xl font-bold ${scoreColor}">${performanceScore}%</p>
+                            <p class="text-gray-600">Performance</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Contact Info -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-xs font-medium text-gray-700">Email</label>
+                        <p class="text-gray-900">${vendor.email || 'N/A'}</p>
+                    </div>
+                    <div>
+                        <label class="text-xs font-medium text-gray-700">Phone</label>
+                        <p class="text-gray-900">${vendor.phone || 'N/A'}</p>
+                    </div>
+                </div>
+                
+                <!-- Capacity Section -->
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">Capacity & Workload</h4>
+                    <div class="space-y-3">
+                        <div>
+                            <div class="flex justify-between items-center mb-1">
+                                <span class="text-sm font-medium text-gray-700">Current Capacity</span>
+                                <span class="text-sm font-bold text-gray-900">${vendor.capacity_utilization || 0}%</span>
+                            </div>
+                            <div class="w-full h-3 bg-gray-300 rounded-full overflow-hidden">
+                                <div class="h-full bg-blue-600 rounded-full" style="width: ${vendor.capacity_utilization || 0}%"></div>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-white p-3 rounded border border-gray-200">
+                                <p class="text-xs text-gray-600">Active Jobs</p>
+                                <p class="text-2xl font-bold text-blue-600">${vendor.active_jobs_count || 0}</p>
+                            </div>
+                            <div class="bg-white p-3 rounded border border-gray-200">
+                                <p class="text-xs text-gray-600">Completed</p>
+                                <p class="text-2xl font-bold text-green-600">${vendor.completed_jobs_count || 0}</p>
+                            </div>
+                            <div class="bg-white p-3 rounded border border-gray-200">
+                                <p class="text-xs text-gray-600">On Hold</p>
+                                <p class="text-2xl font-bold text-yellow-600">${vendor.on_hold_count || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Performance Metrics -->
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <h4 class="font-semibold text-gray-900 mb-3">Performance Metrics</h4>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <p class="text-xs text-gray-600">Avg. On-Time Rate</p>
+                            <p class="text-xl font-bold text-green-600">${performance.on_time_rate || 0}%</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-600">Quality Score</p>
+                            <p class="text-xl font-bold text-blue-600">${performance.quality_score || 0}/100</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-600">Response Time</p>
+                            <p class="text-xl font-bold text-purple-600">${performance.avg_response_time || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-600">Rating</p>
+                            <p class="text-xl font-bold text-yellow-600">${vendor.rating?.toFixed(1) || 0}/5 ⭐</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Work -->
+                ${workload && workload.recent_jobs ? `
+                    <div>
+                        <h4 class="font-semibold text-gray-900 mb-2">Recent Jobs</h4>
+                        <div class="space-y-2">
+                            ${workload.recent_jobs.slice(0, 5).map(job => `
+                                <div class="flex justify-between items-center p-2 bg-gray-50 rounded">
+                                    <span class="text-sm text-gray-900">${job.job_number}</span>
+                                    <span class="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded">${job.status}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+            
+            <div class="flex gap-2 mt-6">
+                <button onclick="closeModal('vendorDetailModal')" class="flex-1 px-4 py-2 bg-gray-200 text-gray-900 rounded-lg hover:bg-gray-300 font-medium">
+                    Close
+                </button>
+            </div>
+        `;
+        
+        document.getElementById('vendorDetailModal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Error loading vendor details:', error);
+        showNotification('Error loading vendor details', 'error');
+    }
+}
+
+function resetVendorFilters() {
+    document.getElementById('vendorSearch').value = '';
+    document.getElementById('vendorCategory').value = '';
+    loadVendorsData();
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.add('hidden');
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    const bgColor = type === 'error' ? 'bg-red-500' : type === 'success' ? 'bg-green-500' : 'bg-blue-500';
+    notification.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50`;
+    notification.textContent = message;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.remove();
+    }, 3000);
+}
+</script>
+{% endblock %}

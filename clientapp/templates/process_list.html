@@ -120,9 +120,9 @@
                                         </div>
                                     </div>
                                     <div class="ml-4">
-                                        <div class="text-sm font-medium text-gray-900">
+                                        <a href="{% url 'process_detail' process.process_id %}" class="text-sm font-medium text-blue-600 hover:text-blue-900 hover:underline">
                                             {{ process.process_name }}
-                                        </div>
+                                        </a>
                                         <div class="text-sm text-gray-500">
                                             {{ process.process_id }}
                                         </div>
@@ -160,7 +160,7 @@
                             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                 <div class="flex items-center justify-end gap-2">
                                     <!-- Edit Button -->
-                                    <a href="{% url 'process_edit' process.id %}" 
+                                    <a href="{% url 'process_edit' process.process_id %}" 
                                        class="text-blue-600 hover:text-blue-900 p-1 rounded"
                                        title="Edit Process">
                                         <i data-lucide="edit" class="w-4 h-4"></i>
@@ -168,7 +168,7 @@
                                     
                                     <!-- Formula-based processes: Variable Ranges Management -->
                                     {% if process.pricing_type == 'formula' and process.variables.count > 0 %}
-                                    <a href="{% url 'process_variable_ranges_manager' process.id %}" 
+                                    <a href="{% url 'process_variable_ranges_manager' process.process_id %}" 
                                        class="text-green-600 hover:text-green-900 p-1 rounded"
                                        title="Manage Variable Ranges">
                                         <i data-lucide="list" class="w-4 h-4"></i>
@@ -176,7 +176,7 @@
                                     {% endif %}
                                     
                                     <!-- Delete Button -->
-                                    <button onclick="deleteProcess('{{ process.id }}')" 
+                                    <button onclick="deleteProcess('{{ process.process_id }}')" 
                                             class="text-red-600 hover:text-red-900 p-1 rounded"
                                             title="Delete Process">
                                         <i data-lucide="trash-2" class="w-4 h-4"></i>

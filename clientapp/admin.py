@@ -480,7 +480,7 @@ class ProductAdmin(admin.ModelAdmin):
         ('Basic Information', {
             'fields': (
                 'name', 'internal_code',
-                'short_description', 'long_description', 'technical_specs'
+                'short_description', 'long_description', 'maintenance', 'technical_specs'
             )
         }),
         ('Classification', {

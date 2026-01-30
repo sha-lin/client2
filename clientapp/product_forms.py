@@ -78,7 +78,7 @@ class ProductGeneralInfoForm(forms.ModelForm):
     class Meta:
         model = Product
         fields = [
-            'name', 'internal_code', 'short_description', 'long_description',
+            'name', 'internal_code', 'short_description', 'long_description', 'maintenance',
             'technical_specs', 'primary_category', 'sub_category', 'product_family',
             'product_type', 'tags', 'is_visible', 'visibility',
             'feature_product', 'bestseller_badge', 'new_arrival', 'new_arrival_expires',
@@ -110,6 +110,11 @@ class ProductGeneralInfoForm(forms.ModelForm):
                 'rows': 4,
                 'placeholder': 'Detailed product description',
                 'id': 'id_long_description'
+            }),
+            'maintenance': forms.Textarea(attrs={
+                'class': 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'rows': 3,
+                'placeholder': 'Product maintenance details and care instructions'
             }),
             'technical_specs': forms.Textarea(attrs={
                 'class': 'w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500',
@@ -346,8 +351,7 @@ class ProductPricingForm(forms.ModelForm):
         fields = [
             'pricing_model', 'base_cost', 'price_display',
             'default_margin', 'minimum_margin', 'minimum_order_value',
-            'lead_time_value', 'lead_time_unit', 'production_method',
-            'primary_vendor', 'alternative_vendors', 'minimum_quantity',
+            'production_method', 'alternative_vendors', 'minimum_quantity',
             'rush_available', 'rush_lead_time_value', 'rush_lead_time_unit',
             'rush_upcharge', 'enable_conditional_logic', 'enable_conflict_detection'
         ]
@@ -377,17 +381,7 @@ class ProductPricingForm(forms.ModelForm):
             'minimum_order_value': forms.NumberInput(attrs={
                 'class': 'flex-1 px-3 py-2 border border-gray-300 rounded-r-md focus:outline-none focus:ring-2 focus:ring-blue-500'
             }),
-            'lead_time_value': forms.NumberInput(attrs={
-                'class': 'w-20 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500',
-                'min': '1'
-            }),
-            'lead_time_unit': forms.Select(attrs={
-                'class': 'flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
-            }),
             'production_method': forms.Select(attrs={
-                'class': 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
-            }),
-            'primary_vendor': forms.Select(attrs={
                 'class': 'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500'
             }),
             'alternative_vendors': forms.SelectMultiple(attrs={
