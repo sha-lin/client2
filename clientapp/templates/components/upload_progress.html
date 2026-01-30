@@ -1,0 +1,307 @@
+<!-- Upload Progress Modal - Include this in any template that needs upload progress tracking -->
+<div id="uploadProgressModal" style="display: none;" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+        <div class="text-center">
+            <svg class="w-12 h-12 text-blue-600 mx-auto mb-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 15m-8 2h8"/>
+            </svg>
+            
+            <h3 id="uploadFileName" class="text-lg font-semibold text-gray-900 mb-2">Uploading file...</h3>
+            
+            <!-- Progress Bar -->
+            <div class="mb-4">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="uploadProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                </div>
+            </div>
+            
+            <!-- Progress Text -->
+            <div class="grid grid-cols-3 gap-2 mb-4 text-sm">
+                <div class="bg-gray-50 p-2 rounded">
+                    <p class="text-xs text-gray-600 mb-1">Progress</p>
+                    <p id="uploadPercent" class="text-lg font-bold text-gray-900">0%</p>
+                </div>
+                <div class="bg-gray-50 p-2 rounded">
+                    <p class="text-xs text-gray-600 mb-1">Speed</p>
+                    <p id="uploadSpeed" class="text-lg font-bold text-gray-900">0 MB/s</p>
+                </div>
+                <div class="bg-gray-50 p-2 rounded">
+                    <p class="text-xs text-gray-600 mb-1">Time Left</p>
+                    <p id="uploadTimeRemaining" class="text-lg font-bold text-gray-900">--:--</p>
+                </div>
+            </div>
+            
+            <!-- Detailed Info -->
+            <div class="text-left bg-gray-50 p-3 rounded mb-4 text-xs text-gray-700 space-y-1">
+                <p>
+                    <span class="text-gray-600">Uploaded:</span>
+                    <span id="uploadedSize" class="font-mono">0 MB</span> /
+                    <span id="totalSize" class="font-mono">0 MB</span>
+                </p>
+                <p>
+                    <span class="text-gray-600">File:</span>
+                    <span id="uploadFileNameDetail" class="font-mono truncate">--</span>
+                </p>
+                <p>
+                    <span class="text-gray-600">Elapsed:</span>
+                    <span id="uploadElapsedTime">0:00</span>
+                </p>
+            </div>
+            
+            <!-- Cancel Button -->
+            <button id="cancelUploadBtn" onclick="cancelUpload()" class="w-full px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                Cancel Upload
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+    @keyframes spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
+    .animate-spin {
+        animation: spin 1s linear infinite;
+    }
+</style>
+
+<script>
+// Global upload state
+let uploadState = {
+    active: false,
+    aborted: false,
+    controller: null,
+    startTime: null,
+    totalSize: 0,
+    uploadedSize: 0,
+    fileName: '',
+    startTimestamp: null
+};
+
+/**
+ * Show upload progress modal
+ * @param {string} fileName - Name of file being uploaded
+ * @param {number} fileSize - Total file size in bytes
+ */
+function showUploadProgress(fileName, fileSize) {
+    uploadState.active = true;
+    uploadState.aborted = false;
+    uploadState.totalSize = fileSize;
+    uploadState.uploadedSize = 0;
+    uploadState.fileName = fileName;
+    uploadState.startTime = Date.now();
+    uploadState.startTimestamp = new Date();
+    
+    document.getElementById('uploadFileName').textContent = `Uploading: ${fileName}`;
+    document.getElementById('uploadFileNameDetail').textContent = fileName;
+    document.getElementById('totalSize').textContent = formatFileSize(fileSize);
+    document.getElementById('uploadProgressModal').style.display = 'flex';
+    
+    resetProgressDisplay();
+}
+
+/**
+ * Hide upload progress modal
+ */
+function hideUploadProgress() {
+    uploadState.active = false;
+    document.getElementById('uploadProgressModal').style.display = 'none';
+}
+
+/**
+ * Update upload progress
+ * @param {number} uploadedBytes - Number of bytes uploaded so far
+ */
+function updateUploadProgress(uploadedBytes) {
+    if (!uploadState.active) return;
+    
+    uploadState.uploadedSize = uploadedBytes;
+    
+    const percent = Math.round((uploadedBytes / uploadState.totalSize) * 100);
+    const elapsedTime = Date.now() - uploadState.startTime;
+    const speed = uploadedBytes / (elapsedTime / 1000); // bytes per second
+    
+    // Calculate time remaining
+    const remainingBytes = uploadState.totalSize - uploadedBytes;
+    const timeRemaining = speed > 0 ? remainingBytes / speed : 0; // seconds
+    
+    // Update UI
+    document.getElementById('uploadProgressBar').style.width = percent + '%';
+    document.getElementById('uploadPercent').textContent = percent + '%';
+    document.getElementById('uploadSpeed').textContent = formatSpeed(speed);
+    document.getElementById('uploadTimeRemaining').textContent = formatTime(timeRemaining);
+    document.getElementById('uploadedSize').textContent = formatFileSize(uploadedBytes);
+    document.getElementById('uploadElapsedTime').textContent = formatTime(elapsedTime / 1000);
+}
+
+/**
+ * Handle upload completion
+ * @param {boolean} success - Whether upload was successful
+ * @param {string} message - Completion message
+ */
+function completeUpload(success, message) {
+    if (success) {
+        // Show success state
+        document.getElementById('uploadProgressBar').style.width = '100%';
+        document.getElementById('uploadPercent').textContent = '100%';
+        document.getElementById('uploadFileName').textContent = 'Upload Complete!';
+        
+        // Auto-hide after 1.5 seconds
+        setTimeout(() => {
+            hideUploadProgress();
+        }, 1500);
+    } else {
+        // Show error state
+        document.getElementById('uploadFileName').textContent = 'Upload Failed';
+        showToast(message || 'Upload failed', 'error');
+    }
+    
+    uploadState.active = false;
+}
+
+/**
+ * Cancel ongoing upload
+ */
+function cancelUpload() {
+    if (uploadState.controller) {
+        uploadState.controller.abort();
+        uploadState.aborted = true;
+    }
+    hideUploadProgress();
+    uploadState.active = false;
+    showToast('Upload cancelled', 'info');
+}
+
+/**
+ * Helper: Format file size for display
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return (bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i];
+}
+
+/**
+ * Helper: Format upload speed
+ */
+function formatSpeed(bytesPerSecond) {
+    if (bytesPerSecond === 0) return '0 MB/s';
+    const mbps = bytesPerSecond / (1024 * 1024);
+    if (mbps < 0.01) return '< 0.01 MB/s';
+    return mbps.toFixed(2) + ' MB/s';
+}
+
+/**
+ * Helper: Format time (seconds -> mm:ss)
+ */
+function formatTime(seconds) {
+    if (seconds === 0 || !seconds || isNaN(seconds)) return '00:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+}
+
+/**
+ * Reset progress display
+ */
+function resetProgressDisplay() {
+    document.getElementById('uploadProgressBar').style.width = '0%';
+    document.getElementById('uploadPercent').textContent = '0%';
+    document.getElementById('uploadSpeed').textContent = '0 MB/s';
+    document.getElementById('uploadTimeRemaining').textContent = '--:--';
+    document.getElementById('uploadedSize').textContent = '0 B';
+    document.getElementById('uploadElapsedTime').textContent = '0:00';
+}
+
+/**
+ * Upload file with progress tracking
+ * @param {File} file - File to upload
+ * @param {string} endpoint - API endpoint to upload to
+ * @param {object} additionalData - Additional form data to send
+ * @returns {Promise} - Promise resolving to response JSON
+ */
+async function uploadFileWithProgress(file, endpoint, additionalData = {}) {
+    return new Promise(async (resolve, reject) => {
+        // Show progress modal
+        showUploadProgress(file.name, file.size);
+        
+        // Create FormData
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        // Add additional data
+        Object.entries(additionalData).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
+        
+        // Create abort controller for cancellation
+        uploadState.controller = new AbortController();
+        
+        try {
+            // Use XMLHttpRequest for progress events
+            const xhr = new XMLHttpRequest();
+            
+            // Track upload progress
+            xhr.upload.addEventListener('progress', (event) => {
+                if (event.lengthComputable) {
+                    updateUploadProgress(event.loaded);
+                }
+            });
+            
+            // Handle completion
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        completeUpload(true, 'Upload successful');
+                        resolve(response);
+                    } catch (e) {
+                        completeUpload(true, 'Upload successful');
+                        resolve({ success: true });
+                    }
+                } else {
+                    const errorMsg = `Upload failed with status ${xhr.status}`;
+                    completeUpload(false, errorMsg);
+                    reject(new Error(errorMsg));
+                }
+            });
+            
+            // Handle errors
+            xhr.addEventListener('error', () => {
+                if (uploadState.aborted) {
+                    reject(new Error('Upload cancelled'));
+                } else {
+                    completeUpload(false, 'Network error during upload');
+                    reject(new Error('Upload failed'));
+                }
+            });
+            
+            // Handle abort
+            xhr.addEventListener('abort', () => {
+                completeUpload(false, 'Upload cancelled');
+                reject(new Error('Upload cancelled'));
+            });
+            
+            // Set up request
+            xhr.open('POST', endpoint);
+            
+            // Add CSRF token if available
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+            if (csrfToken) {
+                xhr.setRequestHeader('X-CSRFToken', csrfToken);
+            }
+            
+            // Send
+            xhr.send(formData);
+            
+        } catch (error) {
+            completeUpload(false, 'Upload error: ' + error.message);
+            reject(error);
+        }
+    });
+}
+</script>

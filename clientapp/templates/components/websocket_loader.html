@@ -1,0 +1,76 @@
+<!-- clientapp/templates/components/websocket_loader.html -->
+<!-- Include this in your base template to enable WebSocket real-time updates -->
+
+{% load static %}
+
+<!-- WebSocket Status Indicator -->
+<div class="notification-container"></div>
+
+<!-- WebSocket Status Badge (optional, place in header) -->
+<!-- <span class="websocket-status status-disconnected">Connecting...</span> -->
+
+<!-- Load WebSocket Client Library -->
+<script src="{% static 'js/websocket-client.js' %}"></script>
+
+<!-- Load WebSocket Styles -->
+<link rel="stylesheet" href="{% static 'css/websocket-notifications.css' %}">
+
+<!-- WebSocket Connection Setup -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize WebSocket client
+    const wsClient = new WebSocketClient();
+    
+    // Store globally for use in other scripts
+    window.wsClient = wsClient;
+    
+    // Connect to user notifications if authenticated
+    {% if user.is_authenticated %}
+    wsClient.connectToNotifications({{ user.id }}, function(data) {
+        console.log('Received notification:', data);
+    });
+    {% endif %}
+    
+    console.log('✓ WebSocket client initialized');
+});
+</script>
+
+<!-- Usage Examples in your templates: -->
+<!--
+
+1. Connect to Job Updates:
+   <script>
+   window.wsClient.connectToJob({{ job.id }}, function(data) {
+       if (data.type === 'job_status_updated') {
+           // Update job status in UI
+           document.querySelector('.job-status').textContent = data.status;
+       }
+   });
+   </script>
+
+2. Connect to Dashboard:
+   <script>
+   window.wsClient.connectToDashboard('jobs', function(data) {
+       // Handle dashboard updates
+       console.log('Dashboard update:', data);
+   });
+   </script>
+
+3. Connect to Material Substitution:
+   <script>
+   window.wsClient.connectToSubstitution({{ substitution.id }}, function(data) {
+       if (data.type === 'substitution_status_changed') {
+           // Update substitution status
+           location.reload(); // or update UI dynamically
+       }
+   });
+   </script>
+
+4. Listen to Custom Events:
+   <script>
+   window.addEventListener('jobStatusUpdated', function(e) {
+       console.log('Job updated:', e.detail);
+   });
+   </script>
+
+-->

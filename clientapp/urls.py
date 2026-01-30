@@ -60,9 +60,11 @@ urlpatterns = [
     path('account-manager/analytics/', views.analytics, name='analytics'),
     path('account-manager/base/', views.base_view, name='base_view'),
     path('account-manager/jobs/', views.account_manager_jobs_list, name='account_manager_jobs_list'),
+    path('account-manager/jobs/board/', views.job_assignment_board, name='job_assignment_board'),
     path('account-manager/job/<int:pk>/', views.account_manager_job_detail, name='account_manager_job_detail'),
     path('account-manager/job/<int:pk>/update/', views.account_manager_job_update, name='account_manager_job_update'),
     path('account-manager/job/<int:pk>/remind/', views.account_manager_send_reminder, name='account_manager_send_reminder'),
+    path('account-manager/substitutions/', views.substitution_dashboard, name='substitution_dashboard'),
     
     # Job Interaction APIs (AJAX endpoints for AM portal)
     path('api/job/<int:job_id>/assign/', views.api_assign_job, name='api_assign_job'),
@@ -173,6 +175,15 @@ urlpatterns = [
     path('api/customer-notifications/<int:pk>/', views.CustomerNotificationViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='api_customer_notification_detail'),
     path('api/customer-notifications/send-notification/', views.CustomerNotificationViewSet.as_view({'post': 'send_notification'}), name='api_send_customer_notification'),
     path('api/customer-notifications/<int:pk>/mark-acknowledged/', views.CustomerNotificationViewSet.as_view({'post': 'mark_acknowledged'}), name='api_mark_notification_acknowledged'),
+    
+    # Material Substitutions API
+    path('api/material-substitutions/request/', views.api_create_substitution_request, name='api_create_substitution_request'),
+    path('api/material-substitutions/<int:pk>/', views.api_get_substitution_request, name='api_get_substitution_request'),
+    path('api/material-substitutions/<int:pk>/approve/', views.api_approve_substitution, name='api_approve_substitution'),
+    path('api/material-substitutions/<int:pk>/reject/', views.api_reject_substitution, name='api_reject_substitution'),
+    path('api/material-substitutions/<int:pk>/comments/', views.api_get_substitution_comments, name='api_get_substitution_comments'),
+    path('api/material-substitutions/<int:pk>/comment/', views.api_add_substitution_comment, name='api_add_substitution_comment'),
+    path('api/purchase-orders/<int:pk>/', views.api_get_purchase_order_details, name='api_get_purchase_order_details'),
     
     # Deadline Calculations (Task 8 - Automatic Deadline Calculation)
     path('api/deadline-calculations/', views.DeadlineCalculationViewSet.as_view({'get': 'list', 'post': 'create'}), name='api_deadline_calculations_list'),
@@ -509,6 +520,14 @@ path('delivery/handoff/<int:job_id>/', views.delivery_handoff, name='delivery_ha
     
     # Individual vendor endpoints (backward compatibility)
     path('vendor/dashboard/', views.vendor_dashboard, name='vendor_dashboard'),
+    
+    # Invoice Management (Vendor)
+    path('vendor/invoices/', views.vendor_invoices, name='vendor_invoices'),
+    path('vendor/invoices/create/', views.vendor_create_invoice, name='vendor_create_invoice'),
+    
+    # Material Substitution (Vendor)
+    path('vendor/substitutions/', views.vendor_substitutions, name='vendor_substitutions'),
+    path('vendor/substitutions/create/', views.vendor_create_substitution, name='vendor_create_substitution'),
     
     # Jobs Management
     path('jobs/active/', views.active_jobs, name='active_jobs'),

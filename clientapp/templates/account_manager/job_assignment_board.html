@@ -1,0 +1,840 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Job Assignment Board - Account Manager{% endblock %}
+
+{% block content %}
+<style>
+    .kanban-container {
+        display: flex;
+        gap: 1.5rem;
+        overflow-x: auto;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        min-height: calc(100vh - 120px);
+    }
+    
+    .kanban-column {
+        flex: 0 0 350px;
+        display: flex;
+        flex-direction: column;
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+    
+    .kanban-header {
+        padding: 1rem;
+        font-weight: 600;
+        font-size: 0.95rem;
+        border-bottom: 3px solid;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .kanban-header.unassigned {
+        background: #fee2e2;
+        border-color: #dc2626;
+        color: #7f1d1d;
+    }
+    
+    .kanban-header.assigned {
+        background: #fef3c7;
+        border-color: #f59e0b;
+        color: #78350f;
+    }
+    
+    .kanban-header.in-progress {
+        background: #dbeafe;
+        border-color: #3b82f6;
+        color: #1e3a8a;
+    }
+    
+    .kanban-header.completed {
+        background: #dcfce7;
+        border-color: #16a34a;
+        color: #1b4332;
+    }
+    
+    .kanban-count {
+        background: rgba(0, 0, 0, 0.1);
+        padding: 0.25rem 0.5rem;
+        border-radius: 9999px;
+        font-size: 0.85rem;
+        font-weight: 700;
+    }
+    
+    .kanban-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    
+    .kanban-content::-webkit-scrollbar {
+        width: 6px;
+    }
+    
+    .kanban-content::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .kanban-content::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 3px;
+    }
+    
+    .kanban-content::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+    
+    .job-card {
+        background: white;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        cursor: grab;
+        transition: all 0.3s ease;
+    }
+    
+    .job-card:active {
+        cursor: grabbing;
+        opacity: 0.7;
+    }
+    
+    .job-card:hover {
+        border-color: #94a3b8;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .job-card.dragging {
+        opacity: 0.5;
+        transform: rotate(2deg);
+    }
+    
+    .job-card.drag-over {
+        background: #f0f9ff;
+        border-color: #3b82f6;
+    }
+    
+    .job-number {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .job-name {
+        font-size: 0.85rem;
+        color: #475569;
+        font-weight: 500;
+        margin-bottom: 0.5rem;
+        line-height: 1.3;
+    }
+    
+    .job-meta {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+        font-size: 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .job-meta-item {
+        background: #f1f5f9;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        color: #64748b;
+    }
+    
+    .job-meta-label {
+        font-weight: 600;
+        color: #475569;
+    }
+    
+    .job-priority {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-right: 0.25rem;
+    }
+    
+    .job-priority.normal {
+        background: #e2e8f0;
+        color: #475569;
+    }
+    
+    .job-priority.high {
+        background: #fce7f3;
+        color: #be185d;
+    }
+    
+    .job-priority.urgent {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .job-status {
+        display: inline-block;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.7rem;
+        font-weight: 600;
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .job-deadline {
+        padding: 0.5rem;
+        border-radius: 4px;
+        background: #fef3c7;
+        color: #78350f;
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-top: 0.5rem;
+    }
+    
+    .job-deadline.overdue {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .job-actions {
+        display: flex;
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .job-action-btn {
+        flex: 1;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .job-action-btn.view {
+        background: #dbeafe;
+        color: #1e40af;
+    }
+    
+    .job-action-btn.view:hover {
+        background: #bfdbfe;
+    }
+    
+    .job-action-btn.assign {
+        background: #fef3c7;
+        color: #78350f;
+    }
+    
+    .job-action-btn.assign:hover {
+        background: #fde68a;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 2rem;
+        color: #94a3b8;
+    }
+    
+    .empty-icon {
+        width: 3rem;
+        height: 3rem;
+        margin: 0 auto 1rem;
+        opacity: 0.5;
+    }
+    
+    /* Filter Bar */
+    .filter-bar {
+        padding: 1rem;
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+    
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 6px;
+        background: white;
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+    }
+    
+    .filter-btn:hover {
+        border-color: #3b82f6;
+        color: #3b82f6;
+    }
+    
+    .filter-btn.active {
+        background: #3b82f6;
+        color: white;
+        border-color: #3b82f6;
+    }
+    
+    /* Header */
+    .board-header {
+        padding: 1.5rem;
+        background: white;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .board-title {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .board-stats {
+        display: flex;
+        gap: 1.5rem;
+    }
+    
+    .stat {
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .stat-label {
+        font-size: 0.75rem;
+        color: #64748b;
+        text-transform: uppercase;
+        font-weight: 600;
+    }
+    
+    /* Assignment Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 20px 25px rgba(0, 0, 0, 0.15);
+    }
+    
+    .modal-header {
+        font-size: 1.25rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1rem;
+    }
+    
+    .modal-form-group {
+        margin-bottom: 1rem;
+    }
+    
+    .modal-label {
+        display: block;
+        font-weight: 600;
+        color: #475569;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .modal-select {
+        width: 100%;
+        padding: 0.5rem;
+        border: 2px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.95rem;
+    }
+    
+    .modal-select:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+    
+    .modal-btn {
+        flex: 1;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .modal-btn.save {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .modal-btn.save:hover {
+        background: #2563eb;
+    }
+    
+    .modal-btn.cancel {
+        background: #e2e8f0;
+        color: #475569;
+    }
+    
+    .modal-btn.cancel:hover {
+        background: #cbd5e1;
+    }
+</style>
+
+<!-- Header -->
+<div class="board-header">
+    <div>
+        <h1 class="board-title">Job Assignment Board</h1>
+        <p class="text-gray-600 text-sm">Drag jobs between columns to assign or update status</p>
+    </div>
+    <div class="board-stats">
+        <div class="stat">
+            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">Total Jobs</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" style="color: #dc2626;">{{ stats.unassigned }}</div>
+            <div class="stat-label">Unassigned</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" style="color: #f59e0b;">{{ stats.assigned }}</div>
+            <div class="stat-label">Assigned</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" style="color: #3b82f6;">{{ stats.in_progress }}</div>
+            <div class="stat-label">In Progress</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="filter-bar">
+    <span style="font-weight: 600; color: #475569;">Filter:</span>
+    <button class="filter-btn active" onclick="filterByPriority('all')">All Jobs</button>
+    <button class="filter-btn" onclick="filterByPriority('urgent')">🔴 Urgent</button>
+    <button class="filter-btn" onclick="filterByPriority('high')">🟠 High</button>
+    <button class="filter-btn" onclick="filterByPriority('overdue')">⏰ Overdue</button>
+</div>
+
+<!-- Kanban Board -->
+<div class="kanban-container">
+    <!-- Unassigned Column -->
+    <div class="kanban-column" data-status="pending">
+        <div class="kanban-header unassigned">
+            <span>📋 Unassigned</span>
+            <span class="kanban-count">{{ unassigned_count }}</span>
+        </div>
+        <div class="kanban-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+            {% for job in unassigned_jobs %}
+                <div class="job-card" draggable="true" ondragstart="handleDragStart(event)" data-job-id="{{ job.id }}" data-status="pending">
+                    <div class="job-number">{{ job.job_number }}</div>
+                    <div class="job-name">{{ job.job_name }}</div>
+                    
+                    <div class="job-meta">
+                        <div class="job-meta-item">
+                            <span class="job-meta-label">QTY:</span> {{ job.quantity }}
+                        </div>
+                        <div class="job-meta-item">
+                            <span class="job-meta-label">TYPE:</span> {{ job.get_job_type_display }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <span class="job-priority {{ job.priority }}">{{ job.get_priority_display }}</span>
+                    </div>
+                    
+                    {% if job.is_overdue %}
+                    <div class="job-deadline overdue">⏰ OVERDUE</div>
+                    {% else %}
+                        {% if job.days_remaining %}
+                            <div class="job-deadline">📅 {{ job.days_remaining }} days left</div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <div class="job-actions">
+                        <button class="job-action-btn view" onclick="viewJob({{ job.id }})">View</button>
+                        <button class="job-action-btn assign" onclick="openAssignModal({{ job.id }}, '{{ job.job_number }}')">Assign</button>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <p>All jobs assigned!</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Assigned Column -->
+    <div class="kanban-column" data-status="pending">
+        <div class="kanban-header assigned">
+            <span>⚡ Assigned (Ready)</span>
+            <span class="kanban-count">{{ assigned_count }}</span>
+        </div>
+        <div class="kanban-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+            {% for job in assigned_jobs %}
+                <div class="job-card" draggable="true" ondragstart="handleDragStart(event)" data-job-id="{{ job.id }}" data-status="pending">
+                    <div class="job-number">{{ job.job_number }}</div>
+                    <div class="job-name">{{ job.job_name }}</div>
+                    
+                    <div class="job-meta">
+                        <div class="job-meta-item">
+                            <span class="job-meta-label">PERSON:</span> {{ job.person_in_charge|truncatewords:2 }}
+                        </div>
+                        <div class="job-meta-item">
+                            <span class="job-meta-label">QTY:</span> {{ job.quantity }}
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <span class="job-priority {{ job.priority }}">{{ job.get_priority_display }}</span>
+                    </div>
+                    
+                    {% if job.is_overdue %}
+                    <div class="job-deadline overdue">⏰ OVERDUE</div>
+                    {% else %}
+                        {% if job.days_remaining %}
+                            <div class="job-deadline">📅 {{ job.days_remaining }} days left</div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <div class="job-actions">
+                        <button class="job-action-btn view" onclick="viewJob({{ job.id }})">View</button>
+                        <button class="job-action-btn assign" onclick="openAssignModal({{ job.id }}, '{{ job.job_number }}')">Reassign</button>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                    </svg>
+                    <p>No assigned jobs</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- In Progress Column -->
+    <div class="kanban-column" data-status="in_progress">
+        <div class="kanban-header in-progress">
+            <span>🔄 In Production</span>
+            <span class="kanban-count">{{ in_progress_count }}</span>
+        </div>
+        <div class="kanban-content" ondrop="handleDrop(event)" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)">
+            {% for job in in_progress_jobs %}
+                <div class="job-card" draggable="true" ondragstart="handleDragStart(event)" data-job-id="{{ job.id }}" data-status="in_progress">
+                    <div class="job-number">{{ job.job_number }}</div>
+                    <div class="job-name">{{ job.job_name }}</div>
+                    
+                    <div class="job-meta">
+                        <div class="job-meta-item">
+                            <span class="job-meta-label">PERSON:</span> {{ job.person_in_charge|truncatewords:2 }}
+                        </div>
+                        <div class="job-meta-item">
+                            <span class="job-meta-label">QTY:</span> {{ job.quantity }}
+                        </div>
+                    </div>
+                    
+                    <div class="job-status">📊 In Progress</div>
+                    
+                    {% if job.is_overdue %}
+                    <div class="job-deadline overdue">⏰ OVERDUE - RUSH!</div>
+                    {% else %}
+                        {% if job.days_remaining %}
+                            <div class="job-deadline">📅 {{ job.days_remaining }} days left</div>
+                        {% endif %}
+                    {% endif %}
+                    
+                    <div class="job-actions">
+                        <button class="job-action-btn view" onclick="viewJob({{ job.id }})">View</button>
+                        <button class="job-action-btn assign" onclick="updateJobStatus({{ job.id }}, 'completed')">Complete</button>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="empty-state">
+                    <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    <p>No jobs in progress</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Assignment Modal -->
+<div id="assignmentModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">Assign Job</div>
+        
+        <form id="assignmentForm">
+            <input type="hidden" id="jobIdInput" />
+            
+            <div class="modal-form-group">
+                <label class="modal-label">Job Number</label>
+                <div id="jobNumberDisplay" style="padding: 0.5rem; background: #f1f5f9; border-radius: 6px; color: #475569;"></div>
+            </div>
+            
+            <div class="modal-form-group">
+                <label class="modal-label">Assign To</label>
+                <select id="personSelect" class="modal-select">
+                    <option value="">-- Select Production User --</option>
+                    {% for user in production_users %}
+                    <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="modal-form-group">
+                <label class="modal-label">Status</label>
+                <select id="statusSelect" class="modal-select">
+                    <option value="pending">Pending</option>
+                    <option value="in_progress">In Progress</option>
+                    <option value="completed">Completed</option>
+                </select>
+            </div>
+            
+            <div class="modal-actions">
+                <button type="button" class="modal-btn save" onclick="submitAssignment()">Save Assignment</button>
+                <button type="button" class="modal-btn cancel" onclick="closeAssignModal()">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+let draggedElement = null;
+let currentJobId = null;
+
+function handleDragStart(e) {
+    draggedElement = e.target.closest('.job-card');
+    draggedElement.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const column = e.currentTarget;
+    column.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    if (e.currentTarget === e.target) {
+        e.currentTarget.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const column = e.currentTarget;
+    column.classList.remove('drag-over');
+    
+    if (draggedElement) {
+        draggedElement.classList.remove('dragging');
+        const newStatus = column.closest('.kanban-column').dataset.status;
+        const jobId = draggedElement.dataset.jobId;
+        
+        // Update on server
+        updateJobStatus(jobId, newStatus);
+        
+        // Move card to new column
+        column.appendChild(draggedElement);
+        draggedElement = null;
+    }
+}
+
+function viewJob(jobId) {
+    window.location.href = `/jobs/${jobId}/`;
+}
+
+function openAssignModal(jobId, jobNumber) {
+    currentJobId = jobId;
+    document.getElementById('jobIdInput').value = jobId;
+    document.getElementById('jobNumberDisplay').textContent = jobNumber;
+    document.getElementById('personSelect').value = '';
+    document.getElementById('statusSelect').value = 'pending';
+    document.getElementById('assignmentModal').classList.add('active');
+}
+
+function closeAssignModal() {
+    document.getElementById('assignmentModal').classList.remove('active');
+    currentJobId = null;
+}
+
+function submitAssignment() {
+    const jobId = document.getElementById('jobIdInput').value;
+    const personId = document.getElementById('personSelect').value;
+    const status = document.getElementById('statusSelect').value;
+    
+    if (!personId) {
+        showToast('Please select a person', 'warning');
+        return;
+    }
+    
+    updateJobAssignment(jobId, personId, status);
+}
+
+async function updateJobAssignment(jobId, personId, status) {
+    try {
+        const response = await fetch(`/api/jobs/${jobId}/`, {
+            method: 'PATCH',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                person_in_charge: personId,
+                status: status
+            })
+        });
+        
+        if (response.ok) {
+            showToast('Job assigned successfully!', 'success');
+            closeAssignModal();
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showToast('Failed to assign job', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+
+async function updateJobStatus(jobId, newStatus) {
+    try {
+        await fetch(`/api/jobs/${jobId}/`, {
+            method: 'PATCH',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                status: newStatus
+            })
+        });
+    } catch (error) {
+        console.error('Error updating status:', error);
+    }
+}
+
+function filterByPriority(priority) {
+    // Update filter buttons
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Filter cards
+    document.querySelectorAll('.job-card').forEach(card => {
+        if (priority === 'all') {
+            card.style.display = '';
+        } else if (priority === 'overdue') {
+            const isOverdue = card.querySelector('.job-deadline.overdue') !== null;
+            card.style.display = isOverdue ? '' : 'none';
+        } else {
+            const priorityBadge = card.querySelector(`.job-priority.${priority}`);
+            card.style.display = priorityBadge ? '' : 'none';
+        }
+    });
+}
+
+// Close modal on outside click
+document.getElementById('assignmentModal')?.addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAssignModal();
+    }
+});
+
+// WebSocket Connection for Real-Time Dashboard Updates
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.wsClient && typeof window.wsClient.connectToDashboard === 'function') {
+        window.wsClient.connectToDashboard('jobs', function(data) {
+            console.log('Dashboard update received:', data);
+            
+            // Update job count in header if available
+            if (data.type === 'job_count_updated') {
+                const totalCount = document.querySelector('[data-total-jobs]');
+                const pendingCount = document.querySelector('[data-pending-jobs]');
+                const inProgressCount = document.querySelector('[data-in-progress-jobs]');
+                
+                if (totalCount && data.data.total_jobs) {
+                    totalCount.textContent = data.data.total_jobs;
+                }
+                if (pendingCount && data.data.pending_jobs) {
+                    pendingCount.textContent = data.data.pending_jobs;
+                }
+                if (inProgressCount && data.data.in_progress_jobs) {
+                    inProgressCount.textContent = data.data.in_progress_jobs;
+                }
+            }
+            
+            // Refresh job cards if status changed
+            if (data.type === 'job_updated' || data.type === 'job_assigned') {
+                const jobCard = document.querySelector(`[data-job-id="${data.data.job_id}"]`);
+                if (jobCard) {
+                    // Add animation
+                    jobCard.style.animation = 'pulse 0.5s ease-in-out';
+                    
+                    // Update status if needed
+                    if (data.data.status) {
+                        const statusEl = jobCard.querySelector('.job-status');
+                        if (statusEl) {
+                            statusEl.textContent = data.data.status;
+                        }
+                    }
+                }
+                
+                // Show toast
+                showToast('Job assignment updated in real-time', 'info');
+            }
+        });
+    } else {
+        console.log('WebSocket client not available for dashboard updates');
+    }
+});
+</script>
+{% endblock %}

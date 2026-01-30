@@ -1,0 +1,1001 @@
+{% extends 'account_manager/account_manager_base.html' %}
+{% load static %}
+
+{% block title %}Material Substitution Requests - Account Manager{% endblock %}
+
+{% block content %}
+<style>
+    .substitution-dashboard {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 2rem;
+    }
+    
+    .dashboard-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+    }
+    
+    .header-title {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .header-actions {
+        display: flex;
+        gap: 1rem;
+    }
+    
+    .btn-filter {
+        padding: 0.75rem 1.25rem;
+        border: 2px solid #e2e8f0;
+        background: white;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        color: #475569;
+        transition: all 0.2s ease;
+    }
+    
+    .btn-filter:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+    
+    .btn-filter.active {
+        background: #3b82f6;
+        border-color: #3b82f6;
+        color: white;
+    }
+    
+    /* Stats Row */
+    .stats-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .stat-card {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        border-left: 4px solid #3b82f6;
+    }
+    
+    .stat-label {
+        color: #64748b;
+        font-size: 0.9rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #1e293b;
+    }
+    
+    .stat-card.pending {
+        border-left-color: #f59e0b;
+    }
+    
+    .stat-card.approved {
+        border-left-color: #10b981;
+    }
+    
+    .stat-card.rejected {
+        border-left-color: #ef4444;
+    }
+    
+    /* Request List */
+    .requests-container {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+    
+    .request-item {
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1.5rem;
+        transition: background 0.2s ease;
+    }
+    
+    .request-item:last-child {
+        border-bottom: none;
+    }
+    
+    .request-item:hover {
+        background: #f8fafc;
+    }
+    
+    .request-item.expanded {
+        background: #f0f9ff;
+        border-bottom: 2px solid #3b82f6;
+    }
+    
+    .request-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 1rem;
+        cursor: pointer;
+    }
+    
+    .request-info {
+        flex: 1;
+    }
+    
+    .request-title {
+        font-weight: 700;
+        color: #1e293b;
+        font-size: 1.05rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .request-meta {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 1rem;
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+    
+    .request-meta-item {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .request-meta-label {
+        font-weight: 600;
+        color: #475569;
+    }
+    
+    .request-status {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.5rem;
+    }
+    
+    .status-badge {
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+    
+    .status-badge.pending {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .status-badge.approved {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .status-badge.rejected {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+    
+    .status-badge.under_review {
+        background: #dbeafe;
+        color: #0c4a6e;
+    }
+    
+    /* Request Details (Expandable) */
+    .request-details {
+        display: none;
+        margin-top: 1.5rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #cbd5e1;
+    }
+    
+    .request-item.expanded .request-details {
+        display: block;
+    }
+    
+    .details-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    @media (max-width: 768px) {
+        .details-row {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    .details-section {
+        flex: 1;
+    }
+    
+    .details-section-title {
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .material-comparison {
+        display: flex;
+        gap: 1rem;
+        align-items: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .material-box {
+        flex: 1;
+        background: #f1f5f9;
+        padding: 1rem;
+        border-radius: 8px;
+        border: 2px solid #cbd5e1;
+    }
+    
+    .material-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #64748b;
+        text-transform: uppercase;
+        margin-bottom: 0.5rem;
+    }
+    
+    .material-name {
+        font-weight: 700;
+        color: #1e293b;
+        word-break: break-word;
+    }
+    
+    .material-match {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-top: 1rem;
+        padding: 1rem;
+        background: white;
+        border-radius: 6px;
+    }
+    
+    .match-bar {
+        height: 8px;
+        flex: 1;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+    
+    .match-fill {
+        height: 100%;
+        background: #10b981;
+        transition: width 0.3s ease;
+    }
+    
+    .match-percentage {
+        min-width: 50px;
+        text-align: right;
+        font-weight: 600;
+        color: #10b981;
+    }
+    
+    /* Justification Box */
+    .justification-box {
+        background: #f8fafc;
+        border-left: 4px solid #3b82f6;
+        padding: 1rem;
+        border-radius: 6px;
+        margin: 1rem 0;
+        line-height: 1.6;
+        color: #475569;
+    }
+    
+    /* Cost Analysis */
+    .cost-analysis {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+    }
+    
+    .cost-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #d1fae5;
+    }
+    
+    .cost-row:last-child {
+        border-bottom: none;
+    }
+    
+    .cost-label {
+        color: #166534;
+        font-weight: 600;
+    }
+    
+    .cost-value {
+        color: #166534;
+        font-weight: 700;
+    }
+    
+    .cost-value.positive {
+        color: #ef4444;
+    }
+    
+    .cost-value.negative {
+        color: #10b981;
+    }
+    
+    /* Images */
+    .images-gallery {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+    
+    .image-thumb {
+        position: relative;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #f1f5f9;
+        cursor: pointer;
+        aspect-ratio: 1;
+    }
+    
+    .image-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    /* Comments Section */
+    .comments-section {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .comments-title {
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1rem;
+    }
+    
+    .comment {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .comment-header {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.5rem;
+    }
+    
+    .comment-author {
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .comment-time {
+        font-size: 0.85rem;
+        color: #94a3b8;
+    }
+    
+    .comment-text {
+        color: #475569;
+        line-height: 1.5;
+    }
+    
+    /* Add Comment Form */
+    .comment-form {
+        background: #f0f9ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .comment-textarea {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-size: 0.9rem;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 80px;
+        margin-bottom: 0.75rem;
+    }
+    
+    .comment-textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    /* Action Buttons */
+    .action-buttons {
+        display: flex;
+        gap: 1rem;
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    .btn {
+        padding: 0.75rem 1.5rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 0.95rem;
+    }
+    
+    .btn-approve {
+        background: #10b981;
+        color: white;
+        flex: 1;
+    }
+    
+    .btn-approve:hover {
+        background: #059669;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+    
+    .btn-reject {
+        background: #ef4444;
+        color: white;
+        flex: 1;
+    }
+    
+    .btn-reject:hover {
+        background: #dc2626;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+    }
+    
+    .btn-comment {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .btn-comment:hover {
+        background: #2563eb;
+    }
+    
+    .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* Empty State */
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #64748b;
+    }
+    
+    .empty-state-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        opacity: 0.5;
+    }
+    
+    .empty-state-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+    
+    /* Modal */
+    .modal {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .modal.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 12px;
+        padding: 2rem;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    
+    .modal-header {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 1rem;
+    }
+    
+    .modal-input {
+        width: 100%;
+        padding: 0.75rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        font-size: 0.95rem;
+        margin-bottom: 1rem;
+    }
+    
+    .modal-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+</style>
+
+<!-- Header -->
+<div class="substitution-dashboard">
+    <div class="dashboard-header">
+        <div class="header-title">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 15m-8 2h8"/>
+            </svg>
+            Material Substitution Requests
+        </div>
+        <div class="header-actions">
+            <button class="btn-filter active" onclick="filterRequests('all')">All</button>
+            <button class="btn-filter" onclick="filterRequests('pending')">Pending</button>
+            <button class="btn-filter" onclick="filterRequests('approved')">Approved</button>
+            <button class="btn-filter" onclick="filterRequests('rejected')">Rejected</button>
+        </div>
+    </div>
+    
+    <!-- Stats -->
+    <div class="stats-row">
+        <div class="stat-card pending">
+            <div class="stat-label">Pending Review</div>
+            <div class="stat-value">{{ stats.pending }}</div>
+        </div>
+        <div class="stat-card approved">
+            <div class="stat-label">Approved</div>
+            <div class="stat-value">{{ stats.approved }}</div>
+        </div>
+        <div class="stat-card rejected">
+            <div class="stat-label">Rejected</div>
+            <div class="stat-value">{{ stats.rejected }}</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #3b82f6;">
+            <div class="stat-label">Total</div>
+            <div class="stat-value">{{ stats.total }}</div>
+        </div>
+    </div>
+    
+    <!-- Requests List -->
+    <div class="requests-container">
+        {% if requests %}
+            {% for request in requests %}
+            <div class="request-item" data-status="{{ request.status }}" id="request-{{ request.id }}">
+                <div class="request-header" onclick="toggleRequestDetails({{ request.id }})">
+                    <div class="request-info">
+                        <div class="request-title">
+                            PO #{{ request.purchase_order.po_number }} - {{ request.purchase_order.description|truncatewords:5 }}
+                        </div>
+                        <div class="request-meta">
+                            <div class="request-meta-item">
+                                <span class="request-meta-label">Vendor:</span>
+                                <span>{{ request.purchase_order.vendor_stage.vendor.name }}</span>
+                            </div>
+                            <div class="request-meta-item">
+                                <span class="request-meta-label">Requested:</span>
+                                <span>{{ request.created_at|date:"M d, Y" }}</span>
+                            </div>
+                            <div class="request-meta-item">
+                                <span class="request-meta-label">Match:</span>
+                                <span>{{ request.match_percentage }}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="request-status">
+                        <div class="status-badge {{ request.status }}">
+                            {{ request.get_status_display }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Expandable Details -->
+                <div class="request-details">
+                    <!-- Material Comparison -->
+                    <div class="details-section">
+                        <div class="details-section-title">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                            </svg>
+                            Material Comparison
+                        </div>
+                        
+                        <div class="material-comparison">
+                            <div class="material-box">
+                                <div class="material-label">Original Material</div>
+                                <div class="material-name">{{ request.original_material }}</div>
+                            </div>
+                            <div style="font-size: 1.5rem; color: #cbd5e1;">→</div>
+                            <div class="material-box">
+                                <div class="material-label">Proposed Material</div>
+                                <div class="material-name">{{ request.proposed_material }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="material-match">
+                            <div class="match-bar">
+                                <div class="match-fill" style="width: {{ request.match_percentage }}%"></div>
+                            </div>
+                            <div class="match-percentage">{{ request.match_percentage }}%</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Justification & Details -->
+                    <div class="details-section">
+                        <div class="details-section-title">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            Details & Justification
+                        </div>
+                        
+                        <div class="justification-box">
+                            {{ request.justification }}
+                        </div>
+                        
+                        {% if request.original_cost or request.substitute_cost %}
+                        <div class="cost-analysis">
+                            <div style="font-weight: 700; color: #166534; margin-bottom: 1rem;">Cost Impact Analysis</div>
+                            <div class="cost-row">
+                                <span class="cost-label">Original Cost (per unit):</span>
+                                <span class="cost-value">${{ request.original_cost|floatformat:2 }}</span>
+                            </div>
+                            <div class="cost-row">
+                                <span class="cost-label">Substitute Cost (per unit):</span>
+                                <span class="cost-value">${{ request.substitute_cost|floatformat:2 }}</span>
+                            </div>
+                            {% with diff=request.substitute_cost|add:request.original_cost|add:"-1"|mul:"1" %}
+                            <div class="cost-row" style="font-weight: 700; border-top: 2px solid #d1fae5; padding-top: 0.75rem; margin-top: 0.75rem;">
+                                <span class="cost-label">Impact per unit:</span>
+                                <span class="cost-value {% if diff > 0 %}positive{% else %}negative{% endif %}">
+                                    {% if diff > 0 %}+{% endif %}${{ diff|floatformat:2 }}
+                                </span>
+                            </div>
+                            {% endwith %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Comments Section -->
+                    <div class="comments-section">
+                        <div class="comments-title">Discussion & Comments</div>
+                        
+                        <div id="comments-{{ request.id }}" class="comments-list">
+                            <!-- Comments will load here -->
+                        </div>
+                        
+                        {% if request.status == 'pending' %}
+                        <div class="comment-form">
+                            <textarea class="comment-textarea" placeholder="Add a comment or question..." id="commentText-{{ request.id }}"></textarea>
+                            <button class="btn btn-comment" onclick="addComment({{ request.id }})">Add Comment</button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Action Buttons (Only for pending requests) -->
+                    {% if request.status == 'pending' %}
+                    <div class="action-buttons">
+                        <button class="btn btn-approve" onclick="approveRequest({{ request.id }})">
+                            <svg class="w-5 h-5" style="display: inline; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            Approve Substitution
+                        </button>
+                        <button class="btn btn-reject" onclick="rejectRequest({{ request.id }})">
+                            <svg class="w-5 h-5" style="display: inline; margin-right: 0.5rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                            Reject & Request Alternative
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <svg class="empty-state-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                </svg>
+                <div class="empty-state-title">No Substitution Requests</div>
+                <div>Vendors haven't requested any material substitutions yet.</div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Approval Modal -->
+<div id="approvalModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">Approve Substitution</div>
+        <p style="color: #64748b; margin-bottom: 1rem;">
+            This material substitution has been reviewed and meets our quality standards.
+        </p>
+        <label style="display: block; margin-bottom: 0.75rem; font-weight: 600;">
+            <input type="checkbox" id="notifyCustomer" checked>
+            Notify customer of this substitution
+        </label>
+        <textarea id="approvalNotes" class="modal-input" placeholder="Add approval notes for the vendor..." style="min-height: 100px;"></textarea>
+        <div class="modal-actions">
+            <button class="btn btn-reject" onclick="closeModal('approvalModal')" style="background: #e2e8f0; color: #475569;">Cancel</button>
+            <button class="btn btn-approve" onclick="confirmApproval()">Confirm Approval</button>
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Modal -->
+<div id="rejectionModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">Reject Substitution</div>
+        <p style="color: #64748b; margin-bottom: 1rem;">
+            Please explain why you're rejecting this substitution and suggest alternatives if possible.
+        </p>
+        <textarea id="rejectionReason" class="modal-input" placeholder="Reason for rejection and alternative suggestions..." style="min-height: 120px;"></textarea>
+        <div class="modal-actions">
+            <button class="btn btn-approve" onclick="closeModal('rejectionModal')" style="background: #e2e8f0; color: #475569;">Cancel</button>
+            <button class="btn btn-reject" onclick="confirmRejection()">Confirm Rejection</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentRequestId = null;
+
+function toggleRequestDetails(requestId) {
+    const item = document.getElementById(`request-${requestId}`);
+    item.classList.toggle('expanded');
+    
+    if (item.classList.contains('expanded')) {
+        loadComments(requestId);
+    }
+}
+
+function filterRequests(status) {
+    // Update buttons
+    document.querySelectorAll('.btn-filter').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Filter requests
+    document.querySelectorAll('.request-item').forEach(item => {
+        if (status === 'all' || item.dataset.status === status) {
+            item.style.display = 'block';
+        } else {
+            item.style.display = 'none';
+        }
+    });
+}
+
+async function loadComments(requestId) {
+    try {
+        const response = await fetch(`/api/material-substitutions/${requestId}/comments/`);
+        const comments = await response.json();
+        
+        const container = document.getElementById(`comments-${requestId}`);
+        container.innerHTML = '';
+        
+        comments.forEach(comment => {
+            const commentDiv = document.createElement('div');
+            commentDiv.className = 'comment';
+            commentDiv.innerHTML = `
+                <div class="comment-header">
+                    <div class="comment-author">${comment.author_name}</div>
+                    <div class="comment-time">${new Date(comment.created_at).toLocaleDateString()}</div>
+                </div>
+                <div class="comment-text">${comment.text}</div>
+            `;
+            container.appendChild(commentDiv);
+        });
+    } catch (error) {
+        console.error('Error loading comments:', error);
+    }
+}
+
+async function addComment(requestId) {
+    const text = document.getElementById(`commentText-${requestId}`).value;
+    if (!text.trim()) return;
+    
+    try {
+        const response = await fetch(`/api/material-substitutions/${requestId}/comment/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ text })
+        });
+        
+        if (response.ok) {
+            document.getElementById(`commentText-${requestId}`).value = '';
+            loadComments(requestId);
+            showToast('Comment added successfully', 'success');
+        }
+    } catch (error) {
+        console.error('Error adding comment:', error);
+        showToast('Error adding comment', 'error');
+    }
+}
+
+function approveRequest(requestId) {
+    currentRequestId = requestId;
+    document.getElementById('approvalModal').classList.add('active');
+}
+
+function rejectRequest(requestId) {
+    currentRequestId = requestId;
+    document.getElementById('rejectionModal').classList.add('active');
+}
+
+async function confirmApproval() {
+    const notifyCustomer = document.getElementById('notifyCustomer').checked;
+    const notes = document.getElementById('approvalNotes').value;
+    
+    try {
+        const response = await fetch(`/api/material-substitutions/${currentRequestId}/approve/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                notify_customer: notifyCustomer,
+                notes: notes
+            })
+        });
+        
+        if (response.ok) {
+            closeModal('approvalModal');
+            showToast('Substitution approved successfully', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error approving request', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+
+async function confirmRejection() {
+    const reason = document.getElementById('rejectionReason').value;
+    if (!reason.trim()) {
+        showToast('Please provide a reason for rejection', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/material-substitutions/${currentRequestId}/reject/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || '',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ reason })
+        });
+        
+        if (response.ok) {
+            closeModal('rejectionModal');
+            showToast('Substitution rejected - vendor has been notified', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('Error rejecting request', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Error: ' + error.message, 'error');
+    }
+}
+
+function closeModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+window.onclick = function(event) {
+    const modals = ['approvalModal', 'rejectionModal'];
+    modals.forEach(modalId => {
+        const modal = document.getElementById(modalId);
+        if (event.target === modal) {
+            modal.classList.remove('active');
+        }
+    });
+}
+
+// WebSocket Connection for Real-Time Substitution Updates
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.wsClient && typeof window.wsClient.connectToSubstitutions === 'function') {
+        window.wsClient.connectToSubstitutions(function(data) {
+            console.log('Substitution update received:', data);
+            
+            if (data.update_type === 'status_changed') {
+                const subCard = document.querySelector(`[data-substitution-id="${data.substitution_id}"]`);
+                if (subCard) {
+                    // Add animation
+                    subCard.style.animation = 'pulse 0.5s ease-in-out';
+                    
+                    // Update status badge
+                    const statusEl = subCard.querySelector('.substitution-status');
+                    if (statusEl) {
+                        statusEl.textContent = data.data.status.toUpperCase();
+                        statusEl.className = `substitution-status bg-${
+                            data.data.status === 'approved' ? 'green' : 
+                            data.data.status === 'rejected' ? 'red' : 
+                            'yellow'
+                        }-100 text-${
+                            data.data.status === 'approved' ? 'green' : 
+                            data.data.status === 'rejected' ? 'red' : 
+                            'yellow'
+                        }-800 px-3 py-1 rounded-full text-sm font-medium`;
+                    }
+                    
+                    // Update approval info
+                    if (data.data.approved_by) {
+                        const infoEl = subCard.querySelector('.approval-info');
+                        if (infoEl) {
+                            infoEl.innerHTML = `✓ Approved by ${data.data.approved_by}`;
+                        }
+                    }
+                    
+                    // Update timestamp
+                    const timeEl = subCard.querySelector('.updated-time');
+                    if (timeEl && data.data.approved_at) {
+                        timeEl.textContent = new Date(data.data.approved_at).toLocaleString();
+                    }
+                }
+                
+                // Show toast notification
+                showToast(`Substitution ${data.data.status}: ${data.data.reason || ''}`, 'info');
+            }
+        });
+    } else {
+        console.log('WebSocket client not available for substitution updates');
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,678 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Create Invoice - Vendor Portal{% endblock %}
+
+{% block content %}
+<style>
+    .invoice-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+    
+    .invoice-header {
+        margin-bottom: 30px;
+        border-bottom: 2px solid #e5e7eb;
+        padding-bottom: 20px;
+    }
+    
+    .invoice-header h1 {
+        font-size: 28px;
+        font-weight: 700;
+        color: #1f2937;
+        margin: 0 0 5px 0;
+    }
+    
+    .invoice-header p {
+        color: #6b7280;
+        margin: 0;
+    }
+    
+    .form-section {
+        background: white;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .section-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #1f2937;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 15px;
+    }
+    
+    .form-row.full {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .form-group label {
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .form-group label .required {
+        color: #ef4444;
+        margin-left: 4px;
+    }
+    
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 10px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        font-family: inherit;
+        transition: border-color 0.2s;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus,
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    
+    .form-group textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    /* Line Items Table */
+    .line-items-wrapper {
+        margin-bottom: 20px;
+    }
+    
+    .line-items-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+    }
+    
+    .line-items-table thead {
+        background: #f3f4f6;
+    }
+    
+    .line-items-table th {
+        padding: 12px;
+        text-align: left;
+        font-weight: 600;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        font-size: 14px;
+    }
+    
+    .line-items-table td {
+        padding: 12px;
+        border: 1px solid #e5e7eb;
+        font-size: 14px;
+    }
+    
+    .line-items-table input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #d1d5db;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+    
+    .line-items-table .amount {
+        text-align: right;
+        color: #1f2937;
+        font-weight: 500;
+    }
+    
+    .btn-remove {
+        background: #ef4444;
+        color: white;
+        border: none;
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 13px;
+        transition: background 0.2s;
+    }
+    
+    .btn-remove:hover {
+        background: #dc2626;
+    }
+    
+    .btn-add-line {
+        background: #10b981;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        transition: background 0.2s;
+    }
+    
+    .btn-add-line:hover {
+        background: #059669;
+    }
+    
+    /* Summary Section */
+    .invoice-summary {
+        margin-left: auto;
+        width: 300px;
+        background: #f9fafb;
+        padding: 15px;
+        border-radius: 6px;
+        border: 1px solid #e5e7eb;
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    
+    .summary-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+    
+    .summary-row.total {
+        background: white;
+        padding: 12px;
+        margin: 12px -15px -15px -15px;
+        border-radius: 0 0 6px 6px;
+        font-size: 16px;
+        font-weight: 700;
+        color: #1f2937;
+    }
+    
+    .summary-label {
+        color: #6b7280;
+        font-size: 13px;
+    }
+    
+    .summary-value {
+        color: #1f2937;
+        font-weight: 500;
+        text-align: right;
+    }
+    
+    /* Action Buttons */
+    .form-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 30px;
+        padding-top: 20px;
+        border-top: 1px solid #e5e7eb;
+    }
+    
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary {
+        background: #3b82f6;
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        background: #2563eb;
+    }
+    
+    .btn-secondary {
+        background: #e5e7eb;
+        color: #1f2937;
+    }
+    
+    .btn-secondary:hover {
+        background: #d1d5db;
+    }
+    
+    .btn-cancel {
+        background: white;
+        color: #6b7280;
+        border: 1px solid #d1d5db;
+    }
+    
+    .btn-cancel:hover {
+        background: #f9fafb;
+    }
+    
+    /* Error Messages */
+    .error-message {
+        background: #fee2e2;
+        color: #991b1b;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+    }
+    
+    .error-message.show {
+        display: block;
+    }
+    
+    /* Success Message */
+    .success-message {
+        background: #d1fae5;
+        color: #065f46;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+        display: none;
+    }
+    
+    .success-message.show {
+        display: block;
+    }
+
+    /* Loading State */
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .loading-spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-radius: 50%;
+        border-top-color: white;
+        animation: spin 0.8s linear infinite;
+        margin-right: 8px;
+        vertical-align: middle;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+
+<div class="invoice-container">
+    <div class="invoice-header">
+        <h1>Create Invoice</h1>
+        <p>Submit an invoice for your completed work</p>
+    </div>
+
+    <!-- Error Message -->
+    <div id="errorMessage" class="error-message">
+        <strong>Error:</strong> <span id="errorText"></span>
+    </div>
+
+    <!-- Success Message -->
+    <div id="successMessage" class="success-message">
+        Invoice submitted successfully! <a href="{% url 'vendor_invoices' %}">View all invoices</a>
+    </div>
+
+    <form id="invoiceForm" method="POST" onsubmit="submitInvoice(event)">
+        {% csrf_token %}
+
+        <!-- PO Selection Section -->
+        <div class="form-section">
+            <div class="section-title">Select Purchase Order</div>
+            <div class="form-row full">
+                <div class="form-group">
+                    <label>Purchase Order <span class="required">*</span></label>
+                    <select id="purchaseOrderId" name="purchase_order_id" required onchange="loadPODetails()">
+                        <option value="">-- Select a Purchase Order --</option>
+                    </select>
+                </div>
+            </div>
+            <div id="poDetails" style="display:none; margin-top:15px; padding:15px; background:#f0f9ff; border-left:4px solid #3b82f6; border-radius:4px;">
+                <div style="font-size:13px; color:#6b7280;">
+                    <div><strong>PO Number:</strong> <span id="poNumber">-</span></div>
+                    <div><strong>Client:</strong> <span id="clientName">-</span></div>
+                    <div><strong>Due Date:</strong> <span id="dueDate">-</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Line Items Section -->
+        <div class="form-section">
+            <div class="section-title">Line Items</div>
+            <div class="line-items-wrapper">
+                <table class="line-items-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%;">Description</th>
+                            <th style="width: 15%; text-align:center;">Quantity</th>
+                            <th style="width: 15%; text-align:right;">Unit Price (KES)</th>
+                            <th style="width: 15%; text-align:right;">Amount (KES)</th>
+                            <th style="width: 20%; text-align:center;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lineItemsBody">
+                        <tr class="line-item">
+                            <td><input type="text" class="description" placeholder="e.g., Embroidery Service" required></td>
+                            <td><input type="number" class="quantity" min="1" value="1" required style="text-align:center;"></td>
+                            <td><input type="number" class="unit-price" min="0" step="0.01" placeholder="0.00" required style="text-align:right;"></td>
+                            <td><span class="amount">0.00</span></td>
+                            <td style="text-align:center;"><button type="button" class="btn-remove" onclick="removeLineItem(this)">Remove</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="button" class="btn-add-line" onclick="addLineItem()">+ Add Line Item</button>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div style="display:flex; gap:20px; margin-bottom:20px;">
+            <div style="flex:1;"></div>
+            <div class="invoice-summary">
+                <div class="summary-row">
+                    <span class="summary-label">Subtotal (KES)</span>
+                    <span class="summary-value" id="subtotal">0.00</span>
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Tax Rate (%)</span>
+                    <input type="number" id="taxRate" value="16" min="0" max="100" step="0.1" style="width:60px; padding:4px; border:1px solid #d1d5db; border-radius:4px; text-align:right;" onchange="calculateTotals()">
+                </div>
+                <div class="summary-row">
+                    <span class="summary-label">Tax Amount (KES)</span>
+                    <span class="summary-value" id="taxAmount">0.00</span>
+                </div>
+                <div class="summary-row total">
+                    <span>Total (KES)</span>
+                    <span id="totalAmount">0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Notes Section -->
+        <div class="form-section">
+            <div class="section-title">Additional Information</div>
+            <div class="form-row full">
+                <div class="form-group">
+                    <label>Payment Terms (Optional)</label>
+                    <select id="paymentTerms" name="payment_terms">
+                        <option value="">-- Select --</option>
+                        <option value="immediate">Immediate</option>
+                        <option value="30_days">Net 30</option>
+                        <option value="60_days">Net 60</option>
+                        <option value="90_days">Net 90</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Invoice Date</label>
+                    <input type="date" id="invoiceDate" name="invoice_date" value="" readonly style="background:#f3f4f6;">
+                </div>
+            </div>
+            <div class="form-row full">
+                <div class="form-group">
+                    <label>Notes (Optional)</label>
+                    <textarea name="notes" placeholder="Add any notes or special instructions..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary" name="action" value="submit">
+                <span id="submitText">Submit Invoice</span>
+            </button>
+            <button type="submit" class="btn btn-secondary" name="action" value="draft">
+                Save as Draft
+            </button>
+            <a href="{% url 'vendor_invoices' %}" class="btn btn-cancel">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+// Initialize invoice date to today
+document.getElementById('invoiceDate').valueAsDate = new Date();
+
+// Load available POs on page load
+document.addEventListener('DOMContentLoaded', async function() {
+    await loadAvailablePOs();
+});
+
+async function loadAvailablePOs() {
+    try {
+        const response = await fetch('/api/purchase-orders/?status=IN_PRODUCTION,AWAITING_APPROVAL,COMPLETED', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const data = await response.json();
+        const select = document.getElementById('purchaseOrderId');
+        
+        if (data.results) {
+            data.results.forEach(po => {
+                const option = document.createElement('option');
+                option.value = po.id;
+                option.textContent = `PO-${po.po_number || po.id} - ${po.client_name || 'Unknown Client'}`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error loading POs:', error);
+        showError('Failed to load purchase orders');
+    }
+}
+
+async function loadPODetails() {
+    const poId = document.getElementById('purchaseOrderId').value;
+    const detailsDiv = document.getElementById('poDetails');
+    
+    if (!poId) {
+        detailsDiv.style.display = 'none';
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/purchase-orders/${poId}/`, {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        const po = await response.json();
+        
+        document.getElementById('poNumber').textContent = `PO-${po.po_number || po.id}`;
+        document.getElementById('clientName').textContent = po.client_name || 'Unknown';
+        document.getElementById('dueDate').textContent = new Date(po.due_date).toLocaleDateString() || '-';
+        
+        detailsDiv.style.display = 'block';
+    } catch (error) {
+        console.error('Error loading PO details:', error);
+    }
+}
+
+function addLineItem() {
+    const tbody = document.getElementById('lineItemsBody');
+    const template = document.querySelector('.line-item');
+    const newRow = template.cloneNode(true);
+    
+    // Clear values
+    newRow.querySelectorAll('input').forEach(inp => {
+        if (inp.classList.contains('quantity')) {
+            inp.value = '1';
+        } else {
+            inp.value = '';
+        }
+    });
+    
+    // Attach event listeners to new inputs
+    newRow.querySelectorAll('input').forEach(inp => {
+        inp.addEventListener('change', calculateTotals);
+        inp.addEventListener('keyup', calculateTotals);
+    });
+    
+    tbody.appendChild(newRow);
+}
+
+function removeLineItem(btn) {
+    const tbody = document.getElementById('lineItemsBody');
+    if (tbody.querySelectorAll('.line-item').length > 1) {
+        btn.closest('tr').remove();
+        calculateTotals();
+    } else {
+        showError('You must have at least one line item');
+    }
+}
+
+function calculateTotals() {
+    let subtotal = 0;
+    
+    document.querySelectorAll('.line-item').forEach(row => {
+        const qty = parseFloat(row.querySelector('.quantity').value) || 0;
+        const price = parseFloat(row.querySelector('.unit-price').value) || 0;
+        const amount = qty * price;
+        
+        row.querySelector('.amount').textContent = amount.toFixed(2);
+        subtotal += amount;
+    });
+    
+    document.getElementById('subtotal').textContent = subtotal.toFixed(2);
+    
+    const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+    const taxAmount = subtotal * (taxRate / 100);
+    
+    document.getElementById('taxAmount').textContent = taxAmount.toFixed(2);
+    
+    const total = subtotal + taxAmount;
+    document.getElementById('totalAmount').textContent = total.toFixed(2);
+}
+
+function showError(message) {
+    const errorDiv = document.getElementById('errorMessage');
+    document.getElementById('errorText').textContent = message;
+    errorDiv.classList.add('show');
+    setTimeout(() => errorDiv.classList.remove('show'), 5000);
+}
+
+function showSuccess() {
+    const successDiv = document.getElementById('successMessage');
+    successDiv.classList.add('show');
+}
+
+async function submitInvoice(event) {
+    event.preventDefault();
+    
+    // Validate
+    const poId = document.getElementById('purchaseOrderId').value;
+    if (!poId) {
+        showError('Please select a purchase order');
+        return;
+    }
+    
+    const lineItems = [];
+    document.querySelectorAll('.line-item').forEach(row => {
+        const description = row.querySelector('.description').value;
+        const quantity = parseFloat(row.querySelector('.quantity').value);
+        const unitPrice = parseFloat(row.querySelector('.unit-price').value);
+        
+        if (!description || !quantity || !unitPrice) {
+            showError('All line item fields are required');
+            throw new Error('Invalid line item');
+        }
+        
+        lineItems.push({
+            description,
+            quantity,
+            unit_price: unitPrice,
+            amount: quantity * unitPrice
+        });
+    });
+    
+    if (lineItems.length === 0) {
+        showError('You must add at least one line item');
+        return;
+    }
+    
+    const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const taxAmount = subtotal * (taxRate / 100);
+    const totalAmount = subtotal + taxAmount;
+    
+    // Prepare invoice data
+    const invoiceData = {
+        purchase_order_id: poId,
+        line_items: lineItems,
+        subtotal: subtotal,
+        tax_rate: taxRate,
+        tax_amount: taxAmount,
+        total_amount: totalAmount,
+        payment_terms: document.getElementById('paymentTerms').value || '',
+        notes: document.querySelector('textarea').value || '',
+        invoice_date: document.getElementById('invoiceDate').value,
+        status: event.submitter.value === 'draft' ? 'draft' : 'submitted'
+    };
+    
+    // Disable submit button
+    const submitBtn = event.target.querySelector('[name="action"][value="submit"]');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="loading-spinner"></span>Submitting...';
+    
+    try {
+        const response = await fetch('/api/vendor-invoices/', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name="csrfmiddlewaretoken"]').value
+            },
+            body: JSON.stringify(invoiceData)
+        });
+        
+        if (response.ok) {
+            showSuccess();
+            setTimeout(() => {
+                window.location.href = '{% url "vendor_invoices" %}';
+            }, 2000);
+        } else {
+            const error = await response.json();
+            showError(error.detail || 'Failed to submit invoice');
+        }
+    } catch (error) {
+        console.error('Error submitting invoice:', error);
+        showError('An error occurred while submitting the invoice');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+// Attach event listeners to initial line item
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.line-item input').forEach(inp => {
+        inp.addEventListener('change', calculateTotals);
+        inp.addEventListener('keyup', calculateTotals);
+    });
+    document.getElementById('taxRate').addEventListener('change', calculateTotals);
+});
+</script>
+{% endblock %}

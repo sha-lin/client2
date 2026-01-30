@@ -1,0 +1,332 @@
+{% extends 'vendor/vendor_base.html' %}
+{% load static %}
+
+{% block title %}Upload Documents - Vendor Portal{% endblock %}
+
+{% block content %}
+<!-- Include upload progress component -->
+{% include 'components/upload_progress.html' %}
+
+<div class="bg-gray-50 min-h-screen py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Upload Documents</h1>
+            <p class="text-gray-600">Upload job documents and attachments with progress tracking</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Upload Area -->
+            <div class="lg:col-span-2">
+                <!-- Job Selection -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <label class="block text-sm font-medium text-gray-900 mb-3">Select Job</label>
+                    <select id="jobSelect" onchange="updateJobInfo()" class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                        <option value="">-- Select a job --</option>
+                        {% for job in jobs %}
+                        <option value="{{ job.id }}" data-name="{{ job.job_name }}" data-po="{{ job.quote.po_number|default:'' }}">
+                            {{ job.job_number }} - {{ job.job_name }} ({{ job.quantity }} pcs)
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Job Info Display -->
+                <div id="jobInfo" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 hidden">
+                    <h3 class="font-medium text-blue-900 mb-3">Job Details</h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <p class="text-blue-800"><span class="font-medium">Job:</span> <span id="jobNumber">--</span></p>
+                            <p class="text-blue-800"><span class="font-medium">Product:</span> <span id="jobProduct">--</span></p>
+                        </div>
+                        <div>
+                            <p class="text-blue-800"><span class="font-medium">Quantity:</span> <span id="jobQuantity">--</span></p>
+                            <p class="text-blue-800"><span class="font-medium">Due:</span> <span id="jobDue">--</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Document Type Selection -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <label class="block text-sm font-medium text-gray-900 mb-3">Document Type</label>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="flex items-center p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition">
+                            <input type="radio" name="docType" value="production" checked class="w-4 h-4 text-blue-600">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Production Sample</span>
+                        </label>
+                        <label class="flex items-center p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition">
+                            <input type="radio" name="docType" value="proof" class="w-4 h-4 text-blue-600">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Proof/Approval</span>
+                        </label>
+                        <label class="flex items-center p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition">
+                            <input type="radio" name="docType" value="delivery" class="w-4 h-4 text-blue-600">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Delivery Receipt</span>
+                        </label>
+                        <label class="flex items-center p-3 border-2 border-gray-200 rounded-lg cursor-pointer hover:border-blue-300 transition">
+                            <input type="radio" name="docType" value="other" class="w-4 h-4 text-blue-600">
+                            <span class="ml-2 text-sm font-medium text-gray-700">Other Document</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- File Upload Area -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center transition hover:border-blue-400 hover:bg-blue-50"
+                         ondrop="handleDrop(event)" 
+                         ondragover="handleDragOver(event)" 
+                         ondragleave="handleDragLeave(event)">
+                        
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                        </svg>
+                        
+                        <p class="text-gray-700 font-medium mb-1">Drag and drop files here</p>
+                        <p class="text-sm text-gray-500 mb-4">or click to browse</p>
+                        
+                        <input type="file" id="fileInput" multiple onchange="handleFileSelect(event)" class="hidden" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip,.xlsx" />
+                        
+                        <button type="button" onclick="document.getElementById('fileInput').click()" 
+                                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium transition">
+                            Browse Files
+                        </button>
+                        
+                        <p class="text-xs text-gray-500 mt-3">Supported: PDF, DOC, DOCX, JPG, PNG, ZIP, XLSX (Max 50MB)</p>
+                    </div>
+                </div>
+
+                <!-- File Preview -->
+                <div id="filePreview" class="hidden bg-white rounded-lg shadow p-6 mb-6">
+                    <h3 class="font-medium text-gray-900 mb-3">Files to Upload</h3>
+                    <div id="fileList" class="space-y-2"></div>
+                    <div class="mt-4 flex gap-3">
+                        <button onclick="uploadFiles()" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm font-medium transition flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 15m-8 2h8"/>
+                            </svg>
+                            Upload Files
+                        </button>
+                        <button onclick="clearFiles()" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm font-medium transition">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Info Sidebar -->
+            <div class="lg:col-span-1 space-y-6">
+                <!-- Tips -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="font-medium text-gray-900 mb-3 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                        Quick Tips
+                    </h3>
+                    <ul class="text-sm text-gray-700 space-y-2">
+                        <li class="flex gap-2">
+                            <span class="text-blue-600 flex-shrink-0">✓</span>
+                            <span>Drag files directly into the upload area</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="text-blue-600 flex-shrink-0">✓</span>
+                            <span>Upload multiple files at once</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="text-blue-600 flex-shrink-0">✓</span>
+                            <span>Monitor real-time upload progress</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="text-blue-600 flex-shrink-0">✓</span>
+                            <span>Cancel uploads if needed</span>
+                        </li>
+                        <li class="flex gap-2">
+                            <span class="text-blue-600 flex-shrink-0">✓</span>
+                            <span>Files up to 50MB supported</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Supported Formats -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="font-medium text-gray-900 mb-3">Supported Formats</h3>
+                    <div class="grid grid-cols-2 gap-2 text-xs">
+                        <div class="bg-gray-50 p-2 rounded">
+                            <p class="font-medium text-gray-900">Documents</p>
+                            <p class="text-gray-600">PDF, DOC, DOCX</p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded">
+                            <p class="font-medium text-gray-900">Images</p>
+                            <p class="text-gray-600">JPG, PNG</p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded">
+                            <p class="font-medium text-gray-900">Archives</p>
+                            <p class="text-gray-600">ZIP</p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded">
+                            <p class="font-medium text-gray-900">Spreadsheets</p>
+                            <p class="text-gray-600">XLSX</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Uploads -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="font-medium text-gray-900 mb-3">Recent Uploads</h3>
+                    <div id="recentUploads" class="text-sm text-gray-600">
+                        <p>No recent uploads</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedFiles = [];
+const maxFileSize = 50 * 1024 * 1024; // 50MB
+const allowedExtensions = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png', 'zip', 'xlsx'];
+
+function updateJobInfo() {
+    const select = document.getElementById('jobSelect');
+    const option = select.options[select.selectedIndex];
+    const infoBox = document.getElementById('jobInfo');
+    
+    if (select.value) {
+        document.getElementById('jobNumber').textContent = select.value; // Would be better to get from API
+        document.getElementById('jobProduct').textContent = option.dataset.name || '--';
+        document.getElementById('jobQuantity').textContent = '--'; // Would get from API
+        document.getElementById('jobDue').textContent = '--'; // Would get from API
+        infoBox.classList.remove('hidden');
+    } else {
+        infoBox.classList.add('hidden');
+    }
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('border-blue-400', 'bg-blue-50');
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('border-blue-400', 'bg-blue-50');
+    
+    const files = e.dataTransfer.files;
+    handleFileSelect({ target: { files: files } });
+}
+
+function handleFileSelect(e) {
+    const jobId = document.getElementById('jobSelect').value;
+    if (!jobId) {
+        showToast('Please select a job first', 'warning');
+        return;
+    }
+    
+    const files = e.target.files;
+    selectedFiles = [];
+    
+    for (let file of files) {
+        // Validate file
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (!allowedExtensions.includes(ext)) {
+            showToast(`File type .${ext} not allowed`, 'error');
+            continue;
+        }
+        
+        if (file.size > maxFileSize) {
+            showToast(`${file.name} exceeds 50MB limit`, 'error');
+            continue;
+        }
+        
+        selectedFiles.push(file);
+    }
+    
+    if (selectedFiles.length > 0) {
+        showFilePreview();
+    }
+}
+
+function showFilePreview() {
+    const preview = document.getElementById('filePreview');
+    const fileList = document.getElementById('fileList');
+    
+    fileList.innerHTML = selectedFiles.map((file, idx) => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-3 flex-1">
+                <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-gray-900 truncate">${file.name}</p>
+                    <p class="text-xs text-gray-500">${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+            </div>
+            <button type="button" onclick="removeFile(${idx})" class="ml-2 text-red-600 hover:text-red-700 text-sm font-medium">Remove</button>
+        </div>
+    `).join('');
+    
+    preview.classList.remove('hidden');
+}
+
+function removeFile(idx) {
+    selectedFiles.splice(idx, 1);
+    if (selectedFiles.length === 0) {
+        document.getElementById('filePreview').classList.add('hidden');
+    } else {
+        showFilePreview();
+    }
+}
+
+function clearFiles() {
+    selectedFiles = [];
+    document.getElementById('fileInput').value = '';
+    document.getElementById('filePreview').classList.add('hidden');
+}
+
+async function uploadFiles() {
+    if (selectedFiles.length === 0) {
+        showToast('No files selected', 'warning');
+        return;
+    }
+    
+    const jobId = document.getElementById('jobSelect').value;
+    const docType = document.querySelector('input[name="docType"]:checked').value;
+    
+    if (!jobId) {
+        showToast('Please select a job', 'warning');
+        return;
+    }
+    
+    let successCount = 0;
+    let failCount = 0;
+    
+    for (const file of selectedFiles) {
+        try {
+            await uploadFileWithProgress(file, `/api/jobs/${jobId}/attachments/upload/`, {
+                jobId: jobId,
+                documentType: docType
+            });
+            successCount++;
+        } catch (error) {
+            failCount++;
+            console.error(`Failed to upload ${file.name}:`, error);
+        }
+    }
+    
+    if (successCount > 0) {
+        showToast(`${successCount} file(s) uploaded successfully`, 'success');
+        clearFiles();
+        // Refresh page or update UI
+        setTimeout(() => window.location.reload(), 1500);
+    }
+    
+    if (failCount > 0) {
+        showToast(`${failCount} file(s) failed to upload`, 'error');
+    }
+}
+</script>
+{% endblock %}

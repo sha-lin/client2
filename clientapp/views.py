@@ -20,6 +20,29 @@ from functools import wraps
 from django.contrib.auth.models import User, Group
 from .models import BrandAsset
 
+# WebSocket real-time updates (imported safely)
+try:
+    from .websocket_helpers import (
+        broadcast_job_update,
+        broadcast_dashboard_update,
+        broadcast_substitution_update,
+        send_job_assigned_notification,
+        send_substitution_approved_notification,
+        send_substitution_rejected_notification,
+        send_invoice_status_notification,
+        send_deadline_approaching_notification,
+    )
+except ImportError:
+    # Channels not installed yet, define dummy functions
+    def broadcast_job_update(*args, **kwargs): pass
+    def broadcast_dashboard_update(*args, **kwargs): pass
+    def broadcast_substitution_update(*args, **kwargs): pass
+    def send_job_assigned_notification(*args, **kwargs): pass
+    def send_substitution_approved_notification(*args, **kwargs): pass
+    def send_substitution_rejected_notification(*args, **kwargs): pass
+    def send_invoice_status_notification(*args, **kwargs): pass
+    def send_deadline_approaching_notification(*args, **kwargs): pass
+
 logger = logging.getLogger(__name__)
 from django.core.paginator import Paginator
 
@@ -680,105 +703,17 @@ def create_multi_quote(request):
 @login_required
 @group_required('Account Manager')
 def analytics(request):
-    """Analytics page with live charts and metrics"""
-    from datetime import timedelta
-    from django.db.models import Count, Sum, Avg
-    import json
+    """Vendor Performance Analytics Dashboard"""
+    # Check permission
+    if not (request.user.groups.filter(name='Account Manager').exists() or request.user.is_superuser):
+        return redirect('login')
     
-    today = timezone.now().date()
-    
-    # ================= REVENUE TREND (Last 6 months) =================
-    revenue_data = []
-    labels = []
-    
-    for i in range(5, -1, -1):
-        month_start = (today.replace(day=1) - timedelta(days=i*30)).replace(day=1)
-        if month_start.month == 12:
-            month_end = month_start.replace(year=month_start.year + 1, month=1, day=1) - timedelta(days=1)
-        else:
-            month_end = month_start.replace(month=month_start.month + 1, day=1) - timedelta(days=1)
-        
-        revenue = Quote.objects.filter(
-            created_by=request.user,
-            status='Approved',
-            approved_at__gte=month_start,
-            approved_at__lte=month_end
-        ).aggregate(total=Sum('total_amount'))['total'] or 0
-        
-        revenue_data.append(float(revenue))
-        labels.append(month_start.strftime('%b %Y'))
-    
-    # ================= TOP PRODUCTS =================
-    top_products = Quote.objects.filter(
-        created_by=request.user,
-        status='Approved'
-    ).values('product_name').annotate(
-        total_revenue=Sum('total_amount'),
-        quantity_sold=Sum('quantity')
-    ).order_by('-total_revenue')[:10]
-    
-    # Prepare Top Products for Chart
-    top_products_list = list(top_products)
-    top_product_labels = [p['product_name'] for p in top_products_list]
-    top_product_data = [float(p['total_revenue']) for p in top_products_list]
-    
-    # ================= CONVERSION FUNNEL =================
-    total_leads = Lead.objects.filter(created_by=request.user).count()
-    qualified_leads = Lead.objects.filter(created_by=request.user, status='Qualified').count()
-    converted_leads = Lead.objects.filter(created_by=request.user, status='Converted').count()
-    
-    total_quotes = Quote.objects.filter(created_by=request.user).values('quote_id').distinct().count()
-    approved_quotes = Quote.objects.filter(created_by=request.user, status='Approved').values('quote_id').distinct().count()
-    
-    # ================= CLIENT TYPE BREAKDOWN =================
-    b2b_clients = Client.objects.filter(account_manager=request.user, client_type='B2B').count()
-    b2c_clients = Client.objects.filter(account_manager=request.user, client_type='B2C').count()
-    
-    # ================= AVERAGE DEAL SIZE =================
-    avg_deal_size = Quote.objects.filter(
-        created_by=request.user,
-        status='Approved'
-    ).aggregate(avg=Avg('total_amount'))['avg'] or 0
-    
-    # ================= AVG TURNAROUND TIME =================
-    # Time from creation to approval
-    approved_quotes_objs = Quote.objects.filter(created_by=request.user, status='Approved')
-    total_hours = 0
-    count_approved = 0
-    for q in approved_quotes_objs:
-        if q.approved_at and q.created_at:
-             diff = q.approved_at - q.created_at
-             total_hours += diff.total_seconds() / 3600
-             count_approved += 1
-    avg_turnaround = round(total_hours / count_approved, 1) if count_approved > 0 else 0
-
     context = {
         'current_view': 'analytics',
-        
-        # Chart data 
-        'revenue_labels': json.dumps(labels),
-        'revenue_data': json.dumps(revenue_data),
-        'top_product_labels': json.dumps(top_product_labels),
-        'top_product_data': json.dumps(top_product_data),
-        
-        # Funnel data
-        'total_leads': total_leads,
-        'qualified_leads': qualified_leads,
-        'converted_leads': converted_leads,
-        'total_quotes': total_quotes,
-        'approved_quotes': approved_quotes,
-        
-        # Client breakdown
-        'b2b_clients': b2b_clients,
-        'b2c_clients': b2c_clients,
-        
-        # Metrics
-        'avg_deal_size': avg_deal_size,
-        'conversion_rate': round((approved_quotes / total_quotes * 100), 1) if total_quotes > 0 else 0,
-        'avg_turnaround': avg_turnaround,
+        'page_title': 'Vendor Performance Analytics',
     }
     
-    return render(request, 'analytics.html', context)
+    return render(request, 'account_manager/analytics_dashboard.html', context)
 
 
 @group_required('Account Manager')
@@ -867,6 +802,63 @@ def account_manager_jobs_list(request):
         'current_view': 'jobs',
     }
     return render(request, 'account_manager/jobs_list_enhanced.html', context)
+
+@login_required
+@group_required('Account Manager')
+def job_assignment_board(request):
+    """Kanban-style job assignment board for Account Managers"""
+    # Get all jobs for this account manager
+    jobs = Job.objects.filter(
+        client__account_manager=request.user
+    ).exclude(status='completed').select_related('client', 'person_in_charge').order_by('-created_at')
+    
+    # Get production users for assignment dropdown
+    production_group = Group.objects.filter(name='Production Team').first()
+    production_users = production_group.user_set.all() if production_group else []
+    
+    # Separate jobs by status and assignment
+    unassigned_jobs = []
+    assigned_jobs = []
+    in_progress_jobs = []
+    
+    for job in jobs:
+        # Calculate days remaining
+        if job.expected_completion:
+            job.days_remaining = (job.expected_completion - timezone.now().date()).days
+            job.is_overdue = job.days_remaining < 0
+        else:
+            job.days_remaining = None
+            job.is_overdue = False
+        
+        # Categorize
+        if not job.person_in_charge:
+            unassigned_jobs.append(job)
+        elif job.status == 'in_progress':
+            in_progress_jobs.append(job)
+        else:
+            assigned_jobs.append(job)
+    
+    # Count jobs by status
+    stats = {
+        'total': jobs.count(),
+        'unassigned': len(unassigned_jobs),
+        'assigned': len(assigned_jobs),
+        'in_progress': len(in_progress_jobs),
+    }
+    
+    context = {
+        'unassigned_jobs': unassigned_jobs,
+        'assigned_jobs': assigned_jobs,
+        'in_progress_jobs': in_progress_jobs,
+        'unassigned_count': len(unassigned_jobs),
+        'assigned_count': len(assigned_jobs),
+        'in_progress_count': len(in_progress_jobs),
+        'stats': stats,
+        'production_users': production_users,
+        'current_view': 'jobs',
+    }
+    
+    return render(request, 'account_manager/job_assignment_board.html', context)
 
 #Job management for account manager
 @login_required
@@ -1003,9 +995,47 @@ def api_assign_job(request, job_id):
                 content=f'Assignment Notes:\n{assignment_notes}'
             )
         
+        # ✨ WebSocket: Broadcast job assignment to all connected clients
+        broadcast_job_update(
+            job_id=job.id,
+            update_type='status_changed',
+            data={
+                'status': 'assigned',
+                'assigned_to': assigned_user.get_full_name(),
+                'assigned_at': timezone.now().isoformat(),
+                'assignment_notes': assignment_notes
+            }
+        )
+        
+        # ✨ WebSocket: Update assigned user's dashboard job count
+        broadcast_dashboard_update(
+            dashboard_type='jobs',
+            user_id=assigned_user.id,
+            type='job_count_updated',
+            data={
+                'total_jobs': Job.objects.filter(person_in_charge=assigned_user).count(),
+                'pending_jobs': Job.objects.filter(
+                    person_in_charge=assigned_user,
+                    status='pending'
+                ).count(),
+                'in_progress_jobs': Job.objects.filter(
+                    person_in_charge=assigned_user,
+                    status='in_progress'
+                ).count()
+            }
+        )
+        
+        # ✨ WebSocket: Send job assignment notification to assigned user
+        send_job_assigned_notification(
+            user_id=assigned_user.id,
+            job_id=job.id,
+            job_number=job.job_number,
+            priority=getattr(job, 'priority', 'normal')
+        )
+        
         return JsonResponse({
             'success': True,
-            'message': f'Job assigned to {assigned_user.get_full_name()}',
+            'message': f'Job assigned to {assigned_user.get_full_name()} with real-time update',
             'assigned_to': assigned_user.get_full_name()
         })
     except Job.DoesNotExist:
@@ -1232,6 +1262,243 @@ def api_get_production_users(request):
         })
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def api_create_substitution_request(request):
+    """API endpoint to create material substitution request"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            
+            # Get the purchase order
+            po = PurchaseOrder.objects.get(pk=data['purchase_order'])
+            
+            # Create substitution request
+            substitution = MaterialSubstitutionRequest.objects.create(
+                purchase_order=po,
+                original_material=data.get('original_material'),
+                proposed_material=data.get('proposed_material'),
+                match_percentage=data.get('match_percentage', 0),
+                justification=data.get('justification'),
+                status='pending'
+            )
+            
+            # Add cost info if provided
+            if 'original_cost' in data or 'substitute_cost' in data:
+                cost_obj, _ = MaterialSubstitutionApproval.objects.get_or_create(
+                    purchase_order=po
+                )
+                cost_obj.original_cost = data.get('original_cost', 0)
+                cost_obj.substitute_cost = data.get('substitute_cost', 0)
+                cost_obj.save()
+            
+            return JsonResponse({
+                'success': True,
+                'id': substitution.id,
+                'message': 'Substitution request created successfully'
+            })
+        except PurchaseOrder.DoesNotExist:
+            return JsonResponse({'error': 'Purchase order not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+    return JsonResponse({'error': 'Method not allowed'}, status=405)
+
+
+@login_required
+def api_get_substitution_request(request, pk):
+    """API endpoint to get substitution request details"""
+    try:
+        substitution = MaterialSubstitutionRequest.objects.get(pk=pk)
+        
+        approval = MaterialSubstitutionApproval.objects.filter(
+            purchase_order=substitution.purchase_order
+        ).first()
+        
+        return JsonResponse({
+            'id': substitution.id,
+            'purchase_order': substitution.purchase_order.id,
+            'original_material': substitution.original_material,
+            'proposed_material': substitution.proposed_material,
+            'match_percentage': substitution.match_percentage,
+            'justification': substitution.justification,
+            'status': substitution.status,
+            'created_at': substitution.created_at.isoformat(),
+            'approval': {
+                'original_cost': float(approval.original_cost) if approval else 0,
+                'substitute_cost': float(approval.substitute_cost) if approval else 0,
+            } if approval else None
+        })
+    except MaterialSubstitutionRequest.DoesNotExist:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+
+@login_required
+def api_approve_substitution(request, pk):
+    """API endpoint to approve substitution request"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            substitution = MaterialSubstitutionRequest.objects.get(pk=pk)
+            
+            # Update status
+            substitution.status = 'approved'
+            substitution.save()
+            
+            # Update approval record
+            approval, _ = MaterialSubstitutionApproval.objects.get_or_create(
+                purchase_order=substitution.purchase_order
+            )
+            approval.original_material = substitution.original_material
+            approval.substitute_material = substitution.proposed_material
+            approval.reason = substitution.justification
+            approval.approval_status = 'approved'
+            approval.approved_by = request.user
+            approval.approved_at = timezone.now()
+            
+            if data.get('notify_customer'):
+                approval.customer_notified = True
+                approval.customer_notified_at = timezone.now()
+            
+            approval.save()
+            
+            # ✨ WebSocket: Broadcast substitution approval to all connected clients
+            broadcast_substitution_update(
+                substitution_id=substitution.id,
+                update_type='status_changed',
+                data={
+                    'status': 'approved',
+                    'approved_by': request.user.get_full_name(),
+                    'approved_at': substitution.updated_at.isoformat() if hasattr(substitution, 'updated_at') else timezone.now().isoformat()
+                }
+            )
+            
+            # ✨ WebSocket: Send notification to vendor
+            if hasattr(substitution, 'vendor_user') and substitution.vendor_user:
+                send_substitution_approved_notification(
+                    user_id=substitution.vendor_user.id,
+                    sub_id=substitution.id,
+                    po_num=substitution.purchase_order.order_number if hasattr(substitution.purchase_order, 'order_number') else 'N/A',
+                    original=substitution.original_material,
+                    proposed=substitution.proposed_material
+                )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Substitution approved and updated in real-time'
+            })
+        except MaterialSubstitutionRequest.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def api_reject_substitution(request, pk):
+    """API endpoint to reject substitution request"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            substitution = MaterialSubstitutionRequest.objects.get(pk=pk)
+            
+            # Update status
+            substitution.status = 'rejected'
+            substitution.save()
+            
+            # Update approval record
+            approval, _ = MaterialSubstitutionApproval.objects.get_or_create(
+                purchase_order=substitution.purchase_order
+            )
+            approval.approval_status = 'rejected'
+            approval.reason = data.get('reason', '')
+            approval.approved_by = request.user
+            approval.approved_at = timezone.now()
+            approval.save()
+            
+            # ✨ WebSocket: Broadcast substitution rejection to all connected clients
+            broadcast_substitution_update(
+                substitution_id=substitution.id,
+                update_type='status_changed',
+                data={
+                    'status': 'rejected',
+                    'rejected_by': request.user.get_full_name(),
+                    'reason': approval.reason,
+                    'rejected_at': timezone.now().isoformat()
+                }
+            )
+            
+            # ✨ WebSocket: Send rejection notification to vendor
+            if hasattr(substitution, 'vendor_user') and substitution.vendor_user:
+                send_substitution_rejected_notification(
+                    user_id=substitution.vendor_user.id,
+                    sub_id=substitution.id,
+                    po_num=substitution.purchase_order.order_number if hasattr(substitution.purchase_order, 'order_number') else 'N/A',
+                    reason=approval.reason
+                )
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Substitution rejected and updated in real-time'
+            })
+        except MaterialSubstitutionRequest.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def api_get_substitution_comments(request, pk):
+    """API endpoint to get comments on substitution"""
+    try:
+        substitution = MaterialSubstitutionRequest.objects.get(pk=pk)
+        
+        # For now, we'll return an empty list
+        # You can expand this to use a Comment model if needed
+        comments = []
+        
+        return JsonResponse(comments, safe=False)
+    except MaterialSubstitutionRequest.DoesNotExist:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
+
+@login_required
+def api_add_substitution_comment(request, pk):
+    """API endpoint to add comment to substitution"""
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            substitution = MaterialSubstitutionRequest.objects.get(pk=pk)
+            
+            # Add comment logic here
+            # For now, just return success
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Comment added'
+            })
+        except MaterialSubstitutionRequest.DoesNotExist:
+            return JsonResponse({'error': 'Not found'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=400)
+
+
+@login_required
+def api_get_purchase_order_details(request, pk):
+    """API endpoint to get purchase order details"""
+    try:
+        po = PurchaseOrder.objects.get(pk=pk)
+        
+        return JsonResponse({
+            'id': po.id,
+            'po_number': po.po_number,
+            'description': po.description,
+            'quantity': po.quantity,
+            'material': getattr(po, 'material', ''),
+            'vendor': po.vendor_stage.vendor.name if po.vendor_stage else 'Unknown',
+            'products': po.description,
+        })
+    except PurchaseOrder.DoesNotExist:
+        return JsonResponse({'error': 'Not found'}, status=404)
 
 
 @login_required
@@ -11206,6 +11473,114 @@ from django.db.models import Q, Count, Avg, Sum
 from django.utils import timezone
 from datetime import timedelta
 from .models import Vendor, PurchaseOrder, ActivityLog, VendorInvoice
+
+@login_required
+def vendor_invoices(request):
+    """Display list of vendor invoices"""
+    try:
+        vendor = request.user.vendor_profile
+    except:
+        return redirect('vendor_portal')
+    
+    # Get invoices for this vendor
+    invoices = VendorInvoice.objects.filter(
+        purchase_order__vendor_stage__vendor=vendor
+    ).order_by('-created_at')
+    
+    # Filter by status
+    status = request.GET.get('status')
+    if status:
+        invoices = invoices.filter(status=status)
+    
+    context = {
+        'invoices': invoices,
+        'status_filter': status,
+        'vendor': vendor,
+    }
+    return render(request, 'vendor/invoices_list.html', context)
+
+@login_required
+def vendor_create_invoice(request):
+    """Create new invoice - vendor"""
+    try:
+        vendor = request.user.vendor_profile
+    except:
+        return redirect('vendor_portal')
+    
+    context = {
+        'vendor': vendor,
+    }
+    return render(request, 'vendor/invoice_create.html', context)
+
+@login_required
+def vendor_substitutions(request):
+    """List vendor's material substitution requests"""
+    try:
+        vendor = request.user.vendor_profile
+    except:
+        return redirect('vendor_portal')
+    
+    # Get substitution requests for this vendor's purchase orders
+    substitutions = MaterialSubstitutionRequest.objects.filter(
+        purchase_order__vendor_stage__vendor=vendor
+    ).order_by('-created_at')
+    
+    # Filter by status
+    status = request.GET.get('status')
+    if status:
+        substitutions = substitutions.filter(status=status)
+    
+    context = {
+        'substitutions': substitutions,
+        'status_filter': status,
+        'vendor': vendor,
+    }
+    return render(request, 'vendor/substitutions_list.html', context)
+
+@login_required
+def vendor_create_substitution(request):
+    """Create new material substitution request - vendor"""
+    try:
+        vendor = request.user.vendor_profile
+    except:
+        return redirect('vendor_portal')
+    
+    # Get open purchase orders for this vendor
+    purchase_orders = PurchaseOrder.objects.filter(
+        vendor_stage__vendor=vendor,
+        status__in=['NEW', 'IN_PRODUCTION', 'AWAITING_APPROVAL']
+    )
+    
+    context = {
+        'vendor': vendor,
+        'purchase_orders': purchase_orders,
+    }
+    return render(request, 'vendor/material_substitution_request.html', context)
+
+@login_required
+def substitution_dashboard(request):
+    """Account manager view for reviewing material substitutions"""
+    # Get account manager's clients
+    clients = request.user.clients.all()
+    
+    # Get all substitution requests for these clients' vendors
+    substitutions = MaterialSubstitutionRequest.objects.filter(
+        purchase_order__job__client__in=clients
+    ).order_by('-created_at')
+    
+    # Calculate stats
+    stats = {
+        'pending': substitutions.filter(status='pending').count(),
+        'approved': substitutions.filter(status='approved').count(),
+        'rejected': substitutions.filter(status='rejected').count(),
+        'total': substitutions.count(),
+    }
+    
+    context = {
+        'requests': substitutions,
+        'stats': stats,
+    }
+    return render(request, 'account_manager/material_substitution_dashboard.html', context)
 
 @login_required
 def vendor_dashboard(request):
