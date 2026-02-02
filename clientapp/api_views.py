@@ -146,6 +146,11 @@ from .models import (
     PerformanceAnalytics,
     PaymentStatus,
     PaymentHistory,
+    # Task 8 & 9 models
+    DeadlineAlert,
+    JobFile,
+    DocumentShare,
+    JobMessage,
 )
 from .api_serializers import (
     LeadSerializer,
@@ -7296,3 +7301,247 @@ class PaymentHistoryViewSet(viewsets.ModelViewSet):
         unreconciled = PaymentHistory.objects.filter(reconciled=False)
         serializer = self.get_serializer(unreconciled, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# Task 8: Deadline Alerts
+class DeadlineAlertViewSet(viewsets.ModelViewSet):
+    """API for deadline alerts and notifications"""
+    queryset = DeadlineAlert.objects.all()
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['job', 'urgency', 'status', 'alert_type']
+    ordering_fields = ['created_at', 'days_until_deadline', 'urgency']
+    ordering = ['-created_at']
+    
+    def get_serializer_class(self):
+        from clientapp.api_serializers import DeadlineAlertSerializer
+        return DeadlineAlertSerializer
+    
+    def get_queryset(self):
+        """Filter by user's assigned jobs"""
+        user = self.request.user
+        if user.groups.filter(name='Account Manager').exists() or user.is_superuser:
+            return DeadlineAlert.objects.all()
+        return DeadlineAlert.objects.filter(job__person_in_charge=user)
+    
+    @action(detail=False, methods=['get'])
+    def active(self, request):
+        """Get active deadline alerts"""
+        alerts = self.get_queryset().filter(status='active')
+        serializer = self.get_serializer(alerts, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def upcoming(self, request):
+        """Get alerts for jobs with approaching deadlines (next 5 days)"""
+        from datetime import datetime, timedelta
+        cutoff = timedelta(days=5)
+        alerts = self.get_queryset().filter(
+            days_until_deadline__lte=5,
+            days_until_deadline__gt=0,
+            status='active'
+        )
+        serializer = self.get_serializer(alerts, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def overdue(self, request):
+        """Get overdue deadline alerts"""
+        alerts = self.get_queryset().filter(days_until_deadline__lt=0, status='active')
+        serializer = self.get_serializer(alerts, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=True, methods=['post'])
+    def acknowledge(self, request, pk=None):
+        """Acknowledge a deadline alert"""
+        alert = self.get_object()
+        alert.status = 'acknowledged'
+        alert.acknowledged_at = timezone.now()
+        alert.acknowledged_by = request.user
+        alert.save()
+        
+        # Broadcast update
+        from clientapp.websocket_helpers import broadcast_deadline_acknowledged
+        broadcast_deadline_acknowledged(alert)
+        
+        serializer = self.get_serializer(alert)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=True, methods=['post'])
+    def resolve(self, request, pk=None):
+        """Mark deadline alert as resolved"""
+        alert = self.get_object()
+        alert.status = 'resolved'
+        alert.save()
+        
+        # Broadcast update
+        from clientapp.websocket_helpers import broadcast_deadline_resolved
+        broadcast_deadline_resolved(alert)
+        
+        serializer = self.get_serializer(alert)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=['get'])
+    def urgency_summary(self, request):
+        """Get summary of alerts by urgency"""
+        alerts = self.get_queryset().filter(status='active')
+        summary = {
+            'critical': alerts.filter(urgency='critical').count(),
+            'high': alerts.filter(urgency='high').count(),
+            'medium': alerts.filter(urgency='medium').count(),
+            'low': alerts.filter(urgency='low').count(),
+            'total': alerts.count(),
+        }
+        return Response(summary)
+
+
+# Task 9: Job Files & Document Sharing
+class JobFileViewSet(viewsets.ModelViewSet):
+    """API for job file uploads"""
+    queryset = JobFile.objects.all()
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['job', 'file_type', 'is_shared']
+    ordering_fields = ['uploaded_at', 'file_size']
+    ordering = ['-uploaded_at']
+    
+    def get_serializer_class(self):
+        from clientapp.api_serializers import JobFileSerializer
+        return JobFileSerializer
+    
+    def get_queryset(self):
+        """Filter by user's jobs or shared files"""
+        user = self.request.user
+        if user.groups.filter(name='Account Manager').exists() or user.is_superuser:
+            return JobFile.objects.all()
+        
+        # Return files from assigned jobs or shared with user
+        from django.db.models import Q
+        return JobFile.objects.filter(
+            Q(job__person_in_charge=user) |
+            Q(shared_with=user) |
+            Q(is_shared=True)
+        ).distinct()
+    
+    def perform_create(self, serializer):
+        """Attach current user as uploader"""
+        serializer.save(uploaded_by=self.request.user)
+    
+    @action(detail=True, methods=['post'])
+    def share(self, request, pk=None):
+        """Share a file with users"""
+        file = self.get_object()
+        share_type = request.data.get('share_type', 'team')
+        user_ids = request.data.get('user_ids', [])
+        
+        shares_created = 0
+        for user_id in user_ids:
+            from django.contrib.auth.models import User
+            user = User.objects.get(id=user_id)
+            share = DocumentShare.objects.create(
+                file=file,
+                share_type=share_type,
+                shared_with_user=user,
+                shared_by=request.user
+            )
+            shares_created += 1
+        
+        return Response({
+            'success': True,
+            'shares_created': shares_created
+        })
+    
+    @action(detail=True, methods=['post'])
+    def download(self, request, pk=None):
+        """Register a download and return file"""
+        file = self.get_object()
+        file.download_count += 1
+        file.last_downloaded_at = timezone.now()
+        file.save()
+        
+        # Broadcast download notification
+        from clientapp.websocket_helpers import broadcast_file_downloaded
+        broadcast_file_downloaded(file, request.user)
+        
+        return Response({
+            'download_url': file.file.url,
+            'file_name': file.file_name,
+            'file_size': file.file_size,
+        })
+    
+    @action(detail=True, methods=['post'])
+    def toggle_share(self, request, pk=None):
+        """Toggle file sharing status"""
+        file = self.get_object()
+        file.is_shared = not file.is_shared
+        file.save()
+        
+        serializer = self.get_serializer(file)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def recent(self, request):
+        """Get recently uploaded files"""
+        files = self.get_queryset()[:10]
+        serializer = self.get_serializer(files, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def shared(self, request):
+        """Get all shared files accessible to user"""
+        files = self.get_queryset().filter(is_shared=True)
+        serializer = self.get_serializer(files, many=True)
+        return Response(serializer.data)
+
+
+class DocumentShareViewSet(viewsets.ModelViewSet):
+    """API for document sharing and access control"""
+    queryset = DocumentShare.objects.all()
+    permission_classes = [IsAuthenticated]
+    filterset_fields = ['file', 'share_type', 'status']
+    ordering_fields = ['share_date', 'access_count']
+    ordering = ['-share_date']
+    
+    def get_serializer_class(self):
+        from clientapp.api_serializers import DocumentShareSerializer
+        return DocumentShareSerializer
+    
+    def get_queryset(self):
+        """Filter by user's shares"""
+        user = self.request.user
+        if user.is_superuser:
+            return DocumentShare.objects.all()
+        
+        from django.db.models import Q
+        return DocumentShare.objects.filter(
+            Q(shared_by=user) |
+            Q(shared_with_user=user)
+        )
+    
+    @action(detail=True, methods=['post'])
+    def revoke(self, request, pk=None):
+        """Revoke sharing access"""
+        share = self.get_object()
+        share.status = 'revoked'
+        share.save()
+        
+        return Response({
+            'success': True,
+            'message': 'Sharing access revoked'
+        })
+    
+    @action(detail=False, methods=['get'])
+    def shared_with_me(self, request):
+        """Get documents shared with me"""
+        shares = DocumentShare.objects.filter(
+            shared_with_user=request.user,
+            status='active'
+        )
+        serializer = self.get_serializer(shares, many=True)
+        return Response(serializer.data)
+    
+    @action(detail=False, methods=['get'])
+    def my_shares(self, request):
+        """Get documents I've shared"""
+        shares = DocumentShare.objects.filter(shared_by=request.user)
+        serializer = self.get_serializer(shares, many=True)
+        return Response(serializer.data)
+

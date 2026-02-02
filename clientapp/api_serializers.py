@@ -132,6 +132,11 @@ from .models import (
     VPSRecalculationLog,
     CustomerNotification,
     DeadlineCalculation,
+    # Task 8 & 9 models
+    DeadlineAlert,
+    JobFile,
+    DocumentShare,
+    JobMessage,
 )
 
 
@@ -1834,5 +1839,69 @@ class DeadlineCalculationSerializer(serializers.ModelSerializer):
             'adjusted_deadline', 'risk_score', 'calculation_notes', 'calculated_at'
         ]
         read_only_fields = ['id', 'calculated_at']
+
+
+# Task 8: Deadline Alerts
+class DeadlineAlertSerializer(serializers.ModelSerializer):
+    """Serializer for deadline alerts"""
+    job_number = serializers.CharField(source='job.job_number', read_only=True)
+    job_name = serializers.CharField(source='job.job_name', read_only=True)
+    job_deadline = serializers.DateField(source='job.expected_completion', read_only=True)
+    assigned_to = serializers.CharField(source='job.person_in_charge.first_name', read_only=True)
+    color_class = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DeadlineAlert
+        fields = [
+            'id', 'job', 'job_number', 'job_name', 'job_deadline',
+            'alert_type', 'urgency', 'message', 'status',
+            'days_until_deadline', 'color_class',
+            'created_at', 'acknowledged_at', 'acknowledged_by', 'assigned_to'
+        ]
+        read_only_fields = ['id', 'created_at', 'acknowledged_at']
+    
+    def get_color_class(self, obj):
+        return obj.get_color_class()
+
+
+# Task 9: Job Files & Document Sharing
+class JobFileSerializer(serializers.ModelSerializer):
+    """Serializer for job files"""
+    file_icon = serializers.SerializerMethodField()
+    uploader_name = serializers.CharField(source='uploaded_by.first_name', read_only=True)
+    job_number = serializers.CharField(source='job.job_number', read_only=True)
+    
+    class Meta:
+        model = JobFile
+        fields = [
+            'id', 'job', 'job_number', 'message', 'file',
+            'file_name', 'file_type', 'file_size', 'file_icon',
+            'uploaded_by', 'uploader_name', 'uploaded_at',
+            'is_shared', 'shared_with', 'download_count', 'last_downloaded_at'
+        ]
+        read_only_fields = ['id', 'uploaded_at', 'download_count', 'last_downloaded_at']
+
+
+class DocumentShareSerializer(serializers.ModelSerializer):
+    """Serializer for document sharing"""
+    file_name = serializers.CharField(source='file.file_name', read_only=True)
+    shared_with_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = DocumentShare
+        fields = [
+            'id', 'file', 'file_name', 'share_type', 'shared_with_user',
+            'shared_with_name', 'shared_with_group', 'status', 'share_date',
+            'access_count', 'last_accessed', 'expires_at', 'shared_by', 'notes'
+        ]
+        read_only_fields = ['id', 'share_date', 'access_count', 'last_accessed']
+    
+    def get_shared_with_name(self, obj):
+        if obj.shared_with_user:
+            return f"{obj.shared_with_user.first_name} {obj.shared_with_user.last_name}"
+        elif obj.shared_with_group:
+            return obj.shared_with_group.name
+        return None
+
 
 

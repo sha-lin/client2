@@ -7567,3 +7567,152 @@ class DeadlineCalculation(models.Model):
     def __str__(self):
         return f"Deadline calc for {self.purchase_order.po_number}"
 
+
+class DeadlineAlert(models.Model):
+    """Deadline alerts and notifications for jobs"""
+    ALERT_TYPES = [
+        ('approaching', 'Deadline Approaching'),
+        ('overdue', 'Overdue'),
+        ('due_today', 'Due Today'),
+        ('due_tomorrow', 'Due Tomorrow'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('acknowledged', 'Acknowledged'),
+        ('resolved', 'Resolved'),
+    ]
+    
+    URGENCY_CHOICES = [
+        ('low', 'Low'),
+        ('medium', 'Medium'),
+        ('high', 'High'),
+        ('critical', 'Critical'),
+    ]
+    
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='deadline_alerts')
+    alert_type = models.CharField(max_length=20, choices=ALERT_TYPES)
+    urgency = models.CharField(max_length=20, choices=URGENCY_CHOICES, default='medium')
+    message = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    
+    # Dates
+    days_until_deadline = models.IntegerField(help_text="Number of days until deadline (negative = overdue)")
+    created_at = models.DateTimeField(auto_now_add=True)
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='deadline_alerts_acknowledged')
+    
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['job', 'status']),
+            models.Index(fields=['urgency']),
+        ]
+    
+    def __str__(self):
+        return f"{self.get_alert_type_display()} - {self.job.job_number}"
+    
+    def get_color_class(self):
+        """Return CSS color class based on urgency"""
+        colors = {
+            'low': 'bg-blue-100 text-blue-800 border-blue-300',
+            'medium': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+            'high': 'bg-orange-100 text-orange-800 border-orange-300',
+            'critical': 'bg-red-100 text-red-800 border-red-300',
+        }
+        return colors.get(self.urgency, 'bg-gray-100 text-gray-800')
+
+
+class JobFile(models.Model):
+    """File uploads associated with job messages"""
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='files')
+    message = models.ForeignKey(JobMessage, on_delete=models.CASCADE, related_name='attachments', null=True, blank=True)
+    file = models.FileField(upload_to='job_files/%Y/%m/%d/')
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=50, help_text="e.g., pdf, doc, image, video")
+    file_size = models.IntegerField(help_text="File size in bytes")
+    
+    # Metadata
+    uploaded_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='uploaded_job_files')
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+    
+    # Access Control
+    is_shared = models.BooleanField(default=False, help_text="Can be downloaded by other team members")
+    shared_with = models.ManyToManyField('auth.User', related_name='shared_job_files', blank=True)
+    
+    # Tracking
+    download_count = models.IntegerField(default=0)
+    last_downloaded_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-uploaded_at']
+        indexes = [
+            models.Index(fields=['job', 'uploaded_at']),
+            models.Index(fields=['is_shared']),
+        ]
+    
+    def __str__(self):
+        return f"{self.file_name} - {self.job.job_number}"
+    
+    def get_file_icon(self):
+        """Return icon class based on file type"""
+        icons = {
+            'pdf': 'fa-file-pdf',
+            'doc': 'fa-file-word',
+            'docx': 'fa-file-word',
+            'xls': 'fa-file-excel',
+            'xlsx': 'fa-file-excel',
+            'ppt': 'fa-file-powerpoint',
+            'pptx': 'fa-file-powerpoint',
+            'zip': 'fa-file-archive',
+            'image': 'fa-file-image',
+            'video': 'fa-file-video',
+        }
+        for key, icon in icons.items():
+            if key in self.file_type.lower():
+                return icon
+        return 'fa-file'
+
+
+class DocumentShare(models.Model):
+    """Document sharing between teams"""
+    SHARE_TYPES = [
+        ('team', 'Share with Team'),
+        ('vendor', 'Share with Vendor'),
+        ('client', 'Share with Client'),
+        ('production', 'Share with Production'),
+    ]
+    
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('revoked', 'Revoked'),
+        ('expired', 'Expired'),
+    ]
+    
+    file = models.ForeignKey(JobFile, on_delete=models.CASCADE, related_name='shares')
+    share_type = models.CharField(max_length=20, choices=SHARE_TYPES)
+    shared_with_user = models.ForeignKey('auth.User', on_delete=models.CASCADE, null=True, blank=True, related_name='received_document_shares')
+    shared_with_group = models.ForeignKey('auth.Group', on_delete=models.CASCADE, null=True, blank=True, related_name='received_document_shares')
+    
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    share_date = models.DateTimeField(auto_now_add=True)
+    access_count = models.IntegerField(default=0)
+    last_accessed = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True, help_text="When sharing expires")
+    
+    # Tracking
+    shared_by = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, related_name='document_shares_made')
+    notes = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-share_date']
+        indexes = [
+            models.Index(fields=['file', 'status']),
+            models.Index(fields=['shared_with_user']),
+        ]
+    
+    def __str__(self):
+        recipient = self.shared_with_user or self.shared_with_group
+        return f"Shared {self.file.file_name} with {recipient}"
+
+

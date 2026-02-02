@@ -98,6 +98,13 @@ router.register("webhook-deliveries", api_views.WebhookDeliveryViewSet, basename
 
 # Production Team Specific APIs
 router.register("production-updates", api_views.ProductionUpdateViewSet, basename="production-update")
+
+# Task 8: Deadline Alerts
+router.register("deadline-alerts", api_views.DeadlineAlertViewSet, basename="deadline-alert")
+
+# Task 9: Job Files & Document Sharing
+router.register("job-files", api_views.JobFileViewSet, basename="job-file")
+router.register("document-shares", api_views.DocumentShareViewSet, basename="document-share")
 router.register("costing-engine", api_views.CostingEngineViewSet, basename="costing-engine")
 router.register("workload", api_views.WorkloadViewSet, basename="workload")
 router.register("production-analytics", api_views.ProductionAnalyticsViewSet, basename="production-analytics")

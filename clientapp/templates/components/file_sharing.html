@@ -1,0 +1,414 @@
+<!-- File Sharing Component -->
+<div id="job-files-container" class="space-y-4">
+    <!-- File Upload Section -->
+    <div class="bg-gray-50 rounded-lg p-4 border border-gray-200">
+        <h3 class="font-semibold text-sm mb-3">Upload Files</h3>
+        <div class="flex items-center gap-2">
+            <input type="file" id="file-input" multiple accept="*/*" class="flex-1 px-3 py-2 border rounded-lg text-sm">
+            <button id="file-upload-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium">
+                <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Upload
+            </button>
+        </div>
+        <p class="text-xs text-gray-600 mt-2">Max 50MB per file. Supported: PDF, DOC, XLS, Images, Videos</p>
+    </div>
+
+    <!-- Files List Section -->
+    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div class="bg-gray-50 px-4 py-3 border-b border-gray-200">
+            <h3 class="font-semibold text-sm">Files</h3>
+        </div>
+        
+        <!-- Empty State -->
+        <div id="files-empty-state" class="p-8 text-center text-gray-500">
+            <svg class="mx-auto h-12 w-12 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+            </svg>
+            <p class="text-sm">No files uploaded yet</p>
+        </div>
+        
+        <!-- Files Table -->
+        <div id="files-list" class="divide-y divide-gray-200">
+            <!-- File items will be inserted here -->
+        </div>
+    </div>
+
+    <!-- Upload Progress -->
+    <div id="upload-progress-container" class="hidden space-y-2">
+        <div id="upload-progress" class="rounded-lg overflow-hidden bg-gray-100 h-2">
+            <div id="progress-bar" class="bg-blue-500 h-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <p id="progress-text" class="text-xs text-gray-600"></p>
+    </div>
+</div>
+
+<!-- File Item Template -->
+<template id="file-item-template">
+    <div class="file-item p-4 hover:bg-gray-50 transition-colors" data-file-id="">
+        <div class="flex items-center justify-between">
+            <!-- File Info -->
+            <div class="flex items-center gap-3 flex-1 min-w-0">
+                <div class="file-icon text-2xl flex-shrink-0">📄</div>
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <h4 class="file-name font-medium text-sm truncate"></h4>
+                        <span class="file-size text-xs text-gray-600 flex-shrink-0"></span>
+                    </div>
+                    <div class="flex items-center gap-3 text-xs text-gray-600">
+                        <span class="file-type px-2 py-1 bg-gray-200 rounded"></span>
+                        <span class="file-uploader"></span>
+                        <span class="file-date"></span>
+                        <span class="file-download-count"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-2 ml-4">
+                <button class="file-download-btn px-2 py-1 text-blue-600 hover:bg-blue-50 rounded transition-colors text-sm" title="Download">
+                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                    Download
+                </button>
+                
+                <button class="file-share-btn px-2 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors text-sm" title="Share">
+                    <svg class="w-4 h-4 inline-block mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C9.822 10.938 11.40 10 13 10c1.211 0 2.417.663 3.288 1.711m0 0l-3-3m3 3l3 3M3 13h18"></path>
+                    </svg>
+                    Share
+                </button>
+
+                <div class="relative group">
+                    <button class="px-2 py-1 text-gray-600 hover:bg-gray-100 rounded transition-colors text-sm">⋮</button>
+                    <div class="hidden group-hover:block absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-lg z-10">
+                        <button class="file-toggle-share-btn w-full text-left px-4 py-2 hover:bg-gray-50 text-sm">
+                            <span class="file-share-status"></span>
+                        </button>
+                        <button class="file-delete-btn w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-sm">Delete</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Share Info -->
+        <div class="file-share-info hidden mt-2 pt-2 border-t border-gray-200 text-xs text-gray-600">
+            <div class="mb-1"><strong>Shared with:</strong> <span class="file-shared-with"></span></div>
+        </div>
+    </div>
+</template>
+
+<!-- Share Modal -->
+<div id="share-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div class="bg-white rounded-lg shadow-lg w-96 p-6">
+        <h3 class="font-semibold text-lg mb-4">Share File</h3>
+        
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Share Type</label>
+            <select id="share-type-select" class="w-full px-3 py-2 border rounded-lg">
+                <option value="team">Share with Team</option>
+                <option value="vendor">Share with Vendor</option>
+                <option value="production">Share with Production</option>
+                <option value="client">Share with Client</option>
+            </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="block text-sm font-medium mb-2">Select Users</label>
+            <div id="user-list" class="border rounded-lg p-3 max-h-64 overflow-y-auto">
+                <!-- User checkboxes will be inserted here -->
+            </div>
+        </div>
+
+        <div class="flex gap-2 justify-end">
+            <button id="share-cancel-btn" class="px-4 py-2 border rounded-lg hover:bg-gray-50">Cancel</button>
+            <button id="share-confirm-btn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Share</button>
+        </div>
+    </div>
+</div>
+
+<style>
+    .file-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+</style>
+
+<script>
+    class FileShareManager {
+        constructor(jobId) {
+            this.jobId = jobId;
+            this.files = {};
+            this.container = document.getElementById('job-files-container');
+            this.template = document.getElementById('file-item-template');
+            this.filesList = document.getElementById('files-list');
+            this.emptyState = document.getElementById('files-empty-state');
+            this.shareModal = document.getElementById('share-modal');
+            this.uploadInput = document.getElementById('file-input');
+            this.uploadBtn = document.getElementById('file-upload-btn');
+            this.init();
+        }
+
+        async init() {
+            await this.loadFiles();
+            this.setupEventListeners();
+            this.setupWebSocket();
+        }
+
+        async loadFiles() {
+            try {
+                const response = await fetch(`/api/job-files/?job=${this.jobId}`, {
+                    headers: {
+                        'Authorization': `Bearer ${this.getAuthToken()}`
+                    }
+                });
+                const files = await response.json();
+                if (Array.isArray(files.results)) {
+                    files.results.forEach(file => this.addFileItem(file));
+                } else if (Array.isArray(files)) {
+                    files.forEach(file => this.addFileItem(file));
+                }
+                this.updateUI();
+            } catch (error) {
+                console.error('Error loading files:', error);
+            }
+        }
+
+        setupEventListeners() {
+            this.uploadBtn.addEventListener('click', () => this.handleUpload());
+            this.uploadInput.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.uploadBtn.disabled = false;
+                }
+            });
+
+            document.getElementById('share-cancel-btn')?.addEventListener('click', () => {
+                this.shareModal.classList.add('hidden');
+            });
+
+            document.getElementById('share-confirm-btn')?.addEventListener('click', () => {
+                this.confirmShare();
+            });
+        }
+
+        setupWebSocket() {
+            if (window.wsClient && typeof window.wsClient.connectToJobFiles === 'function') {
+                window.wsClient.connectToJobFiles(this.jobId, (data) => {
+                    if (data.update_type === 'file_uploaded') {
+                        this.addFileItem(data.file);
+                    } else if (data.update_type === 'file_downloaded') {
+                        this.showNotification(`${data.downloaded_by} downloaded ${data.file_name}`);
+                    } else if (data.update_type === 'file_shared') {
+                        this.showNotification(`${data.file_name} was shared with ${data.shared_with}`);
+                    }
+                    this.updateUI();
+                });
+            }
+        }
+
+        async handleUpload() {
+            const files = this.uploadInput.files;
+            if (files.length === 0) return;
+
+            const progressContainer = document.getElementById('upload-progress-container');
+            progressContainer.classList.remove('hidden');
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const formData = new FormData();
+                formData.append('job', this.jobId);
+                formData.append('file', file);
+                formData.append('file_name', file.name);
+                formData.append('file_type', file.type);
+                formData.append('file_size', file.size);
+
+                try {
+                    const xhr = new XMLHttpRequest();
+                    xhr.upload.addEventListener('progress', (e) => {
+                        if (e.lengthComputable) {
+                            const percentComplete = (e.loaded / e.total) * 100;
+                            this.updateProgress(percentComplete);
+                        }
+                    });
+
+                    xhr.addEventListener('load', () => {
+                        if (xhr.status === 201 || xhr.status === 200) {
+                            const fileData = JSON.parse(xhr.responseText);
+                            this.addFileItem(fileData);
+                            this.updateUI();
+                        }
+                    });
+
+                    xhr.open('POST', '/api/job-files/');
+                    xhr.setRequestHeader('Authorization', `Bearer ${this.getAuthToken()}`);
+                    xhr.send(formData);
+                } catch (error) {
+                    console.error('Error uploading file:', error);
+                }
+            }
+
+            setTimeout(() => {
+                progressContainer.classList.add('hidden');
+                this.uploadInput.value = '';
+            }, 2000);
+        }
+
+        addFileItem(file) {
+            const clone = this.template.content.cloneNode(true);
+            const item = clone.querySelector('.file-item');
+            item.setAttribute('data-file-id', file.id);
+
+            // Set file info
+            clone.querySelector('.file-name').textContent = file.file_name;
+            clone.querySelector('.file-type').textContent = this.getFileType(file.file_type);
+            clone.querySelector('.file-size').textContent = this.formatFileSize(file.file_size);
+            clone.querySelector('.file-uploader').textContent = `By ${file.uploader_name || 'Unknown'}`;
+            clone.querySelector('.file-date').textContent = this.formatDate(file.uploaded_at);
+            clone.querySelector('.file-download-count').textContent = `Downloaded ${file.download_count} times`;
+
+            // Set icon
+            const icon = this.getFileIcon(file.file_type);
+            clone.querySelector('.file-icon').textContent = icon;
+
+            // Download handler
+            clone.querySelector('.file-download-btn').addEventListener('click', () => {
+                this.downloadFile(file.id);
+            });
+
+            // Share handler
+            clone.querySelector('.file-share-btn').addEventListener('click', () => {
+                this.openShareModal(file.id);
+            });
+
+            this.filesList.appendChild(clone);
+            this.files[file.id] = file;
+        }
+
+        async downloadFile(fileId) {
+            try {
+                const response = await fetch(`/api/job-files/${fileId}/download/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.getAuthToken()}`
+                    }
+                });
+                const data = await response.json();
+                window.open(data.download_url, '_blank');
+            } catch (error) {
+                console.error('Error downloading file:', error);
+            }
+        }
+
+        openShareModal(fileId) {
+            // Load users and display modal
+            this.currentFileId = fileId;
+            this.shareModal.classList.remove('hidden');
+        }
+
+        async confirmShare() {
+            const shareType = document.getElementById('share-type-select').value;
+            const selectedUsers = Array.from(
+                document.querySelectorAll('#user-list input:checked')
+            ).map(input => parseInt(input.value));
+
+            try {
+                await fetch(`/api/job-files/${this.currentFileId}/share/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.getAuthToken()}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        share_type: shareType,
+                        user_ids: selectedUsers
+                    })
+                });
+                this.shareModal.classList.add('hidden');
+                this.showNotification('File shared successfully!');
+            } catch (error) {
+                console.error('Error sharing file:', error);
+            }
+        }
+
+        updateProgress(percent) {
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('progress-text').textContent = `Uploading... ${Math.round(percent)}%`;
+        }
+
+        updateUI() {
+            if (Object.keys(this.files).length === 0) {
+                this.emptyState.classList.remove('hidden');
+                this.filesList.classList.add('hidden');
+            } else {
+                this.emptyState.classList.add('hidden');
+                this.filesList.classList.remove('hidden');
+            }
+        }
+
+        getFileType(type) {
+            const types = {
+                'pdf': 'PDF',
+                'doc': 'DOC',
+                'docx': 'DOCX',
+                'xls': 'XLS',
+                'xlsx': 'XLSX',
+                'image': 'Image',
+                'video': 'Video',
+            };
+            for (let key in types) {
+                if (type.toLowerCase().includes(key)) {
+                    return types[key];
+                }
+            }
+            return type.toUpperCase();
+        }
+
+        getFileIcon(type) {
+            const icons = {
+                'pdf': '📄',
+                'doc': '📝',
+                'xls': '📊',
+                'image': '🖼️',
+                'video': '🎥',
+                'zip': '📦',
+            };
+            for (let key in icons) {
+                if (type.toLowerCase().includes(key)) {
+                    return icons[key];
+                }
+            }
+            return '📄';
+        }
+
+        formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+
+        formatDate(dateString) {
+            return new Date(dateString).toLocaleDateString();
+        }
+
+        showNotification(message) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        getAuthToken() {
+            return localStorage.getItem('auth_token') || 
+                   document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        }
+    }
+
+    // Initialize when page loads
+    window.FileShareManager = FileShareManager;
+</script>

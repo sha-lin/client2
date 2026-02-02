@@ -147,3 +147,112 @@ def broadcast_substitution_update(substitution_id, update_type, data):
             }
         )
     )
+
+
+# Task 8: Deadline Alerts Broadcasting
+def broadcast_deadline_alert(job_id, alert_type, urgency, message, days_until_deadline):
+    """
+    Broadcast deadline alert to relevant users
+    
+    Args:
+        job_id: Job ID with approaching deadline
+        alert_type: Type of alert (approaching, overdue, due_today, due_tomorrow)
+        urgency: Urgency level (low, medium, high, critical)
+        message: Alert message
+        days_until_deadline: Number of days until deadline
+    """
+    channel_layer = get_channel_layer()
+    group_name = f'alerts_deadline'
+    
+    asyncio.run(
+        channel_layer.group_send(
+            group_name,
+            {
+                'type': 'deadline_alert_created',
+                'job_id': job_id,
+                'alert_type': alert_type,
+                'urgency': urgency,
+                'message': message,
+                'days_until_deadline': days_until_deadline,
+                'timestamp': timezone.now().isoformat(),
+            }
+        )
+    )
+
+
+def broadcast_deadline_acknowledged(alert):
+    """Broadcast that deadline alert has been acknowledged"""
+    channel_layer = get_channel_layer()
+    group_name = f'job_{alert.job.id}'
+    
+    asyncio.run(
+        channel_layer.group_send(
+            group_name,
+            {
+                'type': 'deadline_acknowledged',
+                'alert_id': alert.id,
+                'job_id': alert.job.id,
+                'acknowledged_by': alert.acknowledged_by.first_name if alert.acknowledged_by else 'System',
+                'timestamp': timezone.now().isoformat(),
+            }
+        )
+    )
+
+
+def broadcast_deadline_resolved(alert):
+    """Broadcast that deadline alert has been resolved"""
+    channel_layer = get_channel_layer()
+    group_name = f'job_{alert.job.id}'
+    
+    asyncio.run(
+        channel_layer.group_send(
+            group_name,
+            {
+                'type': 'deadline_resolved',
+                'alert_id': alert.id,
+                'job_id': alert.job.id,
+                'timestamp': timezone.now().isoformat(),
+            }
+        )
+    )
+
+
+# Task 9: File Sharing Broadcasting
+def broadcast_file_downloaded(file, user):
+    """Broadcast file download notification"""
+    channel_layer = get_channel_layer()
+    group_name = f'job_{file.job.id}'
+    
+    asyncio.run(
+        channel_layer.group_send(
+            group_name,
+            {
+                'type': 'file_downloaded',
+                'file_id': file.id,
+                'file_name': file.file_name,
+                'downloaded_by': user.first_name,
+                'timestamp': timezone.now().isoformat(),
+            }
+        )
+    )
+
+
+def broadcast_file_shared(file, shared_with_user, share_type):
+    """Broadcast file sharing notification"""
+    channel_layer = get_channel_layer()
+    group_name = f'job_{file.job.id}'
+    
+    asyncio.run(
+        channel_layer.group_send(
+            group_name,
+            {
+                'type': 'file_shared',
+                'file_id': file.id,
+                'file_name': file.file_name,
+                'shared_with': shared_with_user.first_name if shared_with_user else 'Team',
+                'share_type': share_type,
+                'timestamp': timezone.now().isoformat(),
+            }
+        )
+    )
+

@@ -1,0 +1,316 @@
+<!-- Deadline Alerts Component -->
+<div id="deadline-alerts-container" class="space-y-3">
+    <!-- Alert Summary Bar -->
+    <div id="alert-summary" class="hidden grid grid-cols-4 gap-2 text-sm font-semibold mb-4">
+        <div class="bg-red-100 text-red-800 rounded p-3 border-l-4 border-red-600">
+            <div class="text-2xl">0</div>
+            <div>Critical</div>
+        </div>
+        <div class="bg-orange-100 text-orange-800 rounded p-3 border-l-4 border-orange-600">
+            <div class="text-2xl">0</div>
+            <div>High</div>
+        </div>
+        <div class="bg-yellow-100 text-yellow-800 rounded p-3 border-l-4 border-yellow-600">
+            <div class="text-2xl">0</div>
+            <div>Medium</div>
+        </div>
+        <div class="bg-blue-100 text-blue-800 rounded p-3 border-l-4 border-blue-600">
+            <div class="text-2xl">0</div>
+            <div>Low</div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="alerts-empty-state" class="text-center py-8 text-gray-500">
+        <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="text-sm">All deadlines are on track!</p>
+    </div>
+
+    <!-- Alerts List -->
+    <div id="alerts-list" class="space-y-3">
+        <!-- Alert items will be inserted here -->
+    </div>
+</div>
+
+<!-- Alert Item Template -->
+<template id="alert-item-template">
+    <div class="alert-item rounded-lg border-l-4 p-4 shadow-sm hover:shadow-md transition-shadow">
+        <!-- Alert Header -->
+        <div class="flex items-start justify-between mb-2">
+            <div class="flex items-start flex-1">
+                <div class="mr-3">
+                    <span class="alert-icon text-2xl"></span>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center gap-2">
+                        <h4 class="alert-title font-semibold text-sm"></h4>
+                        <span class="alert-type text-xs font-medium px-2 py-1 rounded-full"></span>
+                    </div>
+                    <p class="alert-job-number text-xs text-gray-600 mt-1"></p>
+                    <p class="alert-message text-sm mt-2"></p>
+                </div>
+            </div>
+            <div class="flex gap-2 ml-3">
+                <button class="alert-acknowledge-btn text-xs px-2 py-1 rounded border transition-colors hover:bg-gray-100" title="Acknowledge alert">
+                    <svg class="w-4 h-4 inline-block mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                    </svg>
+                    Acknowledge
+                </button>
+                <button class="alert-close-btn text-xs text-gray-500 hover:text-gray-700" title="Close">
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Alert Details -->
+        <div class="flex items-center justify-between text-xs text-gray-600 ml-10 mt-2">
+            <div class="space-y-1">
+                <span class="block">
+                    <strong>Deadline:</strong>
+                    <span class="alert-deadline"></span>
+                </span>
+                <span class="block">
+                    <strong>Days Remaining:</strong>
+                    <span class="alert-days"></span>
+                </span>
+            </div>
+            <div class="text-right">
+                <div class="alert-assigned-to text-xs"></div>
+                <div class="alert-created-at text-xs text-gray-500 mt-1"></div>
+            </div>
+        </div>
+
+        <!-- Alert Footer (Status Bar) -->
+        <div class="alert-footer hidden mt-3 pt-3 border-t text-xs text-gray-600">
+            <span class="alert-status-badge px-2 py-1 rounded-full inline-block"></span>
+        </div>
+    </div>
+</template>
+
+<style>
+    /* Alert color schemes */
+    .alert-item.urgency-critical {
+        @apply bg-red-50 border-red-500;
+    }
+    .alert-item.urgency-critical .alert-type {
+        @apply bg-red-200 text-red-800;
+    }
+
+    .alert-item.urgency-high {
+        @apply bg-orange-50 border-orange-500;
+    }
+    .alert-item.urgency-high .alert-type {
+        @apply bg-orange-200 text-orange-800;
+    }
+
+    .alert-item.urgency-medium {
+        @apply bg-yellow-50 border-yellow-500;
+    }
+    .alert-item.urgency-medium .alert-type {
+        @apply bg-yellow-200 text-yellow-800;
+    }
+
+    .alert-item.urgency-low {
+        @apply bg-blue-50 border-blue-500;
+    }
+    .alert-item.urgency-low .alert-type {
+        @apply bg-blue-200 text-blue-800;
+    }
+
+    /* Alert icons */
+    .alert-item.alert-approaching .alert-icon::before {
+        content: "⏰";
+    }
+    .alert-item.alert-due-today .alert-icon::before {
+        content: "📅";
+    }
+    .alert-item.alert-due-tomorrow .alert-icon::before {
+        content: "📅";
+    }
+    .alert-item.alert-overdue .alert-icon::before {
+        content: "⚠️";
+    }
+
+    /* Acknowledged state */
+    .alert-item.acknowledged {
+        @apply opacity-60;
+    }
+    .alert-item.acknowledged .alert-acknowledged-badge {
+        @apply block;
+    }
+</style>
+
+<script>
+    // Deadline Alerts Management
+    class DeadlineAlertsManager {
+        constructor() {
+            this.alerts = {};
+            this.container = document.getElementById('deadline-alerts-container');
+            this.template = document.getElementById('alert-item-template');
+            this.alertsList = document.getElementById('alerts-list');
+            this.emptyState = document.getElementById('alerts-empty-state');
+            this.summary = document.getElementById('alert-summary');
+            this.init();
+        }
+
+        async init() {
+            await this.loadAlerts();
+            this.setupWebSocket();
+        }
+
+        async loadAlerts() {
+            try {
+                const response = await fetch('/api/deadline-alerts/active/', {
+                    headers: {
+                        'Authorization': `Bearer ${this.getAuthToken()}`
+                    }
+                });
+                const alerts = await response.json();
+                alerts.forEach(alert => this.addAlert(alert));
+                this.updateUI();
+            } catch (error) {
+                console.error('Error loading deadline alerts:', error);
+            }
+        }
+
+        setupWebSocket() {
+            // Connect to deadline alerts via WebSocket
+            if (window.wsClient && typeof window.wsClient.connectToAlerts === 'function') {
+                window.wsClient.connectToAlerts((data) => {
+                    if (data.update_type === 'deadline_alert_created') {
+                        this.addAlert(data);
+                    } else if (data.update_type === 'deadline_acknowledged') {
+                        this.markAsAcknowledged(data.alert_id);
+                    } else if (data.update_type === 'deadline_resolved') {
+                        this.removeAlert(data.alert_id);
+                    }
+                    this.updateUI();
+                });
+            }
+        }
+
+        addAlert(alert) {
+            // Clone template
+            const clone = this.template.content.cloneNode(true);
+            
+            // Set basic info
+            clone.querySelector('.alert-title').textContent = alert.get_alert_type_display || alert.alert_type;
+            clone.querySelector('.alert-job-number').textContent = `Job: ${alert.job_number}`;
+            clone.querySelector('.alert-message').textContent = alert.message;
+            clone.querySelector('.alert-type').textContent = alert.urgency.toUpperCase();
+            clone.querySelector('.alert-deadline').textContent = alert.job_deadline || 'TBD';
+            
+            // Days remaining
+            const daysEl = clone.querySelector('.alert-days');
+            if (alert.days_until_deadline > 0) {
+                daysEl.textContent = `${alert.days_until_deadline} days`;
+            } else if (alert.days_until_deadline === 0) {
+                daysEl.textContent = 'Due today!';
+                daysEl.parentElement.classList.add('font-semibold', 'text-orange-600');
+            } else {
+                daysEl.textContent = `${Math.abs(alert.days_until_deadline)} days overdue`;
+                daysEl.parentElement.classList.add('font-semibold', 'text-red-600');
+            }
+            
+            // Assigned to
+            clone.querySelector('.alert-assigned-to').textContent = alert.assigned_to || 'Unassigned';
+            
+            // Created at
+            const created = new Date(alert.created_at);
+            clone.querySelector('.alert-created-at').textContent = created.toLocaleDateString();
+            
+            // Add event listeners
+            const item = clone.querySelector('.alert-item');
+            item.classList.add(`alert-${alert.alert_type}`, `urgency-${alert.urgency}`);
+            
+            if (alert.status === 'acknowledged') {
+                item.classList.add('acknowledged');
+            }
+            
+            clone.querySelector('.alert-acknowledge-btn').addEventListener('click', () => {
+                this.acknowledgeAlert(alert.id);
+            });
+            
+            clone.querySelector('.alert-close-btn').addEventListener('click', () => {
+                item.remove();
+                delete this.alerts[alert.id];
+                this.updateUI();
+            });
+            
+            this.alertsList.appendChild(clone);
+            this.alerts[alert.id] = alert;
+        }
+
+        markAsAcknowledged(alertId) {
+            if (this.alerts[alertId]) {
+                this.alerts[alertId].status = 'acknowledged';
+                const item = this.alertsList.querySelector(`[data-alert-id="${alertId}"]`);
+                if (item) {
+                    item.classList.add('acknowledged');
+                }
+            }
+        }
+
+        removeAlert(alertId) {
+            delete this.alerts[alertId];
+            const items = this.alertsList.querySelectorAll('.alert-item');
+            items.forEach(item => {
+                if (item.getAttribute('data-alert-id') == alertId) {
+                    item.remove();
+                }
+            });
+        }
+
+        async acknowledgeAlert(alertId) {
+            try {
+                await fetch(`/api/deadline-alerts/${alertId}/acknowledge/`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${this.getAuthToken()}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                this.markAsAcknowledged(alertId);
+                this.updateUI();
+            } catch (error) {
+                console.error('Error acknowledging alert:', error);
+            }
+        }
+
+        updateUI() {
+            const total = Object.keys(this.alerts).length;
+            const critical = Object.values(this.alerts).filter(a => a.urgency === 'critical').length;
+            const high = Object.values(this.alerts).filter(a => a.urgency === 'high').length;
+            const medium = Object.values(this.alerts).filter(a => a.urgency === 'medium').length;
+            const low = Object.values(this.alerts).filter(a => a.urgency === 'low').length;
+            
+            if (total === 0) {
+                this.emptyState.classList.remove('hidden');
+                this.summary.classList.add('hidden');
+            } else {
+                this.emptyState.classList.add('hidden');
+                this.summary.classList.remove('hidden');
+                this.summary.querySelector('.bg-red-100 .text-2xl').textContent = critical;
+                this.summary.querySelector('.bg-orange-100 .text-2xl').textContent = high;
+                this.summary.querySelector('.bg-yellow-100 .text-2xl').textContent = medium;
+                this.summary.querySelector('.bg-blue-100 .text-2xl').textContent = low;
+            }
+        }
+
+        getAuthToken() {
+            // Get from localStorage or cookie
+            return localStorage.getItem('auth_token') || 
+                   document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        }
+    }
+
+    // Initialize when document is ready
+    document.addEventListener('DOMContentLoaded', function() {
+        window.deadlineAlertsManager = new DeadlineAlertsManager();
+    });
+</script>
